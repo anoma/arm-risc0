@@ -1,0 +1,13 @@
+[package]
+name = "aarm-core"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+# If you want to try (experimental) std support, add `features = [ "std" ]` to risc0-zkvm
+risc0-zkvm = { version = "0.20.1", default-features = false }
+serde = { version = "1.0.197", default-features = false }
+starknet-crypto = { version = "0.6.1", default-features = false }
+serde-big-array = "0.5.1"

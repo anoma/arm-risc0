@@ -1,0 +1,11 @@
+[package]
+name = "consume_resource"
+version = "0.1.0"
+edition = "2021"
+
+[workspace]
+
+[dependencies]
+aarm-core = { path = "../../core" }
+# If you want to try (experimental) std support, add `features = [ "std" ]` to risc0-zkvm
+risc0-zkvm = { version = "0.20.1", default-features = false }

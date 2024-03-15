@@ -1,0 +1,12 @@
+[package]
+name = "always-true"
+version = "0.1.0"
+edition = "2021"
+
+[workspace]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+# If you want to try (experimental) std support, add `features = [ "std" ]` to risc0-zkvm
+risc0-zkvm = { version = "0.20.1", default-features = false }
