@@ -3,8 +3,7 @@ use k256::{
     elliptic_curve::{
         group::{ff::PrimeField, GroupEncoding},
         hash2curve::{ExpandMsgXmd, GroupDigest},
-    },
-    AffinePoint, ProjectivePoint, Scalar, Secp256k1,
+    }, ProjectivePoint, Scalar, Secp256k1,
 };
 use risc0_zkvm::sha::{
     rust_crypto::Sha256 as Sha256Type, Impl, Sha256, DIGEST_BYTES, Digest};
@@ -247,10 +246,11 @@ pub struct Compliance<const COMMITMENT_TREE_DEPTH: usize>
     #[serde(with = "BigArray")]
     pub merkle_path: [(Digest, bool); COMMITMENT_TREE_DEPTH],
     pub output_resource: Resource,
-    pub rcv: [u8; DATA_BYTES],
-    pub input_resource_logic_cm_r: [u8; DATA_BYTES],
-    pub output_resource_logic_cm_r: [u8; DATA_BYTES],
+    pub rcv: Scalar,
     pub nsk: Nsk
+    // TODO: If we want to add function privacy, include:
+    // pub input_resource_logic_cm_r: [u8; DATA_BYTES],
+    // pub output_resource_logic_cm_r: [u8; DATA_BYTES],
 }
 
 impl<const COMMITMENT_TREE_DEPTH: usize> Compliance<COMMITMENT_TREE_DEPTH>
@@ -282,7 +282,10 @@ impl<const COMMITMENT_TREE_DEPTH: usize> Compliance<COMMITMENT_TREE_DEPTH>
     fn compute_delta_commitment(&self) -> [u8; DATA_BYTES] {
         // Compute delta and make delta commitment public
         // Comm(input_value - output_value)
-        let delta = self.input_resource.kind() * self.input_resource.quantity() - self.output_resource.kind() * self.output_resource.quantity();
+        let delta 
+            = self.input_resource.kind() * self.input_resource.quantity() 
+            - self.output_resource.kind() * self.output_resource.quantity() 
+            + ProjectivePoint::GENERATOR * self.rcv;
 
         delta.to_affine().to_bytes()[..].try_into().unwrap()
     }
