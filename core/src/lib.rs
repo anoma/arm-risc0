@@ -1,12 +1,11 @@
 #![no_std]
 use k256::{
     elliptic_curve::{
-        group::{ff::PrimeField, GroupEncoding},
-        hash2curve::{ExpandMsgXmd, GroupDigest},
+        group::{ff::PrimeField, GroupEncoding}, hash2curve::{ExpandMsgXmd, GroupDigest}, rand_core::{le, RngCore}, Field
     }, ProjectivePoint, Scalar, Secp256k1,
 };
-use risc0_zkvm::sha::{
-    rust_crypto::Sha256 as Sha256Type, Impl, Sha256, DIGEST_BYTES, Digest};
+use risc0_zkvm::{default_prover, sha::{
+    rust_crypto::Sha256 as Sha256Type, Digest, Impl, Sha256, DIGEST_BYTES}, ExecutorEnv};
 use risc0_zkvm::guest::env;
 use serde_big_array::BigArray;
 use serde::{Deserialize, Serialize};
@@ -14,13 +13,14 @@ use serde::{Deserialize, Serialize};
 
 const DST: &[u8] = b"QUUX-V01-CS02-with-secp256k1_XMD:SHA-256_SSWU_RO_";
 
+
 /// Nullifier secret key
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize)]
 pub struct Nsk(Digest);
 
 impl Nsk {
 
-    pub fn new(&self, nsk: Digest) -> Nsk {
+    pub fn new(nsk: Digest) -> Nsk {
         Nsk(nsk)
     }
     /// Compute the corresponding nullifier public key
@@ -243,9 +243,9 @@ where
 pub struct Compliance<const COMMITMENT_TREE_DEPTH: usize> 
 {
     pub input_resource: Resource,
+    pub output_resource: Resource,
     #[serde(with = "BigArray")]
     pub merkle_path: [(Digest, bool); COMMITMENT_TREE_DEPTH],
-    pub output_resource: Resource,
     pub rcv: Scalar,
     pub nsk: Nsk
     // TODO: If we want to add function privacy, include:
@@ -255,31 +255,23 @@ pub struct Compliance<const COMMITMENT_TREE_DEPTH: usize>
 
 impl<const COMMITMENT_TREE_DEPTH: usize> Compliance<COMMITMENT_TREE_DEPTH>
 {
-    pub fn check(&self) {
-        let nf = self.check_input_resource();
-        let cm = self.check_output_resource();
-        let merkle_root = self.check_merkle_tree_path(cm);
-        let delta = self.compute_delta_commitment();
-        env::commit(&(nf, cm, merkle_root, delta));
-    }    
-
-    fn check_input_resource(&self) -> Digest {
+    fn input_resource(&self) -> Digest {
         let nf = self.input_resource.nullifier(self.nsk).unwrap(); // Q: Do we want better error handling?
         nf
     }
 
-    fn check_output_resource(&self) -> Digest {
+    fn output_resource(&self) -> Digest {
         let cm = self.output_resource.commitment();
         cm
     }
 
-    fn check_merkle_tree_path(&self, cm: Digest) -> Digest {
+    fn merkle_tree_path(&self, cm: Digest) -> Digest {
         // Check the input resource is along the merkle path and it can generate the root and publicise the root
         let merkle_root = MerklePath::from_path(self.merkle_path).root(cm);
         merkle_root
     }
 
-    fn compute_delta_commitment(&self) -> [u8; DATA_BYTES] {
+    fn delta_commitment(&self) -> [u8; DATA_BYTES] {
         // Compute delta and make delta commitment public
         // Comm(input_value - output_value)
         let delta 
@@ -289,5 +281,19 @@ impl<const COMMITMENT_TREE_DEPTH: usize> Compliance<COMMITMENT_TREE_DEPTH>
 
         delta.to_affine().to_bytes()[..].try_into().unwrap()
     }
+
+}
+
+// Guest: Read input and commit output
+// This is the portion of the code that will be proven
+pub fn guest() {
+    let compliance_circuit: Compliance<16> = env::read();
+
+    let nf = compliance_circuit.input_resource();
+    let cm = compliance_circuit.output_resource();
+    let merkle_root = compliance_circuit.merkle_tree_path(cm);
+    let delta = compliance_circuit.delta_commitment();
+
+    env::commit(&(nf, cm, merkle_root, delta));
 }
 
