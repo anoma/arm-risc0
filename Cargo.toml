@@ -15,6 +15,3 @@ lto = true
 
 [profile.release.build-override]
 opt-level = 3
-
-[build]
-rustflags = ["-Z", "unstable-options"]
