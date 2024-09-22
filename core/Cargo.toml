@@ -12,6 +12,7 @@ serde = { version = "1.0.197", default-features = false }
 serde-big-array = "0.5.1"
 k256 = { version = "=0.13.1", features = ["arithmetic", "serde", "expose-field", "std", "ecdsa", "hash2curve"], default_features = false }
 sha2 = "0.10.6"
+rand = "0.8"
 
 [patch.crates-io]
 # Placing these patch statement in the workspace Cargo.toml will add RISC Zero SHA-256 and bigint

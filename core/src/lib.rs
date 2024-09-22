@@ -9,9 +9,12 @@ use risc0_zkvm::{default_prover, sha::{
 use risc0_zkvm::guest::env;
 use serde_big_array::BigArray;
 use serde::{Deserialize, Serialize};
+use rand::Rng;
 
 
 const DST: &[u8] = b"QUUX-V01-CS02-with-secp256k1_XMD:SHA-256_SSWU_RO_";
+
+const COMPRESSED_TRIVIAL_RESOURCE_LOGIC_VK: &[u8] = b"trivial_resource_logic_vk";
 
 
 /// Nullifier secret key
@@ -63,7 +66,7 @@ pub struct Resource {
     // specifies the fungibility domain for the resource
     pub label: [u8; LABEL_BYTES],
     // number representing the quantity of the resource
-    pub quantity: [u8; FELT_BYTES],
+    pub quantity: [u8; FELT_BYTES],  
     // the fungible data of the resource
     pub value: [u8; FUNGIBLE_BYTES],
     // flag that reflects the resource ephemerality
@@ -282,18 +285,78 @@ impl<const COMMITMENT_TREE_DEPTH: usize> Compliance<COMMITMENT_TREE_DEPTH>
         delta.to_affine().to_bytes()[..].try_into().unwrap()
     }
 
+    fn default() -> Compliance<16> {
+        let mut rng = rand::thread_rng();
+        let label: [u8; 32] = rng.gen();
+        let nonce_1: [u8; 32] = rng.gen();
+        let nonce_2: [u8; 32] = rng.gen();
+
+        let nsk = Nsk::new(Digest::default());
+        const ONE: [u8; 32] = {
+            let mut bytes = [0u8; FELT_BYTES];
+            bytes[0] = 1;
+            bytes
+        };
+
+        let input_resource = Resource {
+            image_id: *Impl::hash_bytes(COMPRESSED_TRIVIAL_RESOURCE_LOGIC_VK),
+            label,
+            quantity: ONE,
+            value: ONE,
+            eph: false,
+            nonce: *Impl::hash_bytes(&nonce_1),
+            npk: nsk.public_key(),
+            rseed: rng.gen()
+        };
+
+       let output_resource = Resource {
+            image_id: *Impl::hash_bytes(COMPRESSED_TRIVIAL_RESOURCE_LOGIC_VK),
+            label,
+            quantity: ONE,
+            value: ONE,
+            eph: false,
+            nonce: *Impl::hash_bytes(&nonce_2),
+            npk: nsk.public_key(),
+            rseed: rng.gen()
+        };
+
+        let merkle_path = [(Digest::default(), false); 16];
+
+        let rcv = Scalar::random(rng);
+
+
+        Compliance {
+            input_resource,
+            output_resource,
+            merkle_path,
+            rcv,
+            nsk
+        }
+    }
 }
 
 // Guest: Read input and commit output
 // This is the portion of the code that will be proven
-pub fn guest() {
-    let compliance_circuit: Compliance<16> = env::read();
 
-    let nf = compliance_circuit.input_resource();
-    let cm = compliance_circuit.output_resource();
-    let merkle_root = compliance_circuit.merkle_tree_path(cm);
-    let delta = compliance_circuit.delta_commitment();
 
-    env::commit(&(nf, cm, merkle_root, delta));
+
+pub fn host() {
+    let mut rng = rand::thread_rng();
+
+    let compliance = Compliance::<16>::default();
+    
+    let env = ExecutorEnv::builder()
+        .write(&compliance)
+        .unwrap()
+        .build()
+        .unwrap();
+    
+    
+    let prover = default_prover();
+
+    // Produce a receipt by proving the specified ELF binary.
+    let receipt = prover.prove(env, &[rng.gen()]).unwrap().receipt;
+
+    // Extract journal of receipt
+    let (nf, cm, merkle_root, delta): (Digest, Digest, Digest, [u8; DATA_BYTES]) = receipt.journal.decode().unwrap();
 }
-
