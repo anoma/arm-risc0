@@ -10,7 +10,9 @@ use risc0_zkvm::guest::env;
 use serde_big_array::BigArray;
 use serde::{Deserialize, Serialize};
 use rand::Rng;
-
+use methods::{
+    COMPLIANCE_GUEST_ELF, COMPLIANCE_GUEST_ID
+};
 
 const DST: &[u8] = b"QUUX-V01-CS02-with-secp256k1_XMD:SHA-256_SSWU_RO_";
 
@@ -57,6 +59,8 @@ const RESOURCE_BYTES: usize = DIGEST_BYTES
     + RSEED_BYTES;
 
 pub const COMMITMENT_TREE_DEPTH: usize = 32;
+
+pub const DIGEST_WORDS: usize = 8;
 
 /// A resource that can be created and consumed
 #[derive(Clone, Default, serde::Serialize, serde::Deserialize)]
@@ -106,7 +110,6 @@ impl Resource {
         bytes[offset..offset + DIGEST_BYTES].clone_from_slice(&self.nonce.as_ref());
         offset += DIGEST_BYTES;
         assert_eq!(offset, 2 * DIGEST_BYTES);
-        // Now produce the hash
         *Impl::hash_bytes(&bytes)
     }
 
@@ -114,6 +117,18 @@ impl Resource {
     // pub fn delta(&self) -> FieldElement {
     //     pedersen_hash(&self.kind(), &self.quantity())
     // }
+    pub fn rcm(&self) -> Digest {
+        let mut bytes = [0u8; 2 * DIGEST_BYTES];
+        let mut offset: usize = 1;
+        // Write the random seed
+        bytes[offset..offset + DIGEST_BYTES].clone_from_slice(&self.rseed.as_ref());
+        offset += DIGEST_BYTES;
+        // Write the nonce
+        bytes[offset..offset + DIGEST_BYTES].clone_from_slice(&self.nonce.as_ref());
+        offset += DIGEST_BYTES;
+        assert_eq!(offset, 2 * DIGEST_BYTES);
+        *Impl::hash_bytes(&bytes)
+    }
 
     // Compute the commitment to the resource
     pub fn commitment(&self) -> Digest {
@@ -245,12 +260,17 @@ where
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub struct Compliance<const COMMITMENT_TREE_DEPTH: usize> 
 {
+    /// The input resource
     pub input_resource: Resource,
+    /// The output resource
     pub output_resource: Resource,
+    /// The path from the output commitment to the root in the resource commitment tree
     #[serde(with = "BigArray")]
-    pub merkle_path: [(Digest, bool); COMMITMENT_TREE_DEPTH],
+    pub merkle_path: [(Digest, bool); 16],
+    /// Random scalar for delta commitment
     pub rcv: Scalar,
-    pub nsk: Nsk
+    /// Nullifier secret key
+    pub nsk: Nsk,
     // TODO: If we want to add function privacy, include:
     // pub input_resource_logic_cm_r: [u8; DATA_BYTES],
     // pub output_resource_logic_cm_r: [u8; DATA_BYTES],
@@ -258,23 +278,22 @@ pub struct Compliance<const COMMITMENT_TREE_DEPTH: usize>
 
 impl<const COMMITMENT_TREE_DEPTH: usize> Compliance<COMMITMENT_TREE_DEPTH>
 {
-    fn input_resource(&self) -> Digest {
+    pub fn input_resource_nf(&self) -> Digest {
         let nf = self.input_resource.nullifier(self.nsk).unwrap(); // Q: Do we want better error handling?
         nf
     }
 
-    fn output_resource(&self) -> Digest {
+    pub fn output_resource_cm(&self) -> Digest {
         let cm = self.output_resource.commitment();
         cm
     }
 
-    fn merkle_tree_path(&self, cm: Digest) -> Digest {
-        // Check the input resource is along the merkle path and it can generate the root and publicise the root
+    pub fn merkle_tree_root(&self, cm: Digest) -> Digest {
         let merkle_root = MerklePath::from_path(self.merkle_path).root(cm);
         merkle_root
     }
 
-    fn delta_commitment(&self) -> [u8; DATA_BYTES] {
+    pub fn delta_commitment(&self) -> [u8; DATA_BYTES] {
         // Compute delta and make delta commitment public
         // Comm(input_value - output_value)
         let delta 
@@ -285,7 +304,7 @@ impl<const COMMITMENT_TREE_DEPTH: usize> Compliance<COMMITMENT_TREE_DEPTH>
         delta.to_affine().to_bytes()[..].try_into().unwrap()
     }
 
-    fn default() -> Compliance<16> {
+    pub fn default() -> Compliance<16> {
         let mut rng = rand::thread_rng();
         let label: [u8; 32] = rng.gen();
         let nonce_1: [u8; 32] = rng.gen();
@@ -320,7 +339,24 @@ impl<const COMMITMENT_TREE_DEPTH: usize> Compliance<COMMITMENT_TREE_DEPTH>
             rseed: rng.gen()
         };
 
-        let merkle_path = [(Digest::default(), false); 16];
+        let merkle_path: [(Digest, bool); 16] = [
+            (Digest::new([1; DIGEST_WORDS]), false),
+            (Digest::new([2; DIGEST_WORDS]), true),
+            (Digest::new([3; DIGEST_WORDS]), false),
+            (Digest::new([4; DIGEST_WORDS]), true),
+            (Digest::new([5; DIGEST_WORDS]), false),
+            (Digest::new([6; DIGEST_WORDS]), true),
+            (Digest::new([7; DIGEST_WORDS]), false),
+            (Digest::new([8; DIGEST_WORDS]), true),
+            (Digest::new([9; DIGEST_WORDS]), false),
+            (Digest::new([10; DIGEST_WORDS]), true),
+            (Digest::new([11; DIGEST_WORDS]), false),
+            (Digest::new([12; DIGEST_WORDS]), true),
+            (Digest::new([13; DIGEST_WORDS]), false),
+            (Digest::new([14; DIGEST_WORDS]), true),
+            (Digest::new([15; DIGEST_WORDS]), false),
+            (Digest::new([16; DIGEST_WORDS]), true),
+        ];
 
         let rcv = Scalar::random(rng);
 
@@ -335,14 +371,8 @@ impl<const COMMITMENT_TREE_DEPTH: usize> Compliance<COMMITMENT_TREE_DEPTH>
     }
 }
 
-// Guest: Read input and commit output
-// This is the portion of the code that will be proven
 
-
-
-pub fn host() {
-    let mut rng = rand::thread_rng();
-
+pub fn main() {
     let compliance = Compliance::<16>::default();
     
     let env = ExecutorEnv::builder()
@@ -355,8 +385,10 @@ pub fn host() {
     let prover = default_prover();
 
     // Produce a receipt by proving the specified ELF binary.
-    let receipt = prover.prove(env, &[rng.gen()]).unwrap().receipt;
+    let receipt = prover.prove(env, COMPLIANCE_GUEST_ELF).unwrap().receipt;
 
     // Extract journal of receipt
     let (nf, cm, merkle_root, delta): (Digest, Digest, Digest, [u8; DATA_BYTES]) = receipt.journal.decode().unwrap();
+
+    receipt.verify(COMPLIANCE_GUEST_ID).unwrap();
 }
