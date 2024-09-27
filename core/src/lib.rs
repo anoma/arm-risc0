@@ -6,7 +6,6 @@ use k256::{
 };
 use risc0_zkvm::{default_prover, sha::{
     rust_crypto::Sha256 as Sha256Type, Digest, Impl, Sha256, DIGEST_BYTES}, ExecutorEnv};
-use risc0_zkvm::guest::env;
 use serde_big_array::BigArray;
 use serde::{Deserialize, Serialize};
 use rand::Rng;
@@ -58,7 +57,6 @@ const RESOURCE_BYTES: usize = DIGEST_BYTES
     + DIGEST_BYTES
     + RSEED_BYTES;
 
-pub const COMMITMENT_TREE_DEPTH: usize = 32;
 
 pub const DIGEST_WORDS: usize = 8;
 
@@ -266,7 +264,7 @@ pub struct Compliance<const COMMITMENT_TREE_DEPTH: usize>
     pub output_resource: Resource,
     /// The path from the output commitment to the root in the resource commitment tree
     #[serde(with = "BigArray")]
-    pub merkle_path: [(Digest, bool); 16],
+    pub merkle_path: [(Digest, bool); COMMITMENT_TREE_DEPTH],
     /// Random scalar for delta commitment
     pub rcv: Scalar,
     /// Nullifier secret key
