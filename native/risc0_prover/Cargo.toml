@@ -1,0 +1,15 @@
+[package]
+name = "risc0_prover"
+version = "0.1.0"
+authors = []
+edition = "2021"
+
+[lib]
+name = "risc0_prover"
+path = "src/lib.rs"
+crate-type = ["cdylib"]
+
+[dependencies]
+rustler = "0.31.0"
+serde = { version = "1.0.160", features = ["derive"] }
+serde = { version = "1.0.160", features = ["derive"] }
