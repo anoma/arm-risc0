@@ -3,15 +3,17 @@ name = "host"
 version = "0.1.0"
 edition = "2021"
 
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
 [dependencies]
-aarm-core = { path = "../core" }
+# If you want to try (experimental) std support, add `features = [ "std" ]` to risc0-zkvm
 methods = { path = "../methods" }
-risc0-zkvm = { version = "1.0.5" }
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-serde = "1.0"
-starknet-crypto = "0.6.1"
-merkle_light = "0.4.0"
-generic-array = { version = "1.0.0", features = ["serde"] }
+aarm-core = { path = "../core" }
+risc0-zkvm = { version = "1.1.2"}
+serde = { version = "1.0.197", default-features = false }
 serde-big-array = "0.5.1"
-risc0-zkp = { version = "0.20.1" }
-anyhow = "1.0.81"
+k256 = { version = "=0.13.1", features = ["arithmetic", "serde", "expose-field", "std", "ecdsa", "hash2curve"], default-features = false }
+sha2 = "0.10.6"
+rand = "0.8"
+
+
