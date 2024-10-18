@@ -1,22 +1,20 @@
 #![no_std]
 use k256::{
     elliptic_curve::{
-        group::{ff::PrimeField, GroupEncoding}, hash2curve::{ExpandMsgXmd, GroupDigest}, rand_core::{le, RngCore}, Field
+        group::{ff::PrimeField, GroupEncoding}, hash2curve::{ExpandMsgXmd, GroupDigest}, Field
     }, ProjectivePoint, Scalar, Secp256k1,
 };
-use risc0_zkvm::{default_prover, sha::{
-    rust_crypto::Sha256 as Sha256Type, Digest, Impl, Sha256, DIGEST_BYTES}, ExecutorEnv};
+use risc0_zkvm::sha::{
+    rust_crypto::Sha256 as Sha256Type, Digest, Impl, Sha256, DIGEST_BYTES};
 use serde_big_array::BigArray;
 use serde::{Deserialize, Serialize};
 use rand::Rng;
-use methods::{
-    COMPLIANCE_GUEST_ELF, COMPLIANCE_GUEST_ID
-};
 
 const DST: &[u8] = b"QUUX-V01-CS02-with-secp256k1_XMD:SHA-256_SSWU_RO_";
 
 const COMPRESSED_TRIVIAL_RESOURCE_LOGIC_VK: &[u8] = b"trivial_resource_logic_vk";
 
+pub const TREE_DEPTH: usize = 32;
 
 /// Nullifier secret key
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize)]
@@ -299,10 +297,16 @@ impl<const COMMITMENT_TREE_DEPTH: usize> Compliance<COMMITMENT_TREE_DEPTH>
             - self.output_resource.kind() * self.output_resource.quantity() 
             + ProjectivePoint::GENERATOR * self.rcv;
 
-        delta.to_affine().to_bytes()[..].try_into().unwrap()
+        let bytes = delta.to_affine().to_bytes();
+        // println!("Length of bytes: {}", bytes.len());
+        let delta_bytes: [u8; DATA_BYTES] = bytes[..DATA_BYTES].try_into().expect("Slice length mismatch");
+        // let delta_bytes: [u8; DATA_BYTES] = delta.to_affine().to_bytes()[..]
+            // .try_into()
+            // .expect("Slice length does not match expected array size");
+        delta_bytes
     }
 
-    pub fn default() -> Compliance<16> {
+    pub fn default() -> Compliance<TREE_DEPTH> {
         let mut rng = rand::thread_rng();
         let label: [u8; 32] = rng.gen();
         let nonce_1: [u8; 32] = rng.gen();
@@ -337,24 +341,11 @@ impl<const COMMITMENT_TREE_DEPTH: usize> Compliance<COMMITMENT_TREE_DEPTH>
             rseed: rng.gen()
         };
 
-        let merkle_path: [(Digest, bool); 16] = [
-            (Digest::new([1; DIGEST_WORDS]), false),
-            (Digest::new([2; DIGEST_WORDS]), true),
-            (Digest::new([3; DIGEST_WORDS]), false),
-            (Digest::new([4; DIGEST_WORDS]), true),
-            (Digest::new([5; DIGEST_WORDS]), false),
-            (Digest::new([6; DIGEST_WORDS]), true),
-            (Digest::new([7; DIGEST_WORDS]), false),
-            (Digest::new([8; DIGEST_WORDS]), true),
-            (Digest::new([9; DIGEST_WORDS]), false),
-            (Digest::new([10; DIGEST_WORDS]), true),
-            (Digest::new([11; DIGEST_WORDS]), false),
-            (Digest::new([12; DIGEST_WORDS]), true),
-            (Digest::new([13; DIGEST_WORDS]), false),
-            (Digest::new([14; DIGEST_WORDS]), true),
-            (Digest::new([15; DIGEST_WORDS]), false),
-            (Digest::new([16; DIGEST_WORDS]), true),
-        ];
+        let mut merkle_path: [(Digest, bool); TREE_DEPTH] = [(Digest::new([0; DIGEST_WORDS]), false); TREE_DEPTH];
+
+        for i in 0..TREE_DEPTH {
+            merkle_path[i] = (Digest::new([i as u32 + 1; DIGEST_WORDS]), i % 2 != 0);
+        }
 
         let rcv = Scalar::random(rng);
 
@@ -369,24 +360,3 @@ impl<const COMMITMENT_TREE_DEPTH: usize> Compliance<COMMITMENT_TREE_DEPTH>
     }
 }
 
-
-pub fn main() {
-    let compliance = Compliance::<16>::default();
-    
-    let env = ExecutorEnv::builder()
-        .write(&compliance)
-        .unwrap()
-        .build()
-        .unwrap();
-    
-    
-    let prover = default_prover();
-
-    // Produce a receipt by proving the specified ELF binary.
-    let receipt = prover.prove(env, COMPLIANCE_GUEST_ELF).unwrap().receipt;
-
-    // Extract journal of receipt
-    let (nf, cm, merkle_root, delta): (Digest, Digest, Digest, [u8; DATA_BYTES]) = receipt.journal.decode().unwrap();
-
-    receipt.verify(COMPLIANCE_GUEST_ID).unwrap();
-}
