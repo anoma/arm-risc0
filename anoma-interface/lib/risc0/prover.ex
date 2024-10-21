@@ -10,42 +10,42 @@ defmodule Risc0.Risc0Prover do
   @typedoc "Result type for NIF functions that can return errors"
   @type nif_result(t) :: t | {:error, term()}
 
-  @spec risc0_prove(list(byte()), list(byte()), list(byte())) ::
-          nif_result({list(byte()), list(byte())})
-  def risc0_prove(_trace, _memory, _public_input), do: error()
+  @spec risc0_prove(list(byte()), list(byte())) ::
+          nif_result({list(byte())})
+  def risc0_prove(_env_bytes, _elf), do: error()
 
   @spec risc0_verify(list(byte()), list(byte())) :: nif_result(boolean())
-  def risc0_verify(_proof, _pubinput), do: error()
+  def risc0_verify(_receipt_bytes, _elf), do: error()
 
-  @spec risc0_get_output(list(byte())) :: nif_result(list(list(byte())))
-  def risc0_get_output(_public_input), do: error()
+  # @spec risc0_get_output(list(byte())) :: nif_result(list(list(byte())))
+  # def risc0_get_output(_public_input), do: error()
 
-  @spec risc0_binding_sig_sign(list(list(byte())), list(list(byte()))) ::
-          nif_result(list(byte()))
-  def risc0_binding_sig_sign(_private_key_segments, _messages), do: error()
+  # @spec risc0_binding_sig_sign(list(list(byte())), list(list(byte()))) ::
+  #         nif_result(list(byte()))
+  # def risc0_binding_sig_sign(_private_key_segments, _messages), do: error()
 
-  @spec risc0_binding_sig_verify(
-          list(list(byte())),
-          list(list(byte())),
-          list(byte())
-        ) :: nif_result(boolean())
-  def risc0_binding_sig_verify(_pub_key_segments, _messages, _signature),
-    do: error()
+  # @spec risc0_binding_sig_verify(
+  #         list(list(byte())),
+  #         list(list(byte())),
+  #         list(byte())
+  #       ) :: nif_result(boolean())
+  # def risc0_binding_sig_verify(_pub_key_segments, _messages, _signature),
+  #   do: error()
 
-  @spec risc0_random_felt() :: nif_result(list(byte()))
-  def risc0_random_felt(), do: error()
+  # @spec risc0_random_felt() :: nif_result(list(byte()))
+  # def risc0_random_felt(), do: error()
 
-  @spec risc0_get_binding_sig_public_key(list(byte())) ::
-          nif_result(list(byte()))
-  def risc0_get_binding_sig_public_key(_priv_key), do: error()
+  # @spec risc0_get_binding_sig_public_key(list(byte())) ::
+  #         nif_result(list(byte()))
+  # def risc0_get_binding_sig_public_key(_priv_key), do: error()
 
-  @spec sha256(list(byte()), list(byte())) :: nif_result(list(byte()))
-  def sha256(_x, _y), do: error()
+  # @spec sha256(list(byte()), list(byte())) :: nif_result(list(byte()))
+  # def sha256(_x, _y), do: error()
 
-  @spec program_hash(list(byte())) :: nif_result(list(byte()))
-  def program_hash(_public_inputs), do: error()
+  # @spec program_hash(list(byte())) :: nif_result(list(byte()))
+  # def program_hash(_public_inputs), do: error()
 
-  def risc0_felt_to_string(_felt), do: error()
+  # def risc0_felt_to_string(_felt), do: error()
 
   def risc0_generate_compliance_input_json(
         _input_resource,

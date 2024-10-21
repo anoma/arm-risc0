@@ -36,3 +36,10 @@ fn risc0_verify(
     Ok(true)
 }
 
+rustler::init!(
+    "Elixir.Risc0.Risc0Prover",
+    [
+        risc0_prove,
+        risc0_verify,
+    ]
+);
