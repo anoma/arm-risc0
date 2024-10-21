@@ -274,10 +274,24 @@ pub struct Compliance<const COMMITMENT_TREE_DEPTH: usize>
 
 impl<const COMMITMENT_TREE_DEPTH: usize> Compliance<COMMITMENT_TREE_DEPTH>
 {
+
+    pub fn input_resource_logic(&self) -> Digest {
+        self.input_resource.image_id
+    } 
+
+    pub fn input_resource_cm(&self) -> Digest {
+        let nf = self.input_resource.commitment();
+        nf
+    }
+
     pub fn input_resource_nf(&self) -> Digest {
         let nf = self.input_resource.nullifier(self.nsk).unwrap(); // Q: Do we want better error handling?
         nf
     }
+
+    pub fn output_resource_logic(&self) -> Digest {
+        self.output_resource.image_id
+    } 
 
     pub fn output_resource_cm(&self) -> Digest {
         let cm = self.output_resource.commitment();
@@ -297,12 +311,7 @@ impl<const COMMITMENT_TREE_DEPTH: usize> Compliance<COMMITMENT_TREE_DEPTH>
             - self.output_resource.kind() * self.output_resource.quantity() 
             + ProjectivePoint::GENERATOR * self.rcv;
 
-        let bytes = delta.to_affine().to_bytes();
-        // println!("Length of bytes: {}", bytes.len());
-        let delta_bytes: [u8; DATA_BYTES] = bytes[..DATA_BYTES].try_into().expect("Slice length mismatch");
-        // let delta_bytes: [u8; DATA_BYTES] = delta.to_affine().to_bytes()[..]
-            // .try_into()
-            // .expect("Slice length does not match expected array size");
+        let delta_bytes: [u8; DATA_BYTES] = delta.to_affine().to_bytes()[..DATA_BYTES].try_into().expect("Slice length mismatch");
         delta_bytes
     }
 

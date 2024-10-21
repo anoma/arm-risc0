@@ -31,7 +31,7 @@ pub fn main() {
 
     let extract_journal_start_timer = Instant::now();
     // Extract journal of receipt
-    let (_nf, _cm, _merkle_root, _delta): (Digest, Digest, Digest, [u8; DATA_BYTES]) = receipt.journal.decode().unwrap();
+    let (_input_rl, _nf, _output_rl, _cm, _merkle_root, _delta): (Digest, Digest, Digest, Digest, Digest, [u8; DATA_BYTES]) = receipt.journal.decode().unwrap();
 
     let extract_journal_duration = extract_journal_start_timer.elapsed();
     println!("Extract Journal duration time: {:?}", extract_journal_duration);
