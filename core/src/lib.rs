@@ -1,14 +1,16 @@
 #![no_std]
 use k256::{
     elliptic_curve::{
-        group::{ff::PrimeField, GroupEncoding}, hash2curve::{ExpandMsgXmd, GroupDigest}, Field
-    }, ProjectivePoint, Scalar, Secp256k1,
+        group::{ff::PrimeField, GroupEncoding},
+        hash2curve::{ExpandMsgXmd, GroupDigest},
+        Field,
+    },
+    ProjectivePoint, Scalar, Secp256k1,
 };
-use risc0_zkvm::sha::{
-    rust_crypto::Sha256 as Sha256Type, Digest, Impl, Sha256, DIGEST_BYTES};
-use serde_big_array::BigArray;
-use serde::{Deserialize, Serialize};
 use rand::Rng;
+use risc0_zkvm::sha::{rust_crypto::Sha256 as Sha256Type, Digest, Impl, Sha256, DIGEST_BYTES};
+use serde::{Deserialize, Serialize};
+use serde_big_array::BigArray;
 
 const DST: &[u8] = b"QUUX-V01-CS02-with-secp256k1_XMD:SHA-256_SSWU_RO_";
 
@@ -21,7 +23,6 @@ pub const TREE_DEPTH: usize = 32;
 pub struct Nsk(Digest);
 
 impl Nsk {
-
     pub fn new(nsk: Digest) -> Nsk {
         Nsk(nsk)
     }
@@ -55,7 +56,6 @@ const RESOURCE_BYTES: usize = DIGEST_BYTES
     + DIGEST_BYTES
     + RSEED_BYTES;
 
-
 pub const DIGEST_WORDS: usize = 8;
 
 /// A resource that can be created and consumed
@@ -66,7 +66,7 @@ pub struct Resource {
     // specifies the fungibility domain for the resource
     pub label: [u8; LABEL_BYTES],
     // number representing the quantity of the resource
-    pub quantity: [u8; FELT_BYTES],  
+    pub quantity: [u8; FELT_BYTES],
     // the fungible data of the resource
     pub value: [u8; FUNGIBLE_BYTES],
     // flag that reflects the resource ephemerality
@@ -236,9 +236,7 @@ where
 {
     /// Constructs a Merkle path directly from a path and position.
     pub fn from_path(auth_path: [(Node, bool); COMMITMENT_TREE_DEPTH]) -> Self {
-        MerklePath {
-            auth_path,
-        }
+        MerklePath { auth_path }
     }
 
     /// Returns the root of the tree corresponding to this path applied to `leaf`.
@@ -252,10 +250,8 @@ where
     }
 }
 
-
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
-pub struct Compliance<const COMMITMENT_TREE_DEPTH: usize> 
-{
+pub struct Compliance<const COMMITMENT_TREE_DEPTH: usize> {
     /// The input resource
     pub input_resource: Resource,
     /// The output resource
@@ -272,12 +268,10 @@ pub struct Compliance<const COMMITMENT_TREE_DEPTH: usize>
     // pub output_resource_logic_cm_r: [u8; DATA_BYTES],
 }
 
-impl<const COMMITMENT_TREE_DEPTH: usize> Compliance<COMMITMENT_TREE_DEPTH>
-{
-
+impl<const COMMITMENT_TREE_DEPTH: usize> Compliance<COMMITMENT_TREE_DEPTH> {
     pub fn input_resource_logic(&self) -> Digest {
         self.input_resource.image_id
-    } 
+    }
 
     pub fn input_resource_cm(&self) -> Digest {
         let nf = self.input_resource.commitment();
@@ -291,7 +285,7 @@ impl<const COMMITMENT_TREE_DEPTH: usize> Compliance<COMMITMENT_TREE_DEPTH>
 
     pub fn output_resource_logic(&self) -> Digest {
         self.output_resource.image_id
-    } 
+    }
 
     pub fn output_resource_cm(&self) -> Digest {
         let cm = self.output_resource.commitment();
@@ -306,12 +300,13 @@ impl<const COMMITMENT_TREE_DEPTH: usize> Compliance<COMMITMENT_TREE_DEPTH>
     pub fn delta_commitment(&self) -> [u8; DATA_BYTES] {
         // Compute delta and make delta commitment public
         // Comm(input_value - output_value)
-        let delta 
-            = self.input_resource.kind() * self.input_resource.quantity() 
-            - self.output_resource.kind() * self.output_resource.quantity() 
+        let delta = self.input_resource.kind() * self.input_resource.quantity()
+            - self.output_resource.kind() * self.output_resource.quantity()
             + ProjectivePoint::GENERATOR * self.rcv;
 
-        let delta_bytes: [u8; DATA_BYTES] = delta.to_affine().to_bytes()[..DATA_BYTES].try_into().expect("Slice length mismatch");
+        let delta_bytes: [u8; DATA_BYTES] = delta.to_affine().to_bytes()[..DATA_BYTES]
+            .try_into()
+            .expect("Slice length mismatch");
         delta_bytes
     }
 
@@ -336,10 +331,10 @@ impl<const COMMITMENT_TREE_DEPTH: usize> Compliance<COMMITMENT_TREE_DEPTH>
             eph: false,
             nonce: *Impl::hash_bytes(&nonce_1),
             npk: nsk.public_key(),
-            rseed: rng.gen()
+            rseed: rng.gen(),
         };
 
-       let output_resource = Resource {
+        let output_resource = Resource {
             image_id: *Impl::hash_bytes(COMPRESSED_TRIVIAL_RESOURCE_LOGIC_VK),
             label,
             quantity: ONE,
@@ -347,10 +342,11 @@ impl<const COMMITMENT_TREE_DEPTH: usize> Compliance<COMMITMENT_TREE_DEPTH>
             eph: false,
             nonce: *Impl::hash_bytes(&nonce_2),
             npk: nsk.public_key(),
-            rseed: rng.gen()
+            rseed: rng.gen(),
         };
 
-        let mut merkle_path: [(Digest, bool); TREE_DEPTH] = [(Digest::new([0; DIGEST_WORDS]), false); TREE_DEPTH];
+        let mut merkle_path: [(Digest, bool); TREE_DEPTH] =
+            [(Digest::new([0; DIGEST_WORDS]), false); TREE_DEPTH];
 
         for i in 0..TREE_DEPTH {
             merkle_path[i] = (Digest::new([i as u32 + 1; DIGEST_WORDS]), i % 2 != 0);
@@ -358,14 +354,12 @@ impl<const COMMITMENT_TREE_DEPTH: usize> Compliance<COMMITMENT_TREE_DEPTH>
 
         let rcv = Scalar::random(rng);
 
-
         Compliance {
             input_resource,
             output_resource,
             merkle_path,
             rcv,
-            nsk
+            nsk,
         }
     }
 }
-
