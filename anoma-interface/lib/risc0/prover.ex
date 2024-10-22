@@ -17,8 +17,8 @@ defmodule Risc0.Risc0Prover do
   @spec risc0_verify(list(byte()), list(byte())) :: nif_result(boolean())
   def risc0_verify(_receipt_bytes, _elf), do: error()
 
-  # @spec risc0_get_output(list(byte())) :: nif_result(list(list(byte())))
-  # def risc0_get_output(_public_input), do: error()
+  @spec risc0_get_output(list(byte())) :: nif_result(list(byte()))
+  def risc0_get_output(_env_bytes), do: error()
 
   # @spec risc0_binding_sig_sign(list(list(byte())), list(list(byte()))) ::
   #         nif_result(list(byte()))

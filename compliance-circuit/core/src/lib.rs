@@ -11,6 +11,7 @@ use rand::Rng;
 use risc0_zkvm::sha::{rust_crypto::Sha256 as Sha256Type, Digest, Impl, Sha256, DIGEST_BYTES};
 use serde::{Deserialize, Serialize};
 use serde_big_array::BigArray;
+use borsh::{BorshSerialize, BorshDeserialize};
 
 const DST: &[u8] = b"QUUX-V01-CS02-with-secp256k1_XMD:SHA-256_SSWU_RO_";
 
@@ -19,7 +20,7 @@ const COMPRESSED_TRIVIAL_RESOURCE_LOGIC_VK: &[u8] = b"trivial_resource_logic_vk"
 pub const TREE_DEPTH: usize = 32;
 
 /// Nullifier secret key
-#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
 pub struct Nsk(Digest);
 
 impl Nsk {
@@ -34,7 +35,7 @@ impl Nsk {
 }
 
 /// Nullifier public key
-#[derive(Clone, Eq, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Clone, Eq, PartialEq, Default, Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
 pub struct Npk(Digest);
 
 const LABEL_BYTES: usize = 32;
@@ -59,7 +60,7 @@ const RESOURCE_BYTES: usize = DIGEST_BYTES
 pub const DIGEST_WORDS: usize = 8;
 
 /// A resource that can be created and consumed
-#[derive(Clone, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Default, serde::Serialize, serde::Deserialize, BorshDeserialize, BorshSerialize)]
 pub struct Resource {
     // a succinct representation of the predicate associated with the resource
     pub image_id: Digest,
@@ -250,7 +251,7 @@ where
     }
 }
 
-#[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, serde::Serialize, serde::Deserialize, BorshDeserialize, BorshSerialize)]
 pub struct Compliance<const COMMITMENT_TREE_DEPTH: usize> {
     /// The input resource
     pub input_resource: Resource,

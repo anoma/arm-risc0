@@ -17,11 +17,11 @@ defmodule Risc0 do
     to: Risc0.Risc0Prover,
     as: :risc0_verify
 
-  # @spec get_output(list(byte())) ::
-  #         any() | {:error, term()}
-  # defdelegate get_output(pub_input),
-  #   to: Risc0.Risc0Prover,
-  #   as: :risc0_get_output
+  @spec get_output(list(byte())) ::
+          any() | {:error, term()}
+  defdelegate get_output(env_bytes),
+    to: Risc0.Risc0Prover,
+    as: :risc0_get_output
 
   # @spec sign(list(byte()), list(list(byte()))) ::
   #         list(byte()) | {:error, term()}
