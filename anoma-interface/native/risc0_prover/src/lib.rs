@@ -116,6 +116,13 @@ fn generate_merkle_path_32() -> NifResult<Vec<u8>> {
     Ok(borsh::to_vec(&merkle_path).unwrap())
 }
 
+#[rustler::nif]
+fn generate_nsk() -> NifResult<Vec<u8>> {
+    let mut rng = rand::thread_rng();
+    let random_elem: [u8; 32] = rng.gen();
+    let digest = *Impl::hash_bytes(&random_elem);
+    Ok(borsh::to_vec(&digest).unwrap())
+}
 
 rustler::init!(
     "Elixir.Risc0.Risc0Prover",
@@ -126,6 +133,7 @@ rustler::init!(
         generate_resource,
         // risc0_get_output,
         random_32,
-        generate_compliance_circuit
+        generate_compliance_circuit,
+        generate_nsk
     ]
 );

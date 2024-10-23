@@ -6,7 +6,7 @@ defmodule Risc0 do
   #   as: :risc0_vm_runner
 
   @spec prove([byte()], [byte()]) ::
-          {[byte()]} | {:error, term()}
+          [byte()] | {:error, term()}
   defdelegate prove(env_bytes, elf),
     to: Risc0.Risc0Prover,
     as: :prove
@@ -17,11 +17,58 @@ defmodule Risc0 do
     to: Risc0.Risc0Prover,
     as: :verify
 
-  @spec get_output(list(byte())) ::
-          any() | {:error, term()}
-  defdelegate get_output(env_bytes),
+
+  @spec generate_resource(
+    list(byte()),
+    list(byte()),
+    list(byte()),
+    list(byte()),
+    list(byte()),
+    list(byte()),
+    list(byte()),
+    list(byte()))  ::
+    list(byte()) | {:error, term()}
+  defdelegate generate_resource(
+    label,
+    nonce,
+    quantity,
+    value,
+    eph,
+    nsk,
+    image_id,
+    rseed),
     to: Risc0.Risc0Prover,
-    as: :get_output
+    as: :generate_resource
+
+    @spec generate_compliance_circuit(
+      list(byte()),
+      list(byte()),
+      list(byte()),
+      list(byte()),
+      list(byte())
+    ) :: list(byte()) | {:error, term()}
+    defdelegate generate_compliance_circuit(
+      input_resource,
+      output_resource,
+      rcv,
+      merkle_path,
+      nsk
+    ), to: Risc0.Risc0Prover, as: :generate_compliance_circuit
+
+    @spec random_32() :: list(byte()) | {:error, term()}
+    defdelegate random_32(), to: Risc0.Risc0Prover, as: :random_32
+
+    @spec generate_merkle_path_32() :: list(byte()) | {:error, term()}
+    defdelegate generate_merkle_path_32(), to: Risc0.Risc0Prover, as: :generate_merkle_path_32
+
+    @spec generate_nsk() :: list(byte()) | {:error, term()}
+    defdelegate generate_nsk(), to: Risc0.Risc0Prover, as: :generate_nsk
+
+  # @spec get_output(list(byte())) ::
+  #         any() | {:error, term()}
+  # defdelegate get_output(env_bytes),
+  #   to: Risc0.Risc0Prover,
+  #   as: :get_output
 
   # @spec sign(list(byte()), list(list(byte()))) ::
   #         list(byte()) | {:error, term()}

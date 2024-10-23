@@ -1,7 +1,5 @@
 defmodule Risc0.Risc0Prover do
-  use Rustler,
-    otp_app: :risc0,
-    crate: :risc0_prover
+  use Rustler, otp_app: :risc0, crate: :risc0_prover
 
   @moduledoc """
   Provides NIF functions for Risc0 proof generation, verification, and related cryptographic operations.
@@ -17,13 +15,51 @@ defmodule Risc0.Risc0Prover do
   @spec verify(list(byte()), list(byte())) :: nif_result(boolean())
   def verify(_receipt_bytes, _elf), do: error()
 
-  @spec get_output(list(byte())) :: nif_result(list(byte()))
-  def get_output(_env_bytes), do: error()
+  @spec generate_resource(
+    list(byte()),
+    list(byte()),
+    list(byte()),
+    list(byte()),
+    list(byte()),
+    list(byte()),
+    list(byte()),
+    list(byte())) :: nif_result(list(byte()))
+  def generate_resource(
+    _label,
+    _nonce,
+    _quantity,
+    _value,
+    _eph,
+    _nsk,
+    _image_id,
+    _rseed
+  ), do: error()
 
-  @spec generate_resource(list(byte())) :: nif_result(list(byte()))
-  def generate_resource(_env_bytes), do: error()
+  @spec generate_compliance_circuit(
+    list(byte()),
+    list(byte()),
+    list(byte()),
+    list(byte()),
+    list(byte())) :: nif_result(list(byte()))
+  def generate_compliance_circuit(
+    _input_resource,
+    _output_resource,
+    _rcv,
+    _merkle_path,
+    _nsk
+  ), do: error()
 
+  @spec random_32() :: nif_result(list(byte()))
+  def random_32(), do: error()
 
+  @spec generate_merkle_path_32() ::  nif_result(list(byte()))
+  def generate_merkle_path_32(), do: error()
+
+  @spec generate_nsk() :: nif_result(list(byte()))
+  def generate_nsk(), do: error()
+
+  # @spec get_output(list(byte())) :: nif_result(list(byte()))
+  # def get_output(_env_bytes), do: error()
   # @spec risc0_binding_sig_sign(list(list(byte())), list(list(byte()))) ::
   #         nif_result(list(byte()))
   # def risc0_binding_sig_sign(_private_key_segments, _messages), do: error()
