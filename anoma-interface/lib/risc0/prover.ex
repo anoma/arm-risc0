@@ -10,15 +10,15 @@ defmodule Risc0.Risc0Prover do
   @typedoc "Result type for NIF functions that can return errors"
   @type nif_result(t) :: t | {:error, term()}
 
-  @spec risc0_prove(list(byte()), list(byte())) ::
+  @spec prove(list(byte()), list(byte())) ::
           nif_result({list(byte())})
-  def risc0_prove(_env_bytes, _elf), do: error()
+  def prove(_env_bytes, _elf), do: error()
 
-  @spec risc0_verify(list(byte()), list(byte())) :: nif_result(boolean())
-  def risc0_verify(_receipt_bytes, _elf), do: error()
+  @spec verify(list(byte()), list(byte())) :: nif_result(boolean())
+  def verify(_receipt_bytes, _elf), do: error()
 
-  @spec risc0_get_output(list(byte())) :: nif_result(list(byte()))
-  def risc0_get_output(_env_bytes), do: error()
+  @spec get_output(list(byte())) :: nif_result(list(byte()))
+  def get_output(_env_bytes), do: error()
 
   # @spec risc0_binding_sig_sign(list(list(byte())), list(list(byte()))) ::
   #         nif_result(list(byte()))
