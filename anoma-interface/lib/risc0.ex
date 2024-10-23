@@ -9,19 +9,19 @@ defmodule Risc0 do
           {[byte()]} | {:error, term()}
   defdelegate prove(env_bytes, elf),
     to: Risc0.Risc0Prover,
-    as: :risc0_prove
+    as: :prove
 
   @spec verify(list(byte()), list(byte())) ::
           boolean() | {:error, term()}
   defdelegate verify(receipt_bytes, elf),
     to: Risc0.Risc0Prover,
-    as: :risc0_verify
+    as: :verify
 
   @spec get_output(list(byte())) ::
           any() | {:error, term()}
   defdelegate get_output(env_bytes),
     to: Risc0.Risc0Prover,
-    as: :risc0_get_output
+    as: :get_output
 
   # @spec sign(list(byte()), list(list(byte()))) ::
   #         list(byte()) | {:error, term()}
@@ -63,26 +63,4 @@ defmodule Risc0 do
   # defdelegate felt_to_string(felt),
   #   to: Risc0.Risc0Prover,
   #   as: :risc0_felt_to_string
-
-  @spec generate_compliance_input_json(
-          list(byte()),
-          list(byte()),
-          list(list(byte())),
-          integer(),
-          list(byte()),
-          list(byte()),
-          list(byte())
-        ) ::
-          binary()
-  defdelegate generate_compliance_input_json(
-                input_resource,
-                output_resource,
-                path,
-                position,
-                input_nf_key,
-                eph_root,
-                rcv
-              ),
-              to: Risc0.Risc0Prover,
-              as: :risc0_generate_compliance_input_json
 end

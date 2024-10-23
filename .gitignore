@@ -2,3 +2,5 @@
 Cargo.lock
 methods/guest/Cargo.lock
 target/
+_build/
+deps/

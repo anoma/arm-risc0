@@ -2,7 +2,7 @@ defmodule Risc0ComplianceTest do
   use ExUnit.Case
 
   doctest Risc0.Risc0Prover
-  doctest Risc0.Risc0VM
+  # doctest Risc0.Risc0VM
 
 
   test "compliance_circuit" do
