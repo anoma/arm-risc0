@@ -9,9 +9,8 @@ use borsh::BorshSerialize;
 use rustler::NifResult;
 use serde_json::Value;
 use rand::Rng;
-use aarm_core::{Compliance, Resource};
-use risc0_zkvm::sha::Impl;
-use risc0_zkvm::sha::Sha256;
+use aarm_core::{Compliance, Resource, Nsk};
+use risc0_zkvm::sha::{Impl, Sha256, Digest};
 
 #[rustler::nif]
 fn prove(
@@ -69,14 +68,15 @@ fn generate_resource(
     image_id: Vec<u8>,
     rseed: Vec<u8>
 ) -> NifResult<Vec<u8>> {
+    let nk: Nsk =  borsh::from_slice(&nsk).unwrap();
     let resource = Resource {
-        image_id: *Impl::hash_bytes(borsh::from_slice(&image_id).unwrap()),
+        image_id: *Impl::hash_bytes(&image_id),
         label: borsh::from_slice(&label).unwrap(),
         quantity: borsh::from_slice(&quantity).unwrap(),
         value: borsh::from_slice(&value).unwrap(),
         eph: borsh::from_slice(&eph).unwrap(),
-        nonce: *Impl::hash_bytes(&borsh::from_slice(&nonce).unwrap()),
-        npk: borsh::from_slice(&nsk).unwrap().public_key(),
+        nonce: *Impl::hash_bytes(&nonce),
+        npk: nk.public_key(),
         rseed: borsh::from_slice(&rseed).unwrap(),
     };
 
@@ -95,7 +95,7 @@ fn generate_compliance_circuit(
     let compliance = Compliance {
         input_resource: borsh::from_slice(&input_resource).unwrap(),
         output_resource: borsh::from_slice(&output_resource).unwrap(),
-        merkle_path: borsh::from_slice(&merkle_path).unwrap(),
+        merkle_path: borsh::from_slice::<[(Digest, bool); 32]>(&merkle_path).unwrap(),
         rcv: borsh::from_slice(&rcv).unwrap(),
         nsk: borsh::from_slice(&nsk).unwrap(),
     };
