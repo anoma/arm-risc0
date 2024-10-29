@@ -9,7 +9,7 @@ const DATA_BYTES: usize = 32;
 pub fn main() {
     let prove_start_timer = Instant::now();
 
-    let compliance = Compliance::<TREE_DEPTH>::default();
+    let compliance: Compliance<32> = Compliance::<TREE_DEPTH>::default();
 
     let env = ExecutorEnv::builder()
         .write(&compliance)

@@ -30,7 +30,6 @@ fn prove(
     // let receipt = prover
     //     .prove(env, COMPLIANCE_GUEST_ELF)
     //     .map_err(|e| Error::RaiseTerm(Box::new(format!("Failed to prove: {:?}", e))))?
-    //     // .map_err(|e| format!("Failed to prove: {:?}", e))?
     //     .receipt;
     let env = ExecutorEnv::builder()
         .write(&env_bytes)
