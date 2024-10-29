@@ -1,6 +1,6 @@
 defmodule Risc0 do
-  @spec prove([byte()], [byte()]) ::
-          [byte()] | {:error, term()}
+  @spec prove(list(byte()), list(byte())) ::
+          list(byte()) | {:error, term()}
   defdelegate prove(env_bytes, elf),
     to: Risc0.Risc0Prover,
     as: :prove

@@ -8,14 +8,14 @@ defmodule Risc0ComplianceTest do
 
 
   test "compliance_circuit" do
-    compliance_guest_elf = @compliance_guest_elf
+    compliance_guest_elf = @compliance_guest_elf |> :binary.bin_to_list()
     compliance_guest_id = @compliance_guest_id
     label = Risc0.random_32()
     nonce_1 = Risc0.random_32()
     nonce_2 = Risc0.random_32()
     quantity = Risc0.random_32()
     value = Risc0.random_32()
-    eph = 0
+    eph = :binary.encode_unsigned(0) |> :binary.bin_to_list()
     nsk = Risc0.generate_nsk()
     rcv = Risc0.random_32()
     rseed_1 = Risc0.random_32()

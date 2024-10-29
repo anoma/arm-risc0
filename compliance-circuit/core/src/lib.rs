@@ -112,10 +112,6 @@ impl Resource {
         *Impl::hash_bytes(&bytes)
     }
 
-    // // Resource deltas are used to reason about total quantities of different kinds of resources in transactions.
-    // pub fn delta(&self) -> FieldElement {
-    //     pedersen_hash(&self.kind(), &self.quantity())
-    // }
     pub fn rcm(&self) -> Digest {
         let mut bytes = [0u8; 2 * DIGEST_BYTES];
         let mut offset: usize = 1;

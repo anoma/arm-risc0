@@ -4,9 +4,11 @@ use risc0_zkvm::{
     Receipt,
     sha::{Impl, Sha256, Digest}
 };
-use rustler::NifResult;
 use rand::Rng;
 use aarm_core::{Compliance, Resource, Nsk};
+use methods::{COMPLIANCE_GUEST_ELF, COMPLIANCE_GUEST_ID};
+use rustler::{NifResult, Error};
+
 
 #[rustler::nif]
 fn prove(
@@ -14,6 +16,23 @@ fn prove(
     elf: Vec<u8>
 ) -> NifResult<Vec<u8>> {
     
+    // let compliance: Compliance<32> = Compliance::<32>::default();
+    // let compliance_bytes = borsh::to_vec(&compliance).expect("Failed to serialize compliance");
+
+    // let env = ExecutorEnv::builder()
+    //     .write(&compliance_bytes)
+    //     .expect("Failed to write to ExecutorEnv")
+    //     .build()
+    //     .expect("Failed to build ExecutorEnv");
+
+    // let prover = default_prover();
+    // println!("Proving");
+    // // Produce a receipt by proving the specified ELF binary.
+    // let receipt = prover
+    //     .prove(env, COMPLIANCE_GUEST_ELF)
+    //     .map_err(|e| Error::RaiseTerm(Box::new(format!("Failed to prove: {:?}", e))))?
+    //     // .map_err(|e| format!("Failed to prove: {:?}", e))?
+    //     .receipt;
     let env = ExecutorEnv::builder()
         .write(&env_bytes)
         .unwrap()
@@ -22,8 +41,14 @@ fn prove(
 
     let prover = default_prover();
 
-    let receipt = prover.prove(env, &elf).unwrap().receipt;
+    println!("Proving");
+    let receipt = prover
+        .prove(env, COMPLIANCE_GUEST_ELF)
+        .map_err(|e| Error::RaiseTerm(Box::new(format!("Failed to prove: {:?}", e))))?
+        .receipt;
+    println!("Proved");
     let receipt_bytes = borsh::to_vec(&receipt).unwrap();
+    println!("bytes");
     Ok(receipt_bytes)
 }
 
@@ -34,24 +59,11 @@ fn verify(
 ) -> NifResult<bool> {
     let receipt: Receipt = borsh::from_slice(&receipt_bytes).unwrap();
     let elf_digest : Digest = borsh::from_slice(&elf).unwrap();
-    receipt.verify(elf_digest).unwrap();
+    receipt
+        .verify(elf_digest)
+        .map_err(|e| Error::RaiseTerm(Box::new(format!("Failed to verify: {:?}", e))))?;
     Ok(true)
 }
-
-// #[rustler::nif]
-// fn risc0_get_output(
-//     receipt_bytes: Vec<u8>,
-// ) -> NifResult<Vec<Vec<u8>>>  {
-//     let receipt: Receipt = borsh::from_slice(&receipt_bytes).unwrap();
-//     let output = receipt.journal.decode().unwrap();
-//     let mut output_vec: Vec<Vec<u8>>= vec![];
-
-//     for v in output {
-//         let v_bytes = borsh::to_vec(&v).unwrap();
-//         output_vec.push(v_bytes);
-//     }
-//     Ok(output_vec)
-// }
 
 #[rustler::nif]
 fn generate_resource(
