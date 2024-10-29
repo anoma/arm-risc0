@@ -17,10 +17,9 @@ fn prove(
 ) -> NifResult<Vec<u8>> {
     
     // let compliance: Compliance<32> = Compliance::<32>::default();
-    // let compliance_bytes = borsh::to_vec(&compliance).expect("Failed to serialize compliance");
 
     // let env = ExecutorEnv::builder()
-    //     .write(&compliance_bytes)
+    //     .write(&compliance)
     //     .expect("Failed to write to ExecutorEnv")
     //     .build()
     //     .expect("Failed to build ExecutorEnv");
