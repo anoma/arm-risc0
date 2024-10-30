@@ -1,5 +1,6 @@
 defmodule Risc0.Risc0Prover do
-  use Rustler, otp_app: :risc0, crate: :risc0_prover
+  use Rustler, otp_app: :risc0, crate: :risc0_prover, features: :prove
+
 
   @moduledoc """
   Provides NIF functions for Risc0 proof generation, verification, and related cryptographic operations.
