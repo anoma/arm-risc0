@@ -1,5 +1,5 @@
 defmodule Risc0.Risc0Prover do
-  use Rustler, otp_app: :risc0, crate: :risc0_prover, features: :prove
+  use Rustler, otp_app: :risc0, crate: :risc0_prover
 
 
   @moduledoc """
