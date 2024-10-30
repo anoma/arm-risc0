@@ -1,14 +1,22 @@
+mod encryption;
+mod utils;
+
 use risc0_zkvm::{
     default_prover,
     ExecutorEnv,
     Receipt,
     sha::{Impl, Sha256, Digest}
 };
+use k256::Scalar;
 use rand::Rng;
 use aarm_core::{Compliance, Resource, Nsk};
 use methods::{COMPLIANCE_GUEST_ELF, COMPLIANCE_GUEST_ID};
 use rustler::{NifResult, Error};
+use utils::{vec_to_array, bytes_to_projective_point};
+use encryption::{Ciphertext};
+use k256::elliptic_curve::PrimeField;
 
+use k256::elliptic_curve::generic_array::GenericArray;
 
 #[rustler::nif]
 fn prove(
@@ -134,6 +142,51 @@ fn generate_nsk() -> NifResult<Vec<u8>> {
     Ok(borsh::to_vec(&digest).unwrap())
 }
 
+#[rustler::nif]
+fn encrypt(
+    message: Vec<u8>,
+    pk_bytes: Vec<u8>,
+    sk_bytes: Vec<u8>,
+    nonce_bytes: Vec<u8>,
+) -> NifResult<Vec<u8>> {
+    // Decode pk
+    let pk = bytes_to_projective_point(&pk_bytes).unwrap();
+
+
+    // Decode sk
+    let repr = *GenericArray::from_slice(&sk_bytes);
+    let sk = Scalar::from_repr(repr).unwrap();
+
+    // Decode nonce
+    let nonce = vec_to_array(nonce_bytes).unwrap();
+
+    // Encrypt
+    let cipher = Ciphertext::encrypt(&message, &pk, &sk, &nonce);
+
+    Ok(cipher.inner())
+}
+
+#[rustler::nif]
+fn decrypt(
+    cipher: Vec<u8>,
+    pk_bytes: Vec<u8>,
+    sk_bytes: Vec<u8>,
+    nonce_bytes: Vec<u8>) -> NifResult<Vec<u8>> {
+    // Decode pk
+    let pk = bytes_to_projective_point(&pk_bytes).unwrap();
+
+    // Decode sk
+    let repr = *GenericArray::from_slice(&sk_bytes);
+    let sk = Scalar::from_repr(repr).unwrap();
+
+    // Decode nonce
+    let nonce = vec_to_array(nonce_bytes).unwrap();
+    // Encrypt
+    let plaintext = Ciphertext::from(cipher).decrypt(&sk, &pk, &nonce).unwrap();
+
+    Ok(plaintext)
+}
+
 rustler::init!(
     "Elixir.Risc0.Risc0Prover",
     [
@@ -141,9 +194,10 @@ rustler::init!(
         verify,
         generate_merkle_path_32,
         generate_resource,
-        // risc0_get_output,
         random_32,
         generate_compliance_circuit,
-        generate_nsk
+        generate_nsk,
+        encrypt,
+        decrypt
     ]
 );
