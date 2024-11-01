@@ -17,7 +17,7 @@ defmodule Risc0 do
     list(byte()),
     list(byte()),
     list(byte()),
-    list(byte()),
+    list(boolean()),
     list(byte()),
     list(byte()),
     list(byte()))  ::
