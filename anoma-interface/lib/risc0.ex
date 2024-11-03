@@ -57,5 +57,37 @@ defmodule Risc0 do
 
     @spec generate_nsk() :: list(byte()) | {:error, term()}
     defdelegate generate_nsk(), to: Risc0.Risc0Prover, as: :generate_nsk
+    @spec encrypt(
+      list(byte()),
+      list(byte()),
+      list(byte()),
+      list(byte())
+    ) :: list(byte()) | {:error, term()}
+    defdelegate encrypt(
+      message,
+      pk_bytes,
+      sk_bytes,
+      nonce_bytes
+    ), to: Risc0.Risc0Prover, as: :encrypt
 
+    @spec decrypt(
+      list(byte()),
+      list(byte()),
+      list(byte()),
+      list(byte())
+    ) :: list(byte()) | {:error, term()}
+    defdelegate decrypt(
+      cipher,
+      pk_bytes,
+      sk_bytes,
+      nonce_bytes
+    ), to: Risc0.Risc0Prover, as: :decrypt
+
+
+    @doc """
+    Generates a random private key and its corresponding public key.
+    Returns a tuple containing the private key bytes and public key bytes.
+    """
+    @spec generate_keypair() :: {list(byte()), list(byte())} | {:error, term()}
+    defdelegate generate_keypair(), to: Risc0.Risc0Prover, as: :generate_keypair
 end

@@ -11,9 +11,10 @@ use k256::Scalar;
 use rand::Rng;
 use aarm_core::{Compliance, Resource, Nsk};
 use rustler::{NifResult, Error};
-use utils::{vec_to_array, bytes_to_projective_point};
+use utils::{vec_to_array};
 use encryption::{Ciphertext};
 use k256::elliptic_curve::PrimeField;
+use crate::encryption::{projective_point_to_bytes, bytes_to_projective_point};
 use k256::elliptic_curve::generic_array::GenericArray;
 use std::time::Instant;
 use serde_bytes::ByteBuf;
@@ -142,6 +143,13 @@ fn generate_nsk() -> NifResult<Vec<u8>> {
     Ok(bincode::serialize(&digest).unwrap())
 }
 
+#[rustler::nif] 
+fn generate_keypair() -> NifResult<(Vec<u8>, Vec<u8>)> {
+    let (sk, pk) = encryption::generate_keypair();
+    let pk_bytes = projective_point_to_bytes(&pk);
+    Ok((bincode::serialize(&sk).unwrap(), pk_bytes))
+}
+
 #[rustler::nif]
 fn encrypt(
     message: Vec<u8>,
@@ -198,6 +206,7 @@ rustler::init!(
         generate_compliance_circuit,
         generate_nsk,
         encrypt,
-        decrypt
+        decrypt,
+        generate_keypair
     ]
 );
