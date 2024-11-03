@@ -1,10 +1,9 @@
 defmodule Risc0ComplianceTest do
   use ExUnit.Case
 
-  # doctest Risc0.Risc0Prover
-  # doctest Risc0.Risc0VM
   @compliance_guest_elf File.read!("../compliance-circuit/target/riscv-guest/riscv32im-risc0-zkvm-elf/release/compliance_guest")
-  @compliance_guest_id [3158653199, 3603290836, 2377543753, 943534379, 707928066, 1099487722, 3703862186, 753768222]
+  # Found in ../compliance-circuit/target/debug/build/methods-38f440f6c1f89eed/out/methods.rs
+  @compliance_guest_id [628739029, 195810266, 3068426337, 784798236, 919101207, 745839261, 1195377994, 400294044]
 
   @tag timeout: :infinity
   test "compliance_circuit" do
@@ -16,7 +15,7 @@ defmodule Risc0ComplianceTest do
     nonce_2 = Risc0.random_32()
     quantity = Risc0.random_32()
     value = Risc0.random_32()
-    eph = false # :binary.encode_unsigned(0)# |> :binary.bin_to_list()
+    eph = false
     nsk = Risc0.generate_nsk()
     rcv = Risc0.random_32()
     rseed_1 = Risc0.random_32()

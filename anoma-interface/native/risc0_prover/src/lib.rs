@@ -9,34 +9,30 @@ use risc0_zkvm::{
 };
 use k256::Scalar;
 use rand::Rng;
-use aarm_core::{Compliance, Resource, Nsk};
+use aarm_core::{Compliance, Resource, Nsk, GenericEnv};
 use rustler::{NifResult, Error};
 use utils::{vec_to_array, bytes_to_projective_point};
 use encryption::{Ciphertext};
 use k256::elliptic_curve::PrimeField;
 use k256::elliptic_curve::generic_array::GenericArray;
 use std::time::Instant;
-use serde::{Serialize, Deserialize};
 use serde_bytes::ByteBuf;
 
-#[derive(Serialize, Deserialize)]
-struct GenericEnv {
-    data: ByteBuf,  // Stores unstructured data as bytes
-}
 
 #[rustler::nif]
 fn prove(
     env_bytes: Vec<u8>,
     elf: Vec<u8>
 ) -> NifResult<Vec<u8>> {
+    let generic_env = GenericEnv {
+        data: ByteBuf::from(env_bytes),
+    };
     
-    // let compliance: Compliance<32> = bincode::deserialize(&env_bytes).unwrap();
-
     let env = ExecutorEnv::builder()
-        .write(&env_bytes)
-        .expect("Failed to write to ExecutorEnv")
+        .write(&generic_env)
+        .unwrap()
         .build()
-        .expect("Failed to build ExecutorEnv");
+        .unwrap();
 
     let prover = default_prover();
     let prove_start_timer = Instant::now();
