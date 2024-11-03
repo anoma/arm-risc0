@@ -14,12 +14,19 @@ use serde::{Deserialize, Serialize};
 use serde_big_array::BigArray;
 use borsh::{BorshSerialize, BorshDeserialize};
 use k256::elliptic_curve::generic_array::GenericArray;
+use serde_bytes;
 
 const DST: &[u8] = b"QUUX-V01-CS02-with-secp256k1_XMD:SHA-256_SSWU_RO_";
 
 const COMPRESSED_TRIVIAL_RESOURCE_LOGIC_VK: &[u8] = b"trivial_resource_logic_vk";
 
 pub const TREE_DEPTH: usize = 32;
+
+#[derive(Serialize, Deserialize)]
+pub struct GenericEnv {
+    pub data: serde_bytes::ByteBuf,
+}
+
 
 /// Nullifier secret key
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
