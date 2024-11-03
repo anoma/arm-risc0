@@ -5,11 +5,11 @@ use risc0_zkvm::{
     sha::{Impl, Sha256, Digest}
 };
 use rand::Rng;
-use aarm_core::{Compliance, Resource, Nsk, GenericEnv};
+use aarm_core::{Compliance, Resource, Nsk};
 use rustler::{NifResult, Error};
 use std::time::Instant;
 use serde_bytes::ByteBuf;
-
+use aarm_utils::GenericEnv;
 
 #[rustler::nif]
 fn prove(
