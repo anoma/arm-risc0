@@ -4,3 +4,4 @@ methods/guest/Cargo.lock
 target/
 _build/
 deps/
+.vscode/
