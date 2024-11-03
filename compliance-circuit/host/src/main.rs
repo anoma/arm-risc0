@@ -1,12 +1,12 @@
 // #![no_std]
-use aarm_core::{Compliance, TREE_DEPTH, GenericEnv};
+use aarm_core::{Compliance, TREE_DEPTH};
 use methods::{COMPLIANCE_GUEST_ELF, COMPLIANCE_GUEST_ID};
 use risc0_zkvm::{default_prover, sha::Digest, ExecutorEnv};
 use std::time::Instant;
 use serde_bytes::ByteBuf;
 use bincode;
 const DATA_BYTES: usize = 32;
-
+use aarm_utils::GenericEnv;
 pub fn main() {
     let prove_start_timer = Instant::now();
 

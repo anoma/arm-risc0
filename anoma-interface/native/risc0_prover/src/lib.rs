@@ -9,7 +9,7 @@ use risc0_zkvm::{
 };
 use k256::Scalar;
 use rand::Rng;
-use aarm_core::{Compliance, Resource, Nsk, GenericEnv};
+use aarm_core::{Compliance, Resource, Nsk};
 use rustler::{NifResult, Error};
 use utils::{vec_to_array, bytes_to_projective_point};
 use encryption::{Ciphertext};
@@ -17,7 +17,7 @@ use k256::elliptic_curve::PrimeField;
 use k256::elliptic_curve::generic_array::GenericArray;
 use std::time::Instant;
 use serde_bytes::ByteBuf;
-
+use aarm_utils::GenericEnv;
 
 #[rustler::nif]
 fn prove(
