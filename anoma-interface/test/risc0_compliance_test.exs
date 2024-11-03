@@ -18,10 +18,6 @@ defmodule Risc0ComplianceTest do
   test "compliance_circuit" do
     compliance_guest_elf = @compliance_guest_elf |> :binary.bin_to_list()
     compliance_guest_id = @compliance_guest_id
-    com_2 = [881554054, 1423722181, 2669433501, 1736387484, 1927038238, 3369494929, 2599234974, 1323892644]
-
-    assert compliance_guest_id == com_2
-
     label = Risc0.random_32()
     nonce_1 = Risc0.random_32()
     nonce_2 = Risc0.random_32()

@@ -57,5 +57,30 @@ defmodule Risc0 do
 
     @spec generate_nsk() :: list(byte()) | {:error, term()}
     defdelegate generate_nsk(), to: Risc0.Risc0Prover, as: :generate_nsk
+    @spec encrypt(
+      list(byte()),
+      list(byte()),
+      list(byte()),
+      list(byte())
+    ) :: list(byte()) | {:error, term()}
+    defdelegate encrypt(
+      message,
+      pk_bytes,
+      sk_bytes,
+      nonce_bytes
+    ), to: Risc0.Risc0Prover, as: :encrypt
+
+    @spec decrypt(
+      list(byte()),
+      list(byte()),
+      list(byte()),
+      list(byte())
+    ) :: list(byte()) | {:error, term()}
+    defdelegate decrypt(
+      cipher,
+      pk_bytes,
+      sk_bytes,
+      nonce_bytes
+    ), to: Risc0.Risc0Prover, as: :decrypt
 
 end
