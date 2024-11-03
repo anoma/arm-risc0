@@ -21,7 +21,7 @@ defmodule Risc0.Risc0Prover do
     list(byte()),
     list(byte()),
     list(byte()),
-    list(byte()),
+    list(boolean()),
     list(byte()),
     list(byte()),
     list(byte())) :: nif_result(list(byte()))

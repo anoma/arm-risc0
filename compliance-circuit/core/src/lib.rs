@@ -1,5 +1,4 @@
 // #![no_std]
-use std::io::{Read, Write, Result};
 use k256::{
     elliptic_curve::{
         group::{ff::PrimeField, GroupEncoding},
@@ -12,9 +11,6 @@ use rand::Rng;
 use risc0_zkvm::sha::{rust_crypto::Sha256 as Sha256Type, Digest, Impl, Sha256, DIGEST_BYTES};
 use serde::{Deserialize, Serialize};
 use serde_big_array::BigArray;
-use borsh::{BorshSerialize, BorshDeserialize};
-use k256::elliptic_curve::generic_array::GenericArray;
-
 const DST: &[u8] = b"QUUX-V01-CS02-with-secp256k1_XMD:SHA-256_SSWU_RO_";
 
 const COMPRESSED_TRIVIAL_RESOURCE_LOGIC_VK: &[u8] = b"trivial_resource_logic_vk";
@@ -22,7 +18,7 @@ const COMPRESSED_TRIVIAL_RESOURCE_LOGIC_VK: &[u8] = b"trivial_resource_logic_vk"
 pub const TREE_DEPTH: usize = 32;
 
 /// Nullifier secret key
-#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize)]
 pub struct Nsk(Digest);
 
 impl Nsk {
@@ -37,7 +33,7 @@ impl Nsk {
 }
 
 /// Nullifier public key
-#[derive(Clone, Eq, PartialEq, Default, Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
+#[derive(Clone, Eq, PartialEq, Default, Serialize, Deserialize)]
 pub struct Npk(Digest);
 
 const LABEL_BYTES: usize = 32;
@@ -62,7 +58,7 @@ const RESOURCE_BYTES: usize = DIGEST_BYTES
 pub const DIGEST_WORDS: usize = 8;
 
 /// A resource that can be created and consumed
-#[derive(Clone, Default, serde::Serialize, serde::Deserialize, BorshDeserialize, BorshSerialize)]
+#[derive(Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct Resource {
     // a succinct representation of the predicate associated with the resource
     pub image_id: Digest,
@@ -249,40 +245,9 @@ where
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct ScalarWrapper(pub Scalar);
-
-impl ScalarWrapper {
-    pub fn from_scalar(v : Scalar) ->  ScalarWrapper {
-        ScalarWrapper(v)
-    }
-    pub fn to_scalar(&self) -> Scalar {
-       self.0 
-    }
-}
-
-impl BorshSerialize for ScalarWrapper {
-    fn serialize<W: Write>(&self, writer: &mut W) -> Result<()> {
-        let bytes = self.0.to_bytes(); // Convert Scalar to 32-byte array
-        writer.write_all(&bytes)?;
-        Ok(())
-    }
-}
-
-impl BorshDeserialize for ScalarWrapper {
-    fn deserialize_reader<R: Read>(reader: &mut R) -> Result<Self> {
-        let mut buf = [0u8; 32]; // Prepare a buffer for 32 bytes
-        reader.read_exact(&mut buf)?; // Read 32 bytes from the reader
-        // let byte_array = U256::from_le_slice(&buf);
-        let repr = *GenericArray::from_slice(&buf);
-
-        let scalar = Scalar::from_repr(repr).unwrap();
-        Ok(ScalarWrapper(scalar))
-    }
-}
 
 
-#[derive(Clone, serde::Serialize, serde::Deserialize, BorshDeserialize, BorshSerialize)]
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub struct Compliance<const COMMITMENT_TREE_DEPTH: usize> {
     /// The input resource
     pub input_resource: Resource,
@@ -292,7 +257,7 @@ pub struct Compliance<const COMMITMENT_TREE_DEPTH: usize> {
     #[serde(with = "BigArray")]
     pub merkle_path: [(Digest, bool); COMMITMENT_TREE_DEPTH],
     /// Random scalar for delta commitment
-    pub rcv: ScalarWrapper,
+    pub rcv: Scalar,
     /// Nullifier secret key
     pub nsk: Nsk,
     // TODO: If we want to add function privacy, include:
@@ -334,7 +299,7 @@ impl<const COMMITMENT_TREE_DEPTH: usize> Compliance<COMMITMENT_TREE_DEPTH> {
         // Comm(input_value - output_value)
         let delta = self.input_resource.kind() * self.input_resource.quantity()
             - self.output_resource.kind() * self.output_resource.quantity()
-            + ProjectivePoint::GENERATOR * self.rcv.to_scalar();
+            + ProjectivePoint::GENERATOR * self.rcv;
 
         let delta_bytes: [u8; DATA_BYTES] = delta.to_affine().to_bytes()[..DATA_BYTES]
             .try_into()
@@ -384,7 +349,7 @@ impl<const COMMITMENT_TREE_DEPTH: usize> Compliance<COMMITMENT_TREE_DEPTH> {
             merkle_path[i] = (Digest::new([i as u32 + 1; DIGEST_WORDS]), i % 2 != 0);
         }
 
-        let rcv = ScalarWrapper::from_scalar(Scalar::random(rng));
+        let rcv = Scalar::random(rng);
 
         Compliance {
             input_resource,

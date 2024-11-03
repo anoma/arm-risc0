@@ -10,64 +10,63 @@ use risc0_zkvm::{
 use k256::Scalar;
 use rand::Rng;
 use aarm_core::{Compliance, Resource, Nsk};
-use methods::{COMPLIANCE_GUEST_ELF, COMPLIANCE_GUEST_ID};
 use rustler::{NifResult, Error};
 use utils::{vec_to_array, bytes_to_projective_point};
 use encryption::{Ciphertext};
 use k256::elliptic_curve::PrimeField;
 
 use k256::elliptic_curve::generic_array::GenericArray;
+use std::time::Instant;
+use serde_bytes::ByteBuf;
+use aarm_utils::GenericEnv;
 
 #[rustler::nif]
 fn prove(
     env_bytes: Vec<u8>,
     elf: Vec<u8>
 ) -> NifResult<Vec<u8>> {
+    let generic_env = GenericEnv {
+        data: ByteBuf::from(env_bytes),
+    };
     
-    // let compliance: Compliance<32> = Compliance::<32>::default();
-
-    // let env = ExecutorEnv::builder()
-    //     .write(&compliance)
-    //     .expect("Failed to write to ExecutorEnv")
-    //     .build()
-    //     .expect("Failed to build ExecutorEnv");
-
-    // let prover = default_prover();
-    // println!("Proving");
-    // // Produce a receipt by proving the specified ELF binary.
-    // let receipt = prover
-    //     .prove(env, COMPLIANCE_GUEST_ELF)
-    //     .map_err(|e| Error::RaiseTerm(Box::new(format!("Failed to prove: {:?}", e))))?
-    //     .receipt;
     let env = ExecutorEnv::builder()
-        .write(&env_bytes)
+        .write(&generic_env)
         .unwrap()
         .build()
         .unwrap();
 
     let prover = default_prover();
-
+    let prove_start_timer = Instant::now();
     println!("Proving");
     let receipt = prover
-        .prove(env, COMPLIANCE_GUEST_ELF)
+        .prove(env, &elf)
         .map_err(|e| Error::RaiseTerm(Box::new(format!("Failed to prove: {:?}", e))))?
         .receipt;
-    println!("Proved");
-    let receipt_bytes = borsh::to_vec(&receipt).unwrap();
-    println!("bytes");
+    let prove_duration = prove_start_timer.elapsed();
+    println!("Prove duration time: {:?}", prove_duration);
+    let receipt_bytes = bincode::serialize(&receipt).unwrap();
     Ok(receipt_bytes)
 }
+
 
 #[rustler::nif]
 fn verify(
     receipt_bytes: Vec<u8>,
-    elf: Vec<u8>
+    guest_id_vec: Vec<u32>
 ) -> NifResult<bool> {
-    let receipt: Receipt = borsh::from_slice(&receipt_bytes).unwrap();
-    let elf_digest : Digest = borsh::from_slice(&elf).unwrap();
+    let receipt: Receipt = bincode::deserialize(&receipt_bytes).unwrap();
+    println!("Vector length: {:?}", guest_id_vec.len());
+    let guest_id: [u32; 8] = match guest_id_vec.try_into() {
+        Ok(arr) => arr,
+        Err(_) => return Err(Error::RaiseTerm(Box::new("compliance_guest_id must have exactly 8 u32 values"))),
+    };
+    println!("Verify");
+    let verify_start_timer = Instant::now();
     receipt
-        .verify(elf_digest)
-        .map_err(|e| Error::RaiseTerm(Box::new(format!("Failed to verify: {:?}", e))))?;
+    .verify(guest_id)
+    .map_err(|e| Error::RaiseTerm(Box::new(format!("Failed to verify: {:?}", e))))?;
+    let verify_duration = verify_start_timer.elapsed();
+    println!("Verify duration time: {:?}", verify_duration); 
     Ok(true)
 }
 
@@ -77,24 +76,24 @@ fn generate_resource(
     nonce: Vec<u8>,
     quantity: Vec<u8>,
     value: Vec<u8>,
-    eph: Vec<u8>,
+    eph: bool,
     nsk: Vec<u8>,
     image_id: Vec<u8>,
     rseed: Vec<u8>
 ) -> NifResult<Vec<u8>> {
-    let nk: Nsk =  borsh::from_slice(&nsk).unwrap();
+    let nk: Nsk =  bincode::deserialize(&nsk).unwrap();
     let resource = Resource {
         image_id: *Impl::hash_bytes(&image_id),
-        label: borsh::from_slice(&label).unwrap(),
-        quantity: borsh::from_slice(&quantity).unwrap(),
-        value: borsh::from_slice(&value).unwrap(),
-        eph: borsh::from_slice(&eph).unwrap(),
+        label: bincode::deserialize(&label).unwrap(),
+        quantity: bincode::deserialize(&quantity).unwrap(),
+        value: bincode::deserialize(&value).unwrap(),
+        eph, 
         nonce: *Impl::hash_bytes(&nonce),
         npk: nk.public_key(),
-        rseed: borsh::from_slice(&rseed).unwrap(),
+        rseed: bincode::deserialize(&rseed).unwrap(),
     };
 
-    let resource_bytes = borsh::to_vec(&resource).unwrap();
+    let resource_bytes = bincode::serialize(&resource).map_err(|e| Error::RaiseTerm(Box::new(format!("Serialization error: {:?}", e))))?;
     Ok(resource_bytes)
 }
 
@@ -107,13 +106,15 @@ fn generate_compliance_circuit(
     nsk: Vec<u8>,
 ) -> NifResult<Vec<u8>> {
     let compliance = Compliance {
-        input_resource: borsh::from_slice(&input_resource).unwrap(),
-        output_resource: borsh::from_slice(&output_resource).unwrap(),
-        merkle_path: borsh::from_slice::<[(Digest, bool); 32]>(&merkle_path).unwrap(),
-        rcv: borsh::from_slice(&rcv).unwrap(),
-        nsk: borsh::from_slice(&nsk).unwrap(),
+        input_resource: bincode::deserialize(&input_resource).unwrap(),
+        output_resource: bincode::deserialize(&output_resource).unwrap(),
+        merkle_path: bincode::deserialize::<[(Digest, bool); 32]>(&merkle_path).unwrap(),
+        rcv: bincode::deserialize(&rcv).unwrap(),
+        nsk: bincode::deserialize(&nsk).unwrap(),
     };
-    Ok(borsh::to_vec(&compliance).unwrap())
+
+    let compliance_bytes = bincode::serialize(&compliance).map_err(|e| Error::RaiseTerm(Box::new(format!("Serialization error: {:?}", e))))?;
+    Ok(compliance_bytes)
 }
 
 #[rustler::nif]
@@ -131,7 +132,7 @@ fn generate_merkle_path_32() -> NifResult<Vec<u8>> {
     for i in 0..32 {
         merkle_path[i] = (Digest::new([i as u32 + 1; 8]), i % 2 != 0);
     }
-    Ok(borsh::to_vec(&merkle_path).unwrap())
+    Ok(bincode::serialize(&merkle_path).unwrap())
 }
 
 #[rustler::nif]
@@ -139,7 +140,7 @@ fn generate_nsk() -> NifResult<Vec<u8>> {
     let mut rng = rand::thread_rng();
     let random_elem: [u8; 32] = rng.gen();
     let digest = *Impl::hash_bytes(&random_elem);
-    Ok(borsh::to_vec(&digest).unwrap())
+    Ok(bincode::serialize(&digest).unwrap())
 }
 
 #[rustler::nif]

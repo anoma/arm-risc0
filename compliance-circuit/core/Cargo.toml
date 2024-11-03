@@ -13,4 +13,5 @@ serde-big-array = "0.5.1"
 k256 = { version = "=0.13.1", features = ["arithmetic", "serde", "expose-field", "std", "ecdsa", "hash2curve"], default-features = false }
 sha2 = "0.10.6"
 rand = "0.8"
-borsh = "1.5.1" 
+serde_bytes = "0.11"
+aarm-utils = { path = "../../aarm-utils" }
