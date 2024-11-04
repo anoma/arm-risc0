@@ -21,4 +21,4 @@ aarm-core = { path = "../../../compliance-circuit/core" }
 methods = { path = "../../../compliance-circuit/methods" }
 aarm-utils = { path = "../../../aarm-utils" }
 aes-gcm = "0.10"         
-k256 = "0.13"   
+k256 = { version = "0.13", features = ["serde", "arithmetic"] }

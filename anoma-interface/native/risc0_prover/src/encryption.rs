@@ -1,6 +1,10 @@
 use aes_gcm::{Aes256Gcm, KeyInit, Key, Nonce}; // AES-256-GCM authentication
 use aes_gcm::aead::Aead;
-use k256::{ProjectivePoint, Scalar, EncodedPoint};
+use k256::{ProjectivePoint, Scalar}; // Add serde import
+use k256::EncodedPoint;
+use rand::thread_rng;
+use k256::elliptic_curve::Field;
+use k256::elliptic_curve::sec1::FromEncodedPoint;
 
 #[derive(Debug, Clone)]
 pub struct Ciphertext(Vec<u8>);
@@ -65,10 +69,39 @@ impl From<Vec<u8>> for Ciphertext {
     }
 }
 
+/// Generates a random private key (Scalar) and its corresponding public key (ProjectivePoint)
+pub fn generate_keypair() -> (Scalar, ProjectivePoint) {
+    // Generate random private key
+    let sk = Scalar::random(&mut thread_rng());
+    
+    // Compute public key as generator * private key
+    let pk = ProjectivePoint::GENERATOR * sk;
+
+    (sk, pk)
+}
+
+/// Converts a ProjectivePoint to bytes for serialization
+pub fn projective_point_to_bytes(point: &ProjectivePoint) -> Vec<u8> {
+    let affine = point.to_affine();
+    let encoded = EncodedPoint::from(affine);
+    encoded.as_bytes().to_vec()
+}
+
+/// Converts bytes back to a ProjectivePoint, returning None if invalid
+pub fn bytes_to_projective_point(bytes: &[u8]) -> Option<ProjectivePoint> {
+    println!("Attempting to convert bytes to projective point: {:?}", bytes);
+    let ret = EncodedPoint::from_bytes(bytes)
+        .ok()
+        .and_then(|encoded| Option::from(ProjectivePoint::from_encoded_point(&encoded)));
+    println!("Successfully converted bytes to projective point: {:?}", ret);
+    ret
+}
+
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use k256::{ProjectivePoint, Scalar};
+    use k256::{ProjectivePoint, EncodedPoint, Scalar};
     pub use rand::rngs::OsRng;
     #[test]
     fn test_encryption() {
@@ -77,16 +110,35 @@ mod tests {
         let pk = ProjectivePoint::GENERATOR * sender_sk; // Generate the corresponding public key
 
         // Example message and nonce
-        let messages = b"Hello, AES-256-GCM encryption!".to_vec(); // Example message as Vec<u8>
+        let message = b"Hello, AES-256-GCM encryption!".to_vec(); // Example message as Vec<u8>
         let encrypt_nonce = [0u8; 32]; // Example nonce as [u8; 32] (all zeros for simplicity)
 
         // Encryption
-        let cipher = Ciphertext::encrypt(&messages, &pk, &sender_sk, &encrypt_nonce);
+        let cipher = Ciphertext::encrypt(&message, &pk, &sender_sk, &encrypt_nonce);
 
         // Decryption
         let decryption = cipher.decrypt(&sender_sk, &pk, &encrypt_nonce).unwrap();
 
         // Verify the decrypted message matches the original
-        assert_eq!(messages, decryption);
+        assert_eq!(message, decryption);
+    }
+
+
+
+    #[test]
+    fn test_projective_point_to_bytes() {
+        // Generate an example projective point using the generator point
+        let original_point = ProjectivePoint::GENERATOR;
+
+        // Convert the projective point to bytes
+        let encoded_point: EncodedPoint = original_point.to_affine().into();
+        let bytes = encoded_point.as_bytes();
+
+        // Convert bytes back to a ProjectivePoint
+        let reconstructed_point = bytes_to_projective_point(&bytes.to_vec())
+            .expect("Failed to convert bytes back to ProjectivePoint");
+
+        // Verify that the original point and the reconstructed point are equal
+        assert_eq!(original_point, reconstructed_point);
     }
 }

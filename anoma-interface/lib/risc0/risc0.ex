@@ -66,4 +66,7 @@ defmodule Risc0.Risc0Prover do
 
   @spec decrypt(list(byte()), list(byte()), list(byte()), list(byte())) :: nif_result(list(byte()))
   def decrypt(_cipher, _pk_bytes, _sk_bytes, _nonce_bytes), do: error()
+
+  @spec generate_keypair() :: nif_result({list(byte()), list(byte())})
+  def generate_keypair(), do: error()
 end

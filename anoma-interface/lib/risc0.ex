@@ -83,4 +83,11 @@ defmodule Risc0 do
       nonce_bytes
     ), to: Risc0.Risc0Prover, as: :decrypt
 
+
+    @doc """
+    Generates a random private key and its corresponding public key.
+    Returns a tuple containing the private key bytes and public key bytes.
+    """
+    @spec generate_keypair() :: {list(byte()), list(byte())} | {:error, term()}
+    defdelegate generate_keypair(), to: Risc0.Risc0Prover, as: :generate_keypair
 end
