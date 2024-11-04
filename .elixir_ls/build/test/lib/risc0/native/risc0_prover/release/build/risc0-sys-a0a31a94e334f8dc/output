@@ -1,0 +1,11 @@
+cargo:cxx_root=/Users/albertocentelles/.cargo/registry/src/index.crates.io-6f17d22bba15001f/risc0-sys-1.1.2/cxx
+cargo:metal_root=/Users/albertocentelles/.cargo/registry/src/index.crates.io-6f17d22bba15001f/risc0-sys-1.1.2/kernels/zkp/metal
+cargo:rerun-if-changed=kernels/zkp/metal/eltwise.metal
+cargo:rerun-if-changed=kernels/zkp/metal/fri.metal
+cargo:rerun-if-changed=kernels/zkp/metal/mix.metal
+cargo:rerun-if-changed=kernels/zkp/metal/ntt.metal
+cargo:rerun-if-changed=kernels/zkp/metal/poseidon2.metal
+cargo:rerun-if-changed=kernels/zkp/metal/sha.metal
+cargo:rerun-if-changed=kernels/zkp/metal/zk.metal
+cargo:rerun-if-changed=kernels/zkp/metal/sha256.h
+cargo:metal_kernels_zkp=/Users/albertocentelles/Dropbox/heliax/aarm-risc0/.elixir_ls/build/test/lib/risc0/native/risc0_prover/release/build/risc0-sys-a0a31a94e334f8dc/out/metal_kernels_zkp.metallib

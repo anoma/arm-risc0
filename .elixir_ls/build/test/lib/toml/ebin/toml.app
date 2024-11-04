@@ -1,0 +1,12 @@
+{application,toml,
+             [{config_mtime,1729697488},
+              {optional_applications,[]},
+              {applications,[kernel,stdlib,elixir]},
+              {description,"An implementation of TOML for Elixir projects"},
+              {modules,['Elixir.Toml','Elixir.Toml.Builder',
+                        'Elixir.Toml.Decoder','Elixir.Toml.Document',
+                        'Elixir.Toml.Error','Elixir.Toml.Lexer',
+                        'Elixir.Toml.Lexer.Guards','Elixir.Toml.Lexer.String',
+                        'Elixir.Toml.Provider','Elixir.Toml.Transform']},
+              {registered,[]},
+              {vsn,"0.7.0"}]}.
