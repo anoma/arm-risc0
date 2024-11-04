@@ -1,5 +1,3 @@
-use k256::{ProjectivePoint, EncodedPoint, AffinePoint};
-use k256::elliptic_curve::sec1::FromEncodedPoint;
 
 
 /// Converts a Vec<u8> to a [u8; 32] array if the Vec has exactly 32 bytes.
