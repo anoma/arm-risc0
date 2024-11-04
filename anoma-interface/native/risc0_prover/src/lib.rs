@@ -1,15 +1,24 @@
+mod encryption;
+mod utils;
+
 use risc0_zkvm::{
     default_prover,
     ExecutorEnv,
     Receipt,
     sha::{Impl, Sha256, Digest}
 };
+use k256::Scalar;
 use rand::Rng;
-use aarm_core::{Compliance, Resource, Nsk, GenericEnv};
+use aarm_core::{Compliance, Resource, Nsk};
 use rustler::{NifResult, Error};
+use utils::{vec_to_array};
+use encryption::{Ciphertext};
+use k256::elliptic_curve::PrimeField;
+use crate::encryption::{projective_point_to_bytes, bytes_to_projective_point};
+use k256::elliptic_curve::generic_array::GenericArray;
 use std::time::Instant;
 use serde_bytes::ByteBuf;
-
+use aarm_utils::GenericEnv;
 
 #[rustler::nif]
 fn prove(
@@ -134,6 +143,58 @@ fn generate_nsk() -> NifResult<Vec<u8>> {
     Ok(bincode::serialize(&digest).unwrap())
 }
 
+#[rustler::nif] 
+fn generate_keypair() -> NifResult<(Vec<u8>, Vec<u8>)> {
+    let (sk, pk) = encryption::generate_keypair();
+    let pk_bytes = projective_point_to_bytes(&pk);
+    Ok((bincode::serialize(&sk).unwrap(), pk_bytes))
+}
+
+#[rustler::nif]
+fn encrypt(
+    message: Vec<u8>,
+    pk_bytes: Vec<u8>,
+    sk_bytes: Vec<u8>,
+    nonce_bytes: Vec<u8>,
+) -> NifResult<Vec<u8>> {
+    // Decode pk
+    let pk = bytes_to_projective_point(&pk_bytes).unwrap();
+
+
+    // Decode sk
+    let repr = *GenericArray::from_slice(&sk_bytes);
+    let sk = Scalar::from_repr(repr).unwrap();
+
+    // Decode nonce
+    let nonce = vec_to_array(nonce_bytes).unwrap();
+
+    // Encrypt
+    let cipher = Ciphertext::encrypt(&message, &pk, &sk, &nonce);
+
+    Ok(cipher.inner())
+}
+
+#[rustler::nif]
+fn decrypt(
+    cipher: Vec<u8>,
+    pk_bytes: Vec<u8>,
+    sk_bytes: Vec<u8>,
+    nonce_bytes: Vec<u8>) -> NifResult<Vec<u8>> {
+    // Decode pk
+    let pk = bytes_to_projective_point(&pk_bytes).unwrap();
+
+    // Decode sk
+    let repr = *GenericArray::from_slice(&sk_bytes);
+    let sk = Scalar::from_repr(repr).unwrap();
+
+    // Decode nonce
+    let nonce = vec_to_array(nonce_bytes).unwrap();
+    // Encrypt
+    let plaintext = Ciphertext::from(cipher).decrypt(&sk, &pk, &nonce).unwrap();
+
+    Ok(plaintext)
+}
+
 rustler::init!(
     "Elixir.Risc0.Risc0Prover",
     [
@@ -143,6 +204,9 @@ rustler::init!(
         generate_resource,
         random_32,
         generate_compliance_circuit,
-        generate_nsk
+        generate_nsk,
+        encrypt,
+        decrypt,
+        generate_keypair
     ]
 );
