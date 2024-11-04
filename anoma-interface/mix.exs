@@ -1,4 +1,4 @@
-defmodule Cairo.MixProject do
+defmodule Risc0.MixProject do
   use Mix.Project
 
   def project do
