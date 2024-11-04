@@ -19,5 +19,6 @@ end
 ## To test the NIF:
 
 - You must have the risc0-zkvm toolchain installed.
+- Compile the compliance circuit with `cargo build` in the `compliance-circuit` directory. This is necessary to generate the guest ELF and ID files.
 - If you are on macOS, you must have XCode installed. To build with the `prove` flag on macOS, you'll need to have the full version of XCode installed, which includes the 'metal' compiler. We need the `prove` feature flag to have the proving happen in the same process. Otherwise, with `default` feature flags, the prover will try to launch a `r0vm` server process to perform the actual proving. If you're calling this from some other environment, it will throw a "No child processses" error.
 - You can run the tests with `mix test`.
