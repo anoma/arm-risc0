@@ -3,7 +3,7 @@ defmodule Risc0ComplianceTest do
 
   @compliance_guest_elf File.read!("native/compliance-circuit/target/riscv-guest/riscv32im-risc0-zkvm-elf/release/compliance_guest")
   # If you change the compliance circuit, change `methods-0e48b529bacc479b` with the new hash.
-  @compliance_guest_id File.read!("native/compliance-circuit/target/debug/build/methods-0e48b529bacc479b/out/methods.rs")
+  @compliance_guest_id File.read!("native/compliance-circuit/target/debug/build/methods-2dacd0d24f782198/out/methods.rs")
                        |> String.split("\n")
                        |> Enum.find(&String.contains?(&1, "COMPLIANCE_GUEST_ID"))
                        |> String.split("= [")  # Split on "= [" to get everything after the array start
