@@ -14,14 +14,6 @@ pub fn vec_to_array(bytes: Vec<u8>) -> Option<[u8; 32]> {
     }
 }
 
-// /// Converts a byte vector to a ProjectivePoint, assuming it is a compressed or uncompressed
-// /// representation (33 or 65 bytes respectively). Returns None if the byte vector is invalid.
-// pub fn bytes_to_projective_point(bytes: &Vec<u8>) -> Option<ProjectivePoint> {
-//     // Try to parse the byte vector as an EncodedPoint
-//     let encoded_point = EncodedPoint::from_bytes(bytes).ok()?;
 
-//     // Convert the EncodedPoint to an AffinePoint, then convert AffinePoint to ProjectivePoint
-//     AffinePoint::from_encoded_point(&encoded_point).map(Into::into).into()
-// }
 
 
