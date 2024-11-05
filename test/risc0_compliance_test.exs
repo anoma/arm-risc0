@@ -24,12 +24,12 @@ defmodule Risc0ComplianceTest do
     quantity = Risc0.random_32()
     value = Risc0.random_32()
     eph = false
-    nsk = Risc0.generate_nsk()
+    nsk = Risc0.random_nsk()
     rcv = Risc0.random_32()
     rseed_1 = Risc0.random_32()
     rseed_2 = Risc0.random_32()
     image_id = Risc0.random_32()
-    merkle_path = Risc0.generate_merkle_path_32()
+    merkle_path = Risc0.random_merkle_path_32()
 
     input_resource = Risc0.generate_resource(
       label,

@@ -118,6 +118,28 @@ fn generate_compliance_circuit(
 }
 
 #[rustler::nif]
+fn sha256_single(x: Vec<u8>) -> NifResult<Vec<u8>> {
+    let result = Impl::hash_bytes(&x);
+    Ok(result.as_bytes().to_vec())
+}
+
+#[rustler::nif]
+fn sha256_double(x: Vec<u8>, y: Vec<u8>) -> NifResult<Vec<u8>> {
+    let mut combined = x;
+    combined.extend_from_slice(&y);
+    let result = Impl::hash_bytes(&combined);
+    Ok(result.as_bytes().to_vec())
+}
+
+#[rustler::nif]
+fn sha256_many(inputs: Vec<Vec<u8>>) -> NifResult<Vec<u8>> {
+    let combined: Vec<u8> = inputs.into_iter().flatten().collect();
+    let result = Impl::hash_bytes(&combined);
+    Ok(result.as_bytes().to_vec())
+}
+
+
+#[rustler::nif]
 fn random_32() -> NifResult<Vec<u8>> {
     let mut rng = rand::thread_rng();
     let random_elem: [u8; 32] = rng.gen();
@@ -125,7 +147,7 @@ fn random_32() -> NifResult<Vec<u8>> {
 }
 
 #[rustler::nif]
-fn generate_merkle_path_32() -> NifResult<Vec<u8>> {
+fn random_merkle_path_32() -> NifResult<Vec<u8>> {
     let mut merkle_path: [(Digest, bool); 32] =
     [(Digest::new([0; 8]), false); 32];
 
@@ -136,7 +158,7 @@ fn generate_merkle_path_32() -> NifResult<Vec<u8>> {
 }
 
 #[rustler::nif]
-fn generate_nsk() -> NifResult<Vec<u8>> {
+fn random_nsk() -> NifResult<Vec<u8>> {
     let mut rng = rand::thread_rng();
     let random_elem: [u8; 32] = rng.gen();
     let digest = *Impl::hash_bytes(&random_elem);
@@ -144,8 +166,8 @@ fn generate_nsk() -> NifResult<Vec<u8>> {
 }
 
 #[rustler::nif] 
-fn generate_keypair() -> NifResult<(Vec<u8>, Vec<u8>)> {
-    let (sk, pk) = encryption::generate_keypair();
+fn random_keypair() -> NifResult<(Vec<u8>, Vec<u8>)> {
+    let (sk, pk) = encryption::random_keypair();
     let pk_bytes = projective_point_to_bytes(&pk);
     Ok((bincode::serialize(&sk).unwrap(), pk_bytes))
 }
@@ -200,13 +222,16 @@ rustler::init!(
     [
         prove,
         verify,
-        generate_merkle_path_32,
+        random_merkle_path_32,
         generate_resource,
         random_32,
         generate_compliance_circuit,
-        generate_nsk,
+        random_nsk,
         encrypt,
         decrypt,
-        generate_keypair
+        random_keypair,
+        sha256_single,
+        sha256_double,
+        sha256_many
     ]
 );
