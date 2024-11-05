@@ -69,15 +69,19 @@ impl From<Vec<u8>> for Ciphertext {
     }
 }
 
+pub fn generate_public_key(sk: &Scalar) -> ProjectivePoint {
+    // Compute public key as generator * private key
+    ProjectivePoint::GENERATOR * sk
+}
+
 /// Generates a random private key (Scalar) and its corresponding public key (ProjectivePoint)
-pub fn generate_keypair() -> (Scalar, ProjectivePoint) {
+pub fn random_keypair() -> (Scalar, ProjectivePoint) {
     // Generate random private key
     let sk = Scalar::random(&mut thread_rng());
-    
-    // Compute public key as generator * private key
-    let pk = ProjectivePoint::GENERATOR * sk;
+    let pk = generate_public_key(&sk);
 
     (sk, pk)
+    
 }
 
 /// Converts a ProjectivePoint to bytes for serialization
