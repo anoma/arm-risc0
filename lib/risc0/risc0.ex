@@ -167,17 +167,18 @@ defmodule Risc0.Risc0Prover do
   @spec random_keypair() :: nif_result({list(byte()), list(byte())})
   def random_keypair(), do: error()
 
+
   @doc """
   Computes SHA256 hash of a single input.
 
   ## Parameters
-    - x: Input bytes to hash
+    - input: Input bytes to hash
 
   ## Returns
-    - list(byte()) | {:error, term()}: The SHA256 hash as bytes or an error
+    - {:ok, list(byte())} | {:error, term()}: The SHA256 hash as bytes or an error
   """
-  @spec sha256_single(list(byte())) :: list(byte()) | {:error, term()}
-  defdelegate sha256_single(x), to: Risc0.Risc0Prover, as: :sha256_single
+  @spec sha256_single(list(byte())) :: nif_result(list(byte()))
+  def sha256_single(_input), do: error()
 
   @doc """
   Computes SHA256 hash of two inputs concatenated.
@@ -187,10 +188,10 @@ defmodule Risc0.Risc0Prover do
     - y: Second input bytes
 
   ## Returns
-    - list(byte()) | {:error, term()}: The SHA256 hash as bytes or an error
+    - {:ok, list(byte())} | {:error, term()}: The SHA256 hash as bytes or an error
   """
-  @spec sha256_double(list(byte()), list(byte())) :: list(byte()) | {:error, term()}
-  defdelegate sha256_double(x, y), to: Risc0.Risc0Prover, as: :sha256_double
+  @spec sha256_double(list(byte()), list(byte())) :: nif_result(list(byte()))
+  def sha256_double(_x, _y), do: error()
 
   @doc """
   Computes SHA256 hash of multiple inputs concatenated.
@@ -199,8 +200,10 @@ defmodule Risc0.Risc0Prover do
     - inputs: List of byte lists to hash
 
   ## Returns
-    - list(byte()) | {:error, term()}: The SHA256 hash as bytes or an error
+    - {:ok, list(byte())} | {:error, term()}: The SHA256 hash as bytes or an error
   """
-  @spec sha256_many(list(list(byte()))) :: list(byte()) | {:error, term()}
-  defdelegate sha256_many(inputs), to: Risc0.Risc0Prover, as: :sha256_many
+  @spec sha256_many(list(list(byte()))) :: nif_result(list(byte()))
+  def sha256_many(_inputs), do: error()
+
+
 end
