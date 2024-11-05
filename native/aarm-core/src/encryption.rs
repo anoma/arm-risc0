@@ -93,11 +93,9 @@ pub fn projective_point_to_bytes(point: &ProjectivePoint) -> Vec<u8> {
 
 /// Converts bytes back to a ProjectivePoint, returning None if invalid
 pub fn bytes_to_projective_point(bytes: &[u8]) -> Option<ProjectivePoint> {
-    println!("Attempting to convert bytes to projective point: {:?}", bytes);
     let ret = EncodedPoint::from_bytes(bytes)
         .ok()
         .and_then(|encoded| Option::from(ProjectivePoint::from_encoded_point(&encoded)));
-    println!("Successfully converted bytes to projective point: {:?}", ret);
     ret
 }
 

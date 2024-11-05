@@ -1,12 +1,14 @@
-// #![no_std]
-use aarm_core::{Compliance, TREE_DEPTH};
+use aarm_core::{
+    compliance::Compliance,
+    constants::TREE_DEPTH,
+    utils::GenericEnv
+};
 use methods::{COMPLIANCE_GUEST_ELF, COMPLIANCE_GUEST_ID};
 use risc0_zkvm::{default_prover, sha::Digest, ExecutorEnv};
 use std::time::Instant;
 use serde_bytes::ByteBuf;
 use bincode;
 const DATA_BYTES: usize = 32;
-use aarm_utils::GenericEnv;
 pub fn main() {
     let prove_start_timer = Instant::now();
 
@@ -14,8 +16,6 @@ pub fn main() {
     let generic_env = GenericEnv {
         data: ByteBuf::from(bincode::serialize(&compliance).unwrap())
     };
-
-
 
     let env = ExecutorEnv::builder()
         .write(&generic_env)

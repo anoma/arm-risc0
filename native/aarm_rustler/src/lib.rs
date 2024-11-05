@@ -1,4 +1,3 @@
-mod encryption;
 mod utils;
 
 use risc0_zkvm::{
@@ -9,16 +8,18 @@ use risc0_zkvm::{
 };
 use k256::Scalar;
 use rand::Rng;
-use aarm_core::{Compliance, Resource, Nsk};
+use aarm_core::{
+    compliance::Compliance, 
+    resource::Resource, 
+    nullifier::{Nsk, Npk}, 
+    utils::GenericEnv, 
+    encryption::{Ciphertext, projective_point_to_bytes, bytes_to_projective_point}};
 use rustler::{NifResult, Error};
 use utils::{vec_to_array};
-use encryption::{Ciphertext};
 use k256::elliptic_curve::PrimeField;
-use crate::encryption::{projective_point_to_bytes, bytes_to_projective_point};
 use k256::elliptic_curve::generic_array::GenericArray;
 use std::time::Instant;
 use serde_bytes::ByteBuf;
-use aarm_utils::GenericEnv;
 
 #[rustler::nif]
 fn prove(
@@ -28,16 +29,14 @@ fn prove(
     let generic_env = GenericEnv {
         data: ByteBuf::from(env_bytes),
     };
-    
     let env = ExecutorEnv::builder()
         .write(&generic_env)
         .unwrap()
         .build()
         .unwrap();
-
     let prover = default_prover();
+    println!("Proving...");
     let prove_start_timer = Instant::now();
-    println!("Proving");
     let receipt = prover
         .prove(env, &elf)
         .map_err(|e| Error::RaiseTerm(Box::new(format!("Failed to prove: {:?}", e))))?
@@ -55,12 +54,11 @@ fn verify(
     guest_id_vec: Vec<u32>
 ) -> NifResult<bool> {
     let receipt: Receipt = bincode::deserialize(&receipt_bytes).unwrap();
-    println!("Vector length: {:?}", guest_id_vec.len());
     let guest_id: [u32; 8] = match guest_id_vec.try_into() {
         Ok(arr) => arr,
         Err(_) => return Err(Error::RaiseTerm(Box::new("compliance_guest_id must have exactly 8 u32 values"))),
     };
-    println!("Verify");
+    println!("Verifying...");
     let verify_start_timer = Instant::now();
     receipt
     .verify(guest_id)
@@ -75,22 +73,21 @@ fn generate_resource(
     label: Vec<u8>,
     nonce: Vec<u8>,
     quantity: Vec<u8>,
-    value: Vec<u8>,
+    data: Vec<u8>,
     eph: bool,
-    nsk: Vec<u8>,
-    image_id: Vec<u8>,
+    npk: Vec<u8>,
+    logic: Vec<u8>,
     rseed: Vec<u8>
 ) -> NifResult<Vec<u8>> {
-    let nk: Nsk =  bincode::deserialize(&nsk).unwrap();
     let resource = Resource {
-        image_id: *Impl::hash_bytes(&image_id),
-        label: bincode::deserialize(&label).unwrap(),
-        quantity: bincode::deserialize(&quantity).unwrap(),
-        value: bincode::deserialize(&value).unwrap(),
+        logic: *Impl::hash_bytes(&logic),
+        label: bincode::deserialize(&label).map_err(|e| Error::RaiseTerm(Box::new(format!("Label deserialization error: {:?}", e)))).unwrap(),
+        quantity: bincode::deserialize(&quantity).map_err(|e| Error::RaiseTerm(Box::new(format!("Quantity deserialization error: {:?}", e)))).unwrap(),
+        data: bincode::deserialize(&data).map_err(|e| Error::RaiseTerm(Box::new(format!("Data deserialization error: {:?}", e)))).unwrap(),
         eph, 
         nonce: *Impl::hash_bytes(&nonce),
-        npk: nk.public_key(),
-        rseed: bincode::deserialize(&rseed).unwrap(),
+        npk: bincode::deserialize(&npk).map_err(|e| Error::RaiseTerm(Box::new(format!("NPK deserialization error: {:?}", e)))).unwrap(),
+        rseed: bincode::deserialize(&rseed).map_err(|e| Error::RaiseTerm(Box::new(format!("Rseed deserialization error: {:?}", e)))).unwrap(),
     };
 
     let resource_bytes = bincode::serialize(&resource).map_err(|e| Error::RaiseTerm(Box::new(format!("Serialization error: {:?}", e))))?;
@@ -106,11 +103,11 @@ fn generate_compliance_circuit(
     nsk: Vec<u8>,
 ) -> NifResult<Vec<u8>> {
     let compliance = Compliance {
-        input_resource: bincode::deserialize(&input_resource).unwrap(),
-        output_resource: bincode::deserialize(&output_resource).unwrap(),
-        merkle_path: bincode::deserialize::<[(Digest, bool); 32]>(&merkle_path).unwrap(),
-        rcv: bincode::deserialize(&rcv).unwrap(),
-        nsk: bincode::deserialize(&nsk).unwrap(),
+        input_resource: bincode::deserialize(&input_resource).map_err(|e| Error::RaiseTerm(Box::new(format!("Input resource deserialization error: {:?}", e)))).unwrap(),
+        output_resource: bincode::deserialize(&output_resource).map_err(|e| Error::RaiseTerm(Box::new(format!("Output resource deserialization error: {:?}", e)))).unwrap(),
+        merkle_path: bincode::deserialize::<[(Digest, bool); 32]>(&merkle_path).map_err(|e| Error::RaiseTerm(Box::new(format!("Merkle path deserialization error: {:?}", e)))).unwrap(),
+        rcv: bincode::deserialize(&rcv).map_err(|e| Error::RaiseTerm(Box::new(format!("RCV deserialization error: {:?}", e)))).unwrap(),
+        nsk: bincode::deserialize(&nsk).map_err(|e| Error::RaiseTerm(Box::new(format!("NSK deserialization error: {:?}", e)))).unwrap(),
     };
 
     let compliance_bytes = bincode::serialize(&compliance).map_err(|e| Error::RaiseTerm(Box::new(format!("Serialization error: {:?}", e))))?;
@@ -165,9 +162,16 @@ fn random_nsk() -> NifResult<Vec<u8>> {
     Ok(bincode::serialize(&digest).unwrap())
 }
 
+#[rustler::nif]
+fn generate_npk(nsk: Vec<u8>) -> NifResult<Vec<u8>> {
+    let nsk: Nsk = bincode::deserialize(&nsk).unwrap();
+    let npk: Npk = nsk.public_key();
+    Ok(bincode::serialize(&npk).unwrap())
+}
+
 #[rustler::nif] 
 fn random_keypair() -> NifResult<(Vec<u8>, Vec<u8>)> {
-    let (sk, pk) = encryption::random_keypair();
+    let (sk, pk) = aarm_core::encryption::random_keypair();
     let pk_bytes = projective_point_to_bytes(&pk);
     Ok((bincode::serialize(&sk).unwrap(), pk_bytes))
 }
@@ -218,7 +222,7 @@ fn decrypt(
 }
 
 rustler::init!(
-    "Elixir.Risc0.Risc0Prover",
+    "Elixir.Risc0.AarmRustler",
     [
         prove,
         verify,
@@ -227,6 +231,7 @@ rustler::init!(
         random_32,
         generate_compliance_circuit,
         random_nsk,
+        generate_npk,
         encrypt,
         decrypt,
         random_keypair,
