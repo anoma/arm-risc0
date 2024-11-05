@@ -5,7 +5,7 @@ defmodule EncryptionTest do
   test "encryption_and_decryption" do
     # Generate test data
     message = String.to_charlist("test message")
-    {sk_bytes, pk_bytes} = Risc0.generate_keypair()
+    {sk_bytes, pk_bytes} = Risc0.random_keypair()
     nonce = Risc0.random_32()
 
     # Encrypt the data

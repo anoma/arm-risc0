@@ -1,3 +1,23 @@
+In the context of Elixir/Erlang, NIF stands for **Native Implemented Function**. NIFs are a way to implement Erlang/Elixir functions in native code (typically C or Rust) for performance-critical operations or to interface with system libraries.
+
+Rustler is a tool for safely writing NIFs in Rust. The structure of this repo is due to the way the Rustler library works.
+
+risc0/
+├── lib/
+│   ├── risc0.ex
+│   └── risc0/
+│       └── risc0.ex
+└── native/
+    └── risc0_prover/
+        ├── Cargo.toml
+        └── src/
+            ├── Cargo.toml
+            └── src/
+                └── lib.rs
+
+
+
+
 # NIF for Elixir.Risc0
 
 ## To build the NIF module:

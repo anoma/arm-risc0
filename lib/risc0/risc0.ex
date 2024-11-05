@@ -114,8 +114,8 @@ defmodule Risc0.Risc0Prover do
   ## Returns
     - {:ok, list(byte())} | {:error, term()}: The generated Merkle path as bytes or an error
   """
-  @spec generate_merkle_path_32() ::  nif_result(list(byte()))
-  def generate_merkle_path_32(), do: error()
+  @spec random_merkle_path_32() ::  nif_result(list(byte()))
+  def random_merkle_path_32(), do: error()
 
   @doc """
   Generates a nullifier spending key.
@@ -123,8 +123,8 @@ defmodule Risc0.Risc0Prover do
   ## Returns
     - {:ok, list(byte())} | {:error, term()}: The generated NSK as bytes or an error
   """
-  @spec generate_nsk() :: nif_result(list(byte()))
-  def generate_nsk(), do: error()
+  @spec random_nsk() :: nif_result(list(byte()))
+  def random_nsk(), do: error()
 
   defp error, do: :erlang.nif_error(:nif_not_loaded)
 
@@ -164,6 +164,43 @@ defmodule Risc0.Risc0Prover do
   ## Returns
     - {:ok, {list(byte()), list(byte())}} | {:error, term()}: A tuple containing the secret key and public key bytes
   """
-  @spec generate_keypair() :: nif_result({list(byte()), list(byte())})
-  def generate_keypair(), do: error()
+  @spec random_keypair() :: nif_result({list(byte()), list(byte())})
+  def random_keypair(), do: error()
+
+  @doc """
+  Computes SHA256 hash of a single input.
+
+  ## Parameters
+    - x: Input bytes to hash
+
+  ## Returns
+    - list(byte()) | {:error, term()}: The SHA256 hash as bytes or an error
+  """
+  @spec sha256_single(list(byte())) :: list(byte()) | {:error, term()}
+  defdelegate sha256_single(x), to: Risc0.Risc0Prover, as: :sha256_single
+
+  @doc """
+  Computes SHA256 hash of two inputs concatenated.
+
+  ## Parameters
+    - x: First input bytes
+    - y: Second input bytes
+
+  ## Returns
+    - list(byte()) | {:error, term()}: The SHA256 hash as bytes or an error
+  """
+  @spec sha256_double(list(byte()), list(byte())) :: list(byte()) | {:error, term()}
+  defdelegate sha256_double(x, y), to: Risc0.Risc0Prover, as: :sha256_double
+
+  @doc """
+  Computes SHA256 hash of multiple inputs concatenated.
+
+  ## Parameters
+    - inputs: List of byte lists to hash
+
+  ## Returns
+    - list(byte()) | {:error, term()}: The SHA256 hash as bytes or an error
+  """
+  @spec sha256_many(list(list(byte()))) :: list(byte()) | {:error, term()}
+  defdelegate sha256_many(inputs), to: Risc0.Risc0Prover, as: :sha256_many
 end
