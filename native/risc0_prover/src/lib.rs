@@ -106,11 +106,11 @@ fn generate_compliance_circuit(
     nsk: Vec<u8>,
 ) -> NifResult<Vec<u8>> {
     let compliance = Compliance {
-        input_resource: bincode::deserialize(&input_resource).unwrap(),
-        output_resource: bincode::deserialize(&output_resource).unwrap(),
-        merkle_path: bincode::deserialize::<[(Digest, bool); 32]>(&merkle_path).unwrap(),
-        rcv: bincode::deserialize(&rcv).unwrap(),
-        nsk: bincode::deserialize(&nsk).unwrap(),
+        input_resource: bincode::deserialize(&input_resource).map_err(|e| Error::RaiseTerm(Box::new(format!("Input resource deserialization error: {:?}", e)))).unwrap(),
+        output_resource: bincode::deserialize(&output_resource).map_err(|e| Error::RaiseTerm(Box::new(format!("Output resource deserialization error: {:?}", e)))).unwrap(),
+        merkle_path: bincode::deserialize::<[(Digest, bool); 32]>(&merkle_path).map_err(|e| Error::RaiseTerm(Box::new(format!("Merkle path deserialization error: {:?}", e)))).unwrap(),
+        rcv: bincode::deserialize(&rcv).map_err(|e| Error::RaiseTerm(Box::new(format!("RCV deserialization error: {:?}", e)))).unwrap(),
+        nsk: bincode::deserialize(&nsk).map_err(|e| Error::RaiseTerm(Box::new(format!("NSK deserialization error: {:?}", e)))).unwrap(),
     };
 
     let compliance_bytes = bincode::serialize(&compliance).map_err(|e| Error::RaiseTerm(Box::new(format!("Serialization error: {:?}", e))))?;
