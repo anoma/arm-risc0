@@ -2,7 +2,8 @@
 Cargo.lock
 methods/guest/Cargo.lock
 target/
+!native/compliance-circuit/target/
+.elixir_ls/
 _build/
 deps/
 .vscode/
-.elixir_ls/
