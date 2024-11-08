@@ -1,7 +1,10 @@
-use aarm_core::{Compliance, TREE_DEPTH};
+use aarm_core::{
+    compliance::Compliance,
+    constants::TREE_DEPTH,
+    utils::GenericEnv
+};
 use risc0_zkvm::guest::env;
 use bincode;
-use aarm_utils::GenericEnv;
 
 // Guest code: 
 // This is the portion of the code that will be proven

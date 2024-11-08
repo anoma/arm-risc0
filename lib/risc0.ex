@@ -43,10 +43,10 @@ defmodule Risc0 do
     - label: Resource label as bytes
     - nonce: Nonce value as bytes
     - quantity: Resource quantity as bytes
-    - value: Resource value as bytes
+    - data: Resource value as bytes
     - eph: Boolean flag indicating if resource is ephemeral
-    - nsk: Nullifier spending key as bytes
-    - image_id: Image identifier as bytes
+    - npk: Nullifier spending key as bytes
+    - logic: Image identifier as bytes
     - rseed: Random seed as bytes
 
   ## Returns
@@ -66,10 +66,10 @@ defmodule Risc0 do
     label,
     nonce,
     quantity,
-    value,
+    data,
     eph,
-    nsk,
-    image_id,
+    npk,
+    logic,
     rseed),
     to: Risc0.Risc0Prover,
     as: :generate_resource
@@ -82,7 +82,7 @@ defmodule Risc0 do
     - output_resource: Output resource data as bytes
     - rcv: Resource commitment value as bytes
     - merkle_path: Merkle path proof as bytes
-    - nsk: Nullifier spending key as bytes
+    - npk: Nullifier spending key as bytes
 
   ## Returns
     - list(byte()) | {:error, term()}: The generated circuit as bytes or an error
@@ -99,7 +99,7 @@ defmodule Risc0 do
     output_resource,
     rcv,
     merkle_path,
-    nsk
+    npk
   ), to: Risc0.Risc0Prover, as: :generate_compliance_circuit
 
   @doc """
@@ -124,10 +124,16 @@ defmodule Risc0 do
   Generates a nullifier spending key.
 
   ## Returns
-    - list(byte()) | {:error, term()}: The generated NSK as bytes or an error
+    - list(byte()) | {:error, term()}: The generated npk as bytes or an error
   """
   @spec random_nsk() :: list(byte()) | {:error, term()}
   defdelegate random_nsk(), to: Risc0.Risc0Prover, as: :random_nsk
+
+  @doc """
+  Generates a nullifier public key from a nullifier spending key.
+  """
+  @spec generate_npk(list(byte())) :: list(byte()) | {:error, term()}
+  defdelegate generate_npk(nsk), to: Risc0.Risc0Prover, as: :generate_npk
 
   @doc """
   Encrypts a message using AES-256-GCM with the given keys and nonce.
