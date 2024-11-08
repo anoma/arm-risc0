@@ -1,1 +1,0 @@
-{"rustc":14389903092037495548,"features":"","declared_features":"","target":0,"profile":0,"path":0,"deps":[[10391258677947610665,"build_script_build",false,2321067343882206576]],"local":[{"RerunIfChanged":{"output":"debug/build/semver-dbd2ce1e4fdc39ed/output","paths":["build.rs"]}}],"rustflags":[],"metadata":0,"config":0,"compile_kind":0}
