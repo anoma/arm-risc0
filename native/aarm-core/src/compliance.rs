@@ -9,14 +9,10 @@ use crate::resource::Resource;
 use k256::elliptic_curve::Field;
 use rand::Rng;
 use k256::{
-    elliptic_curve::{
-        group::{ff::PrimeField, GroupEncoding},
-        hash2curve::{ExpandMsgXmd, GroupDigest},
-    },
-    ProjectivePoint, Secp256k1,
+    elliptic_curve::group::GroupEncoding,
+    ProjectivePoint,
 };
-use risc0_zkvm::sha::{Sha256, Impl, DIGEST_BYTES, rust_crypto::Sha256 as Sha256Type};
-use rand::thread_rng;
+use risc0_zkvm::sha::{Sha256, Impl};
 use crate::constants::{COMPRESSED_TRIVIAL_RESOURCE_LOGIC_VK, TREE_DEPTH};
 use risc0_zkvm::sha::DIGEST_WORDS;
 

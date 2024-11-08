@@ -1,17 +1,14 @@
 
 use k256::{
     elliptic_curve::{
-        group::{ff::PrimeField, GroupEncoding},
+        group::ff::PrimeField,
         hash2curve::{ExpandMsgXmd, GroupDigest},
     },
     ProjectivePoint, Scalar, Secp256k1,
 };
 use risc0_zkvm::sha::{Sha256, rust_crypto::Sha256 as Sha256Type, Digest, Impl, DIGEST_BYTES};
-use serde::{Deserialize, Serialize};
 
 use crate::constants::{DEFAULT_BYTES, DST, RESOURCE_BYTES};
-use crate::encryption::{bytes_to_projective_point, projective_point_to_bytes};
-use crate::merkle_path::Hashable;
 use crate::nullifier::{Npk, Nsk};
 
 /// A resource that can be created and consumed
