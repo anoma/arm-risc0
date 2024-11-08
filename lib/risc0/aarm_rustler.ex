@@ -1,4 +1,4 @@
-defmodule Risc0.Risc0Prover do
+defmodule Risc0.AarmRustler do
   use Rustler, otp_app: :risc0, crate: :aarm_rustler
 
   @moduledoc """

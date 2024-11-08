@@ -17,7 +17,7 @@ defmodule Risc0 do
   @spec prove(list(byte()), list(byte())) ::
           list(byte()) | {:error, term()}
   defdelegate prove(env_bytes, elf),
-    to: Risc0.Risc0Prover,
+    to: Risc0.AarmRustler,
     as: :prove
 
   @doc """
@@ -33,7 +33,7 @@ defmodule Risc0 do
   @spec verify(list(byte()), list(byte())) ::
           boolean() | {:error, term()}
   defdelegate verify(receipt_bytes, elf),
-    to: Risc0.Risc0Prover,
+    to: Risc0.AarmRustler,
     as: :verify
 
   @doc """
@@ -71,7 +71,7 @@ defmodule Risc0 do
     npk,
     logic,
     rseed),
-    to: Risc0.Risc0Prover,
+    to: Risc0.AarmRustler,
     as: :generate_resource
 
   @doc """
@@ -100,7 +100,7 @@ defmodule Risc0 do
     rcv,
     merkle_path,
     npk
-  ), to: Risc0.Risc0Prover, as: :generate_compliance_circuit
+  ), to: Risc0.AarmRustler, as: :generate_compliance_circuit
 
   @doc """
   Generates 32 random bytes.
@@ -109,7 +109,7 @@ defmodule Risc0 do
     - list(byte()) | {:error, term()}: 32 random bytes or an error
   """
   @spec random_32() :: list(byte()) | {:error, term()}
-  defdelegate random_32(), to: Risc0.Risc0Prover, as: :random_32
+  defdelegate random_32(), to: Risc0.AarmRustler, as: :random_32
 
   @doc """
   Generates a 32-level Merkle path.
@@ -118,7 +118,7 @@ defmodule Risc0 do
     - list(byte()) | {:error, term()}: The generated Merkle path as bytes or an error
   """
   @spec random_merkle_path_32() :: list(byte()) | {:error, term()}
-  defdelegate random_merkle_path_32(), to: Risc0.Risc0Prover, as: :random_merkle_path_32
+  defdelegate random_merkle_path_32(), to: Risc0.AarmRustler, as: :random_merkle_path_32
 
   @doc """
   Generates a nullifier spending key.
@@ -127,13 +127,13 @@ defmodule Risc0 do
     - list(byte()) | {:error, term()}: The generated npk as bytes or an error
   """
   @spec random_nsk() :: list(byte()) | {:error, term()}
-  defdelegate random_nsk(), to: Risc0.Risc0Prover, as: :random_nsk
+  defdelegate random_nsk(), to: Risc0.AarmRustler, as: :random_nsk
 
   @doc """
   Generates a nullifier public key from a nullifier spending key.
   """
   @spec generate_npk(list(byte())) :: list(byte()) | {:error, term()}
-  defdelegate generate_npk(nsk), to: Risc0.Risc0Prover, as: :generate_npk
+  defdelegate generate_npk(nsk), to: Risc0.AarmRustler, as: :generate_npk
 
   @doc """
   Encrypts a message using AES-256-GCM with the given keys and nonce.
@@ -158,7 +158,7 @@ defmodule Risc0 do
     pk_bytes,
     sk_bytes,
     nonce_bytes
-  ), to: Risc0.Risc0Prover, as: :encrypt
+  ), to: Risc0.AarmRustler, as: :encrypt
 
   @doc """
   Decrypts a ciphertext using AES-256-GCM with the given keys and nonce.
@@ -183,7 +183,7 @@ defmodule Risc0 do
     pk_bytes,
     sk_bytes,
     nonce_bytes
-  ), to: Risc0.Risc0Prover, as: :decrypt
+  ), to: Risc0.AarmRustler, as: :decrypt
 
   @doc """
   Generates a random private key and its corresponding public key.
@@ -193,7 +193,7 @@ defmodule Risc0 do
       and public key bytes, or an error
   """
   @spec random_keypair() :: {list(byte()), list(byte())} | {:error, term()}
-  defdelegate random_keypair(), to: Risc0.Risc0Prover, as: :random_keypair
+  defdelegate random_keypair(), to: Risc0.AarmRustler, as: :random_keypair
   @doc """
   Computes SHA256 hash of a single input.
 
@@ -204,7 +204,7 @@ defmodule Risc0 do
     - list(byte()) | {:error, term()}: The SHA256 hash as bytes or an error
   """
   @spec sha256_single(list(byte())) :: list(byte()) | {:error, term()}
-  defdelegate sha256_single(input), to: Risc0.Risc0Prover, as: :sha256_single
+  defdelegate sha256_single(input), to: Risc0.AarmRustler, as: :sha256_single
 
   @doc """
   Computes SHA256 hash of two inputs concatenated.
@@ -217,7 +217,7 @@ defmodule Risc0 do
     - list(byte()) | {:error, term()}: The SHA256 hash as bytes or an error
   """
   @spec sha256_double(list(byte()), list(byte())) :: list(byte()) | {:error, term()}
-  defdelegate sha256_double(x, y), to: Risc0.Risc0Prover, as: :sha256_double
+  defdelegate sha256_double(x, y), to: Risc0.AarmRustler, as: :sha256_double
 
   @doc """
   Computes SHA256 hash of multiple inputs concatenated.
@@ -229,5 +229,5 @@ defmodule Risc0 do
     - list(byte()) | {:error, term()}: The SHA256 hash as bytes or an error
   """
   @spec sha256_many(list(list(byte()))) :: list(byte()) | {:error, term()}
-  defdelegate sha256_many(inputs), to: Risc0.Risc0Prover, as: :sha256_many
+  defdelegate sha256_many(inputs), to: Risc0.AarmRustler, as: :sha256_many
 end

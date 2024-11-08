@@ -58,7 +58,7 @@ fn verify(
         Ok(arr) => arr,
         Err(_) => return Err(Error::RaiseTerm(Box::new("compliance_guest_id must have exactly 8 u32 values"))),
     };
-    println!("Verifying..");
+    println!("Verifying...");
     let verify_start_timer = Instant::now();
     receipt
     .verify(guest_id)
@@ -222,7 +222,7 @@ fn decrypt(
 }
 
 rustler::init!(
-    "Elixir.Risc0.Risc0Prover",
+    "Elixir.Risc0.AarmRustler",
     [
         prove,
         verify,
