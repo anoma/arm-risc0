@@ -1,5 +1,5 @@
 use aarm_core::{
-    compliance::Compliance,
+    compliance::{ComplianceCircuit, ComplianceInstance, ComplianceWitness},
     constants::TREE_DEPTH,
     utils::GenericEnv
 };
@@ -11,11 +11,11 @@ use bincode;
 pub fn main() {
     // 
     let generic_env: GenericEnv = env::read();
-    let actual_data = bincode::deserialize(&generic_env.data)
+    let compliance_witness: ComplianceWitness<TREE_DEPTH> = bincode::deserialize(&generic_env.data)
         .expect("Failed to deserialize environment data");
 
-    let compliance_circuit: Compliance<TREE_DEPTH> = actual_data;
 
+    let compliance_circuit: ComplianceCircuit<TREE_DEPTH> = ComplianceCircuit { compliance_witness };
     let input_resource_logic = compliance_circuit.input_resource_logic();
     let input_nf = compliance_circuit.input_resource_nf();
     let input_cm = compliance_circuit.input_resource_cm();        
@@ -24,5 +24,14 @@ pub fn main() {
     let merkle_root = compliance_circuit.merkle_tree_root(input_cm);
     let delta = compliance_circuit.delta_commitment();
 
-    env::commit(&(input_resource_logic, input_nf, output_resource_logic, output_cm, merkle_root, delta));
+    let compliance_instance = ComplianceInstance {
+        input_nf, 
+        output_cm, 
+        input_resource_logic, 
+        output_resource_logic, 
+        merkle_root, 
+        delta
+    };
+
+    env::commit(&compliance_instance);
 }
