@@ -2,14 +2,8 @@
 Cargo.lock
 methods/guest/Cargo.lock
 target/
-!native/examples/compliance-circuit/target/
-!native/examples/compliance-circuit/target/riscv-guest/
-!native/examples/compliance-circuit/target/riscv-guest/riscv32im-risc0-zkvm-elf/
-!native/examples/compliance-circuit/target/riscv-guest/riscv32im-risc0-zkvm-elf/release/
-!native/examples/compliance-circuit/target/riscv-guest/riscv32im-risc0-zkvm-elf/release/compliance_guest
-!native/examples/compliance-circuit/target/debug/
-!native/examples/compliance-circuit/target/debug/build/
-!native/examples/compliance-circuit/target/debug/build/methods*
+!native/examples/compliance_circuit/target/riscv-guest/riscv32im-risc0-zkvm-elf/release/compliance_guest
+!native/examples/compliance_circuit/target/debug/build/methods*
 .elixir_ls/
 _build/
 deps/
