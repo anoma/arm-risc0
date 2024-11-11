@@ -17,7 +17,7 @@ serde = { version = "1.0.160", features = ["derive"] }
 risc0-zkvm = { version = "1.1.2", features = ["prove"]}
 serde_json = "1.0.120"
 rand = "0.8"
-methods = { path = "../compliance-circuit/methods" }
+methods = { path = "../examples/compliance-circuit/methods" }
 aes-gcm = "0.10"         
 k256 = { version = "0.13", features = ["serde", "arithmetic"] }
 aarm-core = { path = "../aarm-core" }
