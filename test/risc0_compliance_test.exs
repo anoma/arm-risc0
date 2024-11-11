@@ -22,23 +22,24 @@ defmodule Risc0ComplianceTest do
     nonce_1 = Risc0.random_32()
     nonce_2 = Risc0.random_32()
     quantity = Risc0.random_32()
-    value = Risc0.random_32()
+    data = Risc0.random_32()
     eph = false
     nsk = Risc0.random_nsk()
+    npk = Risc0.generate_npk(nsk)
     rcv = Risc0.random_32()
     rseed_1 = Risc0.random_32()
     rseed_2 = Risc0.random_32()
-    image_id = Risc0.random_32()
+    logic = Risc0.random_32()
     merkle_path = Risc0.random_merkle_path_32()
 
     input_resource = Risc0.generate_resource(
       label,
       nonce_1,
       quantity,
-      value,
+      data,
       eph,
-      nsk,
-      image_id,
+      npk,
+      logic,
       rseed_1
     )
 
@@ -46,10 +47,10 @@ defmodule Risc0ComplianceTest do
       label,
       nonce_2,
       quantity,
-      value,
+      data,
       eph,
-      nsk,
-      image_id,
+      npk,
+      logic,
       rseed_2
     )
 
