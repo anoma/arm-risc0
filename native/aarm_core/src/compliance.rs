@@ -17,7 +17,17 @@ use crate::constants::{COMPRESSED_TRIVIAL_RESOURCE_LOGIC_VK, TREE_DEPTH};
 use risc0_zkvm::sha::DIGEST_WORDS;
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
-pub struct Compliance<const COMMITMENT_TREE_DEPTH: usize> {
+pub struct ComplianceInstance {
+    pub input_nf: Digest,
+    pub output_cm: Digest,
+    pub input_resource_logic: Digest,
+    pub output_resource_logic: Digest,
+    pub merkle_root: Digest,
+    pub delta: [u8; DEFAULT_BYTES],
+}
+
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+pub struct ComplianceWitness<const COMMITMENT_TREE_DEPTH: usize> {
     /// The input resource
     pub input_resource: Resource,
     /// The output resource
@@ -34,49 +44,8 @@ pub struct Compliance<const COMMITMENT_TREE_DEPTH: usize> {
     // pub output_resource_logic_cm_r: [u8; DATA_BYTES],
 }
 
-impl<const COMMITMENT_TREE_DEPTH: usize> Compliance<COMMITMENT_TREE_DEPTH> {
-    pub fn input_resource_logic(&self) -> Digest {
-        self.input_resource.logic
-    }
-
-    pub fn input_resource_cm(&self) -> Digest {
-        let nf = self.input_resource.commitment();
-        nf
-    }
-
-    pub fn input_resource_nf(&self) -> Digest {
-        let nf = self.input_resource.nullifier(self.nsk).unwrap(); 
-        nf
-    }
-
-    pub fn output_resource_logic(&self) -> Digest {
-        self.output_resource.logic
-    }
-
-    pub fn output_resource_cm(&self) -> Digest {
-        let cm = self.output_resource.commitment();
-        cm
-    }
-
-    pub fn merkle_tree_root(&self, cm: Digest) -> Digest {
-        let merkle_root = MerklePath::from_path(self.merkle_path).root(cm);
-        merkle_root
-    }
-
-    pub fn delta_commitment(&self) -> [u8; DEFAULT_BYTES] {
-        // Compute delta and make delta commitment public
-        // Comm(input_value - output_value)
-        let delta = self.input_resource.kind() * self.input_resource.quantity()
-            - self.output_resource.kind() * self.output_resource.quantity()
-            + ProjectivePoint::GENERATOR * self.rcv;
-
-        let delta_bytes: [u8; DEFAULT_BYTES] = delta.to_affine().to_bytes()[..DEFAULT_BYTES]
-            .try_into()
-            .expect("Slice length mismatch");
-        delta_bytes
-    }
-
-    pub fn default() -> Compliance<TREE_DEPTH> {
+impl<const COMMITMENT_TREE_DEPTH: usize> ComplianceWitness<COMMITMENT_TREE_DEPTH> {
+    pub fn default() -> ComplianceWitness<TREE_DEPTH> {
         let mut rng = rand::thread_rng();
         let label: [u8; 32] = rng.gen();
         let nonce_1: [u8; 32] = rng.gen();
@@ -120,12 +89,59 @@ impl<const COMMITMENT_TREE_DEPTH: usize> Compliance<COMMITMENT_TREE_DEPTH> {
 
         let rcv = Scalar::random(rng);
 
-        Compliance {
+        ComplianceWitness {
             input_resource,
             output_resource,
             merkle_path,
             rcv, 
             nsk,
         }
+    }
+}
+
+pub struct ComplianceCircuit<const COMMITMENT_TREE_DEPTH: usize> {
+   pub compliance_witness: ComplianceWitness<COMMITMENT_TREE_DEPTH>
+}
+
+impl<const COMMITMENT_TREE_DEPTH: usize> ComplianceCircuit<COMMITMENT_TREE_DEPTH> {
+    pub fn input_resource_logic(&self) -> Digest {
+        self.compliance_witness.input_resource.logic
+    }
+
+    pub fn input_resource_cm(&self) -> Digest {
+        let nf = self.compliance_witness.input_resource.commitment();
+        nf
+    }
+
+    pub fn input_resource_nf(&self) -> Digest {
+        let nf = self.compliance_witness.input_resource.nullifier(self.compliance_witness.nsk).unwrap(); 
+        nf
+    }
+
+    pub fn output_resource_logic(&self) -> Digest {
+        self.compliance_witness.output_resource.logic
+    }
+
+    pub fn output_resource_cm(&self) -> Digest {
+        let cm = self.compliance_witness.output_resource.commitment();
+        cm
+    }
+
+    pub fn merkle_tree_root(&self, cm: Digest) -> Digest {
+        let merkle_root = MerklePath::from_path(self.compliance_witness.merkle_path).root(cm);
+        merkle_root
+    }
+
+    pub fn delta_commitment(&self) -> [u8; DEFAULT_BYTES] {
+        // Compute delta and make delta commitment public
+        // Comm(input_value - output_value)
+        let delta = self.compliance_witness.input_resource.kind() * self.compliance_witness.input_resource.quantity()
+            - self.compliance_witness.output_resource.kind() * self.compliance_witness.output_resource.quantity()
+            + ProjectivePoint::GENERATOR * self.compliance_witness.rcv;
+
+        let delta_bytes: [u8; DEFAULT_BYTES] = delta.to_affine().to_bytes()[..DEFAULT_BYTES]
+            .try_into()
+            .expect("Slice length mismatch");
+        delta_bytes
     }
 }
