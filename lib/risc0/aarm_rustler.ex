@@ -99,6 +99,9 @@ defmodule Risc0.AarmRustler do
     _npk
   ), do: error()
 
+  @spec get_compliance_instance(list(byte())) :: nif_result({list(byte()), list(byte()), list(byte()), list(byte()), list(byte())})
+  def get_compliance_instance(_receipt_bytes), do: error()
+
   @doc """
   Generates 32 random bytes.
 

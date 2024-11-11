@@ -9,7 +9,7 @@ use risc0_zkvm::{
 use k256::Scalar;
 use rand::Rng;
 use aarm_core::{
-    compliance::{ComplianceWitness}, 
+    compliance::{ComplianceWitness, ComplianceInstance}, 
     resource::Resource, 
     nullifier::{Nsk, Npk}, 
     utils::GenericEnv, 
@@ -112,6 +112,28 @@ fn generate_compliance_witness(
 
     let compliance_witness_bytes = bincode::serialize(&compliance_witness).map_err(|e| Error::RaiseTerm(Box::new(format!("Serialization error: {:?}", e))))?;
     Ok(compliance_witness_bytes)
+}
+
+#[rustler::nif]
+fn get_compliance_instance(
+    receipt: Vec<u8>
+) -> NifResult<(Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>)> {
+    let receipt: Receipt = bincode::deserialize(&receipt).unwrap();
+    let ComplianceInstance {
+        input_nf,
+        output_cm,
+        input_resource_logic,
+        output_resource_logic,
+        merkle_root,
+        delta,
+    } = receipt.journal.decode().unwrap();
+    let input_nf_bytes = bincode::serialize(&input_nf).unwrap();    
+    let output_cm_bytes = bincode::serialize(&output_cm).unwrap();
+    let input_resource_logic_bytes = bincode::serialize(&input_resource_logic).unwrap();
+    let output_resource_logic_bytes = bincode::serialize(&output_resource_logic).unwrap();
+    let merkle_root_bytes = bincode::serialize(&merkle_root).unwrap();
+    let delta_bytes = bincode::serialize(&delta).unwrap();
+    Ok((input_nf_bytes, output_cm_bytes, input_resource_logic_bytes, output_resource_logic_bytes, merkle_root_bytes, delta_bytes))
 }
 
 #[rustler::nif]
@@ -230,6 +252,7 @@ rustler::init!(
         generate_resource,
         random_32,
         generate_compliance_witness,
+        get_compliance_instance,
         random_nsk,
         generate_npk,
         encrypt,
