@@ -54,7 +54,7 @@ defmodule Risc0ComplianceTest do
       rseed_2
     )
 
-    compliance_circuit = Risc0.generate_compliance_circuit(
+    compliance_witness = Risc0.generate_compliance_witness(
       input_resource,
       output_resource,
       rcv,
@@ -63,7 +63,7 @@ defmodule Risc0ComplianceTest do
     )
 
     # Prove and verify
-    receipt = Risc0.prove(compliance_circuit, compliance_guest_elf)
+    receipt = Risc0.prove(compliance_witness, compliance_guest_elf)
     verify = Risc0.verify(receipt, compliance_guest_id)
     assert true == verify
   end

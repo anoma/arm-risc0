@@ -9,7 +9,7 @@ use risc0_zkvm::{
 use k256::Scalar;
 use rand::Rng;
 use aarm_core::{
-    compliance::Compliance, 
+    compliance::{ComplianceWitness}, 
     resource::Resource, 
     nullifier::{Nsk, Npk}, 
     utils::GenericEnv, 
@@ -95,14 +95,14 @@ fn generate_resource(
 }
 
 #[rustler::nif]
-fn generate_compliance_circuit(
+fn generate_compliance_witness(
     input_resource: Vec<u8>,
     output_resource: Vec<u8>,
     rcv: Vec<u8>,
     merkle_path: Vec<u8>,
     nsk: Vec<u8>,
 ) -> NifResult<Vec<u8>> {
-    let compliance = Compliance {
+    let compliance_witness = ComplianceWitness {
         input_resource: bincode::deserialize(&input_resource).map_err(|e| Error::RaiseTerm(Box::new(format!("Input resource deserialization error: {:?}", e)))).unwrap(),
         output_resource: bincode::deserialize(&output_resource).map_err(|e| Error::RaiseTerm(Box::new(format!("Output resource deserialization error: {:?}", e)))).unwrap(),
         merkle_path: bincode::deserialize::<[(Digest, bool); 32]>(&merkle_path).map_err(|e| Error::RaiseTerm(Box::new(format!("Merkle path deserialization error: {:?}", e)))).unwrap(),
@@ -110,8 +110,8 @@ fn generate_compliance_circuit(
         nsk: bincode::deserialize(&nsk).map_err(|e| Error::RaiseTerm(Box::new(format!("NSK deserialization error: {:?}", e)))).unwrap(),
     };
 
-    let compliance_bytes = bincode::serialize(&compliance).map_err(|e| Error::RaiseTerm(Box::new(format!("Serialization error: {:?}", e))))?;
-    Ok(compliance_bytes)
+    let compliance_witness_bytes = bincode::serialize(&compliance_witness).map_err(|e| Error::RaiseTerm(Box::new(format!("Serialization error: {:?}", e))))?;
+    Ok(compliance_witness_bytes)
 }
 
 #[rustler::nif]
@@ -229,7 +229,7 @@ rustler::init!(
         random_merkle_path_32,
         generate_resource,
         random_32,
-        generate_compliance_circuit,
+        generate_compliance_witness,
         random_nsk,
         generate_npk,
         encrypt,
