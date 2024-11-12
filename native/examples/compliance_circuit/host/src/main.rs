@@ -1,20 +1,19 @@
 use aarm_core::{
-    compliance::Compliance,
+    compliance::{ComplianceWitness, ComplianceInstance},
     constants::TREE_DEPTH,
     utils::GenericEnv
 };
 use methods::{COMPLIANCE_GUEST_ELF, COMPLIANCE_GUEST_ID};
-use risc0_zkvm::{default_prover, sha::Digest, ExecutorEnv};
+use risc0_zkvm::{default_prover, ExecutorEnv};
 use std::time::Instant;
 use serde_bytes::ByteBuf;
 use bincode;
-const DATA_BYTES: usize = 32;
 pub fn main() {
     let prove_start_timer = Instant::now();
 
-    let compliance: Compliance<32> = Compliance::<TREE_DEPTH>::default();
+    let compliance_witness: ComplianceWitness<TREE_DEPTH> = ComplianceWitness::<TREE_DEPTH>::default();
     let generic_env = GenericEnv {
-        data: ByteBuf::from(bincode::serialize(&compliance).unwrap())
+        data: ByteBuf::from(bincode::serialize(&compliance_witness).unwrap())
     };
 
     let env = ExecutorEnv::builder()
@@ -33,14 +32,7 @@ pub fn main() {
 
     let extract_journal_start_timer = Instant::now();
     // Extract journal of receipt
-    let (_input_rl, _nf, _output_rl, _cm, _merkle_root, _delta): (
-        Digest,
-        Digest,
-        Digest,
-        Digest,
-        Digest,
-        [u8; DATA_BYTES],
-    ) = receipt.journal.decode().unwrap();
+    let compliance_instance: ComplianceInstance = receipt.journal.decode().unwrap();
 
     let extract_journal_duration = extract_journal_start_timer.elapsed();
     println!(

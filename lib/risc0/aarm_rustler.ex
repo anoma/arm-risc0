@@ -85,19 +85,22 @@ defmodule Risc0.AarmRustler do
   ## Returns
     - {:ok, list(byte())} | {:error, term()}: The generated circuit as bytes or an error
   """
-  @spec generate_compliance_circuit(
+  @spec generate_compliance_witness(
     list(byte()),
     list(byte()),
     list(byte()),
     list(byte()),
     list(byte())) :: nif_result(list(byte()))
-  def generate_compliance_circuit(
+  def generate_compliance_witness(
     _input_resource,
     _output_resource,
     _rcv,
     _merkle_path,
     _npk
   ), do: error()
+
+  @spec get_compliance_instance(list(byte())) :: nif_result({list(byte()), list(byte()), list(byte()), list(byte()), list(byte())})
+  def get_compliance_instance(_receipt_bytes), do: error()
 
   @doc """
   Generates 32 random bytes.

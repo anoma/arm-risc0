@@ -87,20 +87,24 @@ defmodule Risc0 do
   ## Returns
     - list(byte()) | {:error, term()}: The generated circuit as bytes or an error
   """
-  @spec generate_compliance_circuit(
+  @spec generate_compliance_witness(
     list(byte()),
     list(byte()),
     list(byte()),
     list(byte()),
     list(byte())
   ) :: list(byte()) | {:error, term()}
-  defdelegate generate_compliance_circuit(
+  defdelegate generate_compliance_witness(
     input_resource,
     output_resource,
     rcv,
     merkle_path,
     npk
-  ), to: Risc0.AarmRustler, as: :generate_compliance_circuit
+  ), to: Risc0.AarmRustler, as: :generate_compliance_witness
+
+  @spec get_compliance_instance(list(byte())) ::
+    {list(byte()), list(byte()), list(byte()), list(byte()), list(byte())} | {:error, term()}
+  defdelegate get_compliance_instance(receipt_bytes), to: Risc0.AarmRustler, as: :get_compliance_instance
 
   @doc """
   Generates 32 random bytes.
