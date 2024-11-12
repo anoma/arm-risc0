@@ -17,6 +17,9 @@ impl Nsk {
     pub fn inner(&self) -> Digest {
         self.0
     }
+    pub fn from_bytes(bytes: [u8; DIGEST_BYTES]) -> Nsk {
+        Nsk(Digest::from_bytes(bytes))
+    }
 }
 
 /// Nullifier public key
@@ -26,5 +29,9 @@ pub struct Npk(Digest);
 impl Npk {
     pub fn inner(&self) -> Digest {
         self.0
+    }
+
+    pub fn from_bytes(bytes: [u8; DIGEST_BYTES]) -> Npk {
+        Npk(Digest::from_bytes(bytes))
     }
 }

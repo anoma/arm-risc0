@@ -5,6 +5,7 @@ use k256::EncodedPoint;
 use rand::thread_rng;
 use k256::elliptic_curve::Field;
 use k256::elliptic_curve::sec1::FromEncodedPoint;
+use risc0_zkvm::sha::{Impl, Sha256, Digest};
 
 #[derive(Debug, Clone)]
 pub struct Ciphertext(Vec<u8>);
@@ -99,6 +100,24 @@ pub fn bytes_to_projective_point(bytes: &[u8]) -> Option<ProjectivePoint> {
     ret
 }
 
+
+
+pub fn sha256_single(x: Vec<u8>) -> Digest {
+    let result = Impl::hash_bytes(&x);
+    *result
+}
+
+pub fn sha256_double(x: Vec<u8>, y: Vec<u8>) -> Digest {
+    let combined: Vec<u8> = x.into_iter().chain(y.into_iter()).collect();
+    let result = Impl::hash_bytes(&combined);
+    *result
+}
+
+pub fn sha256_many(inputs: Vec<Vec<u8>>) -> Digest {
+    let combined: Vec<u8> = inputs.into_iter().flatten().collect();
+    let result = Impl::hash_bytes(&combined);
+    *result
+}
 
 #[cfg(test)]
 mod tests {

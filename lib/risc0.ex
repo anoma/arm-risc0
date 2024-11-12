@@ -102,6 +102,24 @@ defmodule Risc0 do
     npk
   ), to: Risc0.AarmRustler, as: :generate_compliance_witness
 
+  @doc """
+  Gets the compliance instance data from a receipt.
+
+  Extracts and returns the following components from a compliance circuit receipt:
+  - input_nf: Input nullifier
+  - output_cm: Output commitment
+  - input_resource_logic: Input resource logic hash
+  - output_resource_logic: Output resource logic hash
+  - merkle_root: Merkle tree root
+  - delta: Delta commitment value
+
+  ## Parameters
+    - receipt_bytes: The receipt bytes containing the compliance instance data
+
+  ## Returns
+    - {list(byte()), list(byte()), list(byte()), list(byte()), list(byte()), list(byte())} | {:error, term()}:
+      A tuple containing the extracted components as bytes, or an error
+  """
   @spec get_compliance_instance(list(byte())) ::
     {list(byte()), list(byte()), list(byte()), list(byte()), list(byte())} | {:error, term()}
   defdelegate get_compliance_instance(receipt_bytes), to: Risc0.AarmRustler, as: :get_compliance_instance

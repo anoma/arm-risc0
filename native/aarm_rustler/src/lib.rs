@@ -137,26 +137,44 @@ fn get_compliance_instance(
 }
 
 #[rustler::nif]
+fn get_logic_instance(
+    receipt: Vec<u8>
+) -> NifResult<Vec<Vec<u8>>> {
+    let receipt: Receipt = bincode::deserialize(&receipt).unwrap();
+    let (tag, root, mac, pk_x, pk_y, nonce, cipher_text, app_data): ([u8; 32], Digest, [u8; 32], [u8; 32], [u8; 32], [u8; 32], [[u8; 32]; 10], [[u8; 32]; 10]) = receipt.journal.decode().unwrap();
+    let mut output_values = Vec::new();
+    output_values.push(tag.to_vec());
+    output_values.push(root.as_bytes().to_vec());
+    output_values.push(mac.to_vec());
+    output_values.push(pk_x.to_vec());
+    output_values.push(pk_y.to_vec());
+    output_values.push(nonce.to_vec());
+    for data in cipher_text.iter() {
+        output_values.push(data.to_vec());
+    }
+    for data in app_data.iter() {
+        output_values.push(data.to_vec());
+    }
+    Ok(output_values)
+}
+
+#[rustler::nif]
 fn sha256_single(x: Vec<u8>) -> NifResult<Vec<u8>> {
-    let result = Impl::hash_bytes(&x);
+    let result = aarm_core::encryption::sha256_single(x);
     Ok(result.as_bytes().to_vec())
 }
 
 #[rustler::nif]
 fn sha256_double(x: Vec<u8>, y: Vec<u8>) -> NifResult<Vec<u8>> {
-    let mut combined = x;
-    combined.extend_from_slice(&y);
-    let result = Impl::hash_bytes(&combined);
+    let result = aarm_core::encryption::sha256_double(x, y);
     Ok(result.as_bytes().to_vec())
 }
 
 #[rustler::nif]
 fn sha256_many(inputs: Vec<Vec<u8>>) -> NifResult<Vec<u8>> {
-    let combined: Vec<u8> = inputs.into_iter().flatten().collect();
-    let result = Impl::hash_bytes(&combined);
+    let result = aarm_core::encryption::sha256_many(inputs);
     Ok(result.as_bytes().to_vec())
 }
-
 
 #[rustler::nif]
 fn random_32() -> NifResult<Vec<u8>> {
