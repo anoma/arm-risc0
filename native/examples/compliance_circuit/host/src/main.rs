@@ -18,6 +18,7 @@ pub fn main() {
 
     let env = ExecutorEnv::builder()
         .write(&generic_env)
+        .write_input(&compliance_witness)
         .unwrap()
         .build()
         .unwrap();

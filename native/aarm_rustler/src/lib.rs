@@ -137,6 +137,15 @@ fn get_compliance_instance(
 }
 
 #[rustler::nif]
+fn get_logic_instance(
+    receipt: Vec<u8>
+) -> NifResult<Vec<u8>> {
+    let receipt: Receipt = bincode::deserialize(&receipt).unwrap();
+    let logic_instance: LogicInstance = receipt.journal.decode().unwrap();
+    Ok(bincode::serialize(bincode::serialize(&logic_instance)).unwrap())
+}
+
+#[rustler::nif]
 fn sha256_single(x: Vec<u8>) -> NifResult<Vec<u8>> {
     let result = Impl::hash_bytes(&x);
     Ok(result.as_bytes().to_vec())
