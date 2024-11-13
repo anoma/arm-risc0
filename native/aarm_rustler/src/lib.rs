@@ -139,10 +139,23 @@ fn get_compliance_instance(
 #[rustler::nif]
 fn get_logic_instance(
     receipt: Vec<u8>
-) -> NifResult<Vec<u8>> {
+) -> NifResult<Vec<Vec<u8>>> {
     let receipt: Receipt = bincode::deserialize(&receipt).unwrap();
-    let logic_instance: LogicInstance = receipt.journal.decode().unwrap();
-    Ok(bincode::serialize(bincode::serialize(&logic_instance)).unwrap())
+    let (tag, root, mac, pk_x, pk_y, nonce, cipher_text, app_data): ([u8; 32], Digest, [u8; 32], [u8; 32], [u8; 32], [u8; 32], [[u8; 32]; 10], [[u8; 32]]) = receipt.journal.decode().unwrap();
+    let mut output_values = Vec::new();
+    output_values.push(tag.to_vec());
+    output_values.push(root.as_bytes().to_vec());
+    output_values.push(mac.to_vec());
+    output_values.push(pk_x.to_vec());
+    output_values.push(pk_y.to_vec());
+    output_values.push(nonce.to_vec());
+    for data in cipher_text.iter() {
+        output_values.push(data.to_vec());
+    }
+    for data in app_data.iter() {
+        output_values.push(data.to_vec());
+    }
+    Ok(output_values)
 }
 
 #[rustler::nif]
