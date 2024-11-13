@@ -20,4 +20,4 @@ rand = "0.8"
 methods = { path = "../examples/compliance_circuit/methods" }
 aes-gcm = "0.10"         
 k256 = { version = "0.13", features = ["serde", "arithmetic"] }
-aarm_core = { path = "../aarm_core" }
+aarm_core = { path = "../../aarm_core" }
