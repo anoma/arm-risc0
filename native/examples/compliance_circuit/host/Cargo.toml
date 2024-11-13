@@ -16,4 +16,4 @@ sha2 = "0.10.6"
 rand = "0.8"
 serde_bytes = "0.11"
 bincode = "1.3.3"
-aarm_core = { path = "../../../../aarm_core" }
+aarm_core = { path = "../../../aarm_core" }
