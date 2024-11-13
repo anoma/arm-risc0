@@ -141,7 +141,7 @@ fn get_logic_instance(
     receipt: Vec<u8>
 ) -> NifResult<Vec<Vec<u8>>> {
     let receipt: Receipt = bincode::deserialize(&receipt).unwrap();
-    let (tag, root, mac, pk_x, pk_y, nonce, cipher_text, app_data): ([u8; 32], Digest, [u8; 32], [u8; 32], [u8; 32], [u8; 32], [[u8; 32]; 10], [[u8; 32]]) = receipt.journal.decode().unwrap();
+    let (tag, root, mac, pk_x, pk_y, nonce, cipher_text, app_data): ([u8; 32], Digest, [u8; 32], [u8; 32], [u8; 32], [u8; 32], [[u8; 32]; 10], [[u8; 32]; 10]) = receipt.journal.decode().unwrap();
     let mut output_values = Vec::new();
     output_values.push(tag.to_vec());
     output_values.push(root.as_bytes().to_vec());
