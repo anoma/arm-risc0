@@ -160,19 +160,21 @@ fn get_logic_instance(
 
 #[rustler::nif]
 fn sha256_single(x: Vec<u8>) -> NifResult<Vec<u8>> {
-    Ok(aarm_core::encryption::sha256_single(x))
+    let result = aarm_core::encryption::sha256_single(x);
+    Ok(result.as_bytes().to_vec())
 }
 
 #[rustler::nif]
 fn sha256_double(x: Vec<u8>, y: Vec<u8>) -> NifResult<Vec<u8>> {
-    Ok(aarm_core::encryption::sha256_double(x, y))
+    let result = aarm_core::encryption::sha256_double(x, y);
+    Ok(result.as_bytes().to_vec())
 }
 
 #[rustler::nif]
 fn sha256_many(inputs: Vec<Vec<u8>>) -> NifResult<Vec<u8>> {
-    Ok(aarm_core::encryption::sha256_many(inputs))
+    let result = aarm_core::encryption::sha256_many(inputs);
+    Ok(result.as_bytes().to_vec())
 }
-
 
 #[rustler::nif]
 fn random_32() -> NifResult<Vec<u8>> {
