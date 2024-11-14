@@ -160,23 +160,17 @@ fn get_logic_instance(
 
 #[rustler::nif]
 fn sha256_single(x: Vec<u8>) -> NifResult<Vec<u8>> {
-    let result = Impl::hash_bytes(&x);
-    Ok(result.as_bytes().to_vec())
+    Ok(aarm_core::encryption::sha256_single(x))
 }
 
 #[rustler::nif]
 fn sha256_double(x: Vec<u8>, y: Vec<u8>) -> NifResult<Vec<u8>> {
-    let mut combined = x;
-    combined.extend_from_slice(&y);
-    let result = Impl::hash_bytes(&combined);
-    Ok(result.as_bytes().to_vec())
+    Ok(aarm_core::encryption::sha256_double(x, y))
 }
 
 #[rustler::nif]
 fn sha256_many(inputs: Vec<Vec<u8>>) -> NifResult<Vec<u8>> {
-    let combined: Vec<u8> = inputs.into_iter().flatten().collect();
-    let result = Impl::hash_bytes(&combined);
-    Ok(result.as_bytes().to_vec())
+    Ok(aarm_core::encryption::sha256_many(inputs))
 }
 
 
