@@ -18,7 +18,6 @@ pub fn main() {
 
     let env = ExecutorEnv::builder()
         .write(&generic_env)
-        .write_input(&compliance_witness)
         .unwrap()
         .build()
         .unwrap();
@@ -33,7 +32,7 @@ pub fn main() {
 
     let extract_journal_start_timer = Instant::now();
     // Extract journal of receipt
-    let compliance_instance: ComplianceInstance = receipt.journal.decode().unwrap();
+    let _compliance_instance: ComplianceInstance = receipt.journal.decode().unwrap();
 
     let extract_journal_duration = extract_journal_start_timer.elapsed();
     println!(
