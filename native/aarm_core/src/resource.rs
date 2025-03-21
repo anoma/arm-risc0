@@ -2,7 +2,7 @@ use crate::constants::{
     DEFAULT_BYTES, DST, PRF_EXPAND_PERSONALIZATION, PRF_EXPAND_PERSONALIZATION_LEN, PRF_EXPAND_PSI,
     PRF_EXPAND_RCM, QUANTITY_BYTES, RESOURCE_BYTES,
 };
-use crate::nullifier::{NullifierKey, NullifierKeyCommitment};
+use crate::nullifier_key::{NullifierKey, NullifierKeyCommitment};
 use k256::{
     elliptic_curve::hash2curve::{ExpandMsgXmd, GroupDigest},
     ProjectivePoint, Scalar, Secp256k1,

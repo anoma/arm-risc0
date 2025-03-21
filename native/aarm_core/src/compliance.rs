@@ -1,7 +1,7 @@
 use crate::{
     constants::{DEFAULT_BYTES, TRIVIAL_RESOURCE_LOGIC_VK},
     merkle_path::MerklePath,
-    nullifier::NullifierKey,
+    nullifier_key::NullifierKey,
     resource::Resource,
 };
 use k256::{
