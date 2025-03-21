@@ -52,10 +52,10 @@ impl Resource {
         let mut bytes = [0u8; 2 * DIGEST_BYTES];
         let mut offset: usize = 0;
         // Write the random seed
-        bytes[offset..offset + DIGEST_BYTES].clone_from_slice(&self.rand_seed.as_ref());
+        bytes[offset..offset + DIGEST_BYTES].clone_from_slice(self.rand_seed.as_ref());
         offset += DIGEST_BYTES;
         // Write the nonce
-        bytes[offset..offset + DIGEST_BYTES].clone_from_slice(&self.nonce.as_ref());
+        bytes[offset..offset + DIGEST_BYTES].clone_from_slice(self.nonce.as_ref());
         offset += DIGEST_BYTES;
         assert_eq!(offset, 2 * DIGEST_BYTES);
         *Impl::hash_bytes(&bytes)
@@ -65,10 +65,10 @@ impl Resource {
         let mut bytes = [0u8; 2 * DIGEST_BYTES];
         let mut offset: usize = 1;
         // Write the random seed
-        bytes[offset..offset + DIGEST_BYTES].clone_from_slice(&self.rand_seed.as_ref());
+        bytes[offset..offset + DIGEST_BYTES].clone_from_slice(self.rand_seed.as_ref());
         offset += DIGEST_BYTES;
         // Write the nonce
-        bytes[offset..offset + DIGEST_BYTES].clone_from_slice(&self.nonce.as_ref());
+        bytes[offset..offset + DIGEST_BYTES].clone_from_slice(self.nonce.as_ref());
         offset += DIGEST_BYTES;
         assert_eq!(offset, 2 * DIGEST_BYTES);
         *Impl::hash_bytes(&bytes)
@@ -95,7 +95,7 @@ impl Resource {
         bytes[offset..offset + 1].clone_from_slice(&[self.is_ephemeral as u8]);
         offset += 1;
         // Write the nonce bytes
-        bytes[offset..offset + DIGEST_BYTES].clone_from_slice(&self.nonce.as_ref());
+        bytes[offset..offset + DIGEST_BYTES].clone_from_slice(self.nonce.as_ref());
         offset += DIGEST_BYTES;
         // Write the nullifier public key bytes
         bytes[offset..offset + DIGEST_BYTES].clone_from_slice(self.nk_commitment.inner().as_ref());
@@ -115,16 +115,16 @@ impl Resource {
             let mut bytes = [0u8; 4 * DIGEST_BYTES];
             let mut offset: usize = 0;
             // Write the nullifier secret key
-            bytes[offset..offset + DIGEST_BYTES].clone_from_slice(&nf_key.inner().as_ref());
+            bytes[offset..offset + DIGEST_BYTES].clone_from_slice(nf_key.inner().as_ref());
             offset += DIGEST_BYTES;
             // Write the nonce
-            bytes[offset..offset + DIGEST_BYTES].clone_from_slice(&self.nonce.as_ref());
+            bytes[offset..offset + DIGEST_BYTES].clone_from_slice(self.nonce.as_ref());
             offset += DIGEST_BYTES;
             // Write psi
-            bytes[offset..offset + DIGEST_BYTES].clone_from_slice(&self.psi().as_ref());
+            bytes[offset..offset + DIGEST_BYTES].clone_from_slice(self.psi().as_ref());
             offset += DIGEST_BYTES;
             // Write the resource commitment
-            bytes[offset..offset + DIGEST_BYTES].clone_from_slice(&self.commitment().as_ref());
+            bytes[offset..offset + DIGEST_BYTES].clone_from_slice(self.commitment().as_ref());
             offset += DIGEST_BYTES;
 
             assert_eq!(offset, 4 * DIGEST_BYTES);

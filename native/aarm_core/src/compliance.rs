@@ -1,17 +1,16 @@
-use k256::Scalar;
-use risc0_zkvm::sha::Digest;
-use serde_big_array::BigArray;
-
-use crate::constants::DEFAULT_BYTES;
-use crate::constants::{TREE_DEPTH, TRIVIAL_RESOURCE_LOGIC_VK};
-use crate::merkle_path::MerklePath;
-use crate::nullifier::NullifierKey;
-use crate::resource::Resource;
-use k256::elliptic_curve::Field;
-use k256::{elliptic_curve::group::GroupEncoding, ProjectivePoint};
+use crate::{
+    constants::{DEFAULT_BYTES, TRIVIAL_RESOURCE_LOGIC_VK},
+    merkle_path::MerklePath,
+    nullifier::NullifierKey,
+    resource::Resource,
+};
+use k256::{
+    elliptic_curve::{group::GroupEncoding, Field},
+    ProjectivePoint, Scalar,
+};
 use rand::Rng;
-use risc0_zkvm::sha::DIGEST_WORDS;
-use risc0_zkvm::sha::{Impl, Sha256};
+use risc0_zkvm::sha::{Digest, Impl, Sha256, DIGEST_WORDS};
+use serde_big_array::BigArray;
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub struct ComplianceInstance {
@@ -41,8 +40,8 @@ pub struct ComplianceWitness<const COMMITMENT_TREE_DEPTH: usize> {
     // pub output_resource_logic_cm_r: [u8; DATA_BYTES],
 }
 
-impl<const COMMITMENT_TREE_DEPTH: usize> ComplianceWitness<COMMITMENT_TREE_DEPTH> {
-    pub fn default() -> ComplianceWitness<TREE_DEPTH> {
+impl<const COMMITMENT_TREE_DEPTH: usize> Default for ComplianceWitness<COMMITMENT_TREE_DEPTH> {
+    fn default() -> Self {
         let mut rng = rand::thread_rng();
         let label_ref: [u8; 32] = rng.gen();
         let nonce_1: [u8; 32] = rng.gen();
@@ -77,12 +76,8 @@ impl<const COMMITMENT_TREE_DEPTH: usize> ComplianceWitness<COMMITMENT_TREE_DEPTH
             rand_seed: rng.gen(),
         };
 
-        let mut merkle_path: [(Digest, bool); TREE_DEPTH] =
-            [(Digest::new([0; DIGEST_WORDS]), false); TREE_DEPTH];
-
-        for i in 0..TREE_DEPTH {
-            merkle_path[i] = (Digest::new([i as u32 + 1; DIGEST_WORDS]), i % 2 != 0);
-        }
+        let merkle_path: [(Digest, bool); COMMITMENT_TREE_DEPTH] =
+            [(Digest::new([0; DIGEST_WORDS]), false); COMMITMENT_TREE_DEPTH];
 
         let rcv = Scalar::random(rng);
 
@@ -125,8 +120,7 @@ impl<const COMMITMENT_TREE_DEPTH: usize> ComplianceCircuit<COMMITMENT_TREE_DEPTH
     }
 
     pub fn merkle_tree_root(&self, cm: Digest) -> Digest {
-        let merkle_root = MerklePath::from_path(self.compliance_witness.merkle_path).root(cm);
-        merkle_root
+        MerklePath::from_path(self.compliance_witness.merkle_path).root(cm)
     }
 
     pub fn delta_commitment(&self) -> [u8; DEFAULT_BYTES] {

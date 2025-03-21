@@ -22,10 +22,10 @@ impl Hashable for Digest {
         let mut bytes = [0u8; 2 * DIGEST_BYTES];
         let mut offset: usize = 0;
         // Write the left child
-        bytes[offset..offset + DIGEST_BYTES].clone_from_slice(&lhs.as_ref());
+        bytes[offset..offset + DIGEST_BYTES].clone_from_slice(lhs.as_ref());
         offset += DIGEST_BYTES;
         // Write the right child
-        bytes[offset..offset + DIGEST_BYTES].clone_from_slice(&rhs.as_ref());
+        bytes[offset..offset + DIGEST_BYTES].clone_from_slice(rhs.as_ref());
         offset += DIGEST_BYTES;
         assert_eq!(offset, 2 * DIGEST_BYTES);
         // Now produce the hash

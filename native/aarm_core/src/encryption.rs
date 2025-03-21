@@ -25,7 +25,7 @@ impl Ciphertext {
 
         // Derive AES-256 key and nonce
         let aes_key = secret_key.derive_key();
-        let cipher = Aes256Gcm::new(&Key::<Aes256Gcm>::from_slice(&aes_key));
+        let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&aes_key));
         let nonce = Nonce::from_slice(&encrypt_nonce[..12]);
 
         // Encrypt with AES-256-GCM
@@ -47,7 +47,7 @@ impl Ciphertext {
 
         // Derive AES-256 key and nonce
         let aes_key = secret_key.derive_key();
-        let cipher = Aes256Gcm::new(&Key::<Aes256Gcm>::from_slice(&aes_key));
+        let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&aes_key));
         let nonce = Nonce::from_slice(&encrypt_nonce[..12]);
 
         // Decrypt with AES-256-GCM
@@ -102,10 +102,9 @@ pub fn projective_point_to_bytes(point: &ProjectivePoint) -> Vec<u8> {
 
 /// Converts bytes back to a ProjectivePoint, returning None if invalid
 pub fn bytes_to_projective_point(bytes: &[u8]) -> Option<ProjectivePoint> {
-    let ret = EncodedPoint::from_bytes(bytes)
+    EncodedPoint::from_bytes(bytes)
         .ok()
-        .and_then(|encoded| Option::from(ProjectivePoint::from_encoded_point(&encoded)));
-    ret
+        .and_then(|encoded| Option::from(ProjectivePoint::from_encoded_point(&encoded)))
 }
 
 pub fn sha256_single(x: Vec<u8>) -> Digest {
@@ -114,7 +113,7 @@ pub fn sha256_single(x: Vec<u8>) -> Digest {
 }
 
 pub fn sha256_double(x: Vec<u8>, y: Vec<u8>) -> Digest {
-    let combined: Vec<u8> = x.into_iter().chain(y.into_iter()).collect();
+    let combined: Vec<u8> = x.into_iter().chain(y).collect();
     let result = Impl::hash_bytes(&combined);
     *result
 }
