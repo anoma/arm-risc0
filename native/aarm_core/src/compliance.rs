@@ -112,10 +112,10 @@ impl<const COMMITMENT_TREE_DEPTH: usize> ComplianceCircuit<COMMITMENT_TREE_DEPTH
         self.compliance_witness.created_resource.commitment()
     }
 
-    pub fn consumed_nullifier(&self) -> Digest {
+    pub fn consumed_nullifier(&self, cm: &Digest) -> Digest {
         self.compliance_witness
             .consumed_resource
-            .nullifier(self.compliance_witness.nf_key)
+            .nullifier_from_commitment(&self.compliance_witness.nf_key, cm)
             .unwrap()
     }
 

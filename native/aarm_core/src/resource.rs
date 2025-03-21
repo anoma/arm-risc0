@@ -1,3 +1,8 @@
+use crate::constants::{
+    DEFAULT_BYTES, DST, PRF_EXPAND_PERSONALIZATION, PRF_EXPAND_PERSONALIZATION_LEN, PRF_EXPAND_PSI,
+    PRF_EXPAND_RCM, RESOURCE_BYTES,
+};
+use crate::nullifier::{NullifierKey, NullifierKeyCommitment};
 use k256::{
     elliptic_curve::{
         group::ff::PrimeField,
@@ -6,9 +11,6 @@ use k256::{
     ProjectivePoint, Scalar, Secp256k1,
 };
 use risc0_zkvm::sha::{rust_crypto::Sha256 as Sha256Type, Digest, Impl, Sha256, DIGEST_BYTES};
-
-use crate::constants::{DEFAULT_BYTES, DST, RESOURCE_BYTES};
-use crate::nullifier::{NullifierKey, NullifierKeyCommitment};
 
 /// A resource that can be created and consumed
 #[derive(Clone, Default, serde::Serialize, serde::Deserialize)]
@@ -49,28 +51,46 @@ impl Resource {
     }
 
     fn psi(&self) -> Digest {
-        let mut bytes = [0u8; 2 * DIGEST_BYTES];
+        let mut bytes = [0u8; PRF_EXPAND_PERSONALIZATION_LEN + 1 + 2 * DIGEST_BYTES];
         let mut offset: usize = 0;
+        // Write the PRF_EXPAND_PERSONALIZATION
+        bytes[offset..offset + 16].clone_from_slice(PRF_EXPAND_PERSONALIZATION);
+        offset += PRF_EXPAND_PERSONALIZATION_LEN;
+        // Write the PRF_EXPAND_PSI
+        bytes[offset..offset + 1].clone_from_slice(&PRF_EXPAND_PSI.to_be_bytes());
+        offset += 1;
         // Write the random seed
         bytes[offset..offset + DIGEST_BYTES].clone_from_slice(self.rand_seed.as_ref());
         offset += DIGEST_BYTES;
         // Write the nonce
         bytes[offset..offset + DIGEST_BYTES].clone_from_slice(self.nonce.as_ref());
         offset += DIGEST_BYTES;
-        assert_eq!(offset, 2 * DIGEST_BYTES);
+        assert_eq!(
+            offset,
+            PRF_EXPAND_PERSONALIZATION_LEN + 1 + 2 * DIGEST_BYTES
+        );
         *Impl::hash_bytes(&bytes)
     }
 
-    pub fn rcm(&self) -> Digest {
-        let mut bytes = [0u8; 2 * DIGEST_BYTES];
-        let mut offset: usize = 1;
+    fn rcm(&self) -> Digest {
+        let mut bytes = [0u8; PRF_EXPAND_PERSONALIZATION_LEN + 1 + 2 * DIGEST_BYTES];
+        let mut offset: usize = 0;
+        // Write the PRF_EXPAND_PERSONALIZATION
+        bytes[offset..offset + 16].clone_from_slice(PRF_EXPAND_PERSONALIZATION);
+        offset += PRF_EXPAND_PERSONALIZATION_LEN;
+        // Write the PRF_EXPAND_RCM
+        bytes[offset..offset + 1].clone_from_slice(&PRF_EXPAND_RCM.to_be_bytes());
+        offset += 1;
         // Write the random seed
         bytes[offset..offset + DIGEST_BYTES].clone_from_slice(self.rand_seed.as_ref());
         offset += DIGEST_BYTES;
         // Write the nonce
         bytes[offset..offset + DIGEST_BYTES].clone_from_slice(self.nonce.as_ref());
         offset += DIGEST_BYTES;
-        assert_eq!(offset, 2 * DIGEST_BYTES);
+        assert_eq!(
+            offset,
+            PRF_EXPAND_PERSONALIZATION_LEN + 1 + 2 * DIGEST_BYTES
+        );
         *Impl::hash_bytes(&bytes)
     }
 
@@ -101,7 +121,7 @@ impl Resource {
         bytes[offset..offset + DIGEST_BYTES].clone_from_slice(self.nk_commitment.inner().as_ref());
         offset += DIGEST_BYTES;
         // Write the randomness seed bytes
-        bytes[offset..offset + DEFAULT_BYTES].clone_from_slice(&self.rand_seed);
+        bytes[offset..offset + DEFAULT_BYTES].clone_from_slice(self.rcm().as_ref());
         offset += DEFAULT_BYTES;
         assert_eq!(offset, RESOURCE_BYTES);
         // Now produce the hash
@@ -109,7 +129,12 @@ impl Resource {
     }
 
     // Compute the nullifier of the resource
-    pub fn nullifier(&self, nf_key: NullifierKey) -> Option<Digest> {
+    pub fn nullifier(&self, nf_key: &NullifierKey) -> Option<Digest> {
+        let cm = self.commitment();
+        self.nullifier_from_commitment(nf_key, &cm)
+    }
+
+    pub fn nullifier_from_commitment(&self, nf_key: &NullifierKey, cm: &Digest) -> Option<Digest> {
         // Make sure that the nullifier public key corresponds to the secret key
         if self.nk_commitment == nf_key.commit() {
             let mut bytes = [0u8; 4 * DIGEST_BYTES];
@@ -124,7 +149,7 @@ impl Resource {
             bytes[offset..offset + DIGEST_BYTES].clone_from_slice(self.psi().as_ref());
             offset += DIGEST_BYTES;
             // Write the resource commitment
-            bytes[offset..offset + DIGEST_BYTES].clone_from_slice(self.commitment().as_ref());
+            bytes[offset..offset + DIGEST_BYTES].clone_from_slice(cm.as_ref());
             offset += DIGEST_BYTES;
 
             assert_eq!(offset, 4 * DIGEST_BYTES);

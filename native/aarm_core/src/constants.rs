@@ -2,6 +2,11 @@ use risc0_zkvm::sha::DIGEST_BYTES;
 
 pub const DST: &[u8] = b"QUUX-V01-CS02-with-secp256k1_XMD:SHA-256_SSWU_RO_";
 
+pub const PRF_EXPAND_PERSONALIZATION_LEN: usize = 16;
+pub const PRF_EXPAND_PERSONALIZATION: &[u8; PRF_EXPAND_PERSONALIZATION_LEN] = b"RISC0_ExpandSeed";
+pub const PRF_EXPAND_PSI: u8 = 0;
+pub const PRF_EXPAND_RCM: u8 = 1;
+
 pub const TRIVIAL_RESOURCE_LOGIC_VK: &[u8] = b"trivial_resource_logic_vk";
 
 pub const TREE_DEPTH: usize = 32;
