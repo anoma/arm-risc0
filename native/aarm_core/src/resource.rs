@@ -1,13 +1,10 @@
 use crate::constants::{
     DEFAULT_BYTES, DST, PRF_EXPAND_PERSONALIZATION, PRF_EXPAND_PERSONALIZATION_LEN, PRF_EXPAND_PSI,
-    PRF_EXPAND_RCM, RESOURCE_BYTES,
+    PRF_EXPAND_RCM, QUANTITY_BYTES, RESOURCE_BYTES,
 };
 use crate::nullifier::{NullifierKey, NullifierKeyCommitment};
 use k256::{
-    elliptic_curve::{
-        group::ff::PrimeField,
-        hash2curve::{ExpandMsgXmd, GroupDigest},
-    },
+    elliptic_curve::hash2curve::{ExpandMsgXmd, GroupDigest},
     ProjectivePoint, Scalar, Secp256k1,
 };
 use risc0_zkvm::sha::{rust_crypto::Sha256 as Sha256Type, Digest, Impl, Sha256, DIGEST_BYTES};
@@ -20,7 +17,7 @@ pub struct Resource {
     // specifies the fungibility domain for the resource
     pub label_ref: [u8; DEFAULT_BYTES],
     // number representing the quantity of the resource
-    pub quantity: [u8; DEFAULT_BYTES],
+    pub quantity: u128,
     // the fungible value reference of the resource
     pub value_ref: [u8; DEFAULT_BYTES],
     // flag that reflects the resource ephemerality
@@ -34,18 +31,17 @@ pub struct Resource {
 }
 
 impl Resource {
-    // Number representing the quantity of the resource
-    pub fn quantity(&self) -> Scalar {
-        // Convert to a field element
-        Scalar::from_repr(self.quantity.into()).unwrap()
+    // Convert the quantity to a field element
+    pub fn quantity_scalar(&self) -> Scalar {
+        Scalar::from(self.quantity)
     }
 
-    // The kind is a function of the label_ref and image ID. Must be infeasible to map different pairs to the same kind.
+    // Compute the kind of the resource
     pub fn kind(&self) -> ProjectivePoint {
-        // Concatenate the image ID and label_ref
-        let mut bytes = [0u8; DIGEST_BYTES + 32];
+        // Concatenate the logic_ref and label_ref
+        let mut bytes = [0u8; DIGEST_BYTES * 2];
         bytes[0..DIGEST_BYTES].clone_from_slice(self.logic_ref.as_ref());
-        bytes[DIGEST_BYTES..DIGEST_BYTES + 32].clone_from_slice(&self.label_ref);
+        bytes[DIGEST_BYTES..DIGEST_BYTES * 2].clone_from_slice(self.label_ref.as_ref());
         // Hash to a curve point
         Secp256k1::hash_from_bytes::<ExpandMsgXmd<Sha256Type>>(&[&bytes], &[DST]).unwrap()
     }
@@ -106,8 +102,9 @@ impl Resource {
         bytes[offset..offset + DEFAULT_BYTES].clone_from_slice(&self.label_ref);
         offset += DEFAULT_BYTES;
         // Write the quantity bytes
-        bytes[offset..offset + DEFAULT_BYTES].clone_from_slice(&self.quantity);
-        offset += DEFAULT_BYTES;
+        bytes[offset..offset + QUANTITY_BYTES]
+            .clone_from_slice(self.quantity.to_be_bytes().as_ref());
+        offset += QUANTITY_BYTES;
         // Write the fungible value_ref bytes
         bytes[offset..offset + DEFAULT_BYTES].clone_from_slice(&self.value_ref);
         offset += DEFAULT_BYTES;

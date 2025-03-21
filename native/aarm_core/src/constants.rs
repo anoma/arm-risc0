@@ -12,11 +12,12 @@ pub const TRIVIAL_RESOURCE_LOGIC_VK: &[u8] = b"trivial_resource_logic_vk";
 pub const TREE_DEPTH: usize = 32;
 
 pub const DEFAULT_BYTES: usize = 32;
+pub const QUANTITY_BYTES: usize = 16;
 
 pub const RESOURCE_BYTES: usize = DIGEST_BYTES
     + DEFAULT_BYTES
     + DEFAULT_BYTES
-    + DEFAULT_BYTES
+    + QUANTITY_BYTES
     + 1
     + DIGEST_BYTES
     + DIGEST_BYTES

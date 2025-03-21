@@ -57,7 +57,7 @@ impl<const COMMITMENT_TREE_DEPTH: usize> Default for ComplianceWitness<COMMITMEN
         let consumed_resource = Resource {
             logic_ref: *Impl::hash_bytes(TRIVIAL_RESOURCE_LOGIC_VK),
             label_ref,
-            quantity: ONE,
+            quantity: 1u128,
             value_ref: ONE,
             is_ephemeral: false,
             nonce: *Impl::hash_bytes(&nonce_1),
@@ -68,7 +68,7 @@ impl<const COMMITMENT_TREE_DEPTH: usize> Default for ComplianceWitness<COMMITMEN
         let created_resource = Resource {
             logic_ref: *Impl::hash_bytes(TRIVIAL_RESOURCE_LOGIC_VK),
             label_ref,
-            quantity: ONE,
+            quantity: 1u128,
             value_ref: ONE,
             is_ephemeral: false,
             nonce: *Impl::hash_bytes(&nonce_2),
@@ -126,9 +126,9 @@ impl<const COMMITMENT_TREE_DEPTH: usize> ComplianceCircuit<COMMITMENT_TREE_DEPTH
     pub fn delta_commitment(&self) -> [u8; DEFAULT_BYTES] {
         // Compute delta and make delta commitment public
         let delta = self.compliance_witness.consumed_resource.kind()
-            * self.compliance_witness.consumed_resource.quantity()
+            * self.compliance_witness.consumed_resource.quantity_scalar()
             - self.compliance_witness.created_resource.kind()
-                * self.compliance_witness.created_resource.quantity()
+                * self.compliance_witness.created_resource.quantity_scalar()
             + ProjectivePoint::GENERATOR * self.compliance_witness.rcv;
 
         let delta_bytes: [u8; DEFAULT_BYTES] = delta.to_affine().to_bytes()[..DEFAULT_BYTES]
