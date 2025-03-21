@@ -1,4 +1,3 @@
-
 use serde::{Deserialize, Serialize};
 use serde_bytes;
 
@@ -6,4 +5,3 @@ use serde_bytes;
 pub struct GenericEnv {
     pub data: serde_bytes::ByteBuf,
 }
-

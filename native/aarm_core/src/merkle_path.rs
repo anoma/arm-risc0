@@ -1,6 +1,6 @@
-use risc0_zkvm::sha::{Sha256, Digest, Impl, DIGEST_BYTES};
-use serde_big_array::BigArray;
+use risc0_zkvm::sha::{Digest, Impl, Sha256, DIGEST_BYTES};
 use serde::{Deserialize, Serialize};
+use serde_big_array::BigArray;
 
 /// A hashable node within a Merkle tree.
 pub trait Hashable: Clone + Copy {

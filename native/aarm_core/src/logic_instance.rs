@@ -1,6 +1,6 @@
 use crate::constants::DEFAULT_BYTES;
-use serde::{Deserialize, Serialize}; 
 use risc0_zkvm::sha::Digest;
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Default, Serialize, Deserialize)]
 pub struct LogicInstance {

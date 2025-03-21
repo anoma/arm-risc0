@@ -3,42 +3,39 @@ use risc0_zkvm::sha::Digest;
 use serde_big_array::BigArray;
 
 use crate::constants::DEFAULT_BYTES;
+use crate::constants::{TREE_DEPTH, TRIVIAL_RESOURCE_LOGIC_VK};
 use crate::merkle_path::MerklePath;
-use crate::nullifier::Nsk;
+use crate::nullifier::NullifierKey;
 use crate::resource::Resource;
 use k256::elliptic_curve::Field;
+use k256::{elliptic_curve::group::GroupEncoding, ProjectivePoint};
 use rand::Rng;
-use k256::{
-    elliptic_curve::group::GroupEncoding,
-    ProjectivePoint,
-};
-use risc0_zkvm::sha::{Sha256, Impl};
-use crate::constants::{COMPRESSED_TRIVIAL_RESOURCE_LOGIC_VK, TREE_DEPTH};
 use risc0_zkvm::sha::DIGEST_WORDS;
+use risc0_zkvm::sha::{Impl, Sha256};
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub struct ComplianceInstance {
-    pub input_nf: Digest,
-    pub output_cm: Digest,
-    pub input_resource_logic: Digest,
-    pub output_resource_logic: Digest,
+    pub nullifier: Digest,
+    pub commitment: Digest,
     pub merkle_root: Digest,
     pub delta: [u8; DEFAULT_BYTES],
+    pub consumed_logic_ref: Digest,
+    pub created_logic_ref: Digest,
 }
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub struct ComplianceWitness<const COMMITMENT_TREE_DEPTH: usize> {
-    /// The input resource
-    pub input_resource: Resource,
-    /// The output resource
-    pub output_resource: Resource,
-    /// The path from the output commitment to the root in the resource commitment tree
+    /// The consumed resource
+    pub consumed_resource: Resource,
+    /// The path from the consumed commitment to the root in the commitment tree
     #[serde(with = "BigArray")]
     pub merkle_path: [(Digest, bool); COMMITMENT_TREE_DEPTH],
+    /// Nullifier key of the consumed resource
+    pub nf_key: NullifierKey,
+    /// The created resource
+    pub created_resource: Resource,
     /// Random scalar for delta commitment
     pub rcv: Scalar,
-    /// Nullifier secret key
-    pub nsk: Nsk,
     // TODO: If we want to add function privacy, include:
     // pub input_resource_logic_cm_r: [u8; DATA_BYTES],
     // pub output_resource_logic_cm_r: [u8; DATA_BYTES],
@@ -47,37 +44,37 @@ pub struct ComplianceWitness<const COMMITMENT_TREE_DEPTH: usize> {
 impl<const COMMITMENT_TREE_DEPTH: usize> ComplianceWitness<COMMITMENT_TREE_DEPTH> {
     pub fn default() -> ComplianceWitness<TREE_DEPTH> {
         let mut rng = rand::thread_rng();
-        let label: [u8; 32] = rng.gen();
+        let label_ref: [u8; 32] = rng.gen();
         let nonce_1: [u8; 32] = rng.gen();
         let nonce_2: [u8; 32] = rng.gen();
 
-        let nsk = Nsk::new(Digest::default());
+        let nf_key = NullifierKey::new(Digest::default());
         const ONE: [u8; 32] = {
             let mut bytes = [0u8; DEFAULT_BYTES];
             bytes[0] = 1;
             bytes
         };
 
-        let input_resource = Resource {
-            logic: *Impl::hash_bytes(COMPRESSED_TRIVIAL_RESOURCE_LOGIC_VK),
-            label,
+        let consumed_resource = Resource {
+            logic_ref: *Impl::hash_bytes(TRIVIAL_RESOURCE_LOGIC_VK),
+            label_ref,
             quantity: ONE,
-            data: ONE,
-            eph: false,
+            value_ref: ONE,
+            is_ephemeral: false,
             nonce: *Impl::hash_bytes(&nonce_1),
-            npk: nsk.public_key(),
-            rseed: rng.gen(),
+            nk_commitment: nf_key.commit(),
+            rand_seed: rng.gen(),
         };
 
-        let output_resource = Resource {
-            logic: *Impl::hash_bytes(COMPRESSED_TRIVIAL_RESOURCE_LOGIC_VK),
-            label,
+        let created_resource = Resource {
+            logic_ref: *Impl::hash_bytes(TRIVIAL_RESOURCE_LOGIC_VK),
+            label_ref,
             quantity: ONE,
-            data: ONE,
-            eph: false,
+            value_ref: ONE,
+            is_ephemeral: false,
             nonce: *Impl::hash_bytes(&nonce_2),
-            npk: nsk.public_key(),
-            rseed: rng.gen(),
+            nk_commitment: nf_key.commit(),
+            rand_seed: rng.gen(),
         };
 
         let mut merkle_path: [(Digest, bool); TREE_DEPTH] =
@@ -90,41 +87,41 @@ impl<const COMMITMENT_TREE_DEPTH: usize> ComplianceWitness<COMMITMENT_TREE_DEPTH
         let rcv = Scalar::random(rng);
 
         ComplianceWitness {
-            input_resource,
-            output_resource,
+            consumed_resource,
+            created_resource,
             merkle_path,
-            rcv, 
-            nsk,
+            rcv,
+            nf_key,
         }
     }
 }
 
 pub struct ComplianceCircuit<const COMMITMENT_TREE_DEPTH: usize> {
-   pub compliance_witness: ComplianceWitness<COMMITMENT_TREE_DEPTH>
+    pub compliance_witness: ComplianceWitness<COMMITMENT_TREE_DEPTH>,
 }
 
 impl<const COMMITMENT_TREE_DEPTH: usize> ComplianceCircuit<COMMITMENT_TREE_DEPTH> {
-    pub fn input_resource_logic(&self) -> Digest {
-        self.compliance_witness.input_resource.logic
+    pub fn get_consumed_resource_logic(&self) -> Digest {
+        self.compliance_witness.consumed_resource.logic_ref
     }
 
-    pub fn input_resource_cm(&self) -> Digest {
-        let nf = self.compliance_witness.input_resource.commitment();
-        nf
+    pub fn get_created_resource_logic(&self) -> Digest {
+        self.compliance_witness.created_resource.logic_ref
     }
 
-    pub fn input_resource_nf(&self) -> Digest {
-        let nf = self.compliance_witness.input_resource.nullifier(self.compliance_witness.nsk).unwrap(); 
-        nf
+    pub fn consumed_commitment(&self) -> Digest {
+        self.compliance_witness.consumed_resource.commitment()
     }
 
-    pub fn output_resource_logic(&self) -> Digest {
-        self.compliance_witness.output_resource.logic
+    pub fn created_commitment(&self) -> Digest {
+        self.compliance_witness.created_resource.commitment()
     }
 
-    pub fn output_resource_cm(&self) -> Digest {
-        let cm = self.compliance_witness.output_resource.commitment();
-        cm
+    pub fn consumed_nullifier(&self) -> Digest {
+        self.compliance_witness
+            .consumed_resource
+            .nullifier(self.compliance_witness.nf_key)
+            .unwrap()
     }
 
     pub fn merkle_tree_root(&self, cm: Digest) -> Digest {
@@ -134,9 +131,10 @@ impl<const COMMITMENT_TREE_DEPTH: usize> ComplianceCircuit<COMMITMENT_TREE_DEPTH
 
     pub fn delta_commitment(&self) -> [u8; DEFAULT_BYTES] {
         // Compute delta and make delta commitment public
-        // Comm(input_value - output_value)
-        let delta = self.compliance_witness.input_resource.kind() * self.compliance_witness.input_resource.quantity()
-            - self.compliance_witness.output_resource.kind() * self.compliance_witness.output_resource.quantity()
+        let delta = self.compliance_witness.consumed_resource.kind()
+            * self.compliance_witness.consumed_resource.quantity()
+            - self.compliance_witness.created_resource.kind()
+                * self.compliance_witness.created_resource.quantity()
             + ProjectivePoint::GENERATOR * self.compliance_witness.rcv;
 
         let delta_bytes: [u8; DEFAULT_BYTES] = delta.to_affine().to_bytes()[..DEFAULT_BYTES]
