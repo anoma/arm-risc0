@@ -15,15 +15,15 @@ pub struct Resource {
     // a succinct representation of the predicate associated with the resource
     pub logic_ref: Digest,
     // specifies the fungibility domain for the resource
-    pub label_ref: [u8; DEFAULT_BYTES],
+    pub label_ref: Digest,
     // number representing the quantity of the resource
     pub quantity: u128,
     // the fungible value reference of the resource
-    pub value_ref: [u8; DEFAULT_BYTES],
+    pub value_ref: Digest,
     // flag that reflects the resource ephemerality
     pub is_ephemeral: bool,
     // guarantees the uniqueness of the resource computable components
-    pub nonce: Digest,
+    pub nonce: [u8; DEFAULT_BYTES],
     // commitment to nullifier key
     pub nk_commitment: NullifierKeyCommitment,
     // randomness seed used to derive whatever randomness needed
@@ -99,14 +99,14 @@ impl Resource {
         bytes[offset..offset + DIGEST_BYTES].clone_from_slice(self.logic_ref.as_ref());
         offset += DIGEST_BYTES;
         // Write the label_ref bytes
-        bytes[offset..offset + DEFAULT_BYTES].clone_from_slice(&self.label_ref);
+        bytes[offset..offset + DEFAULT_BYTES].clone_from_slice(self.label_ref.as_ref());
         offset += DEFAULT_BYTES;
         // Write the quantity bytes
         bytes[offset..offset + QUANTITY_BYTES]
             .clone_from_slice(self.quantity.to_be_bytes().as_ref());
         offset += QUANTITY_BYTES;
         // Write the fungible value_ref bytes
-        bytes[offset..offset + DEFAULT_BYTES].clone_from_slice(&self.value_ref);
+        bytes[offset..offset + DEFAULT_BYTES].clone_from_slice(self.value_ref.as_ref());
         offset += DEFAULT_BYTES;
         // Write the ephemeral flag
         bytes[offset..offset + 1].clone_from_slice(&[self.is_ephemeral as u8]);

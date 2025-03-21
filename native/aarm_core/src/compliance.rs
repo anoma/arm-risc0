@@ -9,7 +9,7 @@ use k256::{
     ProjectivePoint, Scalar,
 };
 use rand::Rng;
-use risc0_zkvm::sha::{Digest, Impl, Sha256, DIGEST_WORDS};
+use risc0_zkvm::sha::{Digest, Impl, Sha256};
 use serde_big_array::BigArray;
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
@@ -43,41 +43,35 @@ pub struct ComplianceWitness<const COMMITMENT_TREE_DEPTH: usize> {
 impl<const COMMITMENT_TREE_DEPTH: usize> Default for ComplianceWitness<COMMITMENT_TREE_DEPTH> {
     fn default() -> Self {
         let mut rng = rand::thread_rng();
-        let label_ref: [u8; 32] = rng.gen();
         let nonce_1: [u8; 32] = rng.gen();
         let nonce_2: [u8; 32] = rng.gen();
 
         let nf_key = NullifierKey::new(Digest::default());
-        const ONE: [u8; 32] = {
-            let mut bytes = [0u8; DEFAULT_BYTES];
-            bytes[0] = 1;
-            bytes
-        };
 
         let consumed_resource = Resource {
             logic_ref: *Impl::hash_bytes(TRIVIAL_RESOURCE_LOGIC_VK),
-            label_ref,
+            label_ref: Digest::default(),
             quantity: 1u128,
-            value_ref: ONE,
+            value_ref: Digest::default(),
             is_ephemeral: false,
-            nonce: *Impl::hash_bytes(&nonce_1),
+            nonce: nonce_1,
             nk_commitment: nf_key.commit(),
             rand_seed: rng.gen(),
         };
 
         let created_resource = Resource {
             logic_ref: *Impl::hash_bytes(TRIVIAL_RESOURCE_LOGIC_VK),
-            label_ref,
+            label_ref: Digest::default(),
             quantity: 1u128,
-            value_ref: ONE,
+            value_ref: Digest::default(),
             is_ephemeral: false,
-            nonce: *Impl::hash_bytes(&nonce_2),
+            nonce: nonce_2,
             nk_commitment: nf_key.commit(),
             rand_seed: rng.gen(),
         };
 
         let merkle_path: [(Digest, bool); COMMITMENT_TREE_DEPTH] =
-            [(Digest::new([0; DIGEST_WORDS]), false); COMMITMENT_TREE_DEPTH];
+            [(Digest::default(), false); COMMITMENT_TREE_DEPTH];
 
         let rcv = Scalar::random(rng);
 
