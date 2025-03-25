@@ -1,5 +1,6 @@
 pub mod compliance;
 pub mod constants;
+pub mod delta_proof;
 pub mod encryption;
 pub mod logic_instance;
 pub mod merkle_path;
