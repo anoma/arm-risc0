@@ -11,7 +11,7 @@ use rand::Rng;
 use aarm_core::{
     compliance::{ComplianceWitness, ComplianceInstance}, 
     resource::Resource, 
-    nullifier::{Nsk, Npk}, 
+    nullifier::{NullifierKey, NullifierKeyCommitment}, 
     utils::GenericEnv, 
     encryption::{Ciphertext, projective_point_to_bytes, bytes_to_projective_point}};
 use rustler::{NifResult, Error};
@@ -70,24 +70,24 @@ fn verify(
 
 #[rustler::nif]
 fn generate_resource(
-    label: Vec<u8>,
+    label_ref: Vec<u8>,
     nonce: Vec<u8>,
     quantity: Vec<u8>,
-    data: Vec<u8>,
-    eph: bool,
-    npk: Vec<u8>,
-    logic: Vec<u8>,
-    rseed: Vec<u8>
+    value_ref: Vec<u8>,
+    is_ephemeral: bool,
+    nk_commitment: Vec<u8>,
+    logic_ref: Vec<u8>,
+    rand_seed: Vec<u8>
 ) -> NifResult<Vec<u8>> {
     let resource = Resource {
-        logic: *Impl::hash_bytes(&logic),
-        label: bincode::deserialize(&label).map_err(|e| Error::RaiseTerm(Box::new(format!("Label deserialization error: {:?}", e)))).unwrap(),
+        logic_ref: *Impl::hash_bytes(&logic_ref),
+        label_ref: bincode::deserialize(&label_ref).map_err(|e| Error::RaiseTerm(Box::new(format!("Label deserialization error: {:?}", e)))).unwrap(),
         quantity: bincode::deserialize(&quantity).map_err(|e| Error::RaiseTerm(Box::new(format!("Quantity deserialization error: {:?}", e)))).unwrap(),
-        data: bincode::deserialize(&data).map_err(|e| Error::RaiseTerm(Box::new(format!("Data deserialization error: {:?}", e)))).unwrap(),
-        eph, 
+        value_ref: bincode::deserialize(&value_ref).map_err(|e| Error::RaiseTerm(Box::new(format!("Data deserialization error: {:?}", e)))).unwrap(),
+        is_ephemeral, 
         nonce: *Impl::hash_bytes(&nonce),
-        npk: bincode::deserialize(&npk).map_err(|e| Error::RaiseTerm(Box::new(format!("NPK deserialization error: {:?}", e)))).unwrap(),
-        rseed: bincode::deserialize(&rseed).map_err(|e| Error::RaiseTerm(Box::new(format!("Rseed deserialization error: {:?}", e)))).unwrap(),
+        nk_commitment: bincode::deserialize(&nk_commitment).map_err(|e| Error::RaiseTerm(Box::new(format!("NPK deserialization error: {:?}", e)))).unwrap(),
+        rand_seed: bincode::deserialize(&rand_seed).map_err(|e| Error::RaiseTerm(Box::new(format!("Rseed deserialization error: {:?}", e)))).unwrap(),
     };
 
     let resource_bytes = bincode::serialize(&resource).map_err(|e| Error::RaiseTerm(Box::new(format!("Serialization error: {:?}", e))))?;
@@ -96,18 +96,18 @@ fn generate_resource(
 
 #[rustler::nif]
 fn generate_compliance_witness(
-    input_resource: Vec<u8>,
-    output_resource: Vec<u8>,
+    consumed_resource: Vec<u8>,
+    created_resource: Vec<u8>,
     rcv: Vec<u8>,
     merkle_path: Vec<u8>,
-    nsk: Vec<u8>,
+    nf_key: Vec<u8>,
 ) -> NifResult<Vec<u8>> {
     let compliance_witness = ComplianceWitness {
-        input_resource: bincode::deserialize(&input_resource).map_err(|e| Error::RaiseTerm(Box::new(format!("Input resource deserialization error: {:?}", e)))).unwrap(),
-        output_resource: bincode::deserialize(&output_resource).map_err(|e| Error::RaiseTerm(Box::new(format!("Output resource deserialization error: {:?}", e)))).unwrap(),
+        consumed_resource: bincode::deserialize(&consumed_resource).map_err(|e| Error::RaiseTerm(Box::new(format!("Input resource deserialization error: {:?}", e)))).unwrap(),
+        created_resource: bincode::deserialize(&created_resource).map_err(|e| Error::RaiseTerm(Box::new(format!("Output resource deserialization error: {:?}", e)))).unwrap(),
         merkle_path: bincode::deserialize::<[(Digest, bool); 32]>(&merkle_path).map_err(|e| Error::RaiseTerm(Box::new(format!("Merkle path deserialization error: {:?}", e)))).unwrap(),
         rcv: bincode::deserialize(&rcv).map_err(|e| Error::RaiseTerm(Box::new(format!("RCV deserialization error: {:?}", e)))).unwrap(),
-        nsk: bincode::deserialize(&nsk).map_err(|e| Error::RaiseTerm(Box::new(format!("NSK deserialization error: {:?}", e)))).unwrap(),
+        nf_key: bincode::deserialize(&nf_key).map_err(|e| Error::RaiseTerm(Box::new(format!("NSK deserialization error: {:?}", e)))).unwrap(),
     };
 
     let compliance_witness_bytes = bincode::serialize(&compliance_witness).map_err(|e| Error::RaiseTerm(Box::new(format!("Serialization error: {:?}", e))))?;
@@ -120,17 +120,17 @@ fn get_compliance_instance(
 ) -> NifResult<(Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>)> {
     let receipt: Receipt = bincode::deserialize(&receipt).unwrap();
     let ComplianceInstance {
-        input_nf,
-        output_cm,
-        input_resource_logic,
-        output_resource_logic,
+        nullifier,
+        commitment,
+        consumed_logic_ref,
+        created_logic_ref,
         merkle_root,
         delta,
     } = receipt.journal.decode().unwrap();
-    let input_nf_bytes = bincode::serialize(&input_nf).unwrap();    
-    let output_cm_bytes = bincode::serialize(&output_cm).unwrap();
-    let input_resource_logic_bytes = bincode::serialize(&input_resource_logic).unwrap();
-    let output_resource_logic_bytes = bincode::serialize(&output_resource_logic).unwrap();
+    let input_nf_bytes = bincode::serialize(&nullifier).unwrap();    
+    let output_cm_bytes = bincode::serialize(&commitment).unwrap();
+    let input_resource_logic_bytes = bincode::serialize(&consumed_logic_ref).unwrap();
+    let output_resource_logic_bytes = bincode::serialize(&created_logic_ref).unwrap();
     let merkle_root_bytes = bincode::serialize(&merkle_root).unwrap();
     let delta_bytes = bincode::serialize(&delta).unwrap();
     Ok((input_nf_bytes, output_cm_bytes, input_resource_logic_bytes, output_resource_logic_bytes, merkle_root_bytes, delta_bytes))
@@ -203,10 +203,10 @@ fn random_nsk() -> NifResult<Vec<u8>> {
 }
 
 #[rustler::nif]
-fn generate_npk(nsk: Vec<u8>) -> NifResult<Vec<u8>> {
-    let nsk: Nsk = bincode::deserialize(&nsk).unwrap();
-    let npk: Npk = nsk.public_key();
-    Ok(bincode::serialize(&npk).unwrap())
+fn generate_npk(nf_key: Vec<u8>) -> NifResult<Vec<u8>> {
+    let nf_key: NullifierKey = bincode::deserialize(&nf_key).unwrap();
+    let nk_commitment: NullifierKeyCommitment = nf_key.commit();
+    Ok(bincode::serialize(&nk_commitment).unwrap())
 }
 
 #[rustler::nif] 

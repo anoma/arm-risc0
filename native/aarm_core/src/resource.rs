@@ -1,77 +1,92 @@
-
+use crate::constants::{
+    DEFAULT_BYTES, DST, PRF_EXPAND_PERSONALIZATION, PRF_EXPAND_PERSONALIZATION_LEN, PRF_EXPAND_PSI,
+    PRF_EXPAND_RCM, QUANTITY_BYTES, RESOURCE_BYTES,
+};
+use crate::nullifier_key::{NullifierKey, NullifierKeyCommitment};
 use k256::{
-    elliptic_curve::{
-        group::ff::PrimeField,
-        hash2curve::{ExpandMsgXmd, GroupDigest},
-    },
+    elliptic_curve::hash2curve::{ExpandMsgXmd, GroupDigest},
     ProjectivePoint, Scalar, Secp256k1,
 };
-use risc0_zkvm::sha::{Sha256, rust_crypto::Sha256 as Sha256Type, Digest, Impl, DIGEST_BYTES};
-
-use crate::constants::{DEFAULT_BYTES, DST, RESOURCE_BYTES};
-use crate::nullifier::{Npk, Nsk};
+use risc0_zkvm::sha::{rust_crypto::Sha256 as Sha256Type, Digest, Impl, Sha256, DIGEST_BYTES};
 
 /// A resource that can be created and consumed
 #[derive(Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct Resource {
     // a succinct representation of the predicate associated with the resource
-    pub logic: Digest,
+    pub logic_ref: Digest,
     // specifies the fungibility domain for the resource
-    pub label: [u8; DEFAULT_BYTES],
+    pub label_ref: Digest,
     // number representing the quantity of the resource
-    pub quantity: [u8; DEFAULT_BYTES],
-    // the fungible data of the resource
-    pub data: [u8; DEFAULT_BYTES],
+    pub quantity: u128,
+    // the fungible value reference of the resource
+    pub value_ref: Digest,
     // flag that reflects the resource ephemerality
-    pub eph: bool,
+    pub is_ephemeral: bool,
     // guarantees the uniqueness of the resource computable components
-    pub nonce: Digest,
-    // nullifier public key
-    pub npk: Npk,
+    pub nonce: [u8; DEFAULT_BYTES],
+    // commitment to nullifier key
+    pub nk_commitment: NullifierKeyCommitment,
     // randomness seed used to derive whatever randomness needed
-    pub rseed: [u8; DEFAULT_BYTES],
+    pub rand_seed: [u8; DEFAULT_BYTES],
 }
 
 impl Resource {
-    // Number representing the quantity of the resource
-    pub fn quantity(&self) -> Scalar {
-        // Convert to a field element
-        Scalar::from_repr(self.quantity.into()).unwrap()
+    // Convert the quantity to a field element
+    pub fn quantity_scalar(&self) -> Scalar {
+        Scalar::from(self.quantity)
     }
 
-    // The kind is a function of the label and image ID. Must be infeasible to map different pairs to the same kind.
+    // Compute the kind of the resource
     pub fn kind(&self) -> ProjectivePoint {
-        // Concatenate the image ID and label
-        let mut bytes = [0u8; DIGEST_BYTES + 32];
-        bytes[0..DIGEST_BYTES].clone_from_slice(self.logic.as_ref());
-        bytes[DIGEST_BYTES..DIGEST_BYTES + 32].clone_from_slice(&self.label);
+        // Concatenate the logic_ref and label_ref
+        let mut bytes = [0u8; DIGEST_BYTES * 2];
+        bytes[0..DIGEST_BYTES].clone_from_slice(self.logic_ref.as_ref());
+        bytes[DIGEST_BYTES..DIGEST_BYTES * 2].clone_from_slice(self.label_ref.as_ref());
         // Hash to a curve point
         Secp256k1::hash_from_bytes::<ExpandMsgXmd<Sha256Type>>(&[&bytes], &[DST]).unwrap()
     }
 
-    pub fn psi(&self) -> Digest {
-        let mut bytes = [0u8; 2 * DIGEST_BYTES];
+    fn psi(&self) -> Digest {
+        let mut bytes = [0u8; PRF_EXPAND_PERSONALIZATION_LEN + 1 + 2 * DIGEST_BYTES];
         let mut offset: usize = 0;
+        // Write the PRF_EXPAND_PERSONALIZATION
+        bytes[offset..offset + 16].clone_from_slice(PRF_EXPAND_PERSONALIZATION);
+        offset += PRF_EXPAND_PERSONALIZATION_LEN;
+        // Write the PRF_EXPAND_PSI
+        bytes[offset..offset + 1].clone_from_slice(&PRF_EXPAND_PSI.to_be_bytes());
+        offset += 1;
         // Write the random seed
-        bytes[offset..offset + DIGEST_BYTES].clone_from_slice(&self.rseed.as_ref());
+        bytes[offset..offset + DIGEST_BYTES].clone_from_slice(self.rand_seed.as_ref());
         offset += DIGEST_BYTES;
         // Write the nonce
-        bytes[offset..offset + DIGEST_BYTES].clone_from_slice(&self.nonce.as_ref());
+        bytes[offset..offset + DIGEST_BYTES].clone_from_slice(self.nonce.as_ref());
         offset += DIGEST_BYTES;
-        assert_eq!(offset, 2 * DIGEST_BYTES);
+        assert_eq!(
+            offset,
+            PRF_EXPAND_PERSONALIZATION_LEN + 1 + 2 * DIGEST_BYTES
+        );
         *Impl::hash_bytes(&bytes)
     }
 
-    pub fn rcm(&self) -> Digest {
-        let mut bytes = [0u8; 2 * DIGEST_BYTES];
-        let mut offset: usize = 1;
+    fn rcm(&self) -> Digest {
+        let mut bytes = [0u8; PRF_EXPAND_PERSONALIZATION_LEN + 1 + 2 * DIGEST_BYTES];
+        let mut offset: usize = 0;
+        // Write the PRF_EXPAND_PERSONALIZATION
+        bytes[offset..offset + 16].clone_from_slice(PRF_EXPAND_PERSONALIZATION);
+        offset += PRF_EXPAND_PERSONALIZATION_LEN;
+        // Write the PRF_EXPAND_RCM
+        bytes[offset..offset + 1].clone_from_slice(&PRF_EXPAND_RCM.to_be_bytes());
+        offset += 1;
         // Write the random seed
-        bytes[offset..offset + DIGEST_BYTES].clone_from_slice(&self.rseed.as_ref());
+        bytes[offset..offset + DIGEST_BYTES].clone_from_slice(self.rand_seed.as_ref());
         offset += DIGEST_BYTES;
         // Write the nonce
-        bytes[offset..offset + DIGEST_BYTES].clone_from_slice(&self.nonce.as_ref());
+        bytes[offset..offset + DIGEST_BYTES].clone_from_slice(self.nonce.as_ref());
         offset += DIGEST_BYTES;
-        assert_eq!(offset, 2 * DIGEST_BYTES);
+        assert_eq!(
+            offset,
+            PRF_EXPAND_PERSONALIZATION_LEN + 1 + 2 * DIGEST_BYTES
+        );
         *Impl::hash_bytes(&bytes)
     }
 
@@ -81,28 +96,29 @@ impl Resource {
         let mut bytes = [0u8; RESOURCE_BYTES];
         let mut offset: usize = 0;
         // Write the image ID bytes
-        bytes[offset..offset + DIGEST_BYTES].clone_from_slice(self.logic.as_ref());
+        bytes[offset..offset + DIGEST_BYTES].clone_from_slice(self.logic_ref.as_ref());
         offset += DIGEST_BYTES;
-        // Write the label bytes
-        bytes[offset..offset + DEFAULT_BYTES].clone_from_slice(&self.label);
+        // Write the label_ref bytes
+        bytes[offset..offset + DEFAULT_BYTES].clone_from_slice(self.label_ref.as_ref());
         offset += DEFAULT_BYTES;
         // Write the quantity bytes
-        bytes[offset..offset + DEFAULT_BYTES].clone_from_slice(&self.quantity);
-        offset += DEFAULT_BYTES;
-        // Write the fungible data bytes
-        bytes[offset..offset + DEFAULT_BYTES].clone_from_slice(&self.data);
+        bytes[offset..offset + QUANTITY_BYTES]
+            .clone_from_slice(self.quantity.to_be_bytes().as_ref());
+        offset += QUANTITY_BYTES;
+        // Write the fungible value_ref bytes
+        bytes[offset..offset + DEFAULT_BYTES].clone_from_slice(self.value_ref.as_ref());
         offset += DEFAULT_BYTES;
         // Write the ephemeral flag
-        bytes[offset..offset + 1].clone_from_slice(&[self.eph as u8]);
+        bytes[offset..offset + 1].clone_from_slice(&[self.is_ephemeral as u8]);
         offset += 1;
         // Write the nonce bytes
-        bytes[offset..offset + DIGEST_BYTES].clone_from_slice(&self.nonce.as_ref());
+        bytes[offset..offset + DIGEST_BYTES].clone_from_slice(self.nonce.as_ref());
         offset += DIGEST_BYTES;
         // Write the nullifier public key bytes
-        bytes[offset..offset + DIGEST_BYTES].clone_from_slice(self.npk.inner().as_ref());
+        bytes[offset..offset + DIGEST_BYTES].clone_from_slice(self.nk_commitment.inner().as_ref());
         offset += DIGEST_BYTES;
         // Write the randomness seed bytes
-        bytes[offset..offset + DEFAULT_BYTES].clone_from_slice(&self.rseed);
+        bytes[offset..offset + DEFAULT_BYTES].clone_from_slice(self.rcm().as_ref());
         offset += DEFAULT_BYTES;
         assert_eq!(offset, RESOURCE_BYTES);
         // Now produce the hash
@@ -110,22 +126,27 @@ impl Resource {
     }
 
     // Compute the nullifier of the resource
-    pub fn nullifier(&self, nsk: Nsk) -> Option<Digest> {
+    pub fn nullifier(&self, nf_key: &NullifierKey) -> Option<Digest> {
+        let cm = self.commitment();
+        self.nullifier_from_commitment(nf_key, &cm)
+    }
+
+    pub fn nullifier_from_commitment(&self, nf_key: &NullifierKey, cm: &Digest) -> Option<Digest> {
         // Make sure that the nullifier public key corresponds to the secret key
-        if self.npk == nsk.public_key() {
+        if self.nk_commitment == nf_key.commit() {
             let mut bytes = [0u8; 4 * DIGEST_BYTES];
             let mut offset: usize = 0;
             // Write the nullifier secret key
-            bytes[offset..offset + DIGEST_BYTES].clone_from_slice(&nsk.inner().as_ref());
+            bytes[offset..offset + DIGEST_BYTES].clone_from_slice(nf_key.inner().as_ref());
             offset += DIGEST_BYTES;
             // Write the nonce
-            bytes[offset..offset + DIGEST_BYTES].clone_from_slice(&self.nonce.as_ref());
+            bytes[offset..offset + DIGEST_BYTES].clone_from_slice(self.nonce.as_ref());
             offset += DIGEST_BYTES;
             // Write psi
-            bytes[offset..offset + DIGEST_BYTES].clone_from_slice(&self.psi().as_ref());
+            bytes[offset..offset + DIGEST_BYTES].clone_from_slice(self.psi().as_ref());
             offset += DIGEST_BYTES;
             // Write the resource commitment
-            bytes[offset..offset + DIGEST_BYTES].clone_from_slice(&self.commitment().as_ref());
+            bytes[offset..offset + DIGEST_BYTES].clone_from_slice(cm.as_ref());
             offset += DIGEST_BYTES;
 
             assert_eq!(offset, 4 * DIGEST_BYTES);

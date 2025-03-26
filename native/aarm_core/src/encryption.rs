@@ -1,11 +1,11 @@
-use aes_gcm::{Aes256Gcm, KeyInit, Key, Nonce}; // AES-256-GCM authentication
 use aes_gcm::aead::Aead;
-use k256::{ProjectivePoint, Scalar}; // Add serde import
-use k256::EncodedPoint;
-use rand::thread_rng;
-use k256::elliptic_curve::Field;
+use aes_gcm::{Aes256Gcm, Key, KeyInit, Nonce}; // AES-256-GCM authentication
 use k256::elliptic_curve::sec1::FromEncodedPoint;
-use risc0_zkvm::sha::{Impl, Sha256, Digest};
+use k256::elliptic_curve::Field;
+use k256::EncodedPoint;
+use k256::{ProjectivePoint, Scalar}; // Add serde import
+use rand::thread_rng;
+use risc0_zkvm::sha::{Digest, Impl, Sha256};
 
 #[derive(Debug, Clone)]
 pub struct Ciphertext(Vec<u8>);
@@ -14,29 +14,40 @@ pub struct Ciphertext(Vec<u8>);
 pub struct SecretKey([u8; 32]);
 
 impl Ciphertext {
-    pub fn encrypt(message: &Vec<u8>, pk: &ProjectivePoint, sk: &Scalar, encrypt_nonce: &[u8; 32]) -> Self {
+    pub fn encrypt(
+        message: &Vec<u8>,
+        pk: &ProjectivePoint,
+        sk: &Scalar,
+        encrypt_nonce: &[u8; 32],
+    ) -> Self {
         // Generate the secret key using Diffie-Hellman exchange
         let secret_key = SecretKey::from_dh_exchange(pk, sk);
 
         // Derive AES-256 key and nonce
         let aes_key = secret_key.derive_key();
-        let cipher = Aes256Gcm::new(&Key::<Aes256Gcm>::from_slice(&aes_key));
+        let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&aes_key));
         let nonce = Nonce::from_slice(&encrypt_nonce[..12]);
 
         // Encrypt with AES-256-GCM
-        let ciphertext = cipher.encrypt(nonce, message.as_ref())
+        let ciphertext = cipher
+            .encrypt(nonce, message.as_ref())
             .expect("encryption failure");
 
         Ciphertext(ciphertext)
     }
 
-    pub fn decrypt(&self, sk: &Scalar, pk: &ProjectivePoint, encrypt_nonce: &[u8; 32]) -> Option<Vec<u8>> {
+    pub fn decrypt(
+        &self,
+        sk: &Scalar,
+        pk: &ProjectivePoint,
+        encrypt_nonce: &[u8; 32],
+    ) -> Option<Vec<u8>> {
         // Generate the secret key using Diffie-Hellman exchange
         let secret_key = SecretKey::from_dh_exchange(pk, sk);
 
         // Derive AES-256 key and nonce
         let aes_key = secret_key.derive_key();
-        let cipher = Aes256Gcm::new(&Key::<Aes256Gcm>::from_slice(&aes_key));
+        let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&aes_key));
         let nonce = Nonce::from_slice(&encrypt_nonce[..12]);
 
         // Decrypt with AES-256-GCM
@@ -64,9 +75,7 @@ impl SecretKey {
 
 impl From<Vec<u8>> for Ciphertext {
     fn from(input_vec: Vec<u8>) -> Self {
-        Ciphertext(
-            input_vec
-        )
+        Ciphertext(input_vec)
     }
 }
 
@@ -82,7 +91,6 @@ pub fn random_keypair() -> (Scalar, ProjectivePoint) {
     let pk = generate_public_key(&sk);
 
     (sk, pk)
-    
 }
 
 /// Converts a ProjectivePoint to bytes for serialization
@@ -94,13 +102,10 @@ pub fn projective_point_to_bytes(point: &ProjectivePoint) -> Vec<u8> {
 
 /// Converts bytes back to a ProjectivePoint, returning None if invalid
 pub fn bytes_to_projective_point(bytes: &[u8]) -> Option<ProjectivePoint> {
-    let ret = EncodedPoint::from_bytes(bytes)
+    EncodedPoint::from_bytes(bytes)
         .ok()
-        .and_then(|encoded| Option::from(ProjectivePoint::from_encoded_point(&encoded)));
-    ret
+        .and_then(|encoded| Option::from(ProjectivePoint::from_encoded_point(&encoded)))
 }
-
-
 
 pub fn sha256_single(x: Vec<u8>) -> Digest {
     let result = Impl::hash_bytes(&x);
@@ -108,7 +113,7 @@ pub fn sha256_single(x: Vec<u8>) -> Digest {
 }
 
 pub fn sha256_double(x: Vec<u8>, y: Vec<u8>) -> Digest {
-    let combined: Vec<u8> = x.into_iter().chain(y.into_iter()).collect();
+    let combined: Vec<u8> = x.into_iter().chain(y).collect();
     let result = Impl::hash_bytes(&combined);
     *result
 }
@@ -122,7 +127,7 @@ pub fn sha256_many(inputs: Vec<Vec<u8>>) -> Digest {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use k256::{ProjectivePoint, EncodedPoint, Scalar};
+    use k256::{EncodedPoint, ProjectivePoint, Scalar};
     pub use rand::rngs::OsRng;
     #[test]
     fn test_encryption() {
@@ -143,8 +148,6 @@ mod tests {
         // Verify the decrypted message matches the original
         assert_eq!(message, decryption);
     }
-
-
 
     #[test]
     fn test_projective_point_to_bytes() {
