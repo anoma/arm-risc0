@@ -35,31 +35,24 @@ impl Hashable for Digest {
 
 /// A path from a position in a particular commitment tree to the root of that tree.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(bound = "Node: serde::Serialize, for<'de2> Node: serde::Deserialize<'de2>")]
-pub struct MerklePath<const COMMITMENT_TREE_DEPTH: usize, Node>
-where
-    Node: serde::Serialize + for<'de2> serde::Deserialize<'de2>,
-{
+pub struct MerklePath<const COMMITMENT_TREE_DEPTH: usize> {
     #[serde(with = "BigArray")]
-    pub auth_path: [(Node, bool); COMMITMENT_TREE_DEPTH],
+    auth_path: [(Digest, bool); COMMITMENT_TREE_DEPTH],
 }
 
-impl<const COMMITMENT_TREE_DEPTH: usize, Node> MerklePath<COMMITMENT_TREE_DEPTH, Node>
-where
-    Node: Hashable + serde::Serialize + for<'de2> serde::Deserialize<'de2>,
-{
+impl<const COMMITMENT_TREE_DEPTH: usize> MerklePath<COMMITMENT_TREE_DEPTH> {
     /// Constructs a Merkle path directly from a path and position.
-    pub fn from_path(auth_path: [(Node, bool); COMMITMENT_TREE_DEPTH]) -> Self {
+    pub fn from_path(auth_path: [(Digest, bool); COMMITMENT_TREE_DEPTH]) -> Self {
         MerklePath { auth_path }
     }
 
     /// Returns the root of the tree corresponding to this path applied to `leaf`.
-    pub fn root(&self, leaf: Node) -> Node {
+    pub fn root(&self, leaf: Digest) -> Digest {
         self.auth_path
             .iter()
             .fold(leaf, |root, (p, leaf_is_on_right)| match leaf_is_on_right {
-                false => Node::combine(&root, p),
-                true => Node::combine(p, &root),
+                false => Digest::combine(&root, p),
+                true => Digest::combine(p, &root),
             })
     }
 }
