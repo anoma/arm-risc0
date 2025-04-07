@@ -4,7 +4,8 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+aarm_core = { path = "../aarm_core" }
 dotenv = "0.15"
-alloy = { version = "0.13" , features = ["full"] }
+alloy = { version = "0.13", features = ["full"] }
 rand = "0.9"
 tokio = "1.44"
