@@ -1,4 +1,5 @@
 pub mod action_tree;
+pub mod authorization;
 pub mod compliance;
 pub mod constants;
 pub mod delta_proof;
