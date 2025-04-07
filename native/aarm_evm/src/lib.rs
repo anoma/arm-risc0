@@ -1,6 +1,11 @@
 pub mod call;
 pub mod types;
 
+fn example_transaction(){
+    
+}
+
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -11,7 +16,7 @@ mod tests {
     use types::Resource;
 
     #[test]
-    fn encode_resource() {
+    fn test_encode_resource() {
         let res = Resource {
             logicRef: B256::from(hex!(
                 "1111111111111111111111111111111111111111111111111111111111111111"
