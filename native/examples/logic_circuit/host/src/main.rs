@@ -1,4 +1,7 @@
-use aarm_core::encryption::{random_keypair, Ciphertext};
+use aarm_core::{
+    authorization::{AuthorizationSigningKey, AuthorizationVerifyingKey},
+    encryption::{random_keypair, Ciphertext},
+};
 use k256::Scalar;
 use methods::{LOGIC_GUEST_ELF, LOGIC_GUEST_ID};
 use rand::rngs::OsRng;
@@ -17,8 +20,24 @@ pub fn main() {
     let message = b"Hello, AES-256-GCM encryption!".to_vec();
     let nonce: [u8; 12] = rand::random();
 
+    // Construct a signature example
+    let signing_key = AuthorizationSigningKey::new();
+    let verifying_key = AuthorizationVerifyingKey::from_signing_key(&signing_key);
+
+    let sig_message = b"Hello, world!".to_vec();
+    let signature = signing_key.sign(&sig_message);
+    assert!(verifying_key.verify(&sig_message, &signature).is_ok());
+
     let env = ExecutorEnv::builder()
-        .write(&(&message, &receiver_pk, &sender_sk, &nonce))
+        .write(&(
+            &message,
+            &receiver_pk,
+            &sender_sk,
+            &nonce,
+            &verifying_key,
+            &sig_message,
+            &signature,
+        ))
         .unwrap()
         .build()
         .unwrap();
@@ -33,7 +52,7 @@ pub fn main() {
 
     let extract_journal_start_timer = Instant::now();
     // Extract journal of receipt
-    let cipher: Ciphertext = receipt.journal.decode().unwrap();
+    let (cipher, ret_sig): (Ciphertext, bool) = receipt.journal.decode().unwrap();
 
     let extract_journal_duration = extract_journal_start_timer.elapsed();
     println!(
@@ -51,4 +70,7 @@ pub fn main() {
     let decryption = cipher.decrypt(&receiver_sk).unwrap();
 
     assert_eq!(message, decryption);
+
+    // Verify the signature
+    assert!(ret_sig);
 }

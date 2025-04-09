@@ -38,11 +38,7 @@ impl Ciphertext {
             .expect("encryption failure");
 
         let pk = generate_public_key(sender_sk);
-        Ciphertext {
-            cipher,
-            nonce: nonce,
-            pk,
-        }
+        Ciphertext { cipher, nonce, pk }
     }
 
     pub fn decrypt(&self, sk: &Scalar) -> Result<Vec<u8>, aes_gcm::Error> {

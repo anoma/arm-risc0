@@ -1,12 +1,13 @@
 use crate::{
-    constants::{DEFAULT_BYTES, TRIVIAL_RESOURCE_LOGIC_VK},
-    merkle_path::MerklePath,
-    nullifier_key::NullifierKey,
+    constants::TRIVIAL_RESOURCE_LOGIC_VK, merkle_path::MerklePath, nullifier_key::NullifierKey,
     resource::Resource,
 };
 use k256::{
-    elliptic_curve::{group::GroupEncoding, Field},
-    ProjectivePoint, Scalar,
+    elliptic_curve::{
+        sec1::{FromEncodedPoint, ToEncodedPoint},
+        Field,
+    },
+    EncodedPoint, ProjectivePoint, Scalar,
 };
 use rand::Rng;
 use risc0_zkvm::sha::{Digest, Impl, Sha256};
@@ -17,7 +18,7 @@ pub struct ComplianceInstance {
     pub nullifier: Digest,
     pub commitment: Digest,
     pub merkle_root: Digest,
-    pub delta: [u8; DEFAULT_BYTES],
+    pub delta: EncodedPoint,
     pub consumed_logic_ref: Digest,
     pub created_logic_ref: Digest,
 }
@@ -117,7 +118,7 @@ impl<const COMMITMENT_TREE_DEPTH: usize> ComplianceCircuit<COMMITMENT_TREE_DEPTH
         MerklePath::from_path(self.compliance_witness.merkle_path).root(cm)
     }
 
-    pub fn delta_commitment(&self) -> [u8; DEFAULT_BYTES] {
+    pub fn delta_commitment(&self) -> EncodedPoint {
         // Compute delta and make delta commitment public
         let delta = self.compliance_witness.consumed_resource.kind()
             * self.compliance_witness.consumed_resource.quantity_scalar()
@@ -125,9 +126,18 @@ impl<const COMMITMENT_TREE_DEPTH: usize> ComplianceCircuit<COMMITMENT_TREE_DEPTH
                 * self.compliance_witness.created_resource.quantity_scalar()
             + ProjectivePoint::GENERATOR * self.compliance_witness.rcv;
 
-        let delta_bytes: [u8; DEFAULT_BYTES] = delta.to_affine().to_bytes()[..DEFAULT_BYTES]
-            .try_into()
-            .expect("Slice length mismatch");
-        delta_bytes
+        delta.to_encoded_point(false)
+    }
+}
+
+impl ComplianceInstance {
+    pub fn delta_coordinates(&self) -> ([u8; 32], [u8; 32]) {
+        let x = (*self.delta.x().unwrap()).into();
+        let y = (*self.delta.y().unwrap()).into();
+        (x, y)
+    }
+
+    pub fn delta_projective(&self) -> ProjectivePoint {
+        ProjectivePoint::from_encoded_point(&self.delta).unwrap()
     }
 }
