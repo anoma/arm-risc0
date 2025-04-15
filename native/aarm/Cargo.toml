@@ -11,6 +11,8 @@ risc0-zkvm = { version = "1.1.2" }
 serde = { version = "1.0.197", default-features = false }
 compliance_circuit = { path = "../examples/compliance_circuit/methods", package = 'methods'}
 aarm_core = { path = "../aarm_core" }
+k256 = { version = "=0.13.1", features = ["arithmetic", "serde", "expose-field", "std", "ecdsa", "hash2curve"], default-features = false }
+
 
 [dev-dependencies]
 bincode = "1.3"

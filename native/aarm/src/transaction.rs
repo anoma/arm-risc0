@@ -53,10 +53,39 @@ impl Transaction {
     }
 
     pub fn get_delta_instance(&self) -> DeltaInstance {
-        unimplemented!()
+        let deltas = self
+            .action
+            .iter()
+            .flat_map(|action| action.get_delta())
+            .collect::<Vec<_>>();
+        DeltaInstance::from_deltas(&deltas).unwrap()
     }
 
     pub fn get_delta_msg(&self) -> Vec<u8> {
-        unimplemented!()
+        let mut msg = Vec::new();
+        for action in &self.action {
+            msg.extend(action.get_delta_msg());
+        }
+        msg
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::action::tests::create_an_action;
+
+    pub fn generate_test_transaction() -> Transaction {
+        let (action, delta_witness) = create_an_action();
+        let mut tx = Transaction::new(vec![action], Delta::Witness(delta_witness));
+        tx.generate_delta_proof();
+        assert!(tx.verify());
+
+        tx
+    }
+
+    #[test]
+    fn test_transaction() {
+        let _ = generate_test_transaction();
     }
 }

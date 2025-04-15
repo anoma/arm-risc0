@@ -1,4 +1,6 @@
+use aarm_core::compliance::ComplianceInstance;
 use compliance_circuit::COMPLIANCE_GUEST_ID;
+use k256::ProjectivePoint;
 use risc0_zkvm::Receipt;
 use serde::{Deserialize, Serialize};
 
@@ -43,36 +45,68 @@ impl Action {
 
         true
     }
+
+    pub fn get_delta(&self) -> Vec<ProjectivePoint> {
+        self.compliance_units
+            .iter()
+            .map(|receipt| {
+                let instance: ComplianceInstance = receipt.journal.decode().unwrap();
+                instance.delta_projective()
+            })
+            .collect()
+    }
+
+    pub fn get_delta_msg(&self) -> Vec<u8> {
+        let mut msg = Vec::new();
+        for receipt in &self.compliance_units {
+            let instance: ComplianceInstance = receipt.journal.decode().unwrap();
+            msg.extend_from_slice(&instance.delta_msg());
+        }
+        msg
+    }
 }
 
-#[test]
-fn test_action() {
-    use aarm_core::{compliance::ComplianceWitness, constants::TREE_DEPTH, utils::GenericEnv};
+#[cfg(test)]
+pub mod tests {
+    use super::*;
+    use aarm_core::{
+        compliance::ComplianceWitness, constants::TREE_DEPTH, delta_proof::DeltaWitness,
+        utils::GenericEnv,
+    };
     use bincode;
     use compliance_circuit::COMPLIANCE_GUEST_ELF;
     use risc0_zkvm::{default_prover, ExecutorEnv};
     use serde_bytes::ByteBuf;
 
-    let compliance_witness: ComplianceWitness<TREE_DEPTH> =
-        ComplianceWitness::<TREE_DEPTH>::default();
-    let generic_env = GenericEnv {
-        data: ByteBuf::from(bincode::serialize(&compliance_witness).unwrap()),
-    };
+    pub fn create_an_action() -> (Action, DeltaWitness) {
+        let compliance_witness: ComplianceWitness<TREE_DEPTH> =
+            ComplianceWitness::<TREE_DEPTH>::default();
+        let generic_env = GenericEnv {
+            data: ByteBuf::from(bincode::serialize(&compliance_witness).unwrap()),
+        };
 
-    let env = ExecutorEnv::builder()
-        .write(&generic_env)
-        .unwrap()
-        .build()
-        .unwrap();
+        let env = ExecutorEnv::builder()
+            .write(&generic_env)
+            .unwrap()
+            .build()
+            .unwrap();
 
-    let prover = default_prover();
+        let prover = default_prover();
 
-    let receipt = prover.prove(env, COMPLIANCE_GUEST_ELF).unwrap().receipt;
+        let receipt = prover.prove(env, COMPLIANCE_GUEST_ELF).unwrap().receipt;
 
-    let compliance_units = vec![receipt.clone()];
-    let logic_proofs = vec![receipt];
+        let compliance_units = vec![receipt.clone()];
+        let logic_proofs = vec![receipt];
 
-    let action = Action::new(compliance_units, logic_proofs);
+        let action = Action::new(compliance_units, logic_proofs);
+        assert!(action.verify());
 
-    assert!(action.verify());
+        let delta_witness = DeltaWitness::from_scalars(&[compliance_witness.rcv]);
+        (action, delta_witness)
+    }
+
+    #[test]
+    fn test_action() {
+        let _ = create_an_action();
+    }
 }

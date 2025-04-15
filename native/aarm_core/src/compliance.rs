@@ -140,4 +140,11 @@ impl ComplianceInstance {
     pub fn delta_projective(&self) -> ProjectivePoint {
         ProjectivePoint::from_encoded_point(&self.delta).unwrap()
     }
+
+    pub fn delta_msg(&self) -> Vec<u8> {
+        let mut msg = Vec::new();
+        msg.extend_from_slice(self.nullifier.as_bytes());
+        msg.extend_from_slice(self.commitment.as_bytes());
+        msg
+    }
 }
