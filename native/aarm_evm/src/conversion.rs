@@ -82,7 +82,7 @@ mod tests {
             quantity: U256::from(quantity),
             nonce,
             randSeed: rand_seed,
-            ephemeral: ephemeral,
+            ephemeral,
         };
 
         let aarm = Resource {
