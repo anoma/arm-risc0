@@ -32,7 +32,7 @@ impl From<ComplianceInstance> for EVMTypes::ComplianceInstance {
                 logicRef: B256::from_slice(c.created_logic_ref.as_bytes()),
             },
             unitDelta: {
-                let (left, right) = c.delta.split_at(DEFAULT_BYTES / 2);
+                let (left, right) = c.delta.as_bytes().split_at(DEFAULT_BYTES / 2);
                 let left_bytes: [u8; 16] = left.try_into().unwrap();
                 let right_bytes: [u8; 16] = right.try_into().unwrap();
                 [
