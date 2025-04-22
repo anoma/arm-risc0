@@ -2,14 +2,17 @@ use k256::ecdsa::{
     signature::{Signer, Verifier},
     Error, Signature, SigningKey, VerifyingKey,
 };
-use k256::{elliptic_curve::rand_core::OsRng, EncodedPoint};
+use k256::{
+    elliptic_curve::{rand_core::OsRng, sec1::ToEncodedPoint},
+    AffinePoint,
+};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone)]
 pub struct AuthorizationSigningKey(SigningKey);
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct AuthorizationVerifyingKey(EncodedPoint);
+pub struct AuthorizationVerifyingKey(AffinePoint);
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct AuthorizationSignature(Signature);
@@ -61,13 +64,25 @@ impl<'de> Deserialize<'de> for AuthorizationSigningKey {
 impl AuthorizationVerifyingKey {
     pub fn from_signing_key(signing_key: &AuthorizationSigningKey) -> Self {
         let verifying_key = signing_key.0.verifying_key();
-        AuthorizationVerifyingKey(verifying_key.to_encoded_point(false))
+        Self::from_affine(*verifying_key.as_affine())
     }
 
     pub fn verify(&self, message: &[u8], signature: &AuthorizationSignature) -> Result<(), Error> {
-        VerifyingKey::from_encoded_point(&self.0)
+        VerifyingKey::from_affine(self.0)
             .unwrap()
             .verify(message, signature.inner())
+    }
+
+    pub fn from_affine(point: AffinePoint) -> Self {
+        AuthorizationVerifyingKey(point)
+    }
+
+    pub fn as_affine(&self) -> &AffinePoint {
+        &self.0
+    }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        self.0.to_encoded_point(false).as_bytes().to_vec()
     }
 }
 
