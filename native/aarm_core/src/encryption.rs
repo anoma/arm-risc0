@@ -6,7 +6,25 @@ use k256::{
 use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct SecretKey(Scalar);
+
+impl SecretKey {
+    pub fn new(sk: Scalar) -> Self {
+        SecretKey(sk)
+    }
+
+    pub fn random() -> Self {
+        let sk = Scalar::random(&mut OsRng);
+        SecretKey(sk)
+    }
+
+    pub fn inner(&self) -> &Scalar {
+        &self.0
+    }
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Ciphertext {
     // AES GCM encrypted message
     cipher: Vec<u8>,
@@ -17,36 +35,36 @@ pub struct Ciphertext {
 }
 
 #[derive(Debug, Clone)]
-pub struct SecretKey(Key<Aes256Gcm>);
+struct InnerSecretKey(Key<Aes256Gcm>);
 
 impl Ciphertext {
     pub fn encrypt(
         message: &Vec<u8>,
         receiver_pk: &AffinePoint,
-        sender_sk: &Scalar,
+        sender_sk: &SecretKey,
         nonce: [u8; 12],
     ) -> Self {
         // Generate the secret key using Diffie-Hellman exchange
-        let secret_key = SecretKey::from_dh_exchange(receiver_pk, sender_sk);
+        let inner_secret_key = InnerSecretKey::from_dh_exchange(receiver_pk, sender_sk.inner());
 
         // Derive AES-256 key and nonce
-        let aes_gcm = Aes256Gcm::new(&secret_key.inner());
+        let aes_gcm = Aes256Gcm::new(&inner_secret_key.inner());
 
         // Encrypt with AES-256-GCM
         let cipher = aes_gcm
             .encrypt(&nonce.into(), message.as_ref())
             .expect("encryption failure");
 
-        let pk = generate_public_key(sender_sk);
+        let pk = generate_public_key(sender_sk.inner());
         Ciphertext { cipher, nonce, pk }
     }
 
-    pub fn decrypt(&self, sk: &Scalar) -> Result<Vec<u8>, aes_gcm::Error> {
+    pub fn decrypt(&self, sk: &SecretKey) -> Result<Vec<u8>, aes_gcm::Error> {
         // Generate the secret key using Diffie-Hellman exchange
-        let secret_key = SecretKey::from_dh_exchange(&self.pk, sk);
+        let inner_secret_key = InnerSecretKey::from_dh_exchange(&self.pk, sk.inner());
 
         // Derive AES-256 key and nonce
-        let aes_gcm = Aes256Gcm::new(&secret_key.inner());
+        let aes_gcm = Aes256Gcm::new(&inner_secret_key.inner());
 
         // Convert nonce to 96-bits
         // let nonce = Nonce::<U12>::from_slice(&self.nonce);
@@ -56,13 +74,13 @@ impl Ciphertext {
     }
 }
 
-impl SecretKey {
+impl InnerSecretKey {
     pub fn from_dh_exchange(pk: &AffinePoint, sk: &Scalar) -> Self {
         let pk = ProjectivePoint::from(*pk);
         let shared_point = pk * sk;
         let key_bytes = shared_point.to_bytes().to_vec();
         let key = Key::<Aes256Gcm>::from_slice(&key_bytes[..32]);
-        SecretKey(*key)
+        InnerSecretKey(*key)
     }
 
     pub fn inner(&self) -> Key<Aes256Gcm> {
@@ -76,17 +94,17 @@ pub fn generate_public_key(sk: &Scalar) -> AffinePoint {
 }
 
 /// Generates a random private key (Scalar) and its corresponding public key (ProjectivePoint)
-pub fn random_keypair() -> (Scalar, AffinePoint) {
+pub fn random_keypair() -> (SecretKey, AffinePoint) {
     let sk = Scalar::random(&mut OsRng);
     let pk = generate_public_key(&sk);
 
-    (sk, pk)
+    (SecretKey::new(sk), pk)
 }
 
 #[test]
 fn test_encryption() {
     // Generate a random sender's private key
-    let sender_sk = Scalar::generate_vartime(&mut OsRng);
+    let sender_sk = SecretKey::random();
     // Generate a keypair for the receiver
     let (receiver_sk, receiver_pk) = random_keypair();
 
