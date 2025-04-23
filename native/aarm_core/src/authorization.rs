@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone)]
 pub struct AuthorizationSigningKey(SigningKey);
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct AuthorizationVerifyingKey(AffinePoint);
 
 #[derive(Clone, Serialize, Deserialize)]
