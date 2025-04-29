@@ -41,6 +41,43 @@ pub struct ComplianceWitness<const COMMITMENT_TREE_DEPTH: usize> {
     // pub output_resource_logic_cm_r: [u8; DATA_BYTES],
 }
 
+impl <const COMMITMENT_TREE_DEPTH: usize> ComplianceWitness<COMMITMENT_TREE_DEPTH> {
+    pub fn from_resources(
+        consumed_resource: Resource,
+        nf_key: NullifierKey,
+        created_resource: Resource,
+    ) -> Self {
+        let rng = rand::thread_rng();
+        let merkle_path: [(Digest, bool); COMMITMENT_TREE_DEPTH] =
+            [(Digest::default(), false); COMMITMENT_TREE_DEPTH];
+            let rcv = Scalar::random(rng);
+        ComplianceWitness {
+            consumed_resource,
+            created_resource,
+            merkle_path,
+            rcv,
+            nf_key,
+        }
+    }
+
+    pub fn from_resources_with_path(
+        consumed_resource: Resource,
+        nf_key: NullifierKey,
+        merkle_path: [(Digest, bool); COMMITMENT_TREE_DEPTH],
+        created_resource: Resource,
+    ) -> Self {
+        let rng = rand::thread_rng();
+        let rcv = Scalar::random(rng);
+        ComplianceWitness {
+            consumed_resource,
+            created_resource,
+            merkle_path,
+            rcv,
+            nf_key,
+        }
+    }
+}
+
 impl<const COMMITMENT_TREE_DEPTH: usize> Default for ComplianceWitness<COMMITMENT_TREE_DEPTH> {
     fn default() -> Self {
         let mut rng = rand::thread_rng();

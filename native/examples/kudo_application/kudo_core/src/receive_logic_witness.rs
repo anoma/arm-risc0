@@ -1,6 +1,6 @@
 use aarm_core::{
     action_tree::ACTION_TREE_DEPTH, encryption::Ciphertext, logic_instance::LogicInstance,
-    merkle_path::MerklePath, resource::Resource,
+    merkle_path::MerklePath, nullifier_key::NullifierKey, resource::Resource,
 };
 use serde::{Deserialize, Serialize};
 
@@ -9,6 +9,8 @@ pub struct ReceiveLogicWitness {
     // Receive related fields
     pub receive_resource: Resource,
     pub receive_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+    pub is_consumed: bool,
+    pub nf_key: NullifierKey,
 
     // Kudo related fields
     pub kudo_resource: Resource,
@@ -19,7 +21,14 @@ impl ReceiveLogicWitness {
     pub fn constrain(&self) -> LogicInstance {
         // Load the self resource, the receive resource is always a
         // created resource
-        let tag = self.receive_resource.commitment();
+        let self_cm = self.receive_resource.commitment();
+        let tag = if self.is_consumed {
+            self.receive_resource
+                .nullifier_from_commitment(&self.nf_key, &self_cm)
+                .unwrap()
+        } else {
+            self_cm
+        };
         let root = self.receive_existence_path.root(tag);
 
         // Check basic properties of the receive resource
@@ -39,7 +48,7 @@ impl ReceiveLogicWitness {
 
         LogicInstance {
             tag,
-            is_consumed: false, // receive resources are always created
+            is_consumed: self.is_consumed, // It can be either consumed or created to reduce padding resources
             root,
             cipher: Ciphertext::default(), // no cipher needed
             app_data: Vec::new(),          // no app data needed
