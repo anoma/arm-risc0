@@ -30,6 +30,8 @@ pub struct ComplianceWitness<const COMMITMENT_TREE_DEPTH: usize> {
     /// The path from the consumed commitment to the root in the commitment tree
     #[serde(with = "BigArray")]
     pub merkle_path: [(Digest, bool); COMMITMENT_TREE_DEPTH],
+    /// The existing root for the ephemeral resource
+    pub ephemeral_root: Digest,
     /// Nullifier key of the consumed resource
     pub nf_key: NullifierKey,
     /// The created resource
@@ -57,6 +59,8 @@ impl<const COMMITMENT_TREE_DEPTH: usize> ComplianceWitness<COMMITMENT_TREE_DEPTH
             merkle_path,
             rcv,
             nf_key,
+            // TODO: it should be a valid existing root
+            ephemeral_root: Digest::default(),
         }
     }
 
@@ -74,6 +78,7 @@ impl<const COMMITMENT_TREE_DEPTH: usize> ComplianceWitness<COMMITMENT_TREE_DEPTH
             merkle_path,
             rcv,
             nf_key,
+            ephemeral_root: Digest::default(),
         }
     }
 
@@ -119,7 +124,11 @@ impl<const COMMITMENT_TREE_DEPTH: usize> ComplianceWitness<COMMITMENT_TREE_DEPTH
     }
 
     pub fn merkle_tree_root(&self, cm: Digest) -> Digest {
-        MerklePath::from_path(self.merkle_path).root(cm)
+        if self.consumed_resource.is_ephemeral {
+            self.ephemeral_root
+        } else {
+            MerklePath::from_path(self.merkle_path).root(cm)
+        }
     }
 
     pub fn delta_commitment(&self) -> EncodedPoint {
@@ -170,6 +179,7 @@ impl<const COMMITMENT_TREE_DEPTH: usize> Default for ComplianceWitness<COMMITMEN
         ComplianceWitness {
             consumed_resource,
             created_resource,
+            ephemeral_root: Digest::default(),
             merkle_path,
             rcv,
             nf_key,
