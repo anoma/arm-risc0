@@ -56,3 +56,11 @@ impl<const COMMITMENT_TREE_DEPTH: usize> MerklePath<COMMITMENT_TREE_DEPTH> {
             })
     }
 }
+
+impl<const COMMITMENT_TREE_DEPTH: usize> Default for MerklePath<COMMITMENT_TREE_DEPTH> {
+    fn default() -> Self {
+        MerklePath {
+            auth_path: [(Digest::default(), false); COMMITMENT_TREE_DEPTH],
+        }
+    }
+}
