@@ -76,6 +76,60 @@ impl<const COMMITMENT_TREE_DEPTH: usize> ComplianceWitness<COMMITMENT_TREE_DEPTH
             nf_key,
         }
     }
+
+    pub fn constrain(&self) -> ComplianceInstance {
+        let consumed_logic_ref = self.get_consumed_resource_logic();
+        let comsumed_cm = self.consumed_commitment();
+        let nullifier = self.consumed_nullifier(&comsumed_cm);
+        let created_logic_ref = self.get_created_resource_logic();
+        let commitment = self.created_commitment();
+        let merkle_root = self.merkle_tree_root(comsumed_cm);
+        let delta = self.delta_commitment();
+
+        ComplianceInstance {
+            nullifier,
+            commitment,
+            consumed_logic_ref,
+            created_logic_ref,
+            merkle_root,
+            delta,
+        }
+    }
+
+    pub fn get_consumed_resource_logic(&self) -> Digest {
+        self.consumed_resource.logic_ref
+    }
+
+    pub fn get_created_resource_logic(&self) -> Digest {
+        self.created_resource.logic_ref
+    }
+
+    pub fn consumed_commitment(&self) -> Digest {
+        self.consumed_resource.commitment()
+    }
+
+    pub fn created_commitment(&self) -> Digest {
+        self.created_resource.commitment()
+    }
+
+    pub fn consumed_nullifier(&self, cm: &Digest) -> Digest {
+        self.consumed_resource
+            .nullifier_from_commitment(&self.nf_key, cm)
+            .unwrap()
+    }
+
+    pub fn merkle_tree_root(&self, cm: Digest) -> Digest {
+        MerklePath::from_path(self.merkle_path).root(cm)
+    }
+
+    pub fn delta_commitment(&self) -> EncodedPoint {
+        // Compute delta and make delta commitment public
+        let delta = self.consumed_resource.kind() * self.consumed_resource.quantity_scalar()
+            - self.created_resource.kind() * self.created_resource.quantity_scalar()
+            + ProjectivePoint::GENERATOR * self.rcv;
+
+        delta.to_encoded_point(false)
+    }
 }
 
 impl<const COMMITMENT_TREE_DEPTH: usize> Default for ComplianceWitness<COMMITMENT_TREE_DEPTH> {
@@ -120,50 +174,6 @@ impl<const COMMITMENT_TREE_DEPTH: usize> Default for ComplianceWitness<COMMITMEN
             rcv,
             nf_key,
         }
-    }
-}
-
-pub struct ComplianceCircuit<const COMMITMENT_TREE_DEPTH: usize> {
-    pub compliance_witness: ComplianceWitness<COMMITMENT_TREE_DEPTH>,
-}
-
-impl<const COMMITMENT_TREE_DEPTH: usize> ComplianceCircuit<COMMITMENT_TREE_DEPTH> {
-    pub fn get_consumed_resource_logic(&self) -> Digest {
-        self.compliance_witness.consumed_resource.logic_ref
-    }
-
-    pub fn get_created_resource_logic(&self) -> Digest {
-        self.compliance_witness.created_resource.logic_ref
-    }
-
-    pub fn consumed_commitment(&self) -> Digest {
-        self.compliance_witness.consumed_resource.commitment()
-    }
-
-    pub fn created_commitment(&self) -> Digest {
-        self.compliance_witness.created_resource.commitment()
-    }
-
-    pub fn consumed_nullifier(&self, cm: &Digest) -> Digest {
-        self.compliance_witness
-            .consumed_resource
-            .nullifier_from_commitment(&self.compliance_witness.nf_key, cm)
-            .unwrap()
-    }
-
-    pub fn merkle_tree_root(&self, cm: Digest) -> Digest {
-        MerklePath::from_path(self.compliance_witness.merkle_path).root(cm)
-    }
-
-    pub fn delta_commitment(&self) -> EncodedPoint {
-        // Compute delta and make delta commitment public
-        let delta = self.compliance_witness.consumed_resource.kind()
-            * self.compliance_witness.consumed_resource.quantity_scalar()
-            - self.compliance_witness.created_resource.kind()
-                * self.compliance_witness.created_resource.quantity_scalar()
-            + ProjectivePoint::GENERATOR * self.compliance_witness.rcv;
-
-        delta.to_encoded_point(false)
     }
 }
 
