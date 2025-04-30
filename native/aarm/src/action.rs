@@ -71,22 +71,16 @@ pub mod tests {
     use super::*;
     use aarm_core::{
         compliance::ComplianceWitness, constants::TREE_DEPTH, delta_proof::DeltaWitness,
-        utils::GenericEnv,
     };
-    use bincode;
     use compliance_circuit::COMPLIANCE_GUEST_ELF;
     use risc0_zkvm::{default_prover, ExecutorEnv};
-    use serde_bytes::ByteBuf;
 
     pub fn create_an_action() -> (Action, DeltaWitness) {
         let compliance_witness: ComplianceWitness<TREE_DEPTH> =
             ComplianceWitness::<TREE_DEPTH>::default();
-        let generic_env = GenericEnv {
-            data: ByteBuf::from(bincode::serialize(&compliance_witness).unwrap()),
-        };
 
         let env = ExecutorEnv::builder()
-            .write(&generic_env)
+            .write(&compliance_witness)
             .unwrap()
             .build()
             .unwrap();

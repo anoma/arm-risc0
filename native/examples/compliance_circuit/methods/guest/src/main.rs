@@ -1,17 +1,13 @@
 use aarm_core::{
     compliance::{ComplianceCircuit, ComplianceInstance, ComplianceWitness},
     constants::TREE_DEPTH,
-    utils::GenericEnv
 };
 use risc0_zkvm::guest::env;
-use bincode;
 
 // Guest code:
 // This is the portion of the code that will be proven
 pub fn main() {
-    let generic_env: GenericEnv = env::read();
-    let compliance_witness: ComplianceWitness<TREE_DEPTH> = bincode::deserialize(&generic_env.data)
-        .expect("Failed to deserialize environment data");
+    let compliance_witness: ComplianceWitness<TREE_DEPTH> = env::read();
 
     let compliance_circuit: ComplianceCircuit<TREE_DEPTH> = ComplianceCircuit { compliance_witness };
     let consumed_logic_ref = compliance_circuit.get_consumed_resource_logic();

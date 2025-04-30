@@ -15,5 +15,3 @@ k256 = { version = "=0.13.1", features = ["arithmetic", "serde", "expose-field",
 
 
 [dev-dependencies]
-bincode = "1.3"
-serde_bytes = "0.11"

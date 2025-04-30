@@ -8,4 +8,3 @@ pub mod logic_instance;
 pub mod merkle_path;
 pub mod nullifier_key;
 pub mod resource;
-pub mod utils;

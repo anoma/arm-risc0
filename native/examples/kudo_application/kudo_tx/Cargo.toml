@@ -13,7 +13,3 @@ compliance_circuit = { path = "../../compliance_circuit/methods", package = 'met
 kudo_logic = { path = "../kudo_logic" }
 denomination_logic = { path = "../denomination_logic" }
 receive_logic = { path = "../receive_logic" }
-
-# TODO: remove this later
-bincode = "1.3"
-serde_bytes = "0.11"

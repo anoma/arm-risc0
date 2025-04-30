@@ -166,18 +166,12 @@ impl IssueWitness {
 
 // TODO: Move this to aarm
 use aarm_core::constants::TREE_DEPTH;
-use aarm_core::utils::GenericEnv;
 use compliance_circuit::COMPLIANCE_GUEST_ELF;
 use risc0_zkvm::{default_prover, ExecutorEnv, ProverOpts, Receipt, VerifierContext};
-use serde_bytes::ByteBuf;
 
 fn generate_compliance_proof(witness: &ComplianceWitness<TREE_DEPTH>) -> Receipt {
-    let generic_env = GenericEnv {
-        data: ByteBuf::from(bincode::serialize(&witness).unwrap()),
-    };
-
     let env = ExecutorEnv::builder()
-        .write(&generic_env)
+        .write(witness)
         .unwrap()
         .build()
         .unwrap();
