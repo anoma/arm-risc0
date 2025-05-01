@@ -1,7 +1,9 @@
 use crate::{
-    action_tree::ACTION_TREE_DEPTH, encryption::Ciphertext, logic_instance::LogicInstance,
-    merkle_path::MerklePath, nullifier_key::NullifierKey, resource::Resource,
+    action_tree::ACTION_TREE_DEPTH, constants::TRIVIAL_RESOURCE_LOGIC, encryption::Ciphertext,
+    logic_instance::LogicInstance, merkle_path::MerklePath, nullifier_key::NullifierKey,
+    resource::Resource,
 };
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -49,8 +51,11 @@ impl Default for TrivialLogicWitness {
             nf_key: NullifierKey::default(),
         };
 
+        let mut rng = rand::thread_rng();
         witness.resource.is_ephemeral = true;
         witness.resource.quantity = 0;
+        witness.resource.nonce = rng.gen();
+        witness.resource.logic_ref = TRIVIAL_RESOURCE_LOGIC.into();
         witness
     }
 }

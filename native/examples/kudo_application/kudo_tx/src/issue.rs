@@ -2,7 +2,9 @@ use aarm::{
     action::Action,
     transaction::{Delta, Transaction},
 };
-use aarm_core::{compliance::ComplianceWitness, delta_proof::DeltaWitness};
+use aarm_core::{
+    compliance::ComplianceWitness, delta_proof::DeltaWitness, trivial_logic::TrivialLogicWitness,
+};
 use denomination_logic::DENOMINATION_ELF;
 use kudo_core::{
     denomination_logic_witness::DenominationLogicWitness, kudo_logic_witness::KudoLogicWitness,
@@ -11,6 +13,7 @@ use kudo_core::{
 use kudo_logic::KUDO_LOGIC_ELF;
 use receive_logic::RECEIVE_ELF;
 use serde::{Deserialize, Serialize};
+use trivial_logic::TRIVIAL_ELF;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct IssueWitness {
@@ -19,6 +22,7 @@ pub struct IssueWitness {
     issued_receive_witness: ReceiveLogicWitness,
     ephemeral_kudo_witness: KudoLogicWitness,
     ephemeral_denomination_witness: DenominationLogicWitness,
+    padding_resource_witness: TrivialLogicWitness,
 }
 
 impl IssueWitness {
@@ -56,7 +60,21 @@ impl IssueWitness {
                 )
             };
 
-            // Compliance unit 3: a padding resource and the issued_denomination_resource
+            // Compliance unit 3: a padding resource and the ephemeral_denomination_resource
+            let (compliance_unit_3, delta_witness_3) = {
+                let compliance_witness = ComplianceWitness::from_resources(
+                    self.padding_resource_witness.resource.clone(),
+                    self.padding_resource_witness.nf_key.clone(),
+                    self.ephemeral_denomination_witness
+                        .denomination_resource
+                        .clone(),
+                );
+
+                (
+                    generate_compliance_proof(&compliance_witness),
+                    compliance_witness.rcv,
+                )
+            };
 
             // Generate logic proofs
             let issued_kudo_receipt = {
@@ -144,18 +162,36 @@ impl IssueWitness {
                     .receipt
             };
 
+            let padding_resource_receipt = {
+                let env = ExecutorEnv::builder()
+                    .write(&self.padding_resource_witness)
+                    .unwrap()
+                    .build()
+                    .unwrap();
+                default_prover()
+                    .prove_with_ctx(
+                        env,
+                        &VerifierContext::default(),
+                        TRIVIAL_ELF,
+                        &ProverOpts::groth16(),
+                    )
+                    .unwrap()
+                    .receipt
+            };
+
             (
                 Action::new(
-                    vec![compliance_unit_1, compliance_unit_2],
+                    vec![compliance_unit_1, compliance_unit_2, compliance_unit_3],
                     vec![
                         issued_kudo_receipt,
                         issued_denomination_receipt,
                         issued_receive_logic_receipt,
                         ephemeral_kudo_receipt,
                         ephemeral_denomination_receipt,
+                        padding_resource_receipt,
                     ],
                 ),
-                DeltaWitness::from_scalars(&[delta_witness_1, delta_witness_2]),
+                DeltaWitness::from_scalars(&[delta_witness_1, delta_witness_2, delta_witness_3]),
             )
         };
 

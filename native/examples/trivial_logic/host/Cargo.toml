@@ -4,6 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-methods = { path = "../methods" }
+trivial_logic = { path = "../trivial_logic" }
 risc0-zkvm = { version = "1.2.5" }
 aarm_core = { path = "../../../aarm_core" }
