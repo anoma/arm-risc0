@@ -1,3 +1,4 @@
+use crate::utils::compute_kudo_label;
 use aarm_core::{
     action_tree::ACTION_TREE_DEPTH,
     authorization::{AuthorizationSignature, AuthorizationVerifyingKey},
@@ -7,7 +8,6 @@ use aarm_core::{
     nullifier_key::NullifierKey,
     resource::Resource,
 };
-use risc0_zkvm::sha::{Impl, Sha256};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -53,10 +53,8 @@ impl DenominationLogicWitness {
 
         // Decode label of the kudo resource and check the correspondence between the
         // kudo resource and the domination resource
-        let mut bytes = Vec::new();
-        bytes.extend_from_slice(self.denomination_resource.logic_ref.as_bytes());
-        bytes.extend_from_slice(&self.kudo_issuer.to_bytes());
-        assert_eq!(self.kudo_resource.label_ref, *Impl::hash_bytes(&bytes));
+        let label = compute_kudo_label(&self.denomination_resource.logic_ref, &self.kudo_issuer);
+        assert_eq!(self.kudo_resource.label_ref, label);
 
         if self.kudo_resource.is_ephemeral {
             // Constrain the ephemeral kudo resource(Issurance and Burn)
@@ -73,7 +71,7 @@ impl DenominationLogicWitness {
             if !self.kudo_is_consumed {
                 assert_eq!(self.kudo_owner, self.kudo_issuer);
             }
-        } else {
+        } else if self.kudo_is_consumed {
             // Constrain persistent kudo resource consumption
             // Verify the owner's signature
             assert!(self
@@ -88,6 +86,49 @@ impl DenominationLogicWitness {
             root,
             cipher: Ciphertext::default(), // no cipher needed
             app_data: Vec::new(),          // no app data needed
+        }
+    }
+
+    // Seems this logic does nothing in this case
+    pub fn create_issued_persistent_witness(
+        denomination_resource: Resource,
+        denomination_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+        kudo_resource: Resource,
+        kudo_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+        kudo_issuer: AuthorizationVerifyingKey,
+    ) -> Self {
+        Self {
+            denomination_resource,
+            denomination_existence_path,
+            signature: AuthorizationSignature::default(), // not used
+            kudo_resource,
+            kudo_existence_path,
+            kudo_is_consumed: false,
+            kudo_nf_key: NullifierKey::default(), // not used
+            kudo_issuer,
+            kudo_owner: AuthorizationVerifyingKey::default(), // not used
+        }
+    }
+
+    pub fn create_issued_ephemeral_witness(
+        denomination_resource: Resource,
+        denomination_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+        signature: AuthorizationSignature,
+        kudo_resource: Resource,
+        kudo_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+        kudo_nf_key: NullifierKey,
+        kudo_issuer: AuthorizationVerifyingKey,
+    ) -> Self {
+        Self {
+            denomination_resource,
+            denomination_existence_path,
+            signature,
+            kudo_resource,
+            kudo_existence_path,
+            kudo_is_consumed: true,
+            kudo_nf_key,
+            kudo_issuer,
+            kudo_owner: AuthorizationVerifyingKey::default(), // not used
         }
     }
 }

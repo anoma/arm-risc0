@@ -52,12 +52,11 @@ impl<const COMMITMENT_TREE_DEPTH: usize> ComplianceWitness<COMMITMENT_TREE_DEPTH
         let rng = rand::thread_rng();
         let merkle_path: [(Digest, bool); COMMITMENT_TREE_DEPTH] =
             [(Digest::default(), false); COMMITMENT_TREE_DEPTH];
-        let rcv = Scalar::random(rng);
         ComplianceWitness {
             consumed_resource,
             created_resource,
             merkle_path,
-            rcv,
+            rcv: Scalar::random(rng),
             nf_key,
             // TODO: it should be a valid existing root
             ephemeral_root: Digest::default(),

@@ -7,10 +7,11 @@ use k256::{
     elliptic_curve::hash2curve::{ExpandMsgXmd, GroupDigest},
     ProjectivePoint, Scalar, Secp256k1,
 };
+use rand::Rng;
 use risc0_zkvm::sha::{rust_crypto::Sha256 as Sha256Type, Digest, Impl, Sha256, DIGEST_BYTES};
 
 /// A resource that can be created and consumed
-#[derive(Clone, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Default, serde::Serialize, serde::Deserialize)]
 pub struct Resource {
     // a succinct representation of the predicate associated with the resource
     pub logic_ref: Digest,
@@ -31,6 +32,27 @@ pub struct Resource {
 }
 
 impl Resource {
+    pub fn create(
+        logic_ref: Digest,
+        label_ref: Digest,
+        quantity: u128,
+        value_ref: Digest,
+        is_ephemeral: bool,
+        nk_commitment: NullifierKeyCommitment,
+    ) -> Self {
+        let mut rng = rand::thread_rng();
+        Self {
+            logic_ref,
+            label_ref,
+            quantity,
+            value_ref,
+            is_ephemeral,
+            nonce: rng.gen(),
+            nk_commitment,
+            rand_seed: rng.gen(),
+        }
+    }
+
     // Convert the quantity to a field element
     pub fn quantity_scalar(&self) -> Scalar {
         Scalar::from(self.quantity)

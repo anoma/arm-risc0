@@ -11,10 +11,10 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone)]
 pub struct AuthorizationSigningKey(SigningKey);
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct AuthorizationVerifyingKey(AffinePoint);
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Copy, Serialize, Deserialize)]
 pub struct AuthorizationSignature(Signature);
 
 impl AuthorizationSigningKey {
@@ -90,6 +90,25 @@ impl AuthorizationSignature {
     pub fn inner(&self) -> &Signature {
         &self.0
     }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        self.0.to_bytes().to_vec()
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> Self {
+        AuthorizationSignature(Signature::from_bytes(bytes.into()).unwrap())
+    }
+}
+
+impl Default for AuthorizationSignature {
+    fn default() -> Self {
+        AuthorizationSignature::from_bytes(&[
+            101, 32, 148, 79, 63, 230, 254, 97, 75, 207, 23, 50, 92, 222, 89, 100, 165, 2, 71, 210,
+            167, 103, 91, 93, 211, 153, 136, 146, 203, 184, 95, 179, 16, 14, 183, 214, 102, 89,
+            239, 106, 34, 243, 48, 39, 100, 175, 157, 236, 122, 31, 161, 83, 8, 27, 17, 33, 145,
+            161, 164, 137, 140, 209, 239, 25,
+        ])
+    }
 }
 
 #[test]
@@ -99,6 +118,7 @@ fn test_authorization() {
 
     let message = b"Hello, world!";
     let signature = signing_key.sign(message);
+    // println!("Signature: {:?}", signature.to_bytes());
 
     assert!(verifying_key.verify(message, &signature).is_ok());
 }

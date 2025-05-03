@@ -1,3 +1,4 @@
+use crate::utils::compute_kudo_label;
 use aarm_core::{
     action_tree::ACTION_TREE_DEPTH,
     authorization::{AuthorizationSignature, AuthorizationVerifyingKey},
@@ -7,6 +8,7 @@ use aarm_core::{
     nullifier_key::NullifierKey,
     resource::Resource,
 };
+use rand::Rng;
 use risc0_zkvm::sha::{Impl, Sha256};
 use serde::{Deserialize, Serialize};
 
@@ -27,6 +29,7 @@ pub struct KudoLogicWitness {
 
     // Receive related fields
     pub receive_resource: Resource,
+    pub receive_resource_nf_key: NullifierKey,
     pub owner: AuthorizationVerifyingKey,
     pub receiver_signature: AuthorizationSignature,
     pub receive_existence_path: MerklePath<ACTION_TREE_DEPTH>,
@@ -52,16 +55,17 @@ impl KudoLogicWitness {
 
         // Decode label of the kudo resource and check the correspondence between the
         // kudo resource and the domination resource
-        let mut bytes = Vec::new();
-        bytes.extend_from_slice(self.denomination_resource.logic_ref.as_bytes());
-        bytes.extend_from_slice(&self.issuer.to_bytes());
-        assert_eq!(self.kudo_resource.label_ref, *Impl::hash_bytes(&bytes));
+        let label = compute_kudo_label(&self.denomination_resource.logic_ref, &self.issuer);
+        assert_eq!(self.kudo_resource.label_ref, label);
 
         // Constrain the receive logic if creating a persistent resource
         if !self.is_consumed && !self.kudo_resource.is_ephemeral {
             // Load the receive resource
-            let rr_cm = self.receive_resource.commitment();
-            let rr_root = self.receive_existence_path.root(rr_cm);
+            let rr_nf = self
+                .receive_resource
+                .nullifier(&self.receive_resource_nf_key)
+                .unwrap();
+            let rr_root = self.receive_existence_path.root(rr_nf);
             assert_eq!(root, rr_root);
 
             // Check value = identity
@@ -107,6 +111,63 @@ impl KudoLogicWitness {
                 &self.encryption_sk,
                 self.encryption_nonce,
             )
+        }
+    }
+
+    pub fn create_issued_persistent_witness(
+        kudo_resource: Resource,
+        kudo_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+        issuer: AuthorizationVerifyingKey,
+        denomination_resource: Resource,
+        denomination_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+        receive_resource: Resource,
+        receive_resource_nf_key: NullifierKey,
+        receive_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+        owner: AuthorizationVerifyingKey,
+        receiver_signature: AuthorizationSignature,
+    ) -> Self {
+        let mut rng = rand::thread_rng();
+        Self {
+            kudo_resource,
+            kudo_existence_path,
+            is_consumed: false,
+            nf_key: NullifierKey::default(), // not used
+            issuer,
+            encryption_sk: SecretKey::random(),
+            encryption_nonce: rng.gen(),
+            denomination_resource,
+            denomination_existence_path,
+            receive_resource,
+            receive_resource_nf_key,
+            owner,
+            receiver_signature,
+            receive_existence_path,
+        }
+    }
+
+    pub fn create_consumed_ephemeral_witness(
+        kudo_resource: Resource,
+        kudo_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+        nf_key: NullifierKey,
+        issuer: AuthorizationVerifyingKey,
+        denomination_resource: Resource,
+        denomination_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+    ) -> Self {
+        Self {
+            kudo_resource,
+            kudo_existence_path,
+            is_consumed: true,
+            nf_key,
+            issuer,
+            encryption_sk: SecretKey::default(),
+            encryption_nonce: [0u8; 12],
+            denomination_resource,
+            denomination_existence_path,
+            receive_resource: Resource::default(), // not used
+            receive_resource_nf_key: NullifierKey::default(), // not used
+            owner: AuthorizationVerifyingKey::default(), // not used
+            receiver_signature: AuthorizationSignature::default(), // not used
+            receive_existence_path: MerklePath::default(), // not used
         }
     }
 }

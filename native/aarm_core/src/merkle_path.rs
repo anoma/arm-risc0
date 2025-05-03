@@ -34,7 +34,7 @@ impl Hashable for Digest {
 }
 
 /// A path from a position in a particular commitment tree to the root of that tree.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MerklePath<const COMMITMENT_TREE_DEPTH: usize> {
     #[serde(with = "BigArray")]
     auth_path: [(Digest, bool); COMMITMENT_TREE_DEPTH],
