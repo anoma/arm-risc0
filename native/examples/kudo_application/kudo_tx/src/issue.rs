@@ -1,5 +1,5 @@
 use aarm::{
-    action::Action,
+    action::{Action, LogicProof},
     transaction::{Delta, Transaction},
 };
 use aarm_core::{
@@ -22,7 +22,7 @@ use kudo_logic::{KUDO_LOGIC_ELF, KUDO_LOGIC_ID};
 use receive_logic::{RECEIVE_ELF, RECEIVE_ID};
 use risc0_zkvm::sha::Digest;
 use serde::{Deserialize, Serialize};
-use trivial_logic::TRIVIAL_ELF;
+use trivial_logic::{TRIVIAL_ELF, TRIVIAL_ID};
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct IssueWitness {
@@ -261,13 +261,13 @@ impl IssueWitness {
 
             // Generate logic proofs
             println!("Generating the issued kudo logic proof");
-            let issued_kudo_receipt = {
+            let issued_kudo_proof = {
                 let env = ExecutorEnv::builder()
                     .write(&self.issued_kudo_witness)
                     .unwrap()
                     .build()
                     .unwrap();
-                default_prover()
+                let receipt = default_prover()
                     .prove_with_ctx(
                         env,
                         &VerifierContext::default(),
@@ -275,17 +275,21 @@ impl IssueWitness {
                         &ProverOpts::groth16(),
                     )
                     .unwrap()
-                    .receipt
+                    .receipt;
+                LogicProof {
+                    receipt,
+                    verifying_key: KUDO_LOGIC_ID.into(),
+                }
             };
 
             println!("Generating the issued denomination logic proof");
-            let issued_denomination_receipt = {
+            let issued_denomination_proof = {
                 let env = ExecutorEnv::builder()
                     .write(&self.issued_denomination_witness)
                     .unwrap()
                     .build()
                     .unwrap();
-                default_prover()
+                let receipt = default_prover()
                     .prove_with_ctx(
                         env,
                         &VerifierContext::default(),
@@ -293,17 +297,21 @@ impl IssueWitness {
                         &ProverOpts::groth16(),
                     )
                     .unwrap()
-                    .receipt
+                    .receipt;
+                LogicProof {
+                    receipt,
+                    verifying_key: DENOMINATION_ID.into(),
+                }
             };
 
             println!("Generating the issued receive logic proof");
-            let issued_receive_logic_receipt = {
+            let issued_receive_logic_proof = {
                 let env = ExecutorEnv::builder()
                     .write(&self.issued_receive_witness)
                     .unwrap()
                     .build()
                     .unwrap();
-                default_prover()
+                let receipt = default_prover()
                     .prove_with_ctx(
                         env,
                         &VerifierContext::default(),
@@ -311,17 +319,21 @@ impl IssueWitness {
                         &ProverOpts::groth16(),
                     )
                     .unwrap()
-                    .receipt
+                    .receipt;
+                LogicProof {
+                    receipt,
+                    verifying_key: RECEIVE_ID.into(),
+                }
             };
 
             println!("Generating the ephemeral kudo logic proof");
-            let ephemeral_kudo_receipt = {
+            let ephemeral_kudo_proof = {
                 let env = ExecutorEnv::builder()
                     .write(&self.ephemeral_kudo_witness)
                     .unwrap()
                     .build()
                     .unwrap();
-                default_prover()
+                let receipt = default_prover()
                     .prove_with_ctx(
                         env,
                         &VerifierContext::default(),
@@ -329,17 +341,21 @@ impl IssueWitness {
                         &ProverOpts::groth16(),
                     )
                     .unwrap()
-                    .receipt
+                    .receipt;
+                LogicProof {
+                    receipt,
+                    verifying_key: KUDO_LOGIC_ID.into(),
+                }
             };
 
             println!("Generating the ephemeral denomination logic proof");
-            let ephemeral_denomination_receipt = {
+            let ephemeral_denomination_proof = {
                 let env = ExecutorEnv::builder()
                     .write(&self.ephemeral_denomination_witness)
                     .unwrap()
                     .build()
                     .unwrap();
-                default_prover()
+                let receipt = default_prover()
                     .prove_with_ctx(
                         env,
                         &VerifierContext::default(),
@@ -347,17 +363,21 @@ impl IssueWitness {
                         &ProverOpts::groth16(),
                     )
                     .unwrap()
-                    .receipt
+                    .receipt;
+                LogicProof {
+                    receipt,
+                    verifying_key: DENOMINATION_ID.into(),
+                }
             };
 
             println!("Generating the padding resource logic proof");
-            let padding_resource_receipt = {
+            let padding_resource_proof = {
                 let env = ExecutorEnv::builder()
                     .write(&self.padding_resource_witness)
                     .unwrap()
                     .build()
                     .unwrap();
-                default_prover()
+                let receipt = default_prover()
                     .prove_with_ctx(
                         env,
                         &VerifierContext::default(),
@@ -365,19 +385,23 @@ impl IssueWitness {
                         &ProverOpts::groth16(),
                     )
                     .unwrap()
-                    .receipt
+                    .receipt;
+                LogicProof {
+                    receipt,
+                    verifying_key: TRIVIAL_ID.into(),
+                }
             };
 
             (
                 Action::new(
                     vec![compliance_unit_1, compliance_unit_2, compliance_unit_3],
                     vec![
-                        issued_kudo_receipt,
-                        issued_denomination_receipt,
-                        issued_receive_logic_receipt,
-                        ephemeral_kudo_receipt,
-                        ephemeral_denomination_receipt,
-                        padding_resource_receipt,
+                        issued_kudo_proof,
+                        issued_denomination_proof,
+                        issued_receive_logic_proof,
+                        ephemeral_kudo_proof,
+                        ephemeral_denomination_proof,
+                        padding_resource_proof,
                     ],
                 ),
                 DeltaWitness::from_scalars(&[delta_witness_1, delta_witness_2, delta_witness_3]),
@@ -432,5 +456,8 @@ fn generate_an_issue_tx() {
         &NullifierKeyCommitment::default(),
     );
 
-    let _tx = issue_witness.create_tx();
+    let mut tx = issue_witness.create_tx();
+    tx.generate_delta_proof();
+
+    assert!(tx.verify());
 }
