@@ -74,25 +74,17 @@ impl Action {
 #[cfg(test)]
 pub mod tests {
     use super::*;
+    use crate::utils::groth16_prove;
     use aarm_core::{
         compliance::ComplianceWitness, constants::TREE_DEPTH, delta_proof::DeltaWitness,
     };
     use compliance_circuit::{COMPLIANCE_GUEST_ELF, COMPLIANCE_GUEST_ID};
-    use risc0_zkvm::{default_prover, ExecutorEnv};
 
     pub fn create_an_action() -> (Action, DeltaWitness) {
         let compliance_witness: ComplianceWitness<TREE_DEPTH> =
             ComplianceWitness::<TREE_DEPTH>::default();
 
-        let env = ExecutorEnv::builder()
-            .write(&compliance_witness)
-            .unwrap()
-            .build()
-            .unwrap();
-
-        let prover = default_prover();
-
-        let receipt = prover.prove(env, COMPLIANCE_GUEST_ELF).unwrap().receipt;
+        let receipt = groth16_prove(&compliance_witness, COMPLIANCE_GUEST_ELF);
         let logic_proof = LogicProof {
             receipt: receipt.clone(),
             verifying_key: COMPLIANCE_GUEST_ID.into(),

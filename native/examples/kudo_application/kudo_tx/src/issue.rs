@@ -1,16 +1,19 @@
 use aarm::{
     action::{Action, LogicProof},
     transaction::{Delta, Transaction},
+    utils::groth16_prove,
 };
 use aarm_core::{
     action_tree::MerkleTree,
     authorization::{AuthorizationSignature, AuthorizationSigningKey, AuthorizationVerifyingKey},
     compliance::ComplianceWitness,
+    constants::TREE_DEPTH,
     delta_proof::DeltaWitness,
     nullifier_key::{NullifierKey, NullifierKeyCommitment},
     resource::Resource,
     trivial_logic::TrivialLogicWitness,
 };
+use compliance_circuit::COMPLIANCE_GUEST_ELF;
 use denomination_logic::{DENOMINATION_ELF, DENOMINATION_ID};
 use kudo_core::{
     denomination_logic_witness::DenominationLogicWitness,
@@ -217,14 +220,15 @@ impl IssueWitness {
 
             println!("Generating compliance unit 1");
             let (compliance_unit_1, delta_witness_1) = {
-                let compliance_witness = ComplianceWitness::from_resources(
-                    self.ephemeral_kudo_witness.kudo_resource,
-                    self.ephemeral_kudo_witness.nf_key,
-                    self.issued_kudo_witness.kudo_resource,
-                );
+                let compliance_witness: ComplianceWitness<TREE_DEPTH> =
+                    ComplianceWitness::from_resources(
+                        self.ephemeral_kudo_witness.kudo_resource,
+                        self.ephemeral_kudo_witness.nf_key,
+                        self.issued_kudo_witness.kudo_resource,
+                    );
 
                 (
-                    generate_compliance_proof(&compliance_witness),
+                    groth16_prove(&compliance_witness, COMPLIANCE_GUEST_ELF),
                     compliance_witness.rcv,
                 )
             };
@@ -232,14 +236,15 @@ impl IssueWitness {
             // Compliance unit 2: the issued_receive_resource and the issued_denomination_resource
             println!("Generating compliance unit 2");
             let (compliance_unit_2, delta_witness_2) = {
-                let compliance_witness = ComplianceWitness::from_resources(
-                    self.issued_receive_witness.receive_resource,
-                    self.issued_receive_witness.nf_key,
-                    self.issued_denomination_witness.denomination_resource,
-                );
+                let compliance_witness: ComplianceWitness<TREE_DEPTH> =
+                    ComplianceWitness::from_resources(
+                        self.issued_receive_witness.receive_resource,
+                        self.issued_receive_witness.nf_key,
+                        self.issued_denomination_witness.denomination_resource,
+                    );
 
                 (
-                    generate_compliance_proof(&compliance_witness),
+                    groth16_prove(&compliance_witness, COMPLIANCE_GUEST_ELF),
                     compliance_witness.rcv,
                 )
             };
@@ -247,14 +252,15 @@ impl IssueWitness {
             // Compliance unit 3: a padding resource and the ephemeral_denomination_resource
             println!("Generating compliance unit 3");
             let (compliance_unit_3, delta_witness_3) = {
-                let compliance_witness = ComplianceWitness::from_resources(
-                    self.padding_resource_witness.resource,
-                    self.padding_resource_witness.nf_key,
-                    self.ephemeral_denomination_witness.denomination_resource,
-                );
+                let compliance_witness: ComplianceWitness<TREE_DEPTH> =
+                    ComplianceWitness::from_resources(
+                        self.padding_resource_witness.resource,
+                        self.padding_resource_witness.nf_key,
+                        self.ephemeral_denomination_witness.denomination_resource,
+                    );
 
                 (
-                    generate_compliance_proof(&compliance_witness),
+                    groth16_prove(&compliance_witness, COMPLIANCE_GUEST_ELF),
                     compliance_witness.rcv,
                 )
             };
@@ -262,20 +268,7 @@ impl IssueWitness {
             // Generate logic proofs
             println!("Generating the issued kudo logic proof");
             let issued_kudo_proof = {
-                let env = ExecutorEnv::builder()
-                    .write(&self.issued_kudo_witness)
-                    .unwrap()
-                    .build()
-                    .unwrap();
-                let receipt = default_prover()
-                    .prove_with_ctx(
-                        env,
-                        &VerifierContext::default(),
-                        KUDO_LOGIC_ELF,
-                        &ProverOpts::groth16(),
-                    )
-                    .unwrap()
-                    .receipt;
+                let receipt = groth16_prove(&self.issued_kudo_witness, KUDO_LOGIC_ELF);
                 LogicProof {
                     receipt,
                     verifying_key: KUDO_LOGIC_ID.into(),
@@ -284,20 +277,7 @@ impl IssueWitness {
 
             println!("Generating the issued denomination logic proof");
             let issued_denomination_proof = {
-                let env = ExecutorEnv::builder()
-                    .write(&self.issued_denomination_witness)
-                    .unwrap()
-                    .build()
-                    .unwrap();
-                let receipt = default_prover()
-                    .prove_with_ctx(
-                        env,
-                        &VerifierContext::default(),
-                        DENOMINATION_ELF,
-                        &ProverOpts::groth16(),
-                    )
-                    .unwrap()
-                    .receipt;
+                let receipt = groth16_prove(&self.issued_denomination_witness, DENOMINATION_ELF);
                 LogicProof {
                     receipt,
                     verifying_key: DENOMINATION_ID.into(),
@@ -306,20 +286,7 @@ impl IssueWitness {
 
             println!("Generating the issued receive logic proof");
             let issued_receive_logic_proof = {
-                let env = ExecutorEnv::builder()
-                    .write(&self.issued_receive_witness)
-                    .unwrap()
-                    .build()
-                    .unwrap();
-                let receipt = default_prover()
-                    .prove_with_ctx(
-                        env,
-                        &VerifierContext::default(),
-                        RECEIVE_ELF,
-                        &ProverOpts::groth16(),
-                    )
-                    .unwrap()
-                    .receipt;
+                let receipt = groth16_prove(&self.issued_receive_witness, RECEIVE_ELF);
                 LogicProof {
                     receipt,
                     verifying_key: RECEIVE_ID.into(),
@@ -328,20 +295,7 @@ impl IssueWitness {
 
             println!("Generating the ephemeral kudo logic proof");
             let ephemeral_kudo_proof = {
-                let env = ExecutorEnv::builder()
-                    .write(&self.ephemeral_kudo_witness)
-                    .unwrap()
-                    .build()
-                    .unwrap();
-                let receipt = default_prover()
-                    .prove_with_ctx(
-                        env,
-                        &VerifierContext::default(),
-                        KUDO_LOGIC_ELF,
-                        &ProverOpts::groth16(),
-                    )
-                    .unwrap()
-                    .receipt;
+                let receipt = groth16_prove(&self.ephemeral_kudo_witness, KUDO_LOGIC_ELF);
                 LogicProof {
                     receipt,
                     verifying_key: KUDO_LOGIC_ID.into(),
@@ -350,20 +304,7 @@ impl IssueWitness {
 
             println!("Generating the ephemeral denomination logic proof");
             let ephemeral_denomination_proof = {
-                let env = ExecutorEnv::builder()
-                    .write(&self.ephemeral_denomination_witness)
-                    .unwrap()
-                    .build()
-                    .unwrap();
-                let receipt = default_prover()
-                    .prove_with_ctx(
-                        env,
-                        &VerifierContext::default(),
-                        DENOMINATION_ELF,
-                        &ProverOpts::groth16(),
-                    )
-                    .unwrap()
-                    .receipt;
+                let receipt = groth16_prove(&self.ephemeral_denomination_witness, DENOMINATION_ELF);
                 LogicProof {
                     receipt,
                     verifying_key: DENOMINATION_ID.into(),
@@ -372,20 +313,7 @@ impl IssueWitness {
 
             println!("Generating the padding resource logic proof");
             let padding_resource_proof = {
-                let env = ExecutorEnv::builder()
-                    .write(&self.padding_resource_witness)
-                    .unwrap()
-                    .build()
-                    .unwrap();
-                let receipt = default_prover()
-                    .prove_with_ctx(
-                        env,
-                        &VerifierContext::default(),
-                        TRIVIAL_ELF,
-                        &ProverOpts::groth16(),
-                    )
-                    .unwrap()
-                    .receipt;
+                let receipt = groth16_prove(&self.padding_resource_witness, TRIVIAL_ELF);
                 LogicProof {
                     receipt,
                     verifying_key: TRIVIAL_ID.into(),
@@ -411,29 +339,6 @@ impl IssueWitness {
         // Create the transaction
         Transaction::new(vec![action], Delta::Witness(delta_witness))
     }
-}
-
-// TODO: Move this to aarm
-use aarm_core::constants::TREE_DEPTH;
-use compliance_circuit::COMPLIANCE_GUEST_ELF;
-use risc0_zkvm::{default_prover, ExecutorEnv, ProverOpts, Receipt, VerifierContext};
-
-fn generate_compliance_proof(witness: &ComplianceWitness<TREE_DEPTH>) -> Receipt {
-    let env = ExecutorEnv::builder()
-        .write(witness)
-        .unwrap()
-        .build()
-        .unwrap();
-
-    default_prover()
-        .prove_with_ctx(
-            env,
-            &VerifierContext::default(),
-            COMPLIANCE_GUEST_ELF,
-            &ProverOpts::groth16(),
-        )
-        .unwrap()
-        .receipt
 }
 
 #[test]
