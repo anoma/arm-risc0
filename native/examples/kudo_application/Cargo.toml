@@ -1,0 +1,11 @@
+[workspace]
+resolver = "2"
+members = ["kudo_logic", "denomination_logic", "receive_logic", "kudo_core", "kudo_tx"]
+
+# Always optimize; building and running the guest takes much longer without optimization.
+[profile.dev]
+opt-level = 3
+
+[profile.release]
+debug = 1
+lto = true
