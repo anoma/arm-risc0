@@ -1,12 +1,9 @@
 use aarm_core::{
     compliance::{ComplianceInstance, ComplianceWitness},
     constants::TREE_DEPTH,
-    utils::GenericEnv,
 };
-use bincode;
 use methods::{COMPLIANCE_GUEST_ELF, COMPLIANCE_GUEST_ID};
 use risc0_zkvm::{default_prover, ExecutorEnv};
-use serde_bytes::ByteBuf;
 use std::time::Instant;
 
 pub fn main() {
@@ -14,12 +11,9 @@ pub fn main() {
 
     let compliance_witness: ComplianceWitness<TREE_DEPTH> =
         ComplianceWitness::<TREE_DEPTH>::default();
-    let generic_env = GenericEnv {
-        data: ByteBuf::from(bincode::serialize(&compliance_witness).unwrap()),
-    };
 
     let env = ExecutorEnv::builder()
-        .write(&generic_env)
+        .write(&compliance_witness)
         .unwrap()
         .build()
         .unwrap();

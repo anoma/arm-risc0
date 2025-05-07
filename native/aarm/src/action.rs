@@ -1,17 +1,23 @@
 use aarm_core::compliance::ComplianceInstance;
 use compliance_circuit::COMPLIANCE_GUEST_ID;
 use k256::ProjectivePoint;
-use risc0_zkvm::Receipt;
+use risc0_zkvm::{sha::Digest, Receipt};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Action {
     pub compliance_units: Vec<Receipt>,
-    pub logic_proofs: Vec<Receipt>,
+    pub logic_proofs: Vec<LogicProof>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct LogicProof {
+    pub receipt: Receipt,
+    pub verifying_key: Digest,
 }
 
 impl Action {
-    pub fn new(compliance_units: Vec<Receipt>, logic_proofs: Vec<Receipt>) -> Self {
+    pub fn new(compliance_units: Vec<Receipt>, logic_proofs: Vec<LogicProof>) -> Self {
         Action {
             compliance_units,
             logic_proofs,
@@ -22,7 +28,7 @@ impl Action {
         &self.compliance_units
     }
 
-    pub fn get_logic_proofs(&self) -> &Vec<Receipt> {
+    pub fn get_logic_proofs(&self) -> &Vec<LogicProof> {
         &self.logic_proofs
     }
 
@@ -33,9 +39,8 @@ impl Action {
             }
         }
 
-        // TODO: Verify real logic proofs
-        for receipt in &self.logic_proofs {
-            if receipt.verify(COMPLIANCE_GUEST_ID).is_err() {
+        for proof in &self.logic_proofs {
+            if proof.receipt.verify(proof.verifying_key).is_err() {
                 return false;
             }
         }
@@ -69,34 +74,24 @@ impl Action {
 #[cfg(test)]
 pub mod tests {
     use super::*;
+    use crate::utils::groth16_prove;
     use aarm_core::{
         compliance::ComplianceWitness, constants::TREE_DEPTH, delta_proof::DeltaWitness,
-        utils::GenericEnv,
     };
-    use bincode;
-    use compliance_circuit::COMPLIANCE_GUEST_ELF;
-    use risc0_zkvm::{default_prover, ExecutorEnv};
-    use serde_bytes::ByteBuf;
+    use compliance_circuit::{COMPLIANCE_GUEST_ELF, COMPLIANCE_GUEST_ID};
 
     pub fn create_an_action() -> (Action, DeltaWitness) {
         let compliance_witness: ComplianceWitness<TREE_DEPTH> =
             ComplianceWitness::<TREE_DEPTH>::default();
-        let generic_env = GenericEnv {
-            data: ByteBuf::from(bincode::serialize(&compliance_witness).unwrap()),
+
+        let receipt = groth16_prove(&compliance_witness, COMPLIANCE_GUEST_ELF);
+        let logic_proof = LogicProof {
+            receipt: receipt.clone(),
+            verifying_key: COMPLIANCE_GUEST_ID.into(),
         };
 
-        let env = ExecutorEnv::builder()
-            .write(&generic_env)
-            .unwrap()
-            .build()
-            .unwrap();
-
-        let prover = default_prover();
-
-        let receipt = prover.prove(env, COMPLIANCE_GUEST_ELF).unwrap().receipt;
-
         let compliance_units = vec![receipt.clone()];
-        let logic_proofs = vec![receipt];
+        let logic_proofs = vec![logic_proof];
 
         let action = Action::new(compliance_units, logic_proofs);
         assert!(action.verify());

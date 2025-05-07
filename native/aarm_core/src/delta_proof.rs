@@ -116,7 +116,7 @@ impl<'de> Deserialize<'de> for DeltaProof {
     where
         D: serde::Deserializer<'de>,
     {
-        let bytes: Vec<u8> = serde_bytes::deserialize(deserializer)?;
+        let bytes: Vec<u8> = Vec::deserialize(deserializer)?;
         if bytes.len() != 65 {
             return Err(serde::de::Error::custom(
                 "Invalid byte length for DeltaProof",

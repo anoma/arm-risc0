@@ -34,7 +34,7 @@ impl Hashable for Digest {
 }
 
 /// A path from a position in a particular commitment tree to the root of that tree.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MerklePath<const COMMITMENT_TREE_DEPTH: usize> {
     #[serde(with = "BigArray")]
     auth_path: [(Digest, bool); COMMITMENT_TREE_DEPTH],
@@ -54,5 +54,13 @@ impl<const COMMITMENT_TREE_DEPTH: usize> MerklePath<COMMITMENT_TREE_DEPTH> {
                 false => Digest::combine(&root, p),
                 true => Digest::combine(p, &root),
             })
+    }
+}
+
+impl<const COMMITMENT_TREE_DEPTH: usize> Default for MerklePath<COMMITMENT_TREE_DEPTH> {
+    fn default() -> Self {
+        MerklePath {
+            auth_path: [(Digest::default(), false); COMMITMENT_TREE_DEPTH],
+        }
     }
 }
