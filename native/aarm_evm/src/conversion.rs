@@ -2,7 +2,11 @@ use crate::types as EVMTypes;
 use aarm_core::compliance::ComplianceInstance;
 use aarm_core::constants::DEFAULT_BYTES;
 use aarm_core::resource::Resource;
+use aarm::transaction::Transaction;
+use aarm::action::Action;
 use alloy::primitives::{B256, U256};
+
+
 
 impl From<Resource> for EVMTypes::Resource {
     fn from(r: Resource) -> Self {
@@ -23,12 +27,12 @@ impl From<ComplianceInstance> for EVMTypes::ComplianceInstance {
     fn from(c: ComplianceInstance) -> Self {
         Self {
             consumed: EVMTypes::ConsumedRefs {
-                nullifierRef: B256::from_slice(c.nullifier.as_bytes()),
-                rootRef: B256::from_slice(c.merkle_root.as_bytes()),
+                nullifier: B256::from_slice(c.nullifier.as_bytes()),
+                root: B256::from_slice(c.merkle_root.as_bytes()),
                 logicRef: B256::from_slice(c.consumed_logic_ref.as_bytes()),
             },
             created: EVMTypes::CreatedRefs {
-                commitmentRef: B256::from_slice(c.commitment.as_bytes()),
+                commitment: B256::from_slice(c.commitment.as_bytes()),
                 logicRef: B256::from_slice(c.created_logic_ref.as_bytes()),
             },
             unitDelta: {
@@ -44,17 +48,19 @@ impl From<ComplianceInstance> for EVMTypes::ComplianceInstance {
     }
 }
 
-// fn evm_delta_proof(deltaProof: DeltaProof) -> Bytes {}
-
-/* TODO
-- [ ] Write method to fetch merkle path for the compliance proof
-- [ ] Write conversion methods for
-    - [x] resource
-    - [ ] action
-    - [ ] transaction
-    - [ ] proof instances and proofs
-
-- [ ] Method to call verify & execute on the PA
+/* // TODO: Implement
+impl From<ComplianceUnit> for EVMTypes::ComplianceUnit {
+    fn from(tx: ComplianceUnit) -> Self {}
+}
+impl From<TagLogicProofPair> for EVMTypes::TagLogicProofPair {
+    fn from(tx: TagLogicProofPair) -> Self {}
+}
+impl From<Action> for EVMTypes::Action {
+    fn from(tx: Action) -> Self {}
+}
+impl From<Transaction> for EVMTypes::Transaction {
+    fn from(tx: Transaction) -> Self {}
+}
 */
 
 #[cfg(test)]

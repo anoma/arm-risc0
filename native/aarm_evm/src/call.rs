@@ -77,6 +77,7 @@ async fn rpc_call() {
     let cm = b256!("c63bb62c8c9624da71d220a5ba57b596f670d01934bcf94307d988028133bede");
     let (proof, root) = get_merkle_proof(cm).await;
 
+
     println!("{:?}", proof);
     println!("{:?}", root);
 }

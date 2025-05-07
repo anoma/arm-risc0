@@ -5,6 +5,6 @@ target/
 .elixir_ls/
 _build/
 deps/
-.vscode/
 profile.*
+.vscode/
 .idea/
