@@ -55,11 +55,10 @@ impl<const COMMITMENT_TREE_DEPTH: usize> ComplianceWitness<COMMITMENT_TREE_DEPTH
         ComplianceWitness {
             consumed_resource,
             created_resource,
-            merkle_path,
+            merkle_path, // not used
             rcv: Scalar::random(rng),
             nf_key,
-            // TODO: it should be a valid existing root
-            ephemeral_root: Digest::default(),
+            ephemeral_root: Digest::default(), // TODO: it should be a valid existing root
         }
     }
 
@@ -77,7 +76,7 @@ impl<const COMMITMENT_TREE_DEPTH: usize> ComplianceWitness<COMMITMENT_TREE_DEPTH
             merkle_path,
             rcv,
             nf_key,
-            ephemeral_root: Digest::default(),
+            ephemeral_root: Digest::default(), // not used
         }
     }
 

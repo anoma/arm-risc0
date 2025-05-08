@@ -99,6 +99,7 @@ impl DenominationLogicWitness {
     }
 
     // Seems this logic does nothing in this case
+    // Create a witness for the issuance of a persistent kudo resource
     pub fn create_issued_persistent_witness(
         denomination_resource: Resource,
         denomination_existence_path: MerklePath<ACTION_TREE_DEPTH>,
@@ -121,6 +122,7 @@ impl DenominationLogicWitness {
         }
     }
 
+    // Create a witness for the issuance of an ephemeral kudo resource
     pub fn create_issued_ephemeral_witness(
         denomination_resource: Resource,
         denomination_existence_path: MerklePath<ACTION_TREE_DEPTH>,
@@ -142,6 +144,58 @@ impl DenominationLogicWitness {
             kudo_nf_key,
             kudo_issuer,
             kudo_owner: AuthorizationVerifyingKey::default(), // not used
+        }
+    }
+
+    // Create a witness for the burn, corresponding to a persistent kudo resource
+    pub fn create_burned_persistent_witness(
+        denomination_resource: Resource,
+        denomination_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+        signature: AuthorizationSignature,
+        kudo_resource: Resource,
+        kudo_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+        kudo_nf_key: NullifierKey,
+        kudo_issuer: AuthorizationVerifyingKey,
+        kudo_owner: AuthorizationVerifyingKey,
+    ) -> Self {
+        Self {
+            denomination_resource,
+            denomination_is_consumed: false,
+            denomination_nf_key: NullifierKey::default(), // not used
+            denomination_existence_path,
+            signature,
+            kudo_resource,
+            kudo_existence_path,
+            kudo_is_consumed: true,
+            kudo_nf_key,
+            kudo_issuer,
+            kudo_owner,
+        }
+    }
+
+    // Create a witness for the burn, corresponding to an ephemeral kudo resource
+    pub fn create_burned_ephemeral_witness(
+        denomination_resource: Resource,
+        denomination_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+        denomination_nf_key: NullifierKey,
+        signature: AuthorizationSignature,
+        kudo_resource: Resource,
+        kudo_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+        kudo_issuer: AuthorizationVerifyingKey,
+        kudo_owner: AuthorizationVerifyingKey,
+    ) -> Self {
+        Self {
+            denomination_resource,
+            denomination_is_consumed: true,
+            denomination_nf_key, // not used
+            denomination_existence_path,
+            signature,
+            kudo_resource,
+            kudo_existence_path,
+            kudo_is_consumed: false,
+            kudo_nf_key: NullifierKey::default(), // not used
+            kudo_issuer,
+            kudo_owner,
         }
     }
 }

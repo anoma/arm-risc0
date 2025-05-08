@@ -223,7 +223,7 @@ impl IssueWitness {
                 let compliance_witness: ComplianceWitness<TREE_DEPTH> =
                     ComplianceWitness::from_resources(
                         self.ephemeral_kudo_witness.kudo_resource,
-                        self.ephemeral_kudo_witness.nf_key,
+                        self.ephemeral_kudo_witness.kudo_nf_key,
                         self.issued_kudo_witness.kudo_resource,
                     );
 
