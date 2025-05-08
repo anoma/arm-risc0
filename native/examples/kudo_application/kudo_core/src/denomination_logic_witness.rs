@@ -14,6 +14,8 @@ use serde::{Deserialize, Serialize};
 pub struct DenominationLogicWitness {
     // Denomination related fields
     pub denomination_resource: Resource,
+    pub denomination_is_consumed: bool, // It can be either consumed or created
+    pub denomination_nf_key: NullifierKey,
     pub denomination_existence_path: MerklePath<ACTION_TREE_DEPTH>,
     // There are three types of signatures: issuance, burn, and consumption.
     // Only one is enabled at a time.
@@ -32,8 +34,15 @@ impl DenominationLogicWitness {
     pub fn constrain(&self) -> LogicInstance {
         // Load self resource, the denomination resource is always a created
         // resource
-        let tag = self.denomination_resource.commitment();
-        let root = self.denomination_existence_path.root(tag);
+        let denomination_cm = self.denomination_resource.commitment();
+        let denomination_tag = if self.denomination_is_consumed {
+            self.denomination_resource
+                .nullifier_from_commitment(&self.denomination_nf_key, &denomination_cm)
+                .unwrap()
+        } else {
+            denomination_cm
+        };
+        let root = self.denomination_existence_path.root(denomination_tag);
 
         // Check basic properties of the denomination resource
         assert_eq!(self.denomination_resource.quantity, 0);
@@ -81,8 +90,8 @@ impl DenominationLogicWitness {
         }
 
         LogicInstance {
-            tag,
-            is_consumed: false, // denomination resources are always created
+            tag: denomination_tag,
+            is_consumed: self.denomination_is_consumed,
             root,
             cipher: Ciphertext::default(), // no cipher needed
             app_data: Vec::new(),          // no app data needed
@@ -99,6 +108,8 @@ impl DenominationLogicWitness {
     ) -> Self {
         Self {
             denomination_resource,
+            denomination_is_consumed: false,
+            denomination_nf_key: NullifierKey::default(), // not used
             denomination_existence_path,
             signature: AuthorizationSignature::default(), // not used
             kudo_resource,
@@ -121,6 +132,8 @@ impl DenominationLogicWitness {
     ) -> Self {
         Self {
             denomination_resource,
+            denomination_is_consumed: false,
+            denomination_nf_key: NullifierKey::default(), // not used
             denomination_existence_path,
             signature,
             kudo_resource,
