@@ -60,7 +60,7 @@ impl TrivialLogicWitness {
         }
     }
 
-    pub fn create_witness(
+    pub fn generate_witness(
         resource: Resource,
         receive_existence_path: MerklePath<ACTION_TREE_DEPTH>,
         nf_key: NullifierKey,

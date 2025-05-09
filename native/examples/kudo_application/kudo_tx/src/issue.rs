@@ -139,40 +139,46 @@ impl IssueWitness {
             .unwrap();
 
         // Construct the issued kudo witness
-        let issued_kudo_witness = KudoLogicWitness::create_issued_persistent_witness(
+        let issued_kudo_witness = KudoLogicWitness::generate_persistent_resource_creation_witness(
             issued_kudo_resource,
             issued_kudo_existence_path,
             issuer,
             issued_denomination_resource,
             issued_denomination_existence_path,
+            instant_nk,
+            false,
             issued_receive_resource,
             instant_nk,
+            true,
             issued_receive_existence_path,
             *receiver_pk,
             *receiver_signature,
         );
 
-        // Construct the issued denomination witness
+        // Construct the denomination witness corresponding to the issued kudo resource
         let issued_denomination_witness =
-            DenominationLogicWitness::create_issued_persistent_witness(
+            DenominationLogicWitness::generate_persistent_resource_creation_witness(
                 issued_denomination_resource,
                 issued_denomination_existence_path,
+                false,
+                instant_nk,
                 issued_kudo_resource,
                 issued_kudo_existence_path,
                 issuer,
             );
 
         // Construct the issued receive witness
-        let issued_receive_witness = ReceiveLogicWitness::create_issued_persistent_witness(
+        let issued_receive_witness = ReceiveLogicWitness::generate_witness(
             issued_receive_resource,
             issued_receive_existence_path,
             instant_nk,
+            true,
             issued_kudo_resource,
             issued_kudo_existence_path,
         );
 
         // Construct the ephemeral kudo witness
-        let ephemeral_kudo_witness = KudoLogicWitness::create_consumed_ephemeral_witness(
+        let ephemeral_kudo_witness = KudoLogicWitness::generate_consumed_ephemeral_witness(
             ephemeral_kudo_resource,
             ephemeral_kudo_existence_path,
             instant_nk,
@@ -184,7 +190,7 @@ impl IssueWitness {
         // Construct the ephemeral denomination witness
         let signature = issuer_sk.sign(root.as_bytes());
         let ephemeral_denomination_witness =
-            DenominationLogicWitness::create_issued_ephemeral_witness(
+            DenominationLogicWitness::generate_issued_ephemeral_witness(
                 ephemeral_denomination_resource,
                 ephemeral_denomination_existence_path,
                 signature,
@@ -195,7 +201,7 @@ impl IssueWitness {
             );
 
         // Construct the padding logic witness
-        let padding_resource_witness = TrivialLogicWitness::create_witness(
+        let padding_resource_witness = TrivialLogicWitness::generate_witness(
             padding_resource,
             padding_resource_existence_path,
             instant_nk,

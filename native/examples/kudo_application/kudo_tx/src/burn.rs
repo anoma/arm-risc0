@@ -104,20 +104,22 @@ impl BurnWitness {
             .generate_path(ephemeral_kudo_resource_cm)
             .unwrap();
 
-        // Construct the burned kudo witness
-        let burned_kudo_witness = KudoLogicWitness::create_burned_persistent_witness(
-            *burned_kudo_resource,
-            burned_kudo_existence_path,
-            *burned_kudoresource_nf_key,
-            issuer,
-            burned_denomination_resource,
-            burned_denomination_existence_path,
-        );
+        // Construct the burned kudo witness: consume the kudo resource
+        let burned_kudo_witness =
+            KudoLogicWitness::generate_persistent_resource_consumption_witness(
+                *burned_kudo_resource,
+                burned_kudo_existence_path,
+                *burned_kudoresource_nf_key,
+                issuer,
+                burned_denomination_resource,
+                burned_denomination_existence_path,
+                false,
+            );
 
-        // Construct the burned denomination witness
+        // Construct the denomination witness corresponding to the consumed kudo resource
         let consumption_signature = owner_sk.sign(root.as_bytes());
         let burned_denomination_witness =
-            DenominationLogicWitness::create_burned_persistent_witness(
+            DenominationLogicWitness::generate_persistent_resource_consumption_witness(
                 burned_denomination_resource,
                 burned_denomination_existence_path,
                 consumption_signature,
@@ -129,7 +131,7 @@ impl BurnWitness {
             );
 
         // Construct the ephemeral kudo witness
-        let ephemeral_kudo_witness = KudoLogicWitness::create_created_ephemeral_witness(
+        let ephemeral_kudo_witness = KudoLogicWitness::generate_created_ephemeral_witness(
             ephemeral_kudo_resource.clone(),
             ephemeral_kudo_existence_path,
             issuer,
@@ -141,7 +143,7 @@ impl BurnWitness {
         // Construct the denomination witness, corresponding to the ephemeral kudo resource
         let burn_signature = issuer_sk.sign(root.as_bytes());
         let ephemeral_denomination_witness =
-            DenominationLogicWitness::create_burned_ephemeral_witness(
+            DenominationLogicWitness::generate_burned_ephemeral_witness(
                 ephemeral_denomination_resource,
                 ephemeral_denomination_existence_path,
                 instant_nk,

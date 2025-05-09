@@ -55,17 +55,18 @@ impl ReceiveLogicWitness {
         }
     }
 
-    pub fn create_issued_persistent_witness(
+    pub fn generate_witness(
         receive_resource: Resource,
         receive_existence_path: MerklePath<ACTION_TREE_DEPTH>,
         nf_key: NullifierKey,
+        is_consumed: bool,
         kudo_resource: Resource,
         kudo_existence_path: MerklePath<ACTION_TREE_DEPTH>,
     ) -> Self {
         Self {
             receive_resource,
             receive_existence_path,
-            is_consumed: true,
+            is_consumed,
             nf_key,
             kudo_resource,
             kudo_existence_path,

@@ -99,18 +99,20 @@ impl DenominationLogicWitness {
     }
 
     // Seems this logic does nothing in this case
-    // Create a witness for the issuance of a persistent kudo resource
-    pub fn create_issued_persistent_witness(
+    // Create a denomination witness corresponding to a created kudo resource
+    pub fn generate_persistent_resource_creation_witness(
         denomination_resource: Resource,
         denomination_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+        denomination_is_consumed: bool,
+        denomination_nf_key: NullifierKey,
         kudo_resource: Resource,
         kudo_existence_path: MerklePath<ACTION_TREE_DEPTH>,
         kudo_issuer: AuthorizationVerifyingKey,
     ) -> Self {
         Self {
             denomination_resource,
-            denomination_is_consumed: false,
-            denomination_nf_key: NullifierKey::default(), // not used
+            denomination_is_consumed,
+            denomination_nf_key,
             denomination_existence_path,
             signature: AuthorizationSignature::default(), // not used
             kudo_resource,
@@ -123,7 +125,7 @@ impl DenominationLogicWitness {
     }
 
     // Create a witness for the issuance of an ephemeral kudo resource
-    pub fn create_issued_ephemeral_witness(
+    pub fn generate_issued_ephemeral_witness(
         denomination_resource: Resource,
         denomination_existence_path: MerklePath<ACTION_TREE_DEPTH>,
         signature: AuthorizationSignature,
@@ -147,8 +149,8 @@ impl DenominationLogicWitness {
         }
     }
 
-    // Create a witness for the burn, corresponding to a persistent kudo resource
-    pub fn create_burned_persistent_witness(
+    // Create a denomination witness corresponding to a consumed kudo resource
+    pub fn generate_persistent_resource_consumption_witness(
         denomination_resource: Resource,
         denomination_existence_path: MerklePath<ACTION_TREE_DEPTH>,
         signature: AuthorizationSignature,
@@ -174,7 +176,7 @@ impl DenominationLogicWitness {
     }
 
     // Create a witness for the burn, corresponding to an ephemeral kudo resource
-    pub fn create_burned_ephemeral_witness(
+    pub fn generate_burned_ephemeral_witness(
         denomination_resource: Resource,
         denomination_existence_path: MerklePath<ACTION_TREE_DEPTH>,
         denomination_nf_key: NullifierKey,

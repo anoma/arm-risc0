@@ -186,4 +186,18 @@ impl Resource {
     pub fn from_bytes(bytes: &[u8]) -> Self {
         bincode::deserialize(bytes).unwrap()
     }
+
+    pub fn set_value_ref(&mut self, value_ref: Digest) {
+        self.value_ref = value_ref;
+    }
+
+    pub fn set_nf_commitment(&mut self, nf_commitment: NullifierKeyCommitment) {
+        self.nk_commitment = nf_commitment;
+    }
+
+    pub fn reset_randomness_nonce(&mut self) {
+        let mut rng = rand::thread_rng();
+        self.rand_seed = rng.gen();
+        self.nonce = rng.gen();
+    }
 }

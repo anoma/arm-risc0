@@ -31,7 +31,8 @@ pub struct KudoLogicWitness {
 
     // Receive related fields
     pub receive_resource: Resource,
-    pub receive_resource_nf_key: NullifierKey,
+    pub receive_nf_key: NullifierKey,
+    pub receive_is_consumed: bool,
     pub owner: AuthorizationVerifyingKey,
     pub receiver_signature: AuthorizationSignature,
     pub receive_existence_path: MerklePath<ACTION_TREE_DEPTH>,
@@ -70,11 +71,15 @@ impl KudoLogicWitness {
         // Constrain the receive logic if creating a persistent resource
         if !self.kudo_is_consumed && !self.kudo_resource.is_ephemeral {
             // Load the receive resource
-            let rr_nf = self
-                .receive_resource
-                .nullifier(&self.receive_resource_nf_key)
-                .unwrap();
-            let rr_root = self.receive_existence_path.root(rr_nf);
+            let rr_cm = self.receive_resource.commitment();
+            let rr_tag = if self.receive_is_consumed {
+                self.receive_resource
+                    .nullifier_from_commitment(&self.receive_nf_key, &rr_cm)
+                    .unwrap()
+            } else {
+                rr_cm
+            };
+            let rr_root = self.receive_existence_path.root(rr_tag);
             assert_eq!(root, rr_root);
 
             // Check value = identity
@@ -123,14 +128,17 @@ impl KudoLogicWitness {
         }
     }
 
-    pub fn create_issued_persistent_witness(
+    pub fn generate_persistent_resource_creation_witness(
         kudo_resource: Resource,
         kudo_existence_path: MerklePath<ACTION_TREE_DEPTH>,
         issuer: AuthorizationVerifyingKey,
         denomination_resource: Resource,
         denomination_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+        denomination_nf_key: NullifierKey,
+        denomination_is_consumed: bool,
         receive_resource: Resource,
-        receive_resource_nf_key: NullifierKey,
+        receive_nf_key: NullifierKey,
+        receive_is_consumed: bool,
         receive_existence_path: MerklePath<ACTION_TREE_DEPTH>,
         owner: AuthorizationVerifyingKey,
         receiver_signature: AuthorizationSignature,
@@ -146,23 +154,25 @@ impl KudoLogicWitness {
             encryption_nonce: rng.gen(),
             denomination_resource,
             denomination_existence_path,
-            denomination_is_consumed: false,
-            denomination_nf_key: NullifierKey::default(), // not used
+            denomination_is_consumed,
+            denomination_nf_key,
             receive_resource,
-            receive_resource_nf_key,
+            receive_nf_key,
+            receive_is_consumed,
             owner,
             receiver_signature,
             receive_existence_path,
         }
     }
 
-    pub fn create_burned_persistent_witness(
+    pub fn generate_persistent_resource_consumption_witness(
         kudo_resource: Resource,
         kudo_existence_path: MerklePath<ACTION_TREE_DEPTH>,
         kudo_nf_key: NullifierKey,
         issuer: AuthorizationVerifyingKey,
         denomination_resource: Resource,
         denomination_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+        denomination_is_consumed: bool,
     ) -> Self {
         Self {
             kudo_resource,
@@ -174,17 +184,18 @@ impl KudoLogicWitness {
             encryption_nonce: [0u8; 12],         // not used
             denomination_resource,
             denomination_existence_path,
-            denomination_is_consumed: false,
+            denomination_is_consumed,
             denomination_nf_key: NullifierKey::default(), // not used
             receive_resource: Resource::default(),        // not used
-            receive_resource_nf_key: NullifierKey::default(), // not used
+            receive_nf_key: NullifierKey::default(),      // not used
+            receive_is_consumed: false,                   // not used
             owner: AuthorizationVerifyingKey::default(),  // not used
             receiver_signature: AuthorizationSignature::default(), // not used
             receive_existence_path: MerklePath::default(), // not used
         }
     }
 
-    pub fn create_consumed_ephemeral_witness(
+    pub fn generate_consumed_ephemeral_witness(
         kudo_resource: Resource,
         kudo_existence_path: MerklePath<ACTION_TREE_DEPTH>,
         kudo_nf_key: NullifierKey,
@@ -205,14 +216,15 @@ impl KudoLogicWitness {
             denomination_is_consumed: false,
             denomination_nf_key: NullifierKey::default(), // not used
             receive_resource: Resource::default(),        // not used
-            receive_resource_nf_key: NullifierKey::default(), // not used
+            receive_nf_key: NullifierKey::default(),      // not used
+            receive_is_consumed: false,                   // not used
             owner: AuthorizationVerifyingKey::default(),  // not used
             receiver_signature: AuthorizationSignature::default(), // not used
             receive_existence_path: MerklePath::default(), // not used
         }
     }
 
-    pub fn create_created_ephemeral_witness(
+    pub fn generate_created_ephemeral_witness(
         kudo_resource: Resource,
         kudo_existence_path: MerklePath<ACTION_TREE_DEPTH>,
         issuer: AuthorizationVerifyingKey,
@@ -232,8 +244,9 @@ impl KudoLogicWitness {
             denomination_existence_path,
             denomination_is_consumed: true,
             denomination_nf_key,
-            receive_resource: Resource::default(), // not used
-            receive_resource_nf_key: NullifierKey::default(), // not used
+            receive_resource: Resource::default(),   // not used
+            receive_nf_key: NullifierKey::default(), // not used
+            receive_is_consumed: false,              // not used
             owner: AuthorizationVerifyingKey::default(), // not used
             receiver_signature: AuthorizationSignature::default(), // not used
             receive_existence_path: MerklePath::default(), // not used
