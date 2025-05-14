@@ -83,11 +83,13 @@ impl DeltaWitness {
         self.signing_key.to_bytes().into()
     }
 
-    pub fn compose(&mut self, other: &DeltaWitness) {
+    pub fn compose(&self, other: &DeltaWitness) -> Self {
         let sum = self.signing_key.as_nonzero_scalar().as_ref()
             + other.signing_key.as_nonzero_scalar().as_ref();
         let sk: SecretKey = SecretKey::new(sum.into());
-        self.signing_key = SigningKey::from(sk);
+        Self {
+            signing_key: SigningKey::from(sk),
+        }
     }
 }
 

@@ -68,6 +68,18 @@ impl Transaction {
         }
         msg
     }
+
+    pub fn compose(tx1: Transaction, tx2: Transaction) -> Transaction {
+        let mut action = tx1.action;
+        action.extend(tx2.action);
+        let delta = match (&tx1.delta_proof, &tx2.delta_proof) {
+            (Delta::Witness(witness1), Delta::Witness(witness2)) => {
+                Delta::Witness(witness1.compose(witness2))
+            }
+            _ => panic!("Cannot compose transactions with different delta types"),
+        };
+        Transaction::new(action, delta)
+    }
 }
 
 #[cfg(test)]

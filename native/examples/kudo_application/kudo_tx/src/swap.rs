@@ -5,11 +5,11 @@ use aarm::{
 };
 use aarm_core::{
     action_tree::MerkleTree,
-    authorization::{AuthorizationSignature, AuthorizationSigningKey, AuthorizationVerifyingKey},
+    authorization::{AuthorizationSigningKey, AuthorizationVerifyingKey},
     compliance::ComplianceWitness,
     constants::TREE_DEPTH,
     delta_proof::DeltaWitness,
-    nullifier_key::{NullifierKey, NullifierKeyCommitment},
+    nullifier_key::NullifierKey,
     resource::Resource,
     trivial_logic::TrivialLogicWitness,
 };
@@ -19,7 +19,7 @@ use kudo_core::{
     denomination_logic_witness::DenominationLogicWitness,
     kudo_logic_witness::KudoLogicWitness,
     receive_logic_witness::ReceiveLogicWitness,
-    utils::{compute_kudo_label, compute_kudo_value},
+    utils::{compute_kudo_label, compute_kudo_value, generate_receive_signature},
 };
 use kudo_logic::{KUDO_LOGIC_ELF, KUDO_LOGIC_ID};
 use receive_logic::{RECEIVE_ELF, RECEIVE_ID};
@@ -27,8 +27,10 @@ use risc0_zkvm::sha::Digest;
 use serde::{Deserialize, Serialize};
 use trivial_logic::{TRIVIAL_ELF, TRIVIAL_ID};
 
+// TODO: SwapWitness seems simillar to TransferWitness, consider abstracting and
+// merging them
 #[derive(Clone, Serialize, Deserialize)]
-pub struct TransferWitness {
+pub struct SwapWitness {
     consumed_kudo_witness: KudoLogicWitness, // consumed resource - compliance unit 1
     consumed_kudo_path: [(Digest, bool); TREE_DEPTH],
     consumed_denomination_witness: DenominationLogicWitness, // created resource - compliance unit 1
@@ -38,28 +40,25 @@ pub struct TransferWitness {
     padding_resource_witness: TrivialLogicWitness,          // consumed resource - compliance unit 3
 }
 
-impl TransferWitness {
+impl SwapWitness {
     pub fn build(
-        issuer: &AuthorizationVerifyingKey,
+        consumed_issuer: &AuthorizationVerifyingKey,
         owner_sk: &AuthorizationSigningKey,
         consumed_kudo_resource: &Resource,
-        consumed_kudo_nf_key: &NullifierKey,
+        nf_key: &NullifierKey,
         consumed_kudo_path: [(Digest, bool); TREE_DEPTH],
-        receiver_pk: &AuthorizationVerifyingKey,
-        receiver_signature: &AuthorizationSignature,
-        receiver_nk_commitment: &NullifierKeyCommitment,
+        created_issuer: &AuthorizationVerifyingKey,
+        created_kudo_quantity: u128,
     ) -> Self {
         let (instant_nk, instant_nk_commitment) = NullifierKey::random_pair();
 
         // Construct the consumed kudo resource
-        let kudo_lable = compute_kudo_label(&DENOMINATION_ID.into(), issuer);
-        assert_eq!(consumed_kudo_resource.label_ref, kudo_lable);
+        let consumed_kudo_lable = compute_kudo_label(&DENOMINATION_ID.into(), consumed_issuer);
+        assert_eq!(consumed_kudo_resource.label_ref, consumed_kudo_lable);
         let owner = AuthorizationVerifyingKey::from_signing_key(owner_sk);
         let kudo_value = compute_kudo_value(&owner);
         assert_eq!(kudo_value, consumed_kudo_resource.value_ref);
-        let consumed_kudo_nf = consumed_kudo_resource
-            .nullifier(consumed_kudo_nf_key)
-            .unwrap();
+        let consumed_kudo_nf = consumed_kudo_resource.nullifier(nf_key).unwrap();
 
         // Construct the denomination resource corresponding to the consumed kudo resource
         let consumed_denomination_resource = Resource::create(
@@ -72,14 +71,17 @@ impl TransferWitness {
         );
         let consumed_denomination_resource_cm = consumed_denomination_resource.commitment();
 
-        // Construct the created kudo resource
-        let mut created_kudo_resource = consumed_kudo_resource.clone();
-        // Set the new ownership to the created kudo resource
-        created_kudo_resource.set_nf_commitment(*receiver_nk_commitment);
-        let created_kudo_value = compute_kudo_value(receiver_pk);
-        created_kudo_resource.set_value_ref(created_kudo_value);
-        // Reset the randomness and nonce
-        created_kudo_resource.reset_randomness_nonce();
+        // Construct the created kudo resource: same ownership(kudo_value and
+        // nk_commitment) as the consumed kudo resource
+        let created_kudo_lable = compute_kudo_label(&DENOMINATION_ID.into(), created_issuer);
+        let created_kudo_resource = Resource::create(
+            KUDO_LOGIC_ID.into(),
+            created_kudo_lable,
+            created_kudo_quantity,
+            kudo_value, // use the same kudo value as the consumed kudo resource
+            false,
+            consumed_kudo_resource.nk_commitment, // use the same nk_commitment as the consumed kudo resource
+        );
         let created_kudo_value_cm = created_kudo_resource.commitment();
 
         // Construct the denomination resource corresponding to the created kudo resource
@@ -139,8 +141,8 @@ impl TransferWitness {
             KudoLogicWitness::generate_persistent_resource_consumption_witness(
                 *consumed_kudo_resource,
                 consumed_kudo_existence_path,
-                *consumed_kudo_nf_key,
-                *issuer,
+                *nf_key,
+                *consumed_issuer,
                 consumed_denomination_resource,
                 consumed_denomination_existence_path,
                 false,
@@ -155,16 +157,17 @@ impl TransferWitness {
                 consumption_signature,
                 *consumed_kudo_resource,
                 consumed_kudo_existence_path,
-                *consumed_kudo_nf_key,
-                *issuer,
+                *nf_key,
+                *consumed_issuer,
                 owner,
             );
 
         // Construct the created kudo witness
+        let receiver_signature = generate_receive_signature(&Digest::new(RECEIVE_ID), &owner_sk);
         let created_kudo_witness = KudoLogicWitness::generate_persistent_resource_creation_witness(
             created_kudo_resource.clone(),
             created_kudo_existence_path,
-            *issuer,
+            *created_issuer,
             created_denomination_resource,
             created_denomination_existence_path,
             instant_nk,
@@ -173,8 +176,8 @@ impl TransferWitness {
             instant_nk,
             false,
             receive_existence_path,
-            *receiver_pk,
-            *receiver_signature,
+            owner,
+            receiver_signature,
         );
 
         // Construct the denomination witness corresponding to the created kudo resource
@@ -186,7 +189,7 @@ impl TransferWitness {
                 instant_nk,
                 created_kudo_resource,
                 created_kudo_existence_path,
-                *issuer,
+                *created_issuer,
             );
 
         // Construct the receive witness
@@ -353,47 +356,76 @@ impl TransferWitness {
 }
 
 #[test]
-fn generate_a_transfer_tx() {
-    use kudo_core::utils::generate_receive_signature;
+fn generate_a_swap_tx() {
+    // The issuer determines the kind of kudo
+    let alice_consumed_issuer_sk = AuthorizationSigningKey::new();
+    let alice_consumed_issuer =
+        AuthorizationVerifyingKey::from_signing_key(&alice_consumed_issuer_sk);
+    let alice_consumed_kudo_lable =
+        compute_kudo_label(&DENOMINATION_ID.into(), &alice_consumed_issuer);
 
-    let issuer_sk = AuthorizationSigningKey::new();
-    let issuer = AuthorizationVerifyingKey::from_signing_key(&issuer_sk);
-    let kudo_lable = compute_kudo_label(&DENOMINATION_ID.into(), &issuer);
-    let owner_sk = AuthorizationSigningKey::new();
-    let owner = AuthorizationVerifyingKey::from_signing_key(&owner_sk);
-    let kudo_value = compute_kudo_value(&owner);
-    let (kudo_nf_key, kudo_nk_cm) = NullifierKey::random_pair();
+    // The consumed and created kudo resources share the same ownership(value and nk)
+    let alice_sk = AuthorizationSigningKey::new();
+    let alice_pk = AuthorizationVerifyingKey::from_signing_key(&alice_sk);
+    let alice_kudo_value = compute_kudo_value(&alice_pk);
+    let (alice_kudo_nf_key, alice_kudo_nk_cm) = NullifierKey::random_pair();
+    let alice_consumed_kudo_quantity = 100;
 
-    let (receiver_pk, receiver_signature) = {
-        let sk = AuthorizationSigningKey::new();
-        let pk = AuthorizationVerifyingKey::from_signing_key(&sk);
-        let signature = generate_receive_signature(&Digest::new(RECEIVE_ID), &sk);
-        (pk, signature)
-    };
-    let (_receiver_nf_key, receiver_nk_commitment) = NullifierKey::random_pair();
-
-    let consumed_kudo_resource = Resource::create(
+    let alice_consumed_kudo_resource = Resource::create(
         KUDO_LOGIC_ID.into(),
-        kudo_lable,
-        100,
-        kudo_value,
+        alice_consumed_kudo_lable,
+        alice_consumed_kudo_quantity,
+        alice_kudo_value,
         false,
-        kudo_nk_cm,
+        alice_kudo_nk_cm,
     );
 
-    let transfer_witness = TransferWitness::build(
-        &issuer,
-        &owner_sk,
-        &consumed_kudo_resource,
-        &kudo_nf_key,
+    let alice_created_issuer_sk = AuthorizationSigningKey::new();
+    let alice_created_issuer =
+        AuthorizationVerifyingKey::from_signing_key(&alice_created_issuer_sk);
+    let alice_created_kudo_lable =
+        compute_kudo_label(&DENOMINATION_ID.into(), &alice_created_issuer);
+    let alice_created_kudo_quantity = 200;
+
+    let alice_swap_witness = SwapWitness::build(
+        &alice_consumed_issuer,
+        &alice_sk,
+        &alice_consumed_kudo_resource,
+        &alice_kudo_nf_key,
         [(Digest::default(), false); TREE_DEPTH], // It should be a real path
-        &receiver_pk,
-        &receiver_signature,
-        &receiver_nk_commitment,
+        &alice_created_issuer,
+        alice_created_kudo_quantity,
     );
 
-    let mut tx = transfer_witness.create_tx();
-    tx.generate_delta_proof();
+    let alice_tx = alice_swap_witness.create_tx();
 
+    let bob_sk = AuthorizationSigningKey::new();
+    let bob_pk = AuthorizationVerifyingKey::from_signing_key(&bob_sk);
+    let bob_kudo_value = compute_kudo_value(&bob_pk);
+    let (bob_kudo_nf_key, bob_kudo_nk_cm) = NullifierKey::random_pair();
+    let bob_consumed_kudo_resource = Resource::create(
+        KUDO_LOGIC_ID.into(),
+        alice_created_kudo_lable,
+        alice_created_kudo_quantity,
+        bob_kudo_value,
+        false,
+        bob_kudo_nk_cm,
+    );
+    let bob_consumed_issuer = alice_created_issuer;
+    let bob_created_issuer = alice_consumed_issuer;
+    let bob_created_kudo_quantity = alice_consumed_kudo_quantity;
+    let bob_swap_witness = SwapWitness::build(
+        &bob_consumed_issuer,
+        &bob_sk,
+        &bob_consumed_kudo_resource,
+        &bob_kudo_nf_key,
+        [(Digest::default(), false); TREE_DEPTH], // It should be a real path
+        &bob_created_issuer,
+        bob_created_kudo_quantity,
+    );
+    let bob_tx = bob_swap_witness.create_tx();
+
+    let mut tx = Transaction::compose(alice_tx, bob_tx);
+    tx.generate_delta_proof();
     assert!(tx.verify());
 }

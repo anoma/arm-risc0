@@ -349,13 +349,12 @@ impl IssueWitness {
 
 #[test]
 fn generate_an_issue_tx() {
+    use kudo_core::utils::generate_receive_signature;
+
     let (receiver_pk, receiver_signature) = {
         let sk = AuthorizationSigningKey::new();
         let pk = AuthorizationVerifyingKey::from_signing_key(&sk);
-        let mut msg = Vec::new();
-        msg.extend_from_slice(Digest::new(RECEIVE_ID).as_bytes());
-        msg.extend_from_slice(&pk.to_bytes());
-        let signature = sk.sign(&msg);
+        let signature = generate_receive_signature(&Digest::new(RECEIVE_ID), &sk);
         (pk, signature)
     };
 
