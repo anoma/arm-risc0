@@ -1,3 +1,4 @@
+use crate::utils::verify as verify_proof;
 use aarm_core::compliance::ComplianceInstance;
 use compliance_circuit::COMPLIANCE_GUEST_ID;
 use k256::ProjectivePoint;
@@ -12,6 +13,7 @@ pub struct Action {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct LogicProof {
+    // Receipt contains the proof and the public inputs
     pub receipt: Receipt,
     pub verifying_key: Digest,
 }
@@ -34,13 +36,13 @@ impl Action {
 
     pub fn verify(&self) -> bool {
         for receipt in &self.compliance_units {
-            if receipt.verify(COMPLIANCE_GUEST_ID).is_err() {
+            if !verify_proof(receipt, COMPLIANCE_GUEST_ID) {
                 return false;
             }
         }
 
         for proof in &self.logic_proofs {
-            if proof.receipt.verify(proof.verifying_key).is_err() {
+            if !verify_proof(&proof.receipt, proof.verifying_key) {
                 return false;
             }
         }
