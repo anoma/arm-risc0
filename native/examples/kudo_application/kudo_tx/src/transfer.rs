@@ -1,5 +1,6 @@
 use aarm::{
-    action::{Action, LogicProof},
+    action::Action,
+    logic_proof::{LogicProof, LogicProver, PaddingResourceLogic},
     transaction::{Delta, Transaction},
     utils::groth16_prove,
 };
@@ -12,7 +13,6 @@ use aarm_core::{
     merkle_path::MerklePath,
     nullifier_key::{NullifierKey, NullifierKeyCommitment},
     resource::Resource,
-    trivial_logic::TrivialLogicWitness,
 };
 use compliance_circuit::COMPLIANCE_GUEST_ELF;
 use denomination_logic::{DENOMINATION_ELF, DENOMINATION_ID};
@@ -26,7 +26,6 @@ use kudo_logic::{KUDO_LOGIC_ELF, KUDO_LOGIC_ID};
 use receive_logic::{RECEIVE_ELF, RECEIVE_ID};
 use risc0_zkvm::sha::Digest;
 use serde::{Deserialize, Serialize};
-use trivial_logic::{TRIVIAL_ELF, TRIVIAL_ID};
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct TransferWitness {
@@ -36,7 +35,7 @@ pub struct TransferWitness {
     created_kudo_witness: KudoLogicWitness,                  // created resource - compliance unit 2
     created_denomination_witness: DenominationLogicWitness, // consumed resource - compliance unit 2
     receive_witness: ReceiveLogicWitness,                   // created resource - compliance unit 3
-    padding_resource_witness: TrivialLogicWitness,          // consumed resource - compliance unit 3
+    padding_resource_logic: PaddingResourceLogic,           // consumed resource - compliance unit 3
 }
 
 impl TransferWitness {
@@ -108,7 +107,7 @@ impl TransferWitness {
         let receive_resource_cm = receive_resource.commitment();
 
         // Construct the padding resource
-        let padding_resource = TrivialLogicWitness::create_trivial_resource(instant_nk_commitment);
+        let padding_resource = PaddingResourceLogic::create_padding_resource(instant_nk_commitment);
         let padding_resource_nf = padding_resource.nullifier(&instant_nk).unwrap();
 
         // Construct the action tree
@@ -201,7 +200,7 @@ impl TransferWitness {
         );
 
         // Construct the padding logic witness
-        let padding_resource_witness = TrivialLogicWitness::generate_witness(
+        let padding_resource_logic = PaddingResourceLogic::new(
             padding_resource,
             padding_resource_existence_path,
             instant_nk,
@@ -213,7 +212,7 @@ impl TransferWitness {
             consumed_denomination_witness,
             created_kudo_witness,
             created_denomination_witness,
-            padding_resource_witness,
+            padding_resource_logic,
             receive_witness,
             consumed_kudo_path,
         }
@@ -264,8 +263,8 @@ impl TransferWitness {
             let (compliance_unit_3, delta_witness_3) = {
                 let compliance_witness: ComplianceWitness<COMMITMENT_TREE_DEPTH> =
                     ComplianceWitness::from_resources(
-                        self.padding_resource_witness.resource,
-                        self.padding_resource_witness.nf_key,
+                        self.padding_resource_logic.witness().resource,
+                        self.padding_resource_logic.witness().nf_key,
                         self.receive_witness.receive_resource,
                     );
 
@@ -315,13 +314,7 @@ impl TransferWitness {
             };
 
             println!("Generating the padding resource logic proof");
-            let padding_resource_proof = {
-                let receipt = groth16_prove(&self.padding_resource_witness, TRIVIAL_ELF);
-                LogicProof {
-                    receipt,
-                    verifying_key: TRIVIAL_ID.into(),
-                }
-            };
+            let padding_resource_proof = self.padding_resource_logic.prove();
 
             println!("Generating the receive logic proof");
             let receive_logic_proof = {

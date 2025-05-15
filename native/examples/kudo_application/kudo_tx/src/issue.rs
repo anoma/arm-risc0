@@ -1,5 +1,6 @@
 use aarm::{
-    action::{Action, LogicProof},
+    action::Action,
+    logic_proof::{LogicProof, LogicProver, PaddingResourceLogic},
     transaction::{Delta, Transaction},
     utils::groth16_prove,
 };
@@ -11,7 +12,6 @@ use aarm_core::{
     delta_proof::DeltaWitness,
     nullifier_key::{NullifierKey, NullifierKeyCommitment},
     resource::Resource,
-    trivial_logic::TrivialLogicWitness,
 };
 use compliance_circuit::COMPLIANCE_GUEST_ELF;
 use denomination_logic::{DENOMINATION_ELF, DENOMINATION_ID};
@@ -25,7 +25,6 @@ use kudo_logic::{KUDO_LOGIC_ELF, KUDO_LOGIC_ID};
 use receive_logic::{RECEIVE_ELF, RECEIVE_ID};
 use risc0_zkvm::sha::Digest;
 use serde::{Deserialize, Serialize};
-use trivial_logic::{TRIVIAL_ELF, TRIVIAL_ID};
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct IssueWitness {
@@ -34,7 +33,7 @@ pub struct IssueWitness {
     issued_receive_witness: ReceiveLogicWitness,
     ephemeral_kudo_witness: KudoLogicWitness,
     ephemeral_denomination_witness: DenominationLogicWitness,
-    padding_resource_witness: TrivialLogicWitness,
+    padding_resource_logic: PaddingResourceLogic,
 }
 
 impl IssueWitness {
@@ -106,7 +105,7 @@ impl IssueWitness {
         let ephemeral_denomination_resource_cm = ephemeral_denomination_resource.commitment();
 
         // Construct the padding resource
-        let padding_resource = TrivialLogicWitness::create_trivial_resource(instant_nk_commitment);
+        let padding_resource = PaddingResourceLogic::create_padding_resource(instant_nk_commitment);
         let padding_resource_nf = padding_resource.nullifier(&instant_nk).unwrap();
 
         // Construct the action tree
@@ -201,7 +200,7 @@ impl IssueWitness {
             );
 
         // Construct the padding logic witness
-        let padding_resource_witness = TrivialLogicWitness::generate_witness(
+        let padding_resource_logic = PaddingResourceLogic::new(
             padding_resource,
             padding_resource_existence_path,
             instant_nk,
@@ -214,7 +213,7 @@ impl IssueWitness {
             issued_receive_witness,
             ephemeral_kudo_witness,
             ephemeral_denomination_witness,
-            padding_resource_witness,
+            padding_resource_logic,
         }
     }
 
@@ -260,8 +259,8 @@ impl IssueWitness {
             let (compliance_unit_3, delta_witness_3) = {
                 let compliance_witness: ComplianceWitness<COMMITMENT_TREE_DEPTH> =
                     ComplianceWitness::from_resources(
-                        self.padding_resource_witness.resource,
-                        self.padding_resource_witness.nf_key,
+                        self.padding_resource_logic.witness().resource,
+                        self.padding_resource_logic.witness().nf_key,
                         self.ephemeral_denomination_witness.denomination_resource,
                     );
 
@@ -318,13 +317,7 @@ impl IssueWitness {
             };
 
             println!("Generating the padding resource logic proof");
-            let padding_resource_proof = {
-                let receipt = groth16_prove(&self.padding_resource_witness, TRIVIAL_ELF);
-                LogicProof {
-                    receipt,
-                    verifying_key: TRIVIAL_ID.into(),
-                }
-            };
+            let padding_resource_proof = self.padding_resource_logic.prove();
 
             (
                 Action::new(

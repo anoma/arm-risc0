@@ -1,5 +1,6 @@
 use aarm::{
-    action::{Action, LogicProof},
+    action::Action,
+    logic_proof::LogicProof,
     transaction::{Delta, Transaction},
     utils::groth16_prove,
 };

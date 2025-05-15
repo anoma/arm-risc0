@@ -9,8 +9,10 @@ dependencies = [
  "aarm_core",
  "k256",
  "methods",
+ "rand 0.8.5",
  "risc0-zkvm",
  "serde",
+ "trivial_logic",
 ]
 
 [[package]]

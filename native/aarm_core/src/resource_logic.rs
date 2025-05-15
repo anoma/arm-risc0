@@ -1,17 +1,25 @@
 use crate::{
     action_tree::ACTION_TREE_DEPTH,
-    constants::TRIVIAL_RESOURCE_LOGIC,
     encryption::Ciphertext,
     logic_instance::LogicInstance,
     merkle_path::MerklePath,
-    nullifier_key::{NullifierKey, NullifierKeyCommitment},
+    nullifier_key::NullifierKey,
     resource::Resource,
 };
-use rand::Rng;
-use risc0_zkvm::sha::Digest;
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Serialize, Deserialize)]
+/// This is a trait for logic constraints implementation.
+pub trait LogicCircuit: Default + Clone + Serialize + for<'de> Deserialize<'de> {
+    // In general, it's implemented as `Self::default()`
+    fn default_witness() -> Self {
+        Self::default()
+    }
+
+    // Logic constraints implementation
+    fn constrain(&self) -> LogicInstance;
+}
+
+#[derive(Clone, Default, Serialize, Deserialize)]
 pub struct TrivialLogicWitness {
     pub resource: Resource,
     pub receive_existence_path: MerklePath<ACTION_TREE_DEPTH>,
@@ -19,8 +27,8 @@ pub struct TrivialLogicWitness {
     pub nf_key: NullifierKey,
 }
 
-impl TrivialLogicWitness {
-    pub fn constrain(&self) -> LogicInstance {
+impl LogicCircuit for TrivialLogicWitness {
+    fn constrain(&self) -> LogicInstance {
         // Load the self resource, the receive resource is always a
         // created resource
         let self_cm = self.resource.commitment();
@@ -45,22 +53,10 @@ impl TrivialLogicWitness {
             app_data: Vec::new(),          // no app data needed
         }
     }
+}
 
-    pub fn create_trivial_resource(nk_commitment: NullifierKeyCommitment) -> Resource {
-        let mut rng = rand::thread_rng();
-        Resource {
-            logic_ref: TRIVIAL_RESOURCE_LOGIC.into(),
-            label_ref: Digest::default(),
-            quantity: 0,
-            value_ref: Digest::default(),
-            is_ephemeral: true,
-            nonce: rng.gen(),
-            nk_commitment,
-            rand_seed: rng.gen(),
-        }
-    }
-
-    pub fn generate_witness(
+impl TrivialLogicWitness {
+    pub fn new(
         resource: Resource,
         receive_existence_path: MerklePath<ACTION_TREE_DEPTH>,
         nf_key: NullifierKey,
@@ -72,23 +68,5 @@ impl TrivialLogicWitness {
             is_consumed,
             nf_key,
         }
-    }
-}
-
-impl Default for TrivialLogicWitness {
-    fn default() -> Self {
-        let mut witness = TrivialLogicWitness {
-            resource: Resource::default(),
-            receive_existence_path: MerklePath::default(),
-            is_consumed: false,
-            nf_key: NullifierKey::default(),
-        };
-
-        let mut rng = rand::thread_rng();
-        witness.resource.is_ephemeral = true;
-        witness.resource.quantity = 0;
-        witness.resource.nonce = rng.gen();
-        witness.resource.logic_ref = TRIVIAL_RESOURCE_LOGIC.into();
-        witness
     }
 }

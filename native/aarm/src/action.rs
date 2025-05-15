@@ -1,21 +1,14 @@
-use crate::utils::verify as verify_proof;
+use crate::{logic_proof::LogicProof, utils::verify as verify_proof};
 use aarm_core::compliance::ComplianceInstance;
 use compliance_circuit::COMPLIANCE_GUEST_ID;
 use k256::ProjectivePoint;
-use risc0_zkvm::{sha::Digest, Receipt};
+use risc0_zkvm::Receipt;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Action {
     pub compliance_units: Vec<Receipt>,
     pub logic_proofs: Vec<LogicProof>,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct LogicProof {
-    // Receipt contains the proof and the public inputs
-    pub receipt: Receipt,
-    pub verifying_key: Digest,
 }
 
 impl Action {
