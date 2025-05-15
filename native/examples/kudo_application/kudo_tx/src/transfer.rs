@@ -7,8 +7,9 @@ use aarm_core::{
     action_tree::MerkleTree,
     authorization::{AuthorizationSignature, AuthorizationSigningKey, AuthorizationVerifyingKey},
     compliance::ComplianceWitness,
-    constants::TREE_DEPTH,
+    constants::COMMITMENT_TREE_DEPTH,
     delta_proof::DeltaWitness,
+    merkle_path::MerklePath,
     nullifier_key::{NullifierKey, NullifierKeyCommitment},
     resource::Resource,
     trivial_logic::TrivialLogicWitness,
@@ -30,7 +31,7 @@ use trivial_logic::{TRIVIAL_ELF, TRIVIAL_ID};
 #[derive(Clone, Serialize, Deserialize)]
 pub struct TransferWitness {
     consumed_kudo_witness: KudoLogicWitness, // consumed resource - compliance unit 1
-    consumed_kudo_path: [(Digest, bool); TREE_DEPTH],
+    consumed_kudo_path: MerklePath<COMMITMENT_TREE_DEPTH>,
     consumed_denomination_witness: DenominationLogicWitness, // created resource - compliance unit 1
     created_kudo_witness: KudoLogicWitness,                  // created resource - compliance unit 2
     created_denomination_witness: DenominationLogicWitness, // consumed resource - compliance unit 2
@@ -44,7 +45,7 @@ impl TransferWitness {
         owner_sk: &AuthorizationSigningKey,
         consumed_kudo_resource: &Resource,
         consumed_kudo_nf_key: &NullifierKey,
-        consumed_kudo_path: [(Digest, bool); TREE_DEPTH],
+        consumed_kudo_path: MerklePath<COMMITMENT_TREE_DEPTH>,
         receiver_pk: &AuthorizationVerifyingKey,
         receiver_signature: &AuthorizationSignature,
         receiver_nk_commitment: &NullifierKeyCommitment,
@@ -226,7 +227,7 @@ impl TransferWitness {
 
             println!("Generating compliance unit 1");
             let (compliance_unit_1, delta_witness_1) = {
-                let compliance_witness: ComplianceWitness<TREE_DEPTH> =
+                let compliance_witness: ComplianceWitness<COMMITMENT_TREE_DEPTH> =
                     ComplianceWitness::from_resources_with_path(
                         self.consumed_kudo_witness.kudo_resource,
                         self.consumed_kudo_witness.kudo_nf_key,
@@ -244,7 +245,7 @@ impl TransferWitness {
             // denomination resource
             println!("Generating compliance unit 2");
             let (compliance_unit_2, delta_witness_2) = {
-                let compliance_witness: ComplianceWitness<TREE_DEPTH> =
+                let compliance_witness: ComplianceWitness<COMMITMENT_TREE_DEPTH> =
                     ComplianceWitness::from_resources(
                         self.created_denomination_witness.denomination_resource,
                         self.created_denomination_witness.denomination_nf_key,
@@ -261,7 +262,7 @@ impl TransferWitness {
             // resource
             println!("Generating compliance unit 3");
             let (compliance_unit_3, delta_witness_3) = {
-                let compliance_witness: ComplianceWitness<TREE_DEPTH> =
+                let compliance_witness: ComplianceWitness<COMMITMENT_TREE_DEPTH> =
                     ComplianceWitness::from_resources(
                         self.padding_resource_witness.resource,
                         self.padding_resource_witness.nf_key,
@@ -386,7 +387,7 @@ fn generate_a_transfer_tx() {
         &owner_sk,
         &consumed_kudo_resource,
         &kudo_nf_key,
-        [(Digest::default(), false); TREE_DEPTH], // It should be a real path
+        MerklePath::<COMMITMENT_TREE_DEPTH>::default(), // It should be a real path
         &receiver_pk,
         &receiver_signature,
         &receiver_nk_commitment,

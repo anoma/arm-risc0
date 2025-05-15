@@ -76,13 +76,12 @@ pub mod tests {
     use super::*;
     use crate::utils::groth16_prove;
     use aarm_core::{
-        compliance::ComplianceWitness, constants::TREE_DEPTH, delta_proof::DeltaWitness,
+        compliance::ComplianceWitness, constants::COMMITMENT_TREE_DEPTH, delta_proof::DeltaWitness,
     };
     use compliance_circuit::{COMPLIANCE_GUEST_ELF, COMPLIANCE_GUEST_ID};
 
     pub fn create_an_action() -> (Action, DeltaWitness) {
-        let compliance_witness: ComplianceWitness<TREE_DEPTH> =
-            ComplianceWitness::<TREE_DEPTH>::default();
+        let compliance_witness = ComplianceWitness::<COMMITMENT_TREE_DEPTH>::default();
 
         let receipt = groth16_prove(&compliance_witness, COMPLIANCE_GUEST_ELF);
         let logic_proof = LogicProof {

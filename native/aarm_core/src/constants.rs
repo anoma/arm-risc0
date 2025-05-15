@@ -9,7 +9,7 @@ pub const PRF_EXPAND_RCM: u8 = 1;
 
 pub const TRIVIAL_RESOURCE_LOGIC_VK: &[u8] = b"trivial_resource_logic_vk";
 
-pub const TREE_DEPTH: usize = 32;
+pub const COMMITMENT_TREE_DEPTH: usize = 32;
 
 pub const DEFAULT_BYTES: usize = 32;
 pub const QUANTITY_BYTES: usize = 16;

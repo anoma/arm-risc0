@@ -11,7 +11,6 @@ use k256::{
 };
 use rand::Rng;
 use risc0_zkvm::sha::{Digest, Impl, Sha256};
-use serde_big_array::BigArray;
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub struct ComplianceInstance {
@@ -28,8 +27,7 @@ pub struct ComplianceWitness<const COMMITMENT_TREE_DEPTH: usize> {
     /// The consumed resource
     pub consumed_resource: Resource,
     /// The path from the consumed commitment to the root in the commitment tree
-    #[serde(with = "BigArray")]
-    pub merkle_path: [(Digest, bool); COMMITMENT_TREE_DEPTH],
+    pub merkle_path: MerklePath<COMMITMENT_TREE_DEPTH>,
     /// The existing root for the ephemeral resource
     pub ephemeral_root: Digest,
     /// Nullifier key of the consumed resource
@@ -50,8 +48,7 @@ impl<const COMMITMENT_TREE_DEPTH: usize> ComplianceWitness<COMMITMENT_TREE_DEPTH
         created_resource: Resource,
     ) -> Self {
         let rng = rand::thread_rng();
-        let merkle_path: [(Digest, bool); COMMITMENT_TREE_DEPTH] =
-            [(Digest::default(), false); COMMITMENT_TREE_DEPTH];
+        let merkle_path = MerklePath::<COMMITMENT_TREE_DEPTH>::default();
         ComplianceWitness {
             consumed_resource,
             created_resource,
@@ -65,7 +62,7 @@ impl<const COMMITMENT_TREE_DEPTH: usize> ComplianceWitness<COMMITMENT_TREE_DEPTH
     pub fn from_resources_with_path(
         consumed_resource: Resource,
         nf_key: NullifierKey,
-        merkle_path: [(Digest, bool); COMMITMENT_TREE_DEPTH],
+        merkle_path: MerklePath<COMMITMENT_TREE_DEPTH>,
         created_resource: Resource,
     ) -> Self {
         let rng = rand::thread_rng();
@@ -125,7 +122,7 @@ impl<const COMMITMENT_TREE_DEPTH: usize> ComplianceWitness<COMMITMENT_TREE_DEPTH
         if self.consumed_resource.is_ephemeral {
             self.ephemeral_root
         } else {
-            MerklePath::from_path(self.merkle_path).root(cm)
+            self.merkle_path.root(cm)
         }
     }
 
@@ -169,8 +166,7 @@ impl<const COMMITMENT_TREE_DEPTH: usize> Default for ComplianceWitness<COMMITMEN
             rand_seed: rng.gen(),
         };
 
-        let merkle_path: [(Digest, bool); COMMITMENT_TREE_DEPTH] =
-            [(Digest::default(), false); COMMITMENT_TREE_DEPTH];
+        let merkle_path = MerklePath::<COMMITMENT_TREE_DEPTH>::default();
 
         let rcv = Scalar::random(rng);
 

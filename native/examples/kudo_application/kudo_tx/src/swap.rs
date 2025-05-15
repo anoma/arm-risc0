@@ -7,8 +7,9 @@ use aarm_core::{
     action_tree::MerkleTree,
     authorization::{AuthorizationSigningKey, AuthorizationVerifyingKey},
     compliance::ComplianceWitness,
-    constants::TREE_DEPTH,
+    constants::COMMITMENT_TREE_DEPTH,
     delta_proof::DeltaWitness,
+    merkle_path::MerklePath,
     nullifier_key::NullifierKey,
     resource::Resource,
     trivial_logic::TrivialLogicWitness,
@@ -32,7 +33,7 @@ use trivial_logic::{TRIVIAL_ELF, TRIVIAL_ID};
 #[derive(Clone, Serialize, Deserialize)]
 pub struct SwapWitness {
     consumed_kudo_witness: KudoLogicWitness, // consumed resource - compliance unit 1
-    consumed_kudo_path: [(Digest, bool); TREE_DEPTH],
+    consumed_kudo_path: MerklePath<COMMITMENT_TREE_DEPTH>,
     consumed_denomination_witness: DenominationLogicWitness, // created resource - compliance unit 1
     created_kudo_witness: KudoLogicWitness,                  // created resource - compliance unit 2
     created_denomination_witness: DenominationLogicWitness, // consumed resource - compliance unit 2
@@ -46,7 +47,7 @@ impl SwapWitness {
         owner_sk: &AuthorizationSigningKey,
         consumed_kudo_resource: &Resource,
         nf_key: &NullifierKey,
-        consumed_kudo_path: [(Digest, bool); TREE_DEPTH],
+        consumed_kudo_path: MerklePath<COMMITMENT_TREE_DEPTH>,
         created_issuer: &AuthorizationVerifyingKey,
         created_kudo_quantity: u128,
     ) -> Self {
@@ -229,7 +230,7 @@ impl SwapWitness {
 
             println!("Generating compliance unit 1");
             let (compliance_unit_1, delta_witness_1) = {
-                let compliance_witness: ComplianceWitness<TREE_DEPTH> =
+                let compliance_witness: ComplianceWitness<COMMITMENT_TREE_DEPTH> =
                     ComplianceWitness::from_resources_with_path(
                         self.consumed_kudo_witness.kudo_resource,
                         self.consumed_kudo_witness.kudo_nf_key,
@@ -247,7 +248,7 @@ impl SwapWitness {
             // denomination resource
             println!("Generating compliance unit 2");
             let (compliance_unit_2, delta_witness_2) = {
-                let compliance_witness: ComplianceWitness<TREE_DEPTH> =
+                let compliance_witness: ComplianceWitness<COMMITMENT_TREE_DEPTH> =
                     ComplianceWitness::from_resources(
                         self.created_denomination_witness.denomination_resource,
                         self.created_denomination_witness.denomination_nf_key,
@@ -264,7 +265,7 @@ impl SwapWitness {
             // resource
             println!("Generating compliance unit 3");
             let (compliance_unit_3, delta_witness_3) = {
-                let compliance_witness: ComplianceWitness<TREE_DEPTH> =
+                let compliance_witness: ComplianceWitness<COMMITMENT_TREE_DEPTH> =
                     ComplianceWitness::from_resources(
                         self.padding_resource_witness.resource,
                         self.padding_resource_witness.nf_key,
@@ -392,7 +393,7 @@ fn generate_a_swap_tx() {
         &alice_sk,
         &alice_consumed_kudo_resource,
         &alice_kudo_nf_key,
-        [(Digest::default(), false); TREE_DEPTH], // It should be a real path
+        MerklePath::<COMMITMENT_TREE_DEPTH>::default(), // It should be a real path
         &alice_created_issuer,
         alice_created_kudo_quantity,
     );
@@ -419,7 +420,7 @@ fn generate_a_swap_tx() {
         &bob_sk,
         &bob_consumed_kudo_resource,
         &bob_kudo_nf_key,
-        [(Digest::default(), false); TREE_DEPTH], // It should be a real path
+        MerklePath::<COMMITMENT_TREE_DEPTH>::default(), // It should be a real path
         &bob_created_issuer,
         bob_created_kudo_quantity,
     );

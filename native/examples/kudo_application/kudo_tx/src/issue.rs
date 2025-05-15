@@ -7,7 +7,7 @@ use aarm_core::{
     action_tree::MerkleTree,
     authorization::{AuthorizationSignature, AuthorizationSigningKey, AuthorizationVerifyingKey},
     compliance::ComplianceWitness,
-    constants::TREE_DEPTH,
+    constants::COMMITMENT_TREE_DEPTH,
     delta_proof::DeltaWitness,
     nullifier_key::{NullifierKey, NullifierKeyCommitment},
     resource::Resource,
@@ -226,7 +226,7 @@ impl IssueWitness {
 
             println!("Generating compliance unit 1");
             let (compliance_unit_1, delta_witness_1) = {
-                let compliance_witness: ComplianceWitness<TREE_DEPTH> =
+                let compliance_witness: ComplianceWitness<COMMITMENT_TREE_DEPTH> =
                     ComplianceWitness::from_resources(
                         self.ephemeral_kudo_witness.kudo_resource,
                         self.ephemeral_kudo_witness.kudo_nf_key,
@@ -242,7 +242,7 @@ impl IssueWitness {
             // Compliance unit 2: the issued_receive_resource and the issued_denomination_resource
             println!("Generating compliance unit 2");
             let (compliance_unit_2, delta_witness_2) = {
-                let compliance_witness: ComplianceWitness<TREE_DEPTH> =
+                let compliance_witness: ComplianceWitness<COMMITMENT_TREE_DEPTH> =
                     ComplianceWitness::from_resources(
                         self.issued_receive_witness.receive_resource,
                         self.issued_receive_witness.nf_key,
@@ -258,7 +258,7 @@ impl IssueWitness {
             // Compliance unit 3: a padding resource and the ephemeral_denomination_resource
             println!("Generating compliance unit 3");
             let (compliance_unit_3, delta_witness_3) = {
-                let compliance_witness: ComplianceWitness<TREE_DEPTH> =
+                let compliance_witness: ComplianceWitness<COMMITMENT_TREE_DEPTH> =
                     ComplianceWitness::from_resources(
                         self.padding_resource_witness.resource,
                         self.padding_resource_witness.nf_key,

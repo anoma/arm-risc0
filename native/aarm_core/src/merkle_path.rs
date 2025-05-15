@@ -35,14 +35,14 @@ impl Hashable for Digest {
 
 /// A path from a position in a particular commitment tree to the root of that tree.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct MerklePath<const COMMITMENT_TREE_DEPTH: usize> {
+pub struct MerklePath<const TREE_DEPTH: usize> {
     #[serde(with = "BigArray")]
-    auth_path: [(Digest, bool); COMMITMENT_TREE_DEPTH],
+    auth_path: [(Digest, bool); TREE_DEPTH],
 }
 
-impl<const COMMITMENT_TREE_DEPTH: usize> MerklePath<COMMITMENT_TREE_DEPTH> {
+impl<const TREE_DEPTH: usize> MerklePath<TREE_DEPTH> {
     /// Constructs a Merkle path directly from a path and position.
-    pub fn from_path(auth_path: [(Digest, bool); COMMITMENT_TREE_DEPTH]) -> Self {
+    pub fn from_path(auth_path: [(Digest, bool); TREE_DEPTH]) -> Self {
         MerklePath { auth_path }
     }
 
@@ -57,10 +57,10 @@ impl<const COMMITMENT_TREE_DEPTH: usize> MerklePath<COMMITMENT_TREE_DEPTH> {
     }
 }
 
-impl<const COMMITMENT_TREE_DEPTH: usize> Default for MerklePath<COMMITMENT_TREE_DEPTH> {
+impl<const TREE_DEPTH: usize> Default for MerklePath<TREE_DEPTH> {
     fn default() -> Self {
         MerklePath {
-            auth_path: [(Digest::default(), false); COMMITMENT_TREE_DEPTH],
+            auth_path: [(Digest::default(), false); TREE_DEPTH],
         }
     }
 }

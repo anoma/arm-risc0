@@ -7,8 +7,9 @@ use aarm_core::{
     action_tree::MerkleTree,
     authorization::{AuthorizationSigningKey, AuthorizationVerifyingKey},
     compliance::ComplianceWitness,
-    constants::TREE_DEPTH,
+    constants::COMMITMENT_TREE_DEPTH,
     delta_proof::DeltaWitness,
+    merkle_path::MerklePath,
     nullifier_key::NullifierKey,
     resource::Resource,
 };
@@ -26,7 +27,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Serialize, Deserialize)]
 pub struct BurnWitness {
     burned_kudo_witness: KudoLogicWitness, // consumed resource
-    burned_kudo_path: [(Digest, bool); TREE_DEPTH],
+    burned_kudo_path: MerklePath<COMMITMENT_TREE_DEPTH>,
     burned_denomination_witness: DenominationLogicWitness, // created resource
     ephemeral_kudo_witness: KudoLogicWitness,              // created resource
     ephemeral_denomination_witness: DenominationLogicWitness, // consumed resource
@@ -38,7 +39,7 @@ impl BurnWitness {
         owner_sk: &AuthorizationSigningKey,
         burned_kudo_resource: &Resource,
         burned_kudoresource_nf_key: &NullifierKey,
-        burned_kudo_path: [(Digest, bool); TREE_DEPTH],
+        burned_kudo_path: MerklePath<COMMITMENT_TREE_DEPTH>,
     ) -> Self {
         let issuer = AuthorizationVerifyingKey::from_signing_key(issuer_sk);
         let (instant_nk, instant_nk_commitment) = NullifierKey::random_pair();
@@ -171,7 +172,7 @@ impl BurnWitness {
 
             println!("Generating compliance unit 1");
             let (compliance_unit_1, delta_witness_1) = {
-                let compliance_witness: ComplianceWitness<TREE_DEPTH> =
+                let compliance_witness: ComplianceWitness<COMMITMENT_TREE_DEPTH> =
                     ComplianceWitness::from_resources_with_path(
                         self.burned_kudo_witness.kudo_resource,
                         self.burned_kudo_witness.kudo_nf_key,
@@ -188,7 +189,7 @@ impl BurnWitness {
             // Compliance unit 2: the issued_receive_resource and the issued_denomination_resource
             println!("Generating compliance unit 2");
             let (compliance_unit_2, delta_witness_2) = {
-                let compliance_witness: ComplianceWitness<TREE_DEPTH> =
+                let compliance_witness: ComplianceWitness<COMMITMENT_TREE_DEPTH> =
                     ComplianceWitness::from_resources(
                         self.ephemeral_denomination_witness.denomination_resource,
                         self.ephemeral_denomination_witness.denomination_nf_key,
@@ -283,7 +284,7 @@ fn generate_a_burn_tx() {
         &owner_sk,
         &kudo_resource,
         &kudo_nf_key,
-        [(Digest::default(), false); TREE_DEPTH], // It should be a real path
+        MerklePath::<COMMITMENT_TREE_DEPTH>::default(), // It should be a real path
     );
 
     let mut tx = burn_witness.create_tx();
