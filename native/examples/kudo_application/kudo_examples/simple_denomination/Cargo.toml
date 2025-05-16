@@ -1,0 +1,13 @@
+[package]
+name = "simple-denomination"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+denomination-logic-circuit = { path = "methods" }
+denomination-core = { path = "core" }
+serde = { version = "1.0.197", default-features = false }
+risc0-zkvm = "1.2.5"
+aarm = { path = "../../../../aarm" }
+kudo-core = { path = "../../kudo_core" }
+aarm_core = { path = "../../../../aarm_core" }

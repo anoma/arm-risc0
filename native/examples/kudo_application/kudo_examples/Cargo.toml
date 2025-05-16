@@ -1,0 +1,13 @@
+[package]
+name = "kudo-examples"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+simple-denomination = { path = "simple_denomination" }
+kudo-tx = { path = "../kudo_tx" }
+aarm_core = { path = "../../../aarm_core" }
+kudo-core = { path = "../kudo_core" }
+aarm = { path = "../../../aarm" }
+receive_logic = { path = "../receive_logic" }
+kudo_logic = { path = "../kudo_logic" }

@@ -23,7 +23,7 @@ pub fn generate_receive_signature(
     receive_logic: &Digest,
     sk: &AuthorizationSigningKey,
 ) -> AuthorizationSignature {
-    let pk = AuthorizationVerifyingKey::from_signing_key(&sk);
+    let pk = AuthorizationVerifyingKey::from_signing_key(sk);
     let mut msg = Vec::new();
     msg.extend_from_slice(receive_logic.as_bytes());
     msg.extend_from_slice(&pk.to_bytes());

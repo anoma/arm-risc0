@@ -1,9 +1,9 @@
-use kudo_core::denomination_logic_witness::DenominationLogicWitness;
+use denomination_core::{SimpleDenominationWitness, LogicCircuit};
 use risc0_zkvm::guest::env;
 
 fn main() {
     // read the input
-    let witness: DenominationLogicWitness = env::read();
+    let witness: SimpleDenominationWitness = env::read();
 
     // process constraints
     let instance = witness.constrain();

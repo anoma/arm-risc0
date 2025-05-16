@@ -5,218 +5,27 @@ use aarm::{
     utils::groth16_prove,
 };
 use aarm_core::{
-    action_tree::MerkleTree,
-    authorization::{AuthorizationSignature, AuthorizationSigningKey, AuthorizationVerifyingKey},
-    compliance::ComplianceWitness,
-    constants::COMMITMENT_TREE_DEPTH,
-    delta_proof::DeltaWitness,
-    nullifier_key::{NullifierKey, NullifierKeyCommitment},
-    resource::Resource,
+    compliance::ComplianceWitness, constants::COMMITMENT_TREE_DEPTH, delta_proof::DeltaWitness,
 };
 use compliance_circuit::COMPLIANCE_GUEST_ELF;
-use denomination_logic::{DENOMINATION_ELF, DENOMINATION_ID};
 use kudo_core::{
-    denomination_logic_witness::DenominationLogicWitness,
-    kudo_logic_witness::KudoLogicWitness,
+    denomination::Denomination, kudo_logic_witness::KudoLogicWitness,
     receive_logic_witness::ReceiveLogicWitness,
-    utils::{compute_kudo_label, compute_kudo_value},
 };
 use kudo_logic::{KUDO_LOGIC_ELF, KUDO_LOGIC_ID};
 use receive_logic::{RECEIVE_ELF, RECEIVE_ID};
-use risc0_zkvm::sha::Digest;
-use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Serialize, Deserialize)]
-pub struct IssueWitness {
-    issued_kudo_witness: KudoLogicWitness,
-    issued_denomination_witness: DenominationLogicWitness,
-    issued_receive_witness: ReceiveLogicWitness,
-    ephemeral_kudo_witness: KudoLogicWitness,
-    ephemeral_denomination_witness: DenominationLogicWitness,
-    padding_resource_logic: PaddingResourceLogic,
+#[derive(Clone)]
+pub struct IssueInstance<D: Denomination + LogicProver> {
+    pub issued_kudo_witness: KudoLogicWitness,
+    pub issue_denomination: D,
+    pub issued_receive_witness: ReceiveLogicWitness,
+    pub ephemeral_kudo_witness: KudoLogicWitness,
+    pub ephemeral_denomination: D,
+    pub padding_resource_logic: PaddingResourceLogic,
 }
 
-impl IssueWitness {
-    pub fn build(
-        issuer_sk: &AuthorizationSigningKey,
-        quantity: u128,
-        receiver_pk: &AuthorizationVerifyingKey,
-        receiver_signature: &AuthorizationSignature,
-        receiver_nk_commitment: &NullifierKeyCommitment,
-    ) -> Self {
-        let issuer = AuthorizationVerifyingKey::from_signing_key(issuer_sk);
-        let (instant_nk, instant_nk_commitment) = NullifierKey::random_pair();
-
-        // Construct the issued kudo resource
-        let kudo_lable = compute_kudo_label(&DENOMINATION_ID.into(), &issuer);
-        let kudo_value = compute_kudo_value(receiver_pk);
-        let issued_kudo_resource = Resource::create(
-            KUDO_LOGIC_ID.into(),
-            kudo_lable,
-            quantity,
-            kudo_value,
-            false,
-            *receiver_nk_commitment,
-        );
-        let issued_kudo_resource_cm = issued_kudo_resource.commitment();
-
-        // Construct the ephemeral kudo resource
-        let ephemeral_kudo_resource = Resource::create(
-            KUDO_LOGIC_ID.into(),
-            kudo_lable,
-            quantity,
-            kudo_value,
-            true,
-            instant_nk_commitment,
-        );
-        let ephemeral_kudo_resource_nf = ephemeral_kudo_resource.nullifier(&instant_nk).unwrap();
-
-        // Construct the issued denomination resource
-        let issued_denomination_resource = Resource::create(
-            DENOMINATION_ID.into(),
-            Digest::default(), // TODO: fix the label?
-            0,
-            Digest::default(),
-            true,
-            instant_nk_commitment,
-        );
-        let issued_denomination_resource_cm = issued_denomination_resource.commitment();
-
-        // Construct the issued receive logic resource
-        let issued_receive_resource = Resource::create(
-            RECEIVE_ID.into(),
-            issued_kudo_resource_cm,
-            0,
-            Digest::default(),
-            true,
-            instant_nk_commitment,
-        );
-        let issued_receive_resource_nf = issued_receive_resource.nullifier(&instant_nk).unwrap();
-
-        // Construct the ephemeral denomination resource
-        let ephemeral_denomination_resource = Resource::create(
-            DENOMINATION_ID.into(),
-            Digest::default(), // TODO: fix the label?
-            0,
-            Digest::default(),
-            true,
-            instant_nk_commitment,
-        );
-        let ephemeral_denomination_resource_cm = ephemeral_denomination_resource.commitment();
-
-        // Construct the padding resource
-        let padding_resource = PaddingResourceLogic::create_padding_resource(instant_nk_commitment);
-        let padding_resource_nf = padding_resource.nullifier(&instant_nk).unwrap();
-
-        // Construct the action tree
-        let action_tree = MerkleTree::new(vec![
-            ephemeral_kudo_resource_nf,
-            issued_kudo_resource_cm,
-            issued_receive_resource_nf,
-            issued_denomination_resource_cm,
-            padding_resource_nf,
-            ephemeral_denomination_resource_cm,
-        ]);
-        let root = action_tree.root();
-
-        // Generate paths
-        let ephemeral_kudo_existence_path = action_tree
-            .generate_path(ephemeral_kudo_resource_nf)
-            .unwrap();
-        let issued_kudo_existence_path =
-            action_tree.generate_path(issued_kudo_resource_cm).unwrap();
-        let issued_receive_existence_path = action_tree
-            .generate_path(issued_receive_resource_nf)
-            .unwrap();
-        let issued_denomination_existence_path = action_tree
-            .generate_path(issued_denomination_resource_cm)
-            .unwrap();
-        let padding_resource_existence_path =
-            action_tree.generate_path(padding_resource_nf).unwrap();
-        let ephemeral_denomination_existence_path = action_tree
-            .generate_path(ephemeral_denomination_resource_cm)
-            .unwrap();
-
-        // Construct the issued kudo witness
-        let issued_kudo_witness = KudoLogicWitness::generate_persistent_resource_creation_witness(
-            issued_kudo_resource,
-            issued_kudo_existence_path,
-            issuer,
-            issued_denomination_resource,
-            issued_denomination_existence_path,
-            instant_nk,
-            false,
-            issued_receive_resource,
-            instant_nk,
-            true,
-            issued_receive_existence_path,
-            *receiver_pk,
-            *receiver_signature,
-        );
-
-        // Construct the denomination witness corresponding to the issued kudo resource
-        let issued_denomination_witness =
-            DenominationLogicWitness::generate_persistent_resource_creation_witness(
-                issued_denomination_resource,
-                issued_denomination_existence_path,
-                false,
-                instant_nk,
-                issued_kudo_resource,
-                issued_kudo_existence_path,
-                issuer,
-            );
-
-        // Construct the issued receive witness
-        let issued_receive_witness = ReceiveLogicWitness::generate_witness(
-            issued_receive_resource,
-            issued_receive_existence_path,
-            instant_nk,
-            true,
-            issued_kudo_resource,
-            issued_kudo_existence_path,
-        );
-
-        // Construct the ephemeral kudo witness
-        let ephemeral_kudo_witness = KudoLogicWitness::generate_consumed_ephemeral_witness(
-            ephemeral_kudo_resource,
-            ephemeral_kudo_existence_path,
-            instant_nk,
-            issuer,
-            ephemeral_denomination_resource,
-            ephemeral_denomination_existence_path,
-        );
-
-        // Construct the ephemeral denomination witness
-        let signature = issuer_sk.sign(root.as_bytes());
-        let ephemeral_denomination_witness =
-            DenominationLogicWitness::generate_issued_ephemeral_witness(
-                ephemeral_denomination_resource,
-                ephemeral_denomination_existence_path,
-                signature,
-                ephemeral_kudo_resource,
-                ephemeral_kudo_existence_path,
-                instant_nk,
-                issuer,
-            );
-
-        // Construct the padding logic witness
-        let padding_resource_logic = PaddingResourceLogic::new(
-            padding_resource,
-            padding_resource_existence_path,
-            instant_nk,
-            true,
-        );
-
-        Self {
-            issued_kudo_witness,
-            issued_denomination_witness,
-            issued_receive_witness,
-            ephemeral_kudo_witness,
-            ephemeral_denomination_witness,
-            padding_resource_logic,
-        }
-    }
-
+impl<D: Denomination + LogicProver> IssueInstance<D> {
     pub fn create_tx(&self) -> Transaction {
         // Create the action
         let (action, delta_witness) = {
@@ -245,7 +54,7 @@ impl IssueWitness {
                     ComplianceWitness::from_resources(
                         self.issued_receive_witness.receive_resource,
                         self.issued_receive_witness.nf_key,
-                        self.issued_denomination_witness.denomination_resource,
+                        self.issue_denomination.resource(),
                     );
 
                 (
@@ -261,7 +70,7 @@ impl IssueWitness {
                     ComplianceWitness::from_resources(
                         self.padding_resource_logic.witness().resource,
                         self.padding_resource_logic.witness().nf_key,
-                        self.ephemeral_denomination_witness.denomination_resource,
+                        self.ephemeral_denomination.resource(),
                     );
 
                 (
@@ -281,13 +90,7 @@ impl IssueWitness {
             };
 
             println!("Generating the issued denomination logic proof");
-            let issued_denomination_proof = {
-                let receipt = groth16_prove(&self.issued_denomination_witness, DENOMINATION_ELF);
-                LogicProof {
-                    receipt,
-                    verifying_key: DENOMINATION_ID.into(),
-                }
-            };
+            let issue_denomination_proof = self.issue_denomination.prove();
 
             println!("Generating the issued receive logic proof");
             let issued_receive_logic_proof = {
@@ -308,13 +111,7 @@ impl IssueWitness {
             };
 
             println!("Generating the ephemeral denomination logic proof");
-            let ephemeral_denomination_proof = {
-                let receipt = groth16_prove(&self.ephemeral_denomination_witness, DENOMINATION_ELF);
-                LogicProof {
-                    receipt,
-                    verifying_key: DENOMINATION_ID.into(),
-                }
-            };
+            let ephemeral_denomination_proof = self.ephemeral_denomination.prove();
 
             println!("Generating the padding resource logic proof");
             let padding_resource_proof = self.padding_resource_logic.prove();
@@ -324,7 +121,7 @@ impl IssueWitness {
                     vec![compliance_unit_1, compliance_unit_2, compliance_unit_3],
                     vec![
                         issued_kudo_proof,
-                        issued_denomination_proof,
+                        issue_denomination_proof,
                         issued_receive_logic_proof,
                         ephemeral_kudo_proof,
                         ephemeral_denomination_proof,
@@ -338,29 +135,4 @@ impl IssueWitness {
         // Create the transaction
         Transaction::new(vec![action], Delta::Witness(delta_witness))
     }
-}
-
-#[test]
-fn generate_an_issue_tx() {
-    use kudo_core::utils::generate_receive_signature;
-
-    let (receiver_pk, receiver_signature) = {
-        let sk = AuthorizationSigningKey::new();
-        let pk = AuthorizationVerifyingKey::from_signing_key(&sk);
-        let signature = generate_receive_signature(&Digest::new(RECEIVE_ID), &sk);
-        (pk, signature)
-    };
-
-    let issue_witness = IssueWitness::build(
-        &AuthorizationSigningKey::new(),
-        100,
-        &receiver_pk,
-        &receiver_signature,
-        &NullifierKeyCommitment::default(),
-    );
-
-    let mut tx = issue_witness.create_tx();
-    tx.generate_delta_proof();
-
-    assert!(tx.verify());
 }

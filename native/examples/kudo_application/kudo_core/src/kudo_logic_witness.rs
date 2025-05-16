@@ -65,7 +65,7 @@ impl KudoLogicWitness {
 
         // Decode label of the kudo resource and check the correspondence between the
         // kudo resource and the domination resource
-        let label = compute_kudo_label(&self.denomination_resource.logic_ref, &self.issuer);
+        let label = compute_kudo_label(&self.kudo_resource.logic_ref, &self.issuer);
         assert_eq!(self.kudo_resource.label_ref, label);
 
         // Constrain the receive logic if creating a persistent resource
@@ -178,7 +178,7 @@ impl KudoLogicWitness {
             kudo_resource,
             kudo_existence_path,
             kudo_is_consumed: true,
-            kudo_nf_key: kudo_nf_key,
+            kudo_nf_key,
             issuer,
             encryption_sk: SecretKey::default(), // not used
             encryption_nonce: [0u8; 12],         // not used

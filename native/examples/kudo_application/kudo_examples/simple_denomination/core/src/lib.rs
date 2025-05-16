@@ -1,4 +1,4 @@
-use crate::utils::compute_kudo_label;
+pub use aarm_core::resource_logic::LogicCircuit;
 use aarm_core::{
     action_tree::ACTION_TREE_DEPTH,
     authorization::{AuthorizationSignature, AuthorizationVerifyingKey},
@@ -8,10 +8,11 @@ use aarm_core::{
     nullifier_key::NullifierKey,
     resource::Resource,
 };
+use kudo_core::utils::compute_kudo_label;
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Serialize, Deserialize)]
-pub struct DenominationLogicWitness {
+#[derive(Clone, Default, Serialize, Deserialize)]
+pub struct SimpleDenominationWitness {
     // Denomination related fields
     pub denomination_resource: Resource,
     pub denomination_is_consumed: bool, // It can be either consumed or created
@@ -30,8 +31,8 @@ pub struct DenominationLogicWitness {
     pub kudo_owner: AuthorizationVerifyingKey,
 }
 
-impl DenominationLogicWitness {
-    pub fn constrain(&self) -> LogicInstance {
+impl LogicCircuit for SimpleDenominationWitness {
+    fn constrain(&self) -> LogicInstance {
         // Load self resource, the denomination resource is always a created
         // resource
         let denomination_cm = self.denomination_resource.commitment();
@@ -62,7 +63,7 @@ impl DenominationLogicWitness {
 
         // Decode label of the kudo resource and check the correspondence between the
         // kudo resource and the domination resource
-        let label = compute_kudo_label(&self.denomination_resource.logic_ref, &self.kudo_issuer);
+        let label = compute_kudo_label(&self.kudo_resource.logic_ref, &self.kudo_issuer);
         assert_eq!(self.kudo_resource.label_ref, label);
 
         if self.kudo_resource.is_ephemeral {
@@ -97,7 +98,9 @@ impl DenominationLogicWitness {
             app_data: Vec::new(),          // no app data needed
         }
     }
+}
 
+impl SimpleDenominationWitness {
     // Seems this logic does nothing in this case
     // Create a denomination witness corresponding to a created kudo resource
     pub fn generate_persistent_resource_creation_witness(

@@ -9,9 +9,10 @@ use k256::{
 };
 use rand::Rng;
 use risc0_zkvm::sha::{rust_crypto::Sha256 as Sha256Type, Digest, Impl, Sha256, DIGEST_BYTES};
+use serde::{Deserialize, Serialize};
 
 /// A resource that can be created and consumed
-#[derive(Clone, Copy, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Serialize, Deserialize)]
 pub struct Resource {
     // a succinct representation of the predicate associated with the resource
     pub logic_ref: Digest,
@@ -199,5 +200,20 @@ impl Resource {
         let mut rng = rand::thread_rng();
         self.rand_seed = rng.gen();
         self.nonce = rng.gen();
+    }
+}
+
+impl Default for Resource {
+    fn default() -> Self {
+        Self {
+            logic_ref: Digest::default(),
+            label_ref: Digest::default(),
+            quantity: 0,
+            value_ref: Digest::default(),
+            is_ephemeral: true,
+            nonce: [0; DEFAULT_BYTES],
+            nk_commitment: NullifierKeyCommitment::default(),
+            rand_seed: [0; DEFAULT_BYTES],
+        }
     }
 }

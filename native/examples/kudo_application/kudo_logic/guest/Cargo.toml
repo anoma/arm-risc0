@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 risc0-zkvm = "1.2.5"
-kudo_core = { path = "../../kudo_core" }
+kudo-core = { path = "../../kudo_core" }
 
 [patch.crates-io]
 # Placing this patch statement in the workspace Cargo.toml will add RISC Zero SHA-256 accelerator
