@@ -1,11 +1,12 @@
+pub use aarm_core::resource_logic::LogicCircuit;
 use aarm_core::{
     action_tree::ACTION_TREE_DEPTH, encryption::Ciphertext, logic_instance::LogicInstance,
     merkle_path::MerklePath, nullifier_key::NullifierKey, resource::Resource,
 };
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Serialize, Deserialize)]
-pub struct ReceiveLogicWitness {
+#[derive(Clone, Default, Serialize, Deserialize)]
+pub struct SimpleReceiveWitness {
     // Receive related fields
     pub receive_resource: Resource,
     pub receive_existence_path: MerklePath<ACTION_TREE_DEPTH>,
@@ -17,8 +18,8 @@ pub struct ReceiveLogicWitness {
     pub kudo_existence_path: MerklePath<ACTION_TREE_DEPTH>,
 }
 
-impl ReceiveLogicWitness {
-    pub fn constrain(&self) -> LogicInstance {
+impl LogicCircuit for SimpleReceiveWitness {
+    fn constrain(&self) -> LogicInstance {
         // Load the self resource, the receive resource is always a
         // created resource
         let self_cm = self.receive_resource.commitment();
@@ -54,7 +55,9 @@ impl ReceiveLogicWitness {
             app_data: Vec::new(),          // no app data needed
         }
     }
+}
 
+impl SimpleReceiveWitness {
     pub fn generate_witness(
         receive_resource: Resource,
         receive_existence_path: MerklePath<ACTION_TREE_DEPTH>,

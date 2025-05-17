@@ -1604,8 +1604,8 @@ dependencies = [
  "kudo-core",
  "kudo-tx",
  "kudo_logic",
- "receive_logic",
  "simple-denomination",
+ "simple-receive",
 ]
 
 [[package]]
@@ -1617,7 +1617,6 @@ dependencies = [
  "kudo-core",
  "kudo_logic",
  "methods",
- "receive_logic",
  "risc0-zkvm",
  "serde",
  "trivial_logic",
@@ -2293,7 +2292,16 @@ dependencies = [
 ]
 
 [[package]]
-name = "receive_logic"
+name = "receive-core"
+version = "0.1.0"
+dependencies = [
+ "aarm_core",
+ "kudo-core",
+ "serde",
+]
+
+[[package]]
+name = "receive-logic-circuit"
 version = "0.1.0"
 dependencies = [
  "risc0-build",
@@ -2992,6 +3000,19 @@ dependencies = [
  "denomination-core",
  "denomination-logic-circuit",
  "kudo-core",
+ "risc0-zkvm",
+ "serde",
+]
+
+[[package]]
+name = "simple-receive"
+version = "0.1.0"
+dependencies = [
+ "aarm",
+ "aarm_core",
+ "kudo-core",
+ "receive-core",
+ "receive-logic-circuit",
  "risc0-zkvm",
  "serde",
 ]

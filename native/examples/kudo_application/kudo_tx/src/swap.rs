@@ -10,33 +10,33 @@ use aarm_core::{
 };
 use compliance_circuit::COMPLIANCE_GUEST_ELF;
 use kudo_core::{
-    denomination::Denomination, kudo_logic_witness::KudoLogicWitness,
-    receive_logic_witness::ReceiveLogicWitness,
+    denomination::Denomination, kudo_logic_witness::KudoLogicWitness, receive::Receive,
 };
 use kudo_logic::{KUDO_LOGIC_ELF, KUDO_LOGIC_ID};
-use receive_logic::{RECEIVE_ELF, RECEIVE_ID};
 
 // TODO: SwapInstance seems simillar to TransferWitness, consider abstracting and
 // merging them
 #[derive(Clone)]
-pub struct SwapInstance<D1, D2>
+pub struct SwapInstance<D1, D2, R>
 where
     D1: Denomination + LogicProver,
     D2: Denomination + LogicProver,
+    R: Receive + LogicProver,
 {
     pub consumed_kudo_witness: KudoLogicWitness, // consumed resource - compliance unit 1
     pub consumed_kudo_path: MerklePath<COMMITMENT_TREE_DEPTH>,
     pub consumed_denomination: D1, // created resource - compliance unit 1
     pub created_kudo_witness: KudoLogicWitness, // created resource - compliance unit 2
     pub created_denomination: D2,  // consumed resource - compliance unit 2
-    pub receive_witness: ReceiveLogicWitness, // created resource - compliance unit 3
+    pub created_receive: R,        // created resource - compliance unit 3
     pub padding_resource_logic: PaddingResourceLogic, // consumed resource - compliance unit 3
 }
 
-impl<D1, D2> SwapInstance<D1, D2>
+impl<D1, D2, R> SwapInstance<D1, D2, R>
 where
     D1: Denomination + LogicProver,
     D2: Denomination + LogicProver,
+    R: Receive + LogicProver,
 {
     pub fn create_tx(&self) -> Transaction {
         // Create the action
@@ -85,7 +85,7 @@ where
                     ComplianceWitness::from_resources(
                         self.padding_resource_logic.witness().resource,
                         self.padding_resource_logic.witness().nf_key,
-                        self.receive_witness.receive_resource,
+                        self.created_receive.resource(),
                     );
 
                 (
@@ -125,13 +125,7 @@ where
             let padding_resource_proof = self.padding_resource_logic.prove();
 
             println!("Generating the receive logic proof");
-            let receive_logic_proof = {
-                let receipt = groth16_prove(&self.receive_witness, RECEIVE_ELF);
-                LogicProof {
-                    receipt,
-                    verifying_key: RECEIVE_ID.into(),
-                }
-            };
+            let receive_logic_proof = self.created_receive.prove();
 
             (
                 Action::new(

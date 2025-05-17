@@ -9,14 +9,13 @@ use aarm_core::{
 };
 use kudo_core::{
     kudo_logic_witness::KudoLogicWitness,
-    receive_logic_witness::ReceiveLogicWitness,
     utils::{compute_kudo_label, compute_kudo_value, generate_receive_signature},
 };
 // TODO: remove this dependency
 use kudo_logic::KUDO_LOGIC_ID;
 use kudo_tx::swap::SwapInstance;
-use receive_logic::RECEIVE_ID;
 use simple_denomination::{SimpleDenominationResourceLogic, SimpleDenominationWitness};
+use simple_receive::{SimpleReceiveLogic, SimpleReceiveWitness};
 
 pub fn build_swap_tx(
     consumed_issuer: &AuthorizationVerifyingKey,
@@ -26,7 +25,11 @@ pub fn build_swap_tx(
     consumed_kudo_path: MerklePath<COMMITMENT_TREE_DEPTH>,
     created_issuer: &AuthorizationVerifyingKey,
     created_kudo_quantity: u128,
-) -> SwapInstance<SimpleDenominationResourceLogic, SimpleDenominationResourceLogic> {
+) -> SwapInstance<
+    SimpleDenominationResourceLogic,
+    SimpleDenominationResourceLogic,
+    SimpleReceiveLogic,
+> {
     let (instant_nk, instant_nk_commitment) = NullifierKey::random_pair();
 
     // Construct the consumed kudo resource
@@ -77,7 +80,7 @@ pub fn build_swap_tx(
 
     // Construct the receive logic resource
     let receive_resource = Resource::create(
-        RECEIVE_ID.into(),
+        SimpleReceiveLogic::verifying_key(),
         created_kudo_value_cm,
         0,
         [0u8; 32].into(),
@@ -140,7 +143,8 @@ pub fn build_swap_tx(
         .into();
 
     // Construct the created kudo witness
-    let receiver_signature = generate_receive_signature(&RECEIVE_ID.into(), &owner_sk);
+    let receiver_signature =
+        generate_receive_signature(&SimpleReceiveLogic::verifying_key(), &owner_sk);
     let created_kudo_witness = KudoLogicWitness::generate_persistent_resource_creation_witness(
         created_kudo_resource.clone(),
         created_kudo_existence_path,
@@ -171,14 +175,15 @@ pub fn build_swap_tx(
         .into();
 
     // Construct the receive witness
-    let receive_witness = ReceiveLogicWitness::generate_witness(
+    let created_receive = SimpleReceiveWitness::generate_witness(
         receive_resource,
         receive_existence_path,
         instant_nk,
         false,
         created_kudo_resource,
         created_kudo_existence_path,
-    );
+    )
+    .into();
 
     // Construct the padding logic witness
     let padding_resource_logic = PaddingResourceLogic::new(
@@ -194,7 +199,7 @@ pub fn build_swap_tx(
         created_kudo_witness,
         created_denomination,
         padding_resource_logic,
-        receive_witness,
+        created_receive,
         consumed_kudo_path,
     }
 }

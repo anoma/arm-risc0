@@ -9,23 +9,29 @@ use aarm_core::{
 };
 use compliance_circuit::COMPLIANCE_GUEST_ELF;
 use kudo_core::{
-    denomination::Denomination, kudo_logic_witness::KudoLogicWitness,
-    receive_logic_witness::ReceiveLogicWitness,
+    denomination::Denomination, kudo_logic_witness::KudoLogicWitness, receive::Receive,
 };
 use kudo_logic::{KUDO_LOGIC_ELF, KUDO_LOGIC_ID};
-use receive_logic::{RECEIVE_ELF, RECEIVE_ID};
 
 #[derive(Clone)]
-pub struct IssueInstance<D: Denomination + LogicProver> {
+pub struct IssueInstance<D, R>
+where
+    D: Denomination + LogicProver,
+    R: Receive + LogicProver,
+{
     pub issued_kudo_witness: KudoLogicWitness,
     pub issue_denomination: D,
-    pub issued_receive_witness: ReceiveLogicWitness,
+    pub issue_receive: R,
     pub ephemeral_kudo_witness: KudoLogicWitness,
     pub ephemeral_denomination: D,
     pub padding_resource_logic: PaddingResourceLogic,
 }
 
-impl<D: Denomination + LogicProver> IssueInstance<D> {
+impl<D, R> IssueInstance<D, R>
+where
+    D: Denomination + LogicProver,
+    R: Receive + LogicProver,
+{
     pub fn create_tx(&self) -> Transaction {
         // Create the action
         let (action, delta_witness) = {
@@ -52,8 +58,8 @@ impl<D: Denomination + LogicProver> IssueInstance<D> {
             let (compliance_unit_2, delta_witness_2) = {
                 let compliance_witness: ComplianceWitness<COMMITMENT_TREE_DEPTH> =
                     ComplianceWitness::from_resources(
-                        self.issued_receive_witness.receive_resource,
-                        self.issued_receive_witness.nf_key,
+                        self.issue_receive.resource(),
+                        self.issue_receive.nf_key(),
                         self.issue_denomination.resource(),
                     );
 
@@ -93,13 +99,7 @@ impl<D: Denomination + LogicProver> IssueInstance<D> {
             let issue_denomination_proof = self.issue_denomination.prove();
 
             println!("Generating the issued receive logic proof");
-            let issued_receive_logic_proof = {
-                let receipt = groth16_prove(&self.issued_receive_witness, RECEIVE_ELF);
-                LogicProof {
-                    receipt,
-                    verifying_key: RECEIVE_ID.into(),
-                }
-            };
+            let issued_receive_logic_proof = self.issue_receive.prove();
 
             println!("Generating the ephemeral kudo logic proof");
             let ephemeral_kudo_proof = {

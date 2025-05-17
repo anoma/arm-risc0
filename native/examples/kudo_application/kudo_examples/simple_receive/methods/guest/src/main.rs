@@ -1,9 +1,9 @@
-use kudo_core::receive_logic_witness::ReceiveLogicWitness;
+use receive_core::{SimpleReceiveWitness, LogicCircuit};
 use risc0_zkvm::guest::env;
 
 fn main() {
     // read the input
-    let witness: ReceiveLogicWitness = env::read();
+    let witness: SimpleReceiveWitness = env::read();
 
     // process constraints
     let instance = witness.constrain();

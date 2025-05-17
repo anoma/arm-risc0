@@ -7,14 +7,13 @@ use aarm_core::{
 };
 use kudo_core::{
     kudo_logic_witness::KudoLogicWitness,
-    receive_logic_witness::ReceiveLogicWitness,
     utils::{compute_kudo_label, compute_kudo_value},
 };
 // TODO: remove this dependency
 use kudo_logic::KUDO_LOGIC_ID;
 use kudo_tx::issue::IssueInstance;
-use receive_logic::RECEIVE_ID;
 use simple_denomination::{SimpleDenominationResourceLogic, SimpleDenominationWitness};
+use simple_receive::{SimpleReceiveLogic, SimpleReceiveWitness};
 
 pub fn build_issue_tx(
     issuer_sk: &AuthorizationSigningKey,
@@ -22,7 +21,7 @@ pub fn build_issue_tx(
     receiver_pk: &AuthorizationVerifyingKey,
     receiver_signature: &AuthorizationSignature,
     receiver_nk_commitment: &NullifierKeyCommitment,
-) -> IssueInstance<SimpleDenominationResourceLogic> {
+) -> IssueInstance<SimpleDenominationResourceLogic, SimpleReceiveLogic> {
     let issuer = AuthorizationVerifyingKey::from_signing_key(issuer_sk);
     let (instant_nk, instant_nk_commitment) = NullifierKey::random_pair();
 
@@ -65,7 +64,7 @@ pub fn build_issue_tx(
 
     // Construct the issued receive logic resource
     let issued_receive_resource = Resource::create(
-        RECEIVE_ID.into(),
+        SimpleReceiveLogic::verifying_key(),
         issued_kudo_resource_cm,
         0,
         [0u8; 32].into(),
@@ -147,14 +146,15 @@ pub fn build_issue_tx(
         .into();
 
     // Construct the issued receive witness
-    let issued_receive_witness = ReceiveLogicWitness::generate_witness(
+    let issue_receive = SimpleReceiveWitness::generate_witness(
         issued_receive_resource,
         issued_receive_existence_path,
         instant_nk,
         true,
         issued_kudo_resource,
         issued_kudo_existence_path,
-    );
+    )
+    .into();
 
     // Construct the ephemeral kudo witness
     let ephemeral_kudo_witness = KudoLogicWitness::generate_consumed_ephemeral_witness(
@@ -190,7 +190,7 @@ pub fn build_issue_tx(
     IssueInstance {
         issued_kudo_witness,
         issue_denomination,
-        issued_receive_witness,
+        issue_receive,
         ephemeral_kudo_witness,
         ephemeral_denomination,
         padding_resource_logic,
@@ -204,7 +204,7 @@ fn generate_an_issue_tx() {
     let (receiver_pk, receiver_signature) = {
         let sk = AuthorizationSigningKey::new();
         let pk = AuthorizationVerifyingKey::from_signing_key(&sk);
-        let signature = generate_receive_signature(&RECEIVE_ID.into(), &sk);
+        let signature = generate_receive_signature(&SimpleReceiveLogic::verifying_key(), &sk);
         (pk, signature)
     };
 

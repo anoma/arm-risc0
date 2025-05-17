@@ -9,14 +9,13 @@ use aarm_core::{
 };
 use kudo_core::{
     kudo_logic_witness::KudoLogicWitness,
-    receive_logic_witness::ReceiveLogicWitness,
     utils::{compute_kudo_label, compute_kudo_value},
 };
 // TODO: remove this dependency
 use kudo_logic::KUDO_LOGIC_ID;
 use kudo_tx::transfer::TransferInstance;
-use receive_logic::RECEIVE_ID;
 use simple_denomination::{SimpleDenominationResourceLogic, SimpleDenominationWitness};
+use simple_receive::{SimpleReceiveLogic, SimpleReceiveWitness};
 
 pub fn build_transfer_tx(
     issuer: &AuthorizationVerifyingKey,
@@ -27,7 +26,7 @@ pub fn build_transfer_tx(
     receiver_pk: &AuthorizationVerifyingKey,
     receiver_signature: &AuthorizationSignature,
     receiver_nk_commitment: &NullifierKeyCommitment,
-) -> TransferInstance<SimpleDenominationResourceLogic> {
+) -> TransferInstance<SimpleDenominationResourceLogic, SimpleReceiveLogic> {
     let (instant_nk, instant_nk_commitment) = NullifierKey::random_pair();
 
     // Construct the consumed kudo resource
@@ -77,7 +76,7 @@ pub fn build_transfer_tx(
 
     // Construct the receive logic resource
     let receive_resource = Resource::create(
-        RECEIVE_ID.into(),
+        SimpleReceiveLogic::verifying_key(),
         created_kudo_value_cm,
         0,
         [0u8; 32].into(),
@@ -170,14 +169,15 @@ pub fn build_transfer_tx(
         .into();
 
     // Construct the receive witness
-    let receive_witness = ReceiveLogicWitness::generate_witness(
+    let created_receive = SimpleReceiveWitness::generate_witness(
         receive_resource,
         receive_existence_path,
         instant_nk,
         false,
         created_kudo_resource,
         created_kudo_existence_path,
-    );
+    )
+    .into();
 
     // Construct the padding logic witness
     let padding_resource_logic = PaddingResourceLogic::new(
@@ -193,7 +193,7 @@ pub fn build_transfer_tx(
         created_kudo_witness,
         created_denomination,
         padding_resource_logic,
-        receive_witness,
+        created_receive,
         consumed_kudo_path,
     }
 }
@@ -213,7 +213,7 @@ fn generate_a_transfer_tx() {
     let (receiver_pk, receiver_signature) = {
         let sk = AuthorizationSigningKey::new();
         let pk = AuthorizationVerifyingKey::from_signing_key(&sk);
-        let signature = generate_receive_signature(&RECEIVE_ID.into(), &sk);
+        let signature = generate_receive_signature(&SimpleReceiveLogic::verifying_key(), &sk);
         (pk, signature)
     };
     let (_receiver_nf_key, receiver_nk_commitment) = NullifierKey::random_pair();
