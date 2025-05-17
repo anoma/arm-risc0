@@ -7,12 +7,8 @@ use aarm_core::{
     nullifier_key::{NullifierKey, NullifierKeyCommitment},
     resource::Resource,
 };
-use kudo_core::{
-    kudo_logic_witness::KudoLogicWitness,
-    utils::{compute_kudo_label, compute_kudo_value},
-};
-// TODO: remove this dependency
-use kudo_logic::KUDO_LOGIC_ID;
+use kudo_core::utils::{compute_kudo_label, compute_kudo_value};
+use kudo_resource::{KudoResourceLogic, KudoResourceLogicWitness};
 use kudo_tx::transfer::TransferInstance;
 use simple_denomination::{SimpleDenominationResourceLogic, SimpleDenominationWitness};
 use simple_receive::{SimpleReceiveLogic, SimpleReceiveWitness};
@@ -26,11 +22,12 @@ pub fn build_transfer_tx(
     receiver_pk: &AuthorizationVerifyingKey,
     receiver_signature: &AuthorizationSignature,
     receiver_nk_commitment: &NullifierKeyCommitment,
-) -> TransferInstance<SimpleDenominationResourceLogic, SimpleReceiveLogic> {
+) -> TransferInstance<KudoResourceLogic, SimpleDenominationResourceLogic, SimpleReceiveLogic> {
     let (instant_nk, instant_nk_commitment) = NullifierKey::random_pair();
 
     // Construct the consumed kudo resource
-    let kudo_lable = compute_kudo_label(&KUDO_LOGIC_ID.into(), issuer);
+    let kudo_logic = KudoResourceLogic::verifying_key();
+    let kudo_lable = compute_kudo_label(&kudo_logic, issuer);
     assert_eq!(consumed_kudo_resource.label_ref, kudo_lable);
     let owner = AuthorizationVerifyingKey::from_signing_key(owner_sk);
     let kudo_value = compute_kudo_value(&owner);
@@ -113,7 +110,7 @@ pub fn build_transfer_tx(
     let receive_existence_path = action_tree.generate_path(receive_resource_cm).unwrap();
 
     // Construct the consumed kudo witness
-    let consumed_kudo_witness = KudoLogicWitness::generate_persistent_resource_consumption_witness(
+    let consumed_kudo = KudoResourceLogicWitness::generate_persistent_resource_consumption_witness(
         *consumed_kudo_resource,
         consumed_kudo_existence_path,
         *consumed_kudo_nf_key,
@@ -121,7 +118,8 @@ pub fn build_transfer_tx(
         consumed_denomination_resource,
         consumed_denomination_existence_path,
         false,
-    );
+    )
+    .into();
 
     // Construct the denomination witness corresponding to the consumed kudo resource
     let consumption_signature = owner_sk.sign(root.as_bytes());
@@ -139,7 +137,7 @@ pub fn build_transfer_tx(
         .into();
 
     // Construct the created kudo witness
-    let created_kudo_witness = KudoLogicWitness::generate_persistent_resource_creation_witness(
+    let created_kudo = KudoResourceLogicWitness::generate_persistent_resource_creation_witness(
         created_kudo_resource.clone(),
         created_kudo_existence_path,
         *issuer,
@@ -153,7 +151,8 @@ pub fn build_transfer_tx(
         receive_existence_path,
         *receiver_pk,
         *receiver_signature,
-    );
+    )
+    .into();
 
     // Construct the denomination witness corresponding to the created kudo resource
     let created_denomination =
@@ -188,9 +187,9 @@ pub fn build_transfer_tx(
     );
 
     TransferInstance {
-        consumed_kudo_witness,
+        consumed_kudo,
         consumed_denomination,
-        created_kudo_witness,
+        created_kudo,
         created_denomination,
         padding_resource_logic,
         created_receive,
@@ -202,9 +201,10 @@ pub fn build_transfer_tx(
 fn generate_a_transfer_tx() {
     use kudo_core::utils::generate_receive_signature;
 
+    let kudo_logic = KudoResourceLogic::verifying_key();
     let issuer_sk = AuthorizationSigningKey::new();
     let issuer = AuthorizationVerifyingKey::from_signing_key(&issuer_sk);
-    let kudo_lable = compute_kudo_label(&KUDO_LOGIC_ID.into(), &issuer);
+    let kudo_lable = compute_kudo_label(&kudo_logic, &issuer);
     let owner_sk = AuthorizationSigningKey::new();
     let owner = AuthorizationVerifyingKey::from_signing_key(&owner_sk);
     let kudo_value = compute_kudo_value(&owner);
@@ -218,14 +218,8 @@ fn generate_a_transfer_tx() {
     };
     let (_receiver_nf_key, receiver_nk_commitment) = NullifierKey::random_pair();
 
-    let consumed_kudo_resource = Resource::create(
-        KUDO_LOGIC_ID.into(),
-        kudo_lable,
-        100,
-        kudo_value,
-        false,
-        kudo_nk_cm,
-    );
+    let consumed_kudo_resource =
+        Resource::create(kudo_logic, kudo_lable, 100, kudo_value, false, kudo_nk_cm);
 
     let transfer_witness = build_transfer_tx(
         &issuer,

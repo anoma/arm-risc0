@@ -1,0 +1,11 @@
+[package]
+name = "kudo-resource-core"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+aarm_core = { path = "../../../../../aarm_core" }
+kudo-core = { path = "../../../kudo_core" }
+serde = { version = "1.0.197", default-features = false }
+risc0-zkvm = "1.2.5"
+rand = "0.8"

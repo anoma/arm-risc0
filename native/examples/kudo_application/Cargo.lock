@@ -1602,10 +1602,41 @@ dependencies = [
  "aarm",
  "aarm_core",
  "kudo-core",
+ "kudo-resource",
  "kudo-tx",
- "kudo_logic",
  "simple-denomination",
  "simple-receive",
+]
+
+[[package]]
+name = "kudo-logic-circuit"
+version = "0.1.0"
+dependencies = [
+ "risc0-build",
+]
+
+[[package]]
+name = "kudo-resource"
+version = "0.1.0"
+dependencies = [
+ "aarm",
+ "aarm_core",
+ "kudo-core",
+ "kudo-logic-circuit",
+ "kudo-resource-core",
+ "risc0-zkvm",
+ "serde",
+]
+
+[[package]]
+name = "kudo-resource-core"
+version = "0.1.0"
+dependencies = [
+ "aarm_core",
+ "kudo-core",
+ "rand 0.8.5",
+ "risc0-zkvm",
+ "serde",
 ]
 
 [[package]]
@@ -1615,18 +1646,10 @@ dependencies = [
  "aarm",
  "aarm_core",
  "kudo-core",
- "kudo_logic",
  "methods",
  "risc0-zkvm",
  "serde",
  "trivial_logic",
-]
-
-[[package]]
-name = "kudo_logic"
-version = "0.1.0"
-dependencies = [
- "risc0-build",
 ]
 
 [[package]]

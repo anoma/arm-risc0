@@ -1,6 +1,5 @@
 [workspace]
 resolver = "2"
-# members = ["kudo_logic", "denomination_logic", "receive_logic", "kudo_core", "kudo_tx"]
 members = ["kudo_core", "kudo_examples", "kudo_tx"]
 
 # Always optimize; building and running the guest takes much longer without optimization.

@@ -1,6 +1,6 @@
 use aarm::{
     action::Action,
-    logic_proof::{LogicProof, LogicProver, PaddingResourceLogic},
+    logic_proof::{LogicProver, PaddingResourceLogic},
     transaction::{Delta, Transaction},
     utils::groth16_prove,
 };
@@ -8,27 +8,26 @@ use aarm_core::{
     compliance::ComplianceWitness, constants::COMMITMENT_TREE_DEPTH, delta_proof::DeltaWitness,
 };
 use compliance_circuit::COMPLIANCE_GUEST_ELF;
-use kudo_core::{
-    denomination::Denomination, kudo_logic_witness::KudoLogicWitness, receive::Receive,
-};
-use kudo_logic::{KUDO_LOGIC_ELF, KUDO_LOGIC_ID};
+use kudo_core::{denomination::Denomination, kudo::Kudo, receive::Receive};
 
 #[derive(Clone)]
-pub struct IssueInstance<D, R>
+pub struct IssueInstance<K, D, R>
 where
+    K: Kudo + LogicProver,
     D: Denomination + LogicProver,
     R: Receive + LogicProver,
 {
-    pub issued_kudo_witness: KudoLogicWitness,
+    pub issue_kudo: K,
     pub issue_denomination: D,
     pub issue_receive: R,
-    pub ephemeral_kudo_witness: KudoLogicWitness,
+    pub ephemeral_kudo: K,
     pub ephemeral_denomination: D,
     pub padding_resource_logic: PaddingResourceLogic,
 }
 
-impl<D, R> IssueInstance<D, R>
+impl<K, D, R> IssueInstance<K, D, R>
 where
+    K: Kudo + LogicProver,
     D: Denomination + LogicProver,
     R: Receive + LogicProver,
 {
@@ -42,9 +41,9 @@ where
             let (compliance_unit_1, delta_witness_1) = {
                 let compliance_witness: ComplianceWitness<COMMITMENT_TREE_DEPTH> =
                     ComplianceWitness::from_resources(
-                        self.ephemeral_kudo_witness.kudo_resource,
-                        self.ephemeral_kudo_witness.kudo_nf_key,
-                        self.issued_kudo_witness.kudo_resource,
+                        self.ephemeral_kudo.resource(),
+                        self.ephemeral_kudo.nf_key(),
+                        self.issue_kudo.resource(),
                     );
 
                 (
@@ -87,13 +86,7 @@ where
 
             // Generate logic proofs
             println!("Generating the issued kudo logic proof");
-            let issued_kudo_proof = {
-                let receipt = groth16_prove(&self.issued_kudo_witness, KUDO_LOGIC_ELF);
-                LogicProof {
-                    receipt,
-                    verifying_key: KUDO_LOGIC_ID.into(),
-                }
-            };
+            let issued_kudo_proof = self.issue_kudo.prove();
 
             println!("Generating the issued denomination logic proof");
             let issue_denomination_proof = self.issue_denomination.prove();
@@ -102,13 +95,7 @@ where
             let issued_receive_logic_proof = self.issue_receive.prove();
 
             println!("Generating the ephemeral kudo logic proof");
-            let ephemeral_kudo_proof = {
-                let receipt = groth16_prove(&self.ephemeral_kudo_witness, KUDO_LOGIC_ELF);
-                LogicProof {
-                    receipt,
-                    verifying_key: KUDO_LOGIC_ID.into(),
-                }
-            };
+            let ephemeral_kudo_proof = self.ephemeral_kudo.prove();
 
             println!("Generating the ephemeral denomination logic proof");
             let ephemeral_denomination_proof = self.ephemeral_denomination.prove();

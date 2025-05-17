@@ -7,12 +7,8 @@ use aarm_core::{
     nullifier_key::NullifierKey,
     resource::Resource,
 };
-use kudo_core::{
-    kudo_logic_witness::KudoLogicWitness,
-    utils::{compute_kudo_label, compute_kudo_value, generate_receive_signature},
-};
-// TODO: remove this dependency
-use kudo_logic::KUDO_LOGIC_ID;
+use kudo_core::utils::{compute_kudo_label, compute_kudo_value, generate_receive_signature};
+use kudo_resource::{KudoResourceLogic, KudoResourceLogicWitness};
 use kudo_tx::swap::SwapInstance;
 use simple_denomination::{SimpleDenominationResourceLogic, SimpleDenominationWitness};
 use simple_receive::{SimpleReceiveLogic, SimpleReceiveWitness};
@@ -26,14 +22,17 @@ pub fn build_swap_tx(
     created_issuer: &AuthorizationVerifyingKey,
     created_kudo_quantity: u128,
 ) -> SwapInstance<
+    KudoResourceLogic,
     SimpleDenominationResourceLogic,
+    KudoResourceLogic,
     SimpleDenominationResourceLogic,
     SimpleReceiveLogic,
 > {
     let (instant_nk, instant_nk_commitment) = NullifierKey::random_pair();
 
     // Construct the consumed kudo resource
-    let consumed_kudo_lable = compute_kudo_label(&KUDO_LOGIC_ID.into(), consumed_issuer);
+    let kudo_logic = KudoResourceLogic::verifying_key();
+    let consumed_kudo_lable = compute_kudo_label(&kudo_logic, consumed_issuer);
     assert_eq!(consumed_kudo_resource.label_ref, consumed_kudo_lable);
     let owner = AuthorizationVerifyingKey::from_signing_key(owner_sk);
     let kudo_value = compute_kudo_value(&owner);
@@ -54,9 +53,9 @@ pub fn build_swap_tx(
 
     // Construct the created kudo resource: same ownership(kudo_value and
     // nk_commitment) as the consumed kudo resource
-    let created_kudo_lable = compute_kudo_label(&KUDO_LOGIC_ID.into(), created_issuer);
+    let created_kudo_lable = compute_kudo_label(&kudo_logic, created_issuer);
     let created_kudo_resource = Resource::create(
-        KUDO_LOGIC_ID.into(),
+        kudo_logic,
         created_kudo_lable,
         created_kudo_quantity,
         kudo_value, // use the same kudo value as the consumed kudo resource
@@ -117,7 +116,7 @@ pub fn build_swap_tx(
     let receive_existence_path = action_tree.generate_path(receive_resource_cm).unwrap();
 
     // Construct the consumed kudo witness
-    let consumed_kudo_witness = KudoLogicWitness::generate_persistent_resource_consumption_witness(
+    let consumed_kudo = KudoResourceLogicWitness::generate_persistent_resource_consumption_witness(
         *consumed_kudo_resource,
         consumed_kudo_existence_path,
         *nf_key,
@@ -125,7 +124,8 @@ pub fn build_swap_tx(
         consumed_denomination_resource,
         consumed_denomination_existence_path,
         false,
-    );
+    )
+    .into();
 
     // Construct the denomination witness corresponding to the consumed kudo resource
     let consumption_signature = owner_sk.sign(root.as_bytes());
@@ -145,7 +145,7 @@ pub fn build_swap_tx(
     // Construct the created kudo witness
     let receiver_signature =
         generate_receive_signature(&SimpleReceiveLogic::verifying_key(), &owner_sk);
-    let created_kudo_witness = KudoLogicWitness::generate_persistent_resource_creation_witness(
+    let created_kudo = KudoResourceLogicWitness::generate_persistent_resource_creation_witness(
         created_kudo_resource.clone(),
         created_kudo_existence_path,
         *created_issuer,
@@ -159,7 +159,8 @@ pub fn build_swap_tx(
         receive_existence_path,
         owner,
         receiver_signature,
-    );
+    )
+    .into();
 
     // Construct the denomination witness corresponding to the created kudo resource
     let created_denomination =
@@ -194,9 +195,9 @@ pub fn build_swap_tx(
     );
 
     SwapInstance {
-        consumed_kudo_witness,
+        consumed_kudo,
         consumed_denomination,
-        created_kudo_witness,
+        created_kudo,
         created_denomination,
         padding_resource_logic,
         created_receive,
@@ -208,12 +209,12 @@ pub fn build_swap_tx(
 fn generate_a_swap_tx() {
     use aarm::transaction::Transaction;
 
+    let kudo_logic = KudoResourceLogic::verifying_key();
     // The issuer determines the kind of kudo
     let alice_consumed_issuer_sk = AuthorizationSigningKey::new();
     let alice_consumed_issuer =
         AuthorizationVerifyingKey::from_signing_key(&alice_consumed_issuer_sk);
-    let alice_consumed_kudo_lable =
-        compute_kudo_label(&KUDO_LOGIC_ID.into(), &alice_consumed_issuer);
+    let alice_consumed_kudo_lable = compute_kudo_label(&kudo_logic, &alice_consumed_issuer);
 
     // The consumed and created kudo resources share the same ownership(value and nk)
     let alice_sk = AuthorizationSigningKey::new();
@@ -223,7 +224,7 @@ fn generate_a_swap_tx() {
     let alice_consumed_kudo_quantity = 100;
 
     let alice_consumed_kudo_resource = Resource::create(
-        KUDO_LOGIC_ID.into(),
+        kudo_logic,
         alice_consumed_kudo_lable,
         alice_consumed_kudo_quantity,
         alice_kudo_value,
@@ -234,7 +235,7 @@ fn generate_a_swap_tx() {
     let alice_created_issuer_sk = AuthorizationSigningKey::new();
     let alice_created_issuer =
         AuthorizationVerifyingKey::from_signing_key(&alice_created_issuer_sk);
-    let alice_created_kudo_lable = compute_kudo_label(&KUDO_LOGIC_ID.into(), &alice_created_issuer);
+    let alice_created_kudo_lable = compute_kudo_label(&kudo_logic, &alice_created_issuer);
     let alice_created_kudo_quantity = 200;
 
     let alice_swap_witness = build_swap_tx(
@@ -254,7 +255,7 @@ fn generate_a_swap_tx() {
     let bob_kudo_value = compute_kudo_value(&bob_pk);
     let (bob_kudo_nf_key, bob_kudo_nk_cm) = NullifierKey::random_pair();
     let bob_consumed_kudo_resource = Resource::create(
-        KUDO_LOGIC_ID.into(),
+        kudo_logic,
         alice_created_kudo_lable,
         alice_created_kudo_quantity,
         bob_kudo_value,

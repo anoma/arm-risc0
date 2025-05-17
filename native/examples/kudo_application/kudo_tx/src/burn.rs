@@ -1,6 +1,6 @@
 use aarm::{
     action::Action,
-    logic_proof::{LogicProof, LogicProver},
+    logic_proof::LogicProver,
     transaction::{Delta, Transaction},
     utils::groth16_prove,
 };
@@ -9,19 +9,26 @@ use aarm_core::{
     merkle_path::MerklePath,
 };
 use compliance_circuit::COMPLIANCE_GUEST_ELF;
-use kudo_core::{denomination::Denomination, kudo_logic_witness::KudoLogicWitness};
-use kudo_logic::{KUDO_LOGIC_ELF, KUDO_LOGIC_ID};
+use kudo_core::{denomination::Denomination, kudo::Kudo};
 
 #[derive(Clone)]
-pub struct BurnInstance<D: Denomination + LogicProver> {
-    pub burned_kudo_witness: KudoLogicWitness, // consumed resource
+pub struct BurnInstance<K, D>
+where
+    K: Kudo + LogicProver,
+    D: Denomination + LogicProver,
+{
+    pub burned_kudo: K, // consumed resource
     pub burned_kudo_path: MerklePath<COMMITMENT_TREE_DEPTH>,
-    pub burned_denomination: D,                   // created resource
-    pub ephemeral_kudo_witness: KudoLogicWitness, // created resource
-    pub ephemeral_denomination: D,                // consumed resource
+    pub burned_denomination: D,    // created resource
+    pub ephemeral_kudo: K,         // created resource
+    pub ephemeral_denomination: D, // consumed resource
 }
 
-impl<D: Denomination + LogicProver> BurnInstance<D> {
+impl<K, D> BurnInstance<K, D>
+where
+    K: Kudo + LogicProver,
+    D: Denomination + LogicProver,
+{
     pub fn create_tx(&self) -> Transaction {
         // Create the action
         let (action, delta_witness) = {
@@ -32,8 +39,8 @@ impl<D: Denomination + LogicProver> BurnInstance<D> {
             let (compliance_unit_1, delta_witness_1) = {
                 let compliance_witness: ComplianceWitness<COMMITMENT_TREE_DEPTH> =
                     ComplianceWitness::from_resources_with_path(
-                        self.burned_kudo_witness.kudo_resource,
-                        self.burned_kudo_witness.kudo_nf_key,
+                        self.burned_kudo.resource(),
+                        self.burned_kudo.nf_key(),
                         self.burned_kudo_path,
                         self.burned_denomination.resource(),
                     );
@@ -51,7 +58,7 @@ impl<D: Denomination + LogicProver> BurnInstance<D> {
                     ComplianceWitness::from_resources(
                         self.ephemeral_denomination.resource(),
                         self.ephemeral_denomination.nf_key(),
-                        self.ephemeral_kudo_witness.denomination_resource,
+                        self.ephemeral_kudo.resource(),
                     );
 
                 (
@@ -62,13 +69,7 @@ impl<D: Denomination + LogicProver> BurnInstance<D> {
 
             // Generate logic proofs
             println!("Generating the burned kudo logic proof");
-            let burned_kudo_proof = {
-                let receipt = groth16_prove(&self.burned_kudo_witness, KUDO_LOGIC_ELF);
-                LogicProof {
-                    receipt,
-                    verifying_key: KUDO_LOGIC_ID.into(),
-                }
-            };
+            let burned_kudo_proof = self.burned_kudo.prove();
 
             println!(
                 "Generating the denomination logic proof corresponding to the burned kudo resource"
@@ -76,13 +77,7 @@ impl<D: Denomination + LogicProver> BurnInstance<D> {
             let burned_denomination_proof = self.burned_denomination.prove();
 
             println!("Generating the ephemeral kudo logic proof");
-            let ephemeral_kudo_proof = {
-                let receipt = groth16_prove(&self.ephemeral_kudo_witness, KUDO_LOGIC_ELF);
-                LogicProof {
-                    receipt,
-                    verifying_key: KUDO_LOGIC_ID.into(),
-                }
-            };
+            let ephemeral_kudo_proof = self.ephemeral_kudo.prove();
 
             println!("Generating the denomination logic proof corresponding to the ephemeral kudo resource");
             let ephemeral_denomination_proof = self.ephemeral_denomination.prove();

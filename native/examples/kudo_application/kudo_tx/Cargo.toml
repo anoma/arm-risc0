@@ -11,4 +11,3 @@ serde = { version = "1.0.197", default-features = false }
 risc0-zkvm = "1.2.5"
 compliance_circuit = { path = "../../compliance_circuit/methods", package = 'methods' }
 trivial_logic = { path = "../../trivial_logic/trivial_logic" }
-kudo_logic = { path = "../kudo_logic" }

@@ -1,5 +1,5 @@
 [package]
-name = "kudo_logic"
+name = "kudo-logic-circuit"
 version = "0.1.0"
 edition = "2021"
 

@@ -1,9 +1,9 @@
-use kudo_core::kudo_logic_witness::KudoLogicWitness;
+use kudo_resource_core::{KudoResourceLogicWitness, LogicCircuit};
 use risc0_zkvm::guest::env;
 
 fn main() {
     // read the input
-    let witness: KudoLogicWitness = env::read();
+    let witness: KudoResourceLogicWitness = env::read();
 
     // process constraints
     let instance = witness.constrain();

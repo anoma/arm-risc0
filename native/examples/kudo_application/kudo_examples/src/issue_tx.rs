@@ -5,12 +5,8 @@ use aarm_core::{
     nullifier_key::{NullifierKey, NullifierKeyCommitment},
     resource::Resource,
 };
-use kudo_core::{
-    kudo_logic_witness::KudoLogicWitness,
-    utils::{compute_kudo_label, compute_kudo_value},
-};
-// TODO: remove this dependency
-use kudo_logic::KUDO_LOGIC_ID;
+use kudo_core::utils::{compute_kudo_label, compute_kudo_value};
+use kudo_resource::{KudoResourceLogic, KudoResourceLogicWitness};
 use kudo_tx::issue::IssueInstance;
 use simple_denomination::{SimpleDenominationResourceLogic, SimpleDenominationWitness};
 use simple_receive::{SimpleReceiveLogic, SimpleReceiveWitness};
@@ -21,16 +17,16 @@ pub fn build_issue_tx(
     receiver_pk: &AuthorizationVerifyingKey,
     receiver_signature: &AuthorizationSignature,
     receiver_nk_commitment: &NullifierKeyCommitment,
-) -> IssueInstance<SimpleDenominationResourceLogic, SimpleReceiveLogic> {
+) -> IssueInstance<KudoResourceLogic, SimpleDenominationResourceLogic, SimpleReceiveLogic> {
     let issuer = AuthorizationVerifyingKey::from_signing_key(issuer_sk);
     let (instant_nk, instant_nk_commitment) = NullifierKey::random_pair();
 
     // Construct the issued kudo resource
-    // TODO: fix the kudo_logic
-    let kudo_lable = compute_kudo_label(&KUDO_LOGIC_ID.into(), &issuer);
+    let kudo_logic = KudoResourceLogic::verifying_key();
+    let kudo_lable = compute_kudo_label(&kudo_logic, &issuer);
     let kudo_value = compute_kudo_value(receiver_pk);
     let issued_kudo_resource = Resource::create(
-        KUDO_LOGIC_ID.into(),
+        kudo_logic,
         kudo_lable,
         quantity,
         kudo_value,
@@ -41,7 +37,7 @@ pub fn build_issue_tx(
 
     // Construct the ephemeral kudo resource
     let ephemeral_kudo_resource = Resource::create(
-        KUDO_LOGIC_ID.into(),
+        kudo_logic,
         kudo_lable,
         quantity,
         kudo_value,
@@ -116,7 +112,7 @@ pub fn build_issue_tx(
         .unwrap();
 
     // Construct the issued kudo witness
-    let issued_kudo_witness = KudoLogicWitness::generate_persistent_resource_creation_witness(
+    let issue_kudo = KudoResourceLogicWitness::generate_persistent_resource_creation_witness(
         issued_kudo_resource,
         issued_kudo_existence_path,
         issuer,
@@ -130,7 +126,8 @@ pub fn build_issue_tx(
         issued_receive_existence_path,
         *receiver_pk,
         *receiver_signature,
-    );
+    )
+    .into();
 
     // Construct the denomination witness corresponding to the issued kudo resource
     let issue_denomination =
@@ -157,14 +154,15 @@ pub fn build_issue_tx(
     .into();
 
     // Construct the ephemeral kudo witness
-    let ephemeral_kudo_witness = KudoLogicWitness::generate_consumed_ephemeral_witness(
+    let ephemeral_kudo = KudoResourceLogicWitness::generate_consumed_ephemeral_witness(
         ephemeral_kudo_resource,
         ephemeral_kudo_existence_path,
         instant_nk,
         issuer,
         ephemeral_denomination_resource,
         ephemeral_denomination_existence_path,
-    );
+    )
+    .into();
 
     // Construct the ephemeral denomination witness
     let signature = issuer_sk.sign(root.as_bytes());
@@ -188,10 +186,10 @@ pub fn build_issue_tx(
     );
 
     IssueInstance {
-        issued_kudo_witness,
+        issue_kudo,
         issue_denomination,
         issue_receive,
-        ephemeral_kudo_witness,
+        ephemeral_kudo,
         ephemeral_denomination,
         padding_resource_logic,
     }

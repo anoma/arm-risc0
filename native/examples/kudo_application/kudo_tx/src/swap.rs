@@ -1,6 +1,6 @@
 use aarm::{
     action::Action,
-    logic_proof::{LogicProof, LogicProver, PaddingResourceLogic},
+    logic_proof::{LogicProver, PaddingResourceLogic},
     transaction::{Delta, Transaction},
     utils::groth16_prove,
 };
@@ -9,31 +9,32 @@ use aarm_core::{
     merkle_path::MerklePath,
 };
 use compliance_circuit::COMPLIANCE_GUEST_ELF;
-use kudo_core::{
-    denomination::Denomination, kudo_logic_witness::KudoLogicWitness, receive::Receive,
-};
-use kudo_logic::{KUDO_LOGIC_ELF, KUDO_LOGIC_ID};
+use kudo_core::{denomination::Denomination, kudo::Kudo, receive::Receive};
 
 // TODO: SwapInstance seems simillar to TransferWitness, consider abstracting and
 // merging them
 #[derive(Clone)]
-pub struct SwapInstance<D1, D2, R>
+pub struct SwapInstance<K1, D1, K2, D2, R>
 where
+    K1: Kudo + LogicProver,
+    K2: Kudo + LogicProver,
     D1: Denomination + LogicProver,
     D2: Denomination + LogicProver,
     R: Receive + LogicProver,
 {
-    pub consumed_kudo_witness: KudoLogicWitness, // consumed resource - compliance unit 1
+    pub consumed_kudo: K1, // consumed resource - compliance unit 1
     pub consumed_kudo_path: MerklePath<COMMITMENT_TREE_DEPTH>,
     pub consumed_denomination: D1, // created resource - compliance unit 1
-    pub created_kudo_witness: KudoLogicWitness, // created resource - compliance unit 2
+    pub created_kudo: K2,          // created resource - compliance unit 2
     pub created_denomination: D2,  // consumed resource - compliance unit 2
     pub created_receive: R,        // created resource - compliance unit 3
     pub padding_resource_logic: PaddingResourceLogic, // consumed resource - compliance unit 3
 }
 
-impl<D1, D2, R> SwapInstance<D1, D2, R>
+impl<K1, D1, K2, D2, R> SwapInstance<K1, D1, K2, D2, R>
 where
+    K1: Kudo + LogicProver,
+    K2: Kudo + LogicProver,
     D1: Denomination + LogicProver,
     D2: Denomination + LogicProver,
     R: Receive + LogicProver,
@@ -48,8 +49,8 @@ where
             let (compliance_unit_1, delta_witness_1) = {
                 let compliance_witness: ComplianceWitness<COMMITMENT_TREE_DEPTH> =
                     ComplianceWitness::from_resources_with_path(
-                        self.consumed_kudo_witness.kudo_resource,
-                        self.consumed_kudo_witness.kudo_nf_key,
+                        self.consumed_kudo.resource(),
+                        self.consumed_kudo.nf_key(),
                         self.consumed_kudo_path,
                         self.consumed_denomination.resource(),
                     );
@@ -68,7 +69,7 @@ where
                     ComplianceWitness::from_resources(
                         self.created_denomination.resource(),
                         self.created_denomination.nf_key(),
-                        self.created_kudo_witness.kudo_resource,
+                        self.created_kudo.resource(),
                     );
 
                 (
@@ -96,13 +97,7 @@ where
 
             // Generate logic proofs
             println!("Generating the consumed kudo logic proof");
-            let consumed_kudo_proof = {
-                let receipt = groth16_prove(&self.consumed_kudo_witness, KUDO_LOGIC_ELF);
-                LogicProof {
-                    receipt,
-                    verifying_key: KUDO_LOGIC_ID.into(),
-                }
-            };
+            let consumed_kudo_proof = self.consumed_kudo.prove();
 
             println!(
                 "Generating the denomination logic proof corresponding to the consumed kudo resource"
@@ -110,13 +105,7 @@ where
             let consumed_denomination_proof = self.consumed_denomination.prove();
 
             println!("Generating the created kudo logic proof");
-            let created_kudo_proof = {
-                let receipt = groth16_prove(&self.created_kudo_witness, KUDO_LOGIC_ELF);
-                LogicProof {
-                    receipt,
-                    verifying_key: KUDO_LOGIC_ID.into(),
-                }
-            };
+            let created_kudo_proof = self.created_kudo.prove();
 
             println!("Generating the denomination logic proof corresponding to the created kudo resource");
             let created_denomination_proof = self.created_denomination.prove();

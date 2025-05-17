@@ -7,11 +7,8 @@ use aarm_core::{
     nullifier_key::NullifierKey,
     resource::Resource,
 };
-use kudo_core::{
-    kudo_logic_witness::KudoLogicWitness,
-    utils::{compute_kudo_label, compute_kudo_value},
-};
-use kudo_logic::KUDO_LOGIC_ID;
+use kudo_core::utils::{compute_kudo_label, compute_kudo_value};
+use kudo_resource::{KudoResourceLogic, KudoResourceLogicWitness};
 use kudo_tx::burn::BurnInstance;
 use simple_denomination::{SimpleDenominationResourceLogic, SimpleDenominationWitness};
 
@@ -21,13 +18,12 @@ pub fn build_burn_tx(
     burned_kudo_resource: &Resource,
     burned_kudoresource_nf_key: &NullifierKey,
     burned_kudo_path: MerklePath<COMMITMENT_TREE_DEPTH>,
-) -> BurnInstance<SimpleDenominationResourceLogic> {
+) -> BurnInstance<KudoResourceLogic, SimpleDenominationResourceLogic> {
     let issuer = AuthorizationVerifyingKey::from_signing_key(issuer_sk);
     let (instant_nk, instant_nk_commitment) = NullifierKey::random_pair();
 
     // Construct the burned kudo resource
-    // TODO: fix the kudo_logic
-    let kudo_lable = compute_kudo_label(&KUDO_LOGIC_ID.into(), &issuer);
+    let kudo_lable = compute_kudo_label(&KudoResourceLogic::verifying_key(), &issuer);
     assert_eq!(burned_kudo_resource.label_ref, kudo_lable);
     let owner = AuthorizationVerifyingKey::from_signing_key(owner_sk);
     let kudo_value = compute_kudo_value(&owner);
@@ -88,7 +84,7 @@ pub fn build_burn_tx(
         .unwrap();
 
     // Construct the burned kudo witness: consume the kudo resource
-    let burned_kudo_witness = KudoLogicWitness::generate_persistent_resource_consumption_witness(
+    let burned_kudo = KudoResourceLogicWitness::generate_persistent_resource_consumption_witness(
         *burned_kudo_resource,
         burned_kudo_existence_path,
         *burned_kudoresource_nf_key,
@@ -96,7 +92,8 @@ pub fn build_burn_tx(
         burned_denomination_resource,
         burned_denomination_existence_path,
         false,
-    );
+    )
+    .into();
 
     // Construct the denomination witness corresponding to the consumed kudo resource
     let consumption_signature = owner_sk.sign(root.as_bytes());
@@ -114,14 +111,15 @@ pub fn build_burn_tx(
         .into();
 
     // Construct the ephemeral kudo witness
-    let ephemeral_kudo_witness = KudoLogicWitness::generate_created_ephemeral_witness(
+    let ephemeral_kudo = KudoResourceLogicWitness::generate_created_ephemeral_witness(
         ephemeral_kudo_resource.clone(),
         ephemeral_kudo_existence_path,
         issuer,
         ephemeral_denomination_resource,
         ephemeral_denomination_existence_path,
         instant_nk,
-    );
+    )
+    .into();
 
     // Construct the denomination witness, corresponding to the ephemeral kudo resource
     let burn_signature = issuer_sk.sign(root.as_bytes());
@@ -138,9 +136,9 @@ pub fn build_burn_tx(
     .into();
 
     BurnInstance {
-        burned_kudo_witness,
+        burned_kudo,
         burned_denomination,
-        ephemeral_kudo_witness,
+        ephemeral_kudo,
         ephemeral_denomination,
         burned_kudo_path,
     }
@@ -151,7 +149,7 @@ fn generate_a_burn_tx() {
     let issuer_sk = AuthorizationSigningKey::new();
     let issuer = AuthorizationVerifyingKey::from_signing_key(&issuer_sk);
     // TODO: fix the kudo_logic
-    let kudo_logic = KUDO_LOGIC_ID.into();
+    let kudo_logic = KudoResourceLogic::verifying_key();
     let kudo_lable = compute_kudo_label(&kudo_logic, &issuer);
     let owner_sk = issuer_sk.clone();
     let owner = AuthorizationVerifyingKey::from_signing_key(&owner_sk);

@@ -1,4 +1,4 @@
-use crate::utils::compute_kudo_label;
+pub use aarm_core::resource_logic::LogicCircuit;
 use aarm_core::{
     action_tree::ACTION_TREE_DEPTH,
     authorization::{AuthorizationSignature, AuthorizationVerifyingKey},
@@ -8,12 +8,13 @@ use aarm_core::{
     nullifier_key::NullifierKey,
     resource::Resource,
 };
+use kudo_core::utils::compute_kudo_label;
 use rand::Rng;
 use risc0_zkvm::sha::{Impl, Sha256};
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Serialize, Deserialize)]
-pub struct KudoLogicWitness {
+#[derive(Clone, Default, Serialize, Deserialize)]
+pub struct KudoResourceLogicWitness {
     // Kudo related fields
     pub kudo_resource: Resource,
     pub kudo_existence_path: MerklePath<ACTION_TREE_DEPTH>,
@@ -38,8 +39,8 @@ pub struct KudoLogicWitness {
     pub receive_existence_path: MerklePath<ACTION_TREE_DEPTH>,
 }
 
-impl KudoLogicWitness {
-    pub fn constrain(&self) -> LogicInstance {
+impl LogicCircuit for KudoResourceLogicWitness {
+    fn constrain(&self) -> LogicInstance {
         // Load the kudo resource
         let self_cm = self.kudo_resource.commitment();
         let tag = if self.kudo_is_consumed {
@@ -114,7 +115,9 @@ impl KudoLogicWitness {
             app_data: Vec::new(),
         }
     }
+}
 
+impl KudoResourceLogicWitness {
     fn generate_ciphertext(&self) -> Ciphertext {
         if self.kudo_resource.is_ephemeral || self.kudo_is_consumed {
             Ciphertext::default()
