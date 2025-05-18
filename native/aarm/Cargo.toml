@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 # If you want to try (experimental) std support, add `features = [ "std" ]` to risc0-zkvm
-risc0-zkvm = { version = "1.2.5", features = ["prove"] }
+risc0-zkvm = { version = "1.2.6", features = ["prove"] }
 serde = { version = "1.0.197", default-features = false }
 compliance_circuit = { path = "../examples/compliance_circuit/methods", package = 'methods'}
 trivial_logic = { path = "../examples/trivial_logic/trivial_logic" }

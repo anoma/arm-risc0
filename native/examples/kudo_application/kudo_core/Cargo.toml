@@ -6,5 +6,5 @@ edition = "2021"
 [dependencies]
 aarm_core = { path = "../../../aarm_core" }
 serde = { version = "1.0.197", default-features = false }
-risc0-zkvm = "1.2.5"
+risc0-zkvm = "1.2.6"
 rand = "0.8"
