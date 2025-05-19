@@ -1,4 +1,7 @@
-use crate::action::Action;
+use crate::{
+    action::Action,
+    evm_adapter::{AdapterDelta, AdapterTransaction},
+};
 use aarm_core::delta_proof::{DeltaInstance, DeltaProof, DeltaWitness};
 use serde::{Deserialize, Serialize};
 
@@ -68,6 +71,30 @@ impl Transaction {
         }
         msg
     }
+
+    pub fn compose(tx1: Transaction, tx2: Transaction) -> Transaction {
+        let mut action = tx1.action;
+        action.extend(tx2.action);
+        let delta = match (&tx1.delta_proof, &tx2.delta_proof) {
+            (Delta::Witness(witness1), Delta::Witness(witness2)) => {
+                Delta::Witness(witness1.compose(witness2))
+            }
+            _ => panic!("Cannot compose transactions with different delta types"),
+        };
+        Transaction::new(action, delta)
+    }
+
+    pub fn convert(&self) -> AdapterTransaction {
+        let action = self.action.iter().map(|action| action.convert()).collect();
+        let delta_proof = match &self.delta_proof {
+            Delta::Witness(_) => panic!("Unbalanced Transactions cannot be converted"),
+            Delta::Proof(proof) => AdapterDelta::new(proof.to_bytes()),
+        };
+        AdapterTransaction {
+            action,
+            delta_proof,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -80,7 +107,7 @@ mod tests {
         let mut tx = Transaction::new(vec![action], Delta::Witness(delta_witness));
         tx.generate_delta_proof();
         assert!(tx.verify());
-
+        let _adapter_tx = tx.convert();
         tx
     }
 

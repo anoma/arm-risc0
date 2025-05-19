@@ -1,19 +1,19 @@
+use crate::{
+    evm_adapter::{AdapterAction, AdapterComplianceUnit, AdapterLogicProof},
+    logic_proof::LogicProof,
+    utils::verify as verify_proof,
+};
 use aarm_core::compliance::ComplianceInstance;
 use compliance_circuit::COMPLIANCE_GUEST_ID;
 use k256::ProjectivePoint;
-use risc0_zkvm::{sha::Digest, Receipt};
+use risc0_ethereum_contracts::encode_seal;
+use risc0_zkvm::Receipt;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Action {
     pub compliance_units: Vec<Receipt>,
     pub logic_proofs: Vec<LogicProof>,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct LogicProof {
-    pub receipt: Receipt,
-    pub verifying_key: Digest,
 }
 
 impl Action {
@@ -34,13 +34,13 @@ impl Action {
 
     pub fn verify(&self) -> bool {
         for receipt in &self.compliance_units {
-            if receipt.verify(COMPLIANCE_GUEST_ID).is_err() {
+            if !verify_proof(receipt, COMPLIANCE_GUEST_ID) {
                 return false;
             }
         }
 
         for proof in &self.logic_proofs {
-            if proof.receipt.verify(proof.verifying_key).is_err() {
+            if !verify_proof(&proof.receipt, proof.verifying_key) {
                 return false;
             }
         }
@@ -69,6 +69,32 @@ impl Action {
         }
         msg
     }
+
+    pub fn convert(&self) -> AdapterAction {
+        let compliance_units = self
+            .compliance_units
+            .iter()
+            .map(|receipt| AdapterComplianceUnit {
+                seal: encode_seal(&receipt).unwrap(),
+                journal: receipt.journal.bytes.clone(),
+            })
+            .collect();
+
+        let logic_proofs = self
+            .logic_proofs
+            .iter()
+            .map(|proof| AdapterLogicProof {
+                verifying_key: proof.verifying_key.as_bytes().to_vec(),
+                seal: encode_seal(&proof.receipt).unwrap(),
+                journal: proof.receipt.journal.bytes.clone(),
+            })
+            .collect();
+
+        AdapterAction {
+            compliance_units,
+            logic_proofs,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -76,13 +102,12 @@ pub mod tests {
     use super::*;
     use crate::utils::groth16_prove;
     use aarm_core::{
-        compliance::ComplianceWitness, constants::TREE_DEPTH, delta_proof::DeltaWitness,
+        compliance::ComplianceWitness, constants::COMMITMENT_TREE_DEPTH, delta_proof::DeltaWitness,
     };
     use compliance_circuit::{COMPLIANCE_GUEST_ELF, COMPLIANCE_GUEST_ID};
 
     pub fn create_an_action() -> (Action, DeltaWitness) {
-        let compliance_witness: ComplianceWitness<TREE_DEPTH> =
-            ComplianceWitness::<TREE_DEPTH>::default();
+        let compliance_witness = ComplianceWitness::<COMMITMENT_TREE_DEPTH>::default();
 
         let receipt = groth16_prove(&compliance_witness, COMPLIANCE_GUEST_ELF);
         let logic_proof = LogicProof {
