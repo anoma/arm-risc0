@@ -1,0 +1,13 @@
+[package]
+name = "kudo-resource"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+kudo-logic-circuit = { path = "methods" }
+kudo-resource-core = { path = "core" }
+serde = { version = "1.0.197", default-features = false }
+risc0-zkvm = { version = "2.0.0", features = ["std", "unstable"] }
+aarm = { path = "../../../../aarm" }
+kudo-core = { path = "../../kudo_core" }
+aarm_core = { path = "../../../../aarm_core" }

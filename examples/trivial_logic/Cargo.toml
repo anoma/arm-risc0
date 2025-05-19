@@ -1,0 +1,9 @@
+[package]
+name = "trivial-logic"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+trivial_logic = { path = "trivial_logic" }
+risc0-zkvm = { version = "2.0.0", features = ["std", "unstable"] }
+aarm_core = { path = "../../aarm_core" }

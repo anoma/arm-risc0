@@ -1,0 +1,19 @@
+[package]
+name = "aarm"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+# If you want to try (experimental) std support, add `features = [ "std" ]` to risc0-zkvm
+risc0-zkvm = { version = "2.0.0", features = ["prove", "std", "unstable"] }
+serde = { version = "1.0.197", default-features = false }
+compliance_circuit = { path = "../examples/compliance_circuit/methods", package = "compliance-methods"}
+trivial_logic = { path = "../examples/trivial_logic/trivial_logic" }
+aarm_core = { path = "../aarm_core" }
+k256 = { version = "=0.13.3", features = ["arithmetic", "serde", "expose-field", "std", "ecdsa", "hash2curve"], default-features = false }
+rand = "0.8"
+risc0-ethereum-contracts = { git = "https://github.com/risc0/risc0-ethereum",  tag = "v2.0.0" }
+
+[dev-dependencies]
