@@ -5,5 +5,5 @@ edition = "2021"
 
 [dependencies]
 trivial_logic = { path = "trivial_logic" }
-risc0-zkvm = { version = "1.2.6" }
+risc0-zkvm = { version = "2.0.0", features = ["std", "unstable"] }
 aarm_core = { path = "../../aarm_core" }

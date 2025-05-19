@@ -7,5 +7,5 @@ edition = "2021"
 aarm_core = { path = "../../../../../aarm_core" }
 kudo-core = { path = "../../../kudo_core" }
 serde = { version = "1.0.197", default-features = false }
-risc0-zkvm = "1.2.6"
+risc0-zkvm = { version = "2.0.0", features = ["std", "unstable"] }
 rand = "0.8"

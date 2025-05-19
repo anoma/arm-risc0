@@ -8,6 +8,6 @@ aarm_core = { path = "../../../aarm_core" }
 kudo-core = { path = "../kudo_core" }
 aarm = { path = "../../../aarm" }
 serde = { version = "1.0.197", default-features = false }
-risc0-zkvm = "1.2.6"
+risc0-zkvm = { version = "2.0.0", features = ["std", "unstable"] }
 compliance_circuit = { path = "../../compliance_circuit/methods", package = "compliance-methods"}
 trivial_logic = { path = "../../trivial_logic/trivial_logic" }
