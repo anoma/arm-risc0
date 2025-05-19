@@ -1,7 +1,12 @@
-use crate::{logic_proof::LogicProof, utils::verify as verify_proof};
+use crate::{
+    evm_adapter::{AdapterAction, AdapterComplianceUnit, AdapterLogicProof},
+    logic_proof::LogicProof,
+    utils::verify as verify_proof,
+};
 use aarm_core::compliance::ComplianceInstance;
 use compliance_circuit::COMPLIANCE_GUEST_ID;
 use k256::ProjectivePoint;
+use risc0_ethereum_contracts::encode_seal;
 use risc0_zkvm::Receipt;
 use serde::{Deserialize, Serialize};
 
@@ -63,6 +68,32 @@ impl Action {
             msg.extend_from_slice(&instance.delta_msg());
         }
         msg
+    }
+
+    pub fn convert(&self) -> AdapterAction {
+        let compliance_units = self
+            .compliance_units
+            .iter()
+            .map(|receipt| AdapterComplianceUnit {
+                seal: encode_seal(&receipt).unwrap(),
+                journal: receipt.journal.bytes.clone(),
+            })
+            .collect();
+
+        let logic_proofs = self
+            .logic_proofs
+            .iter()
+            .map(|proof| AdapterLogicProof {
+                verifying_key: proof.verifying_key.as_bytes().to_vec(),
+                seal: encode_seal(&proof.receipt).unwrap(),
+                journal: proof.receipt.journal.bytes.clone(),
+            })
+            .collect();
+
+        AdapterAction {
+            compliance_units,
+            logic_proofs,
+        }
     }
 }
 

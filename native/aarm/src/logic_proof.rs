@@ -1,7 +1,7 @@
 use crate::utils::{groth16_prove, verify as verify_proof};
 use aarm_core::{
-    merkle_path::MerklePath, nullifier_key::NullifierKey, nullifier_key::NullifierKeyCommitment,
-    resource::Resource, resource_logic::TrivialLogicWitness, action_tree::ACTION_TREE_DEPTH,
+    action_tree::ACTION_TREE_DEPTH, merkle_path::MerklePath, nullifier_key::NullifierKey,
+    nullifier_key::NullifierKeyCommitment, resource::Resource, resource_logic::TrivialLogicWitness,
 };
 use rand::Rng;
 use risc0_zkvm::{sha::Digest, Receipt};
