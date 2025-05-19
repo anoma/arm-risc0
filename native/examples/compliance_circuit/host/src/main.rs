@@ -1,6 +1,6 @@
 use aarm_core::{
     compliance::{ComplianceInstance, ComplianceWitness},
-    constants::TREE_DEPTH,
+    constants::COMMITMENT_TREE_DEPTH,
 };
 use methods::{COMPLIANCE_GUEST_ELF, COMPLIANCE_GUEST_ID};
 use risc0_zkvm::{default_prover, ExecutorEnv};
@@ -9,8 +9,8 @@ use std::time::Instant;
 pub fn main() {
     let prove_start_timer = Instant::now();
 
-    let compliance_witness: ComplianceWitness<TREE_DEPTH> =
-        ComplianceWitness::<TREE_DEPTH>::default();
+    let compliance_witness: ComplianceWitness<COMMITMENT_TREE_DEPTH> =
+        ComplianceWitness::<COMMITMENT_TREE_DEPTH>::default();
 
     let env = ExecutorEnv::builder()
         .write(&compliance_witness)

@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 # If you want to try (experimental) std support, add `features = [ "std" ]` to risc0-zkvm
-risc0-zkvm = "1.2.5"
+risc0-zkvm = "1.2.6"
 aarm_core = { path = "../../../../aarm_core" }
 k256 = { version = "=0.13.1", features = ["arithmetic", "serde", "expose-field", "std", "ecdsa", "hash2curve"], default-features = false }
 

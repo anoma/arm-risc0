@@ -9,9 +9,10 @@ use k256::{
 };
 use rand::Rng;
 use risc0_zkvm::sha::{rust_crypto::Sha256 as Sha256Type, Digest, Impl, Sha256, DIGEST_BYTES};
+use serde::{Deserialize, Serialize};
 
 /// A resource that can be created and consumed
-#[derive(Clone, Copy, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Serialize, Deserialize)]
 pub struct Resource {
     // a succinct representation of the predicate associated with the resource
     pub logic_ref: Digest,
@@ -185,5 +186,34 @@ impl Resource {
 
     pub fn from_bytes(bytes: &[u8]) -> Self {
         bincode::deserialize(bytes).unwrap()
+    }
+
+    pub fn set_value_ref(&mut self, value_ref: Digest) {
+        self.value_ref = value_ref;
+    }
+
+    pub fn set_nf_commitment(&mut self, nf_commitment: NullifierKeyCommitment) {
+        self.nk_commitment = nf_commitment;
+    }
+
+    pub fn reset_randomness_nonce(&mut self) {
+        let mut rng = rand::thread_rng();
+        self.rand_seed = rng.gen();
+        self.nonce = rng.gen();
+    }
+}
+
+impl Default for Resource {
+    fn default() -> Self {
+        Self {
+            logic_ref: Digest::default(),
+            label_ref: Digest::default(),
+            quantity: 0,
+            value_ref: Digest::default(),
+            is_ephemeral: true,
+            nonce: [0; DEFAULT_BYTES],
+            nk_commitment: NullifierKeyCommitment::default(),
+            rand_seed: [0; DEFAULT_BYTES],
+        }
     }
 }

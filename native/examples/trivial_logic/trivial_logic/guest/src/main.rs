@@ -1,4 +1,4 @@
-use aarm_core::trivial_logic::TrivialLogicWitness;
+use aarm_core::resource_logic::{TrivialLogicWitness, LogicCircuit};
 use risc0_zkvm::guest::env;
 
 fn main() {
