@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct AdapterTransaction {
-    pub action: Vec<AdapterAction>,
+    pub actions: Vec<AdapterAction>,
     pub delta_proof: Vec<u8>,
 }
 

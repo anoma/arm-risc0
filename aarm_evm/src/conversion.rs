@@ -1,6 +1,6 @@
 use crate::types as EVMTypes;
 use aarm::evm_adapter::{
-    AdapterAction, AdapterComplianceUnit, AdapterDelta, AdapterLogicProof, AdapterTransaction,
+    AdapterAction, AdapterComplianceUnit, AdapterLogicProof, AdapterTransaction,
 };
 use aarm_core::compliance::ComplianceInstance;
 use aarm_core::constants::DEFAULT_BYTES;
@@ -114,7 +114,7 @@ impl From<AdapterTransaction> for EVMTypes::Transaction {
     fn from(tx: AdapterTransaction) -> Self {
         Self {
             actions: tx.actions.into_iter().map(|a| a.into()).collect(),
-            delta_proof,
+            deltaProof: tx.delta_proof.into(),
         }
     }
 }
