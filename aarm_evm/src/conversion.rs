@@ -2,11 +2,12 @@ use crate::types as EVMTypes;
 use aarm_core::compliance::ComplianceInstance;
 use aarm_core::constants::DEFAULT_BYTES;
 use aarm_core::resource::Resource;
-use aarm::transaction::Transaction;
-use aarm::action::Action;
+
+use aarm::evm_adapter::{
+    AdapterAction, AdapterComplianceUnit, AdapterDelta, AdapterLogicProof, AdapterTransaction,
+};
+
 use alloy::primitives::{B256, U256};
-
-
 
 impl From<Resource> for EVMTypes::Resource {
     fn from(r: Resource) -> Self {
@@ -48,13 +49,36 @@ impl From<ComplianceInstance> for EVMTypes::ComplianceInstance {
     }
 }
 
-/* // TODO: Implement
-impl From<ComplianceUnit> for EVMTypes::ComplianceUnit {
-    fn from(tx: ComplianceUnit) -> Self {}
+impl From<AdapterComplianceUnit> for EVMTypes::ComplianceUnit {
+    fn from(cu: AdapterComplianceUnit) -> Self {
+        Self {
+            proof: cu.seal.into(),
+            instance: cu.journal.into(),
+        }
+    }
 }
-impl From<TagLogicProofPair> for EVMTypes::TagLogicProofPair {
-    fn from(tx: TagLogicProofPair) -> Self {}
+
+impl From<AdapterLogicProof> for EVMTypes::LogicProof {
+    fn from(lp: AdapterLogicProof) -> Self {
+        Self {
+            proof: lp.seal.into(),
+            instance: lp.journal.into(),
+            logicRef: lp.verifying_key.into(),
+        }
+    }
 }
+
+impl From<AdapterLogicProof> for EVMTypes::LogicProof {
+    fn from(lp: AdapterLogicProof) -> Self {
+        Self {
+            proof: lp.seal.into(),
+            instance: lp.journal.into(),
+            logicRef: lp.verifying_key.into(),
+        }
+    }
+}
+
+/*
 impl From<Action> for EVMTypes::Action {
     fn from(tx: Action) -> Self {}
 }

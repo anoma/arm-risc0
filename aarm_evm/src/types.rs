@@ -24,13 +24,20 @@ sol! {
 
     struct Transaction {
         Action[] actions;
+        // DeltaProof deltaProof
         bytes deltaProof;
     }
 
     struct Action {
-        TagLogicProofPair[] tagLogicProofPairs;
+        LogicProof[] logicProofs;
         ComplianceUnit[] complianceUnits;
         ResourceForwarderCalldataPair[] resourceCalldataPairs;
+    }
+
+    struct LogicProof {
+        bytes proof;
+        LogicInstance instance;
+        bytes32 logicRef; // logicVerifyingKeyOuter;
     }
 
     struct LogicInstance {
@@ -40,21 +47,9 @@ sol! {
         ExpirableBlob[] appData;
     }
 
-    struct LogicProof {
-        bytes proof;
-        LogicInstance instance;
-        bytes32 logicRef; // logicVerifyingKeyOuter;
-    }
-
-    struct TagLogicProofPair {
-        bytes32 tag;
-        LogicProof logicProof;
-    }
-
     struct ComplianceUnit {
         bytes proof;
         ComplianceInstance instance;
-        bytes32 verifyingKey;
     }
 
     struct ComplianceInstance {
