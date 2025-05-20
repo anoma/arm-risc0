@@ -1,7 +1,6 @@
 use aarm_core::{compliance::ComplianceInstance, logic_instance::LogicInstance};
 use risc0_zkvm::sha::Digest;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct AdapterTransaction {
@@ -12,7 +11,7 @@ pub struct AdapterTransaction {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct AdapterAction {
     pub compliance_units: Vec<AdapterComplianceUnit>,
-    pub logic_proofs: HashMap<Digest, AdapterLogicProof>,
+    pub logic_proofs: Vec<AdapterLogicProof>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
