@@ -105,7 +105,7 @@ impl LogicCircuit for KudoResourceLogicWitness {
         }
 
         // Generate the ciphertext
-        let cipher = self.generate_ciphertext();
+        let cipher = self.generate_ciphertext().inner();
 
         LogicInstance {
             tag,

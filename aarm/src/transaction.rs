@@ -1,7 +1,4 @@
-use crate::{
-    action::Action,
-    evm_adapter::{AdapterDelta, AdapterTransaction},
-};
+use crate::{action::Action, evm_adapter::AdapterTransaction};
 use aarm_core::delta_proof::{DeltaInstance, DeltaProof, DeltaWitness};
 use serde::{Deserialize, Serialize};
 
@@ -85,13 +82,13 @@ impl Transaction {
     }
 
     pub fn convert(&self) -> AdapterTransaction {
-        let action = self.action.iter().map(|action| action.convert()).collect();
+        let actions = self.action.iter().map(|action| action.convert()).collect();
         let delta_proof = match &self.delta_proof {
             Delta::Witness(_) => panic!("Unbalanced Transactions cannot be converted"),
-            Delta::Proof(proof) => AdapterDelta::new(proof.to_bytes()),
+            Delta::Proof(proof) => proof.to_bytes().to_vec(),
         };
         AdapterTransaction {
-            action,
+            actions,
             delta_proof,
         }
     }
