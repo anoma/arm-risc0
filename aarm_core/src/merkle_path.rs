@@ -1,3 +1,4 @@
+use crate::constants::PADDING_LEAVE;
 use risc0_zkvm::sha::{Digest, Impl, Sha256, DIGEST_BYTES};
 use serde::{Deserialize, Serialize};
 use serde_big_array::BigArray;
@@ -14,7 +15,7 @@ pub trait Hashable: Clone + Copy {
 impl Hashable for Digest {
     /// Returns a blank leaf node.
     fn blank() -> Self {
-        Digest::default()
+        *PADDING_LEAVE
     }
 
     /// Returns the parent node within the tree of the two given nodes.
