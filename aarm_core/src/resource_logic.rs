@@ -45,8 +45,8 @@ impl LogicCircuit for TrivialLogicWitness {
             tag,
             is_consumed: self.is_consumed, // It can be either consumed or created to reduce padding resources
             root,
-            cipher: Ciphertext::default(), // no cipher needed
-            app_data: Vec::new(),          // no app data needed
+            cipher: Ciphertext::default().inner(), // no cipher needed
+            app_data: Vec::new(),                  // no app data needed
         }
     }
 }

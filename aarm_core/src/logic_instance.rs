@@ -1,4 +1,3 @@
-use crate::encryption::Ciphertext;
 use risc0_zkvm::sha::Digest;
 use serde::{Deserialize, Serialize};
 
@@ -7,7 +6,7 @@ pub struct LogicInstance {
     pub tag: Digest,
     pub is_consumed: bool,
     pub root: Digest,
-    pub cipher: Ciphertext,
+    pub cipher: Vec<u8>,
     pub app_data: Vec<ExpirableBlob>,
 }
 
