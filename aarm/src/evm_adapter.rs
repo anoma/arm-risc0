@@ -5,8 +5,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct AdapterTransaction {
     pub actions: Vec<AdapterAction>,
-    // delta_proof is a signature struct corresponding to a tuple of (r,s,v) in
-    // EVM adapter where r(32 bytes) and s(bytes) are the signature values and
+    // delta_proof is a tuple of (r,s,v) in
+    // EVM adapter where r(32 bytes) and s(32 bytes) are the signature values and
     // v(1 byte)is the recovery id.
     pub delta_proof: Vec<u8>,
 }

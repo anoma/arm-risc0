@@ -104,7 +104,11 @@ impl From<AdapterAction> for EVMTypes::Action {
                 .into_iter()
                 .map(|lp| lp.into())
                 .collect(),
-            complianceUnits: action.compliance_units.into(),
+            complianceUnits: action
+                .compliance_units
+                .into_iter()
+                .map(|cu| cu.into())
+                .collect(),
             resourceCalldataPairs: vec![],
         }
     }
