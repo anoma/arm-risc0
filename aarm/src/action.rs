@@ -3,7 +3,9 @@ use crate::{
     logic_proof::LogicProof,
     utils::verify as verify_proof,
 };
-use aarm_core::compliance::ComplianceInstance;
+use aarm_core::{
+    action_tree::MerkleTree, compliance::ComplianceInstance, logic_instance::LogicInstance,
+};
 use compliance_circuit::COMPLIANCE_GUEST_ID;
 use k256::ProjectivePoint;
 use risc0_ethereum_contracts::encode_seal;
@@ -39,14 +41,43 @@ impl Action {
             }
         }
 
+        let compliance_intances = self
+            .compliance_units
+            .iter()
+            .map(|receipt| receipt.journal.decode().unwrap())
+            .collect::<Vec<ComplianceInstance>>();
+
+        // Construct the action tree
+        let tags = compliance_intances
+            .iter()
+            .flat_map(|instance| vec![instance.nullifier, instance.commitment])
+            .collect::<Vec<_>>();
+        let logics = compliance_intances
+            .iter()
+            .flat_map(|instance| vec![instance.consumed_logic_ref, instance.created_logic_ref])
+            .collect::<Vec<_>>();
+        let action_tree = MerkleTree::new(tags.clone());
+        let root = action_tree.root();
+
         for proof in &self.logic_proofs {
+            let instance: LogicInstance = proof.receipt.journal.decode().unwrap();
+
+            if root != instance.root {
+                return false;
+            }
+
+            if let Some(index) = tags.iter().position(|&tag| tag == instance.tag) {
+                if proof.verifying_key != logics[index] {
+                    return false;
+                }
+            } else {
+                return false;
+            }
+
             if !verify_proof(&proof.receipt, proof.verifying_key) {
                 return false;
             }
         }
-
-        // TODO: Verify other checks
-        // Actually, the verification should occur on validators/EVM adapter.
 
         true
     }
