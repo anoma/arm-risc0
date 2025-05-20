@@ -7,6 +7,7 @@ use aarm::evm_adapter::{
     AdapterAction, AdapterComplianceUnit, AdapterDelta, AdapterLogicProof, AdapterTransaction,
 };
 
+use aarm_core::logic_instance::LogicInstance;
 use alloy::primitives::{B256, U256};
 
 impl From<Resource> for EVMTypes::Resource {
@@ -49,31 +50,36 @@ impl From<ComplianceInstance> for EVMTypes::ComplianceInstance {
     }
 }
 
+impl From<LogicInstance> for EVMTypes::LogicInstance {
+    fn from(instance: LogicInstance) -> Self {
+        Self {
+            tag: B256::from_slice(instance.tag.as_bytes()),
+            isConsumed: instance.is_consumed,
+            root: B256::from_slice(instance.root.as_bytes()),
+            // TODO what is `pub cipher: Ciphertext,` needed for?
+            appData: [EVMTypes::ExpirableBlob {
+                deletionCriterion: EVMTypes::DeletionCriterion::Immediately, // TODO! Xuyang's TX func must provide this value
+                blob: instance.app_data.,
+            }],
+        }
+    }
+}
+
+impl From<AdapterLogicProof> for EVMTypes::LogicProof {
+    fn from(logic_proof: AdapterLogicProof) -> Self {
+        Self {
+            proof: logic_proof.proof.into(),
+            instance: logic_proof.instance.into(),
+            logicRef: logic_proof.verifying_key.into(),
+        }
+    }
+}
+
 impl From<AdapterComplianceUnit> for EVMTypes::ComplianceUnit {
-    fn from(cu: AdapterComplianceUnit) -> Self {
+    fn from(compliance_unit: AdapterComplianceUnit) -> Self {
         Self {
-            proof: cu.seal.into(),
-            instance: cu.journal.into(),
-        }
-    }
-}
-
-impl From<AdapterLogicProof> for EVMTypes::LogicProof {
-    fn from(lp: AdapterLogicProof) -> Self {
-        Self {
-            proof: lp.seal.into(),
-            instance: lp.journal.into(),
-            logicRef: lp.verifying_key.into(),
-        }
-    }
-}
-
-impl From<AdapterLogicProof> for EVMTypes::LogicProof {
-    fn from(lp: AdapterLogicProof) -> Self {
-        Self {
-            proof: lp.seal.into(),
-            instance: lp.journal.into(),
-            logicRef: lp.verifying_key.into(),
+            proof: compliance_unit.proof.into(),
+            instance: compliance_unit.instance.into(),
         }
     }
 }
