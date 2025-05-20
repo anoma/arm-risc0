@@ -230,11 +230,7 @@ fn verify_local() {
     println!("BONSAI_API_URL: {:?}", std::env::var("BONSAI_API_URL"));
     println!("BONSAI_API_KEY: {:?}", std::env::var("BONSAI_API_KEY"));
 
-    let mut tx = generate_issue_tx();
-
-    println!("{:?}", tx.delta_proof);
-
-    assert!(tx.verify());
+    assert!(generate_issue_tx().verify());
 }
 
 #[tokio::test]
@@ -242,15 +238,14 @@ async fn verify_on_pa() {
     println!("BONSAI_API_URL: {:?}", std::env::var("BONSAI_API_URL"));
     println!("BONSAI_API_KEY: {:?}", std::env::var("BONSAI_API_KEY"));
 
-    let tx = tokio::task::spawn_blocking(move || generate_issue_tx())
-        .await
-        .unwrap();
+    let tx = ProtocolAdapter::Transaction::from(
+        tokio::task::spawn_blocking(move || generate_issue_tx())
+            .await
+            .unwrap()
+            .convert(),
+    );
 
-    let adapter_tx = tx.convert();
-
-    let evm_tx: ProtocolAdapter::Transaction = adapter_tx.into();
-
-    // get_pa().verify(evm_tx).call().await.unwrap();
+    get_pa().verify(tx).call().await.unwrap();
 
     //println!("{:?}", );
 }
