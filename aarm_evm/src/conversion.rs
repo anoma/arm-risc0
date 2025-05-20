@@ -8,7 +8,7 @@ use aarm::evm_adapter::{
 };
 
 use aarm_core::logic_instance::{ExpirableBlob, LogicInstance};
-use alloy::primitives::{B256, Bytes, U256};
+use alloy::primitives::{B256, U256};
 
 impl From<Resource> for EVMTypes::Resource {
     fn from(r: Resource) -> Self {
@@ -62,14 +62,19 @@ impl From<ExpirableBlob> for EVMTypes::ExpirableBlob {
     }
 }
 
+/* TODO figure this one out
+impl From<Vec<ExpirableBlob>> for Vec<EVMTypes::ExpirableBlob> {
+    fn from(blobs: Vec<ExpirableBlob>) -> Self {}
+}*/
+
 impl From<LogicInstance> for EVMTypes::LogicInstance {
     fn from(instance: LogicInstance) -> Self {
         Self {
             tag: B256::from_slice(instance.tag.as_bytes()),
             isConsumed: instance.is_consumed,
             root: B256::from_slice(instance.root.as_bytes()),
-            ciphertext: instance.cipher.inner().as_slice().into(),
-            appData: instance.app_data.into(),
+            ciphertext: instance.cipher.into(),
+            appData: instance.app_data.into_iter().map(|b| b.into()).collect(), // TODO Refactor (see above).
         }
     }
 }
@@ -92,8 +97,8 @@ impl From<AdapterComplianceUnit> for EVMTypes::ComplianceUnit {
         }
     }
 }
-
 /*
+
 impl From<Action> for EVMTypes::Action {
     fn from(tx: Action) -> Self {}
 }
