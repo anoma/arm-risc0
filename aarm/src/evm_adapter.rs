@@ -26,7 +26,7 @@ pub struct AdapterComplianceUnit {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct AdapterLogicProof {
     // The verifying key corresponds to the imageID in risc0
-    pub verifying_key: Vec<u8>,
+    pub verifying_key: Digest,
     // The proof corresponds to the seal in risc0
     pub proof: Vec<u8>,
     // The instance corresponds to the journal in risc0

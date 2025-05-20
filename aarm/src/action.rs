@@ -86,7 +86,7 @@ impl Action {
             let instance: LogicInstance = proof.receipt.journal.decode().unwrap();
             let tag = instance.tag;
             let logic_proof = AdapterLogicProof {
-                verifying_key: proof.verifying_key.as_bytes().to_vec(),
+                verifying_key: proof.verifying_key,
                 proof: encode_seal(&proof.receipt).unwrap(),
                 instance,
             };
