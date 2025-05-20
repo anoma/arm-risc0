@@ -24,7 +24,7 @@ impl MerkleTree {
 
     pub fn root(&self) -> Digest {
         let mut cur_layer = self.leaves.clone();
-        cur_layer.resize(ACTION_TREE_MAX_NUM, Digest::default());
+        cur_layer.resize(ACTION_TREE_MAX_NUM, Digest::blank());
         while cur_layer.len() > 1 {
             cur_layer = cur_layer
                 .chunks(2)

@@ -1,5 +1,7 @@
 use crate::{
-    constants::TRIVIAL_RESOURCE_LOGIC_VK, merkle_path::MerklePath, nullifier_key::NullifierKey,
+    constants::{INITIAL_ROOT, TRIVIAL_RESOURCE_LOGIC_VK},
+    merkle_path::MerklePath,
+    nullifier_key::NullifierKey,
     resource::Resource,
 };
 use k256::{
@@ -55,7 +57,7 @@ impl<const COMMITMENT_TREE_DEPTH: usize> ComplianceWitness<COMMITMENT_TREE_DEPTH
             merkle_path, // not used
             rcv: Scalar::random(rng),
             nf_key,
-            ephemeral_root: Digest::default(), // TODO: it should be a valid existing root
+            ephemeral_root: *INITIAL_ROOT,
         }
     }
 
