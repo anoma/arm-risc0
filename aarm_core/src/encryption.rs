@@ -28,8 +28,8 @@ impl SecretKey {
 pub struct Ciphertext(Vec<u8>);
 
 impl Ciphertext {
-    pub fn inner(&self) -> &Vec<u8> {
-        &self.0
+    pub fn inner(&self) -> Vec<u8> {
+        self.0.clone()
     }
 
     pub fn encrypt(
@@ -59,7 +59,7 @@ impl Ciphertext {
             return Err(aes_gcm::Error);
         }
         let cipher: InnerCiphert =
-            bincode::deserialize(self.inner()).expect("deserialization failure");
+            bincode::deserialize(&self.inner()).expect("deserialization failure");
         // Generate the secret key using Diffie-Hellman exchange
         let inner_secret_key = InnerSecretKey::from_dh_exchange(&cipher.pk, sk.inner());
 

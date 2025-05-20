@@ -94,8 +94,8 @@ impl LogicCircuit for SimpleDenominationWitness {
             tag: denomination_tag,
             is_consumed: self.denomination_is_consumed,
             root,
-            cipher: Ciphertext::default(), // no cipher needed
-            app_data: Vec::new(),          // no app data needed
+            cipher: Ciphertext::default().inner(), // no cipher needed
+            app_data: Vec::new(),                  // no app data needed
         }
     }
 }
