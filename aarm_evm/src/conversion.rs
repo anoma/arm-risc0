@@ -1,13 +1,11 @@
 use crate::types as EVMTypes;
-use aarm_core::compliance::ComplianceInstance;
-use aarm_core::constants::DEFAULT_BYTES;
-use aarm_core::resource::Resource;
-
 use aarm::evm_adapter::{
     AdapterAction, AdapterComplianceUnit, AdapterDelta, AdapterLogicProof, AdapterTransaction,
 };
-
+use aarm_core::compliance::ComplianceInstance;
+use aarm_core::constants::DEFAULT_BYTES;
 use aarm_core::logic_instance::{ExpirableBlob, LogicInstance};
+use aarm_core::resource::Resource;
 use alloy::primitives::{B256, U256};
 
 impl From<Resource> for EVMTypes::Resource {
@@ -84,7 +82,7 @@ impl From<AdapterLogicProof> for EVMTypes::LogicProof {
         Self {
             proof: logic_proof.proof.into(),
             instance: logic_proof.instance.into(),
-            logicRef: logic_proof.verifying_key.into(),
+            logicRef: B256::from_slice(logic_proof.verifying_key.as_bytes()),
         }
     }
 }
@@ -97,15 +95,29 @@ impl From<AdapterComplianceUnit> for EVMTypes::ComplianceUnit {
         }
     }
 }
-/*
 
-impl From<Action> for EVMTypes::Action {
-    fn from(tx: Action) -> Self {}
+impl From<AdapterAction> for EVMTypes::Action {
+    fn from(action: AdapterAction) -> Self {
+        Self {
+            logicProofs: action
+                .logic_proofs
+                .into_iter()
+                .map(|lp| lp.into())
+                .collect(),
+            complianceUnits: action.compliance_units.into(),
+            resourceCalldataPairs: vec![],
+        }
+    }
 }
-impl From<Transaction> for EVMTypes::Transaction {
-    fn from(tx: Transaction) -> Self {}
+
+impl From<AdapterTransaction> for EVMTypes::Transaction {
+    fn from(tx: AdapterTransaction) -> Self {
+        Self {
+            actions: tx.actions.into_iter().map(|a| a.into()).collect(),
+            delta_proof,
+        }
+    }
 }
-*/
 
 #[cfg(test)]
 mod tests {

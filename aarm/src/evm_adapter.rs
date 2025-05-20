@@ -6,13 +6,13 @@ use std::collections::HashMap;
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct AdapterTransaction {
     pub action: Vec<AdapterAction>,
-    pub delta_proof: AdapterDelta,
+    pub delta_proof: Vec<u8>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct AdapterAction {
     pub compliance_units: Vec<AdapterComplianceUnit>,
-    pub logic_proofs: HashMap<Digest, AdapterLogicProof>,
+    pub logic_proofs: Vec<AdapterLogicProof>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
