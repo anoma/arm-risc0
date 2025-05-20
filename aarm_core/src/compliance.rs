@@ -12,7 +12,7 @@ use k256::{
 use rand::Rng;
 use risc0_zkvm::sha::{Digest, Impl, Sha256};
 
-#[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct ComplianceInstance {
     pub nullifier: Digest,
     pub commitment: Digest,

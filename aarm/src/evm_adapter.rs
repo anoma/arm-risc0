@@ -1,4 +1,7 @@
+use aarm_core::{compliance::ComplianceInstance, logic_instance::LogicInstance};
+use risc0_zkvm::sha::Digest;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct AdapterTransaction {
@@ -9,20 +12,25 @@ pub struct AdapterTransaction {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct AdapterAction {
     pub compliance_units: Vec<AdapterComplianceUnit>,
-    pub logic_proofs: Vec<AdapterLogicProof>,
+    pub logic_proofs: HashMap<Digest, AdapterLogicProof>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct AdapterComplianceUnit {
-    pub seal: Vec<u8>,
-    pub journal: Vec<u8>,
+    // The proof corresponds to the seal in risc0
+    pub proof: Vec<u8>,
+    // The instance corresponds to the journal in risc0
+    pub instance: ComplianceInstance,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct AdapterLogicProof {
+    // The verifying key corresponds to the imageID in risc0
     pub verifying_key: Vec<u8>,
-    pub seal: Vec<u8>,
-    pub journal: Vec<u8>,
+    // The proof corresponds to the seal in risc0
+    pub proof: Vec<u8>,
+    // The instance corresponds to the journal in risc0
+    pub instance: LogicInstance,
 }
 
 // AdapterDelta is a signature struct corresponding to a tuple of (r,s,v) in EVM
