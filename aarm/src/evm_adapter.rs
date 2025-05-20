@@ -1,7 +1,6 @@
 use aarm_core::{compliance::ComplianceInstance, logic_instance::LogicInstance};
 use risc0_zkvm::sha::Digest;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct AdapterTransaction {

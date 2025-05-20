@@ -3,13 +3,12 @@ use crate::{
     logic_proof::LogicProof,
     utils::verify as verify_proof,
 };
-use aarm_core::{compliance::ComplianceInstance, logic_instance::LogicInstance};
+use aarm_core::compliance::ComplianceInstance;
 use compliance_circuit::COMPLIANCE_GUEST_ID;
 use k256::ProjectivePoint;
 use risc0_ethereum_contracts::encode_seal;
 use risc0_zkvm::Receipt;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Action {
@@ -81,17 +80,15 @@ impl Action {
             })
             .collect();
 
-        let mut logic_proofs = HashMap::new();
-        for proof in &self.logic_proofs {
-            let instance: LogicInstance = proof.receipt.journal.decode().unwrap();
-            let tag = instance.tag;
-            let logic_proof = AdapterLogicProof {
+        let logic_proofs = self
+            .logic_proofs
+            .iter()
+            .map(|proof| AdapterLogicProof {
                 verifying_key: proof.verifying_key,
                 proof: encode_seal(&proof.receipt).unwrap(),
-                instance,
-            };
-            logic_proofs.insert(tag, logic_proof);
-        }
+                instance: proof.receipt.journal.decode().unwrap(),
+            })
+            .collect();
 
         AdapterAction {
             compliance_units,
