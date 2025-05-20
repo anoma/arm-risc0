@@ -11,7 +11,6 @@ use k256::{
     },
     EncodedPoint, ProjectivePoint, Scalar,
 };
-use rand::Rng;
 use risc0_zkvm::sha::{Digest, Impl, Sha256};
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -50,11 +49,10 @@ impl<const COMMITMENT_TREE_DEPTH: usize> ComplianceWitness<COMMITMENT_TREE_DEPTH
         created_resource: Resource,
     ) -> Self {
         let rng = rand::thread_rng();
-        let merkle_path = MerklePath::<COMMITMENT_TREE_DEPTH>::default();
         ComplianceWitness {
             consumed_resource,
             created_resource,
-            merkle_path, // not used
+            merkle_path: MerklePath::<COMMITMENT_TREE_DEPTH>::default(),
             rcv: Scalar::random(rng),
             nf_key,
             ephemeral_root: *INITIAL_ROOT,
@@ -76,6 +74,22 @@ impl<const COMMITMENT_TREE_DEPTH: usize> ComplianceWitness<COMMITMENT_TREE_DEPTH
             rcv,
             nf_key,
             ephemeral_root: Digest::default(), // not used
+        }
+    }
+
+    // Only for tests
+    pub fn with_fixed_rcv(
+        consumed_resource: Resource,
+        nf_key: NullifierKey,
+        created_resource: Resource,
+    ) -> Self {
+        ComplianceWitness {
+            consumed_resource,
+            created_resource,
+            merkle_path: MerklePath::<COMMITMENT_TREE_DEPTH>::default(),
+            rcv: Scalar::ONE,
+            nf_key,
+            ephemeral_root: *INITIAL_ROOT,
         }
     }
 
@@ -140,10 +154,6 @@ impl<const COMMITMENT_TREE_DEPTH: usize> ComplianceWitness<COMMITMENT_TREE_DEPTH
 
 impl<const COMMITMENT_TREE_DEPTH: usize> Default for ComplianceWitness<COMMITMENT_TREE_DEPTH> {
     fn default() -> Self {
-        let mut rng = rand::thread_rng();
-        let nonce_1: [u8; 32] = rng.gen();
-        let nonce_2: [u8; 32] = rng.gen();
-
         let nf_key = NullifierKey::new(Digest::default());
 
         let consumed_resource = Resource {
@@ -152,9 +162,9 @@ impl<const COMMITMENT_TREE_DEPTH: usize> Default for ComplianceWitness<COMMITMEN
             quantity: 1u128,
             value_ref: Digest::default(),
             is_ephemeral: false,
-            nonce: nonce_1,
+            nonce: [0u8; 32],
             nk_commitment: nf_key.commit(),
-            rand_seed: rng.gen(),
+            rand_seed: [0u8; 32],
         };
 
         let created_resource = Resource {
@@ -163,14 +173,14 @@ impl<const COMMITMENT_TREE_DEPTH: usize> Default for ComplianceWitness<COMMITMEN
             quantity: 1u128,
             value_ref: Digest::default(),
             is_ephemeral: false,
-            nonce: nonce_2,
+            nonce: [0u8; 32],
             nk_commitment: nf_key.commit(),
-            rand_seed: rng.gen(),
+            rand_seed: [0u8; 32],
         };
 
         let merkle_path = MerklePath::<COMMITMENT_TREE_DEPTH>::default();
 
-        let rcv = Scalar::random(rng);
+        let rcv = Scalar::ONE;
 
         ComplianceWitness {
             consumed_resource,

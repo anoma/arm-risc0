@@ -91,6 +91,14 @@ impl DeltaWitness {
             signing_key: SigningKey::from(sk),
         }
     }
+
+    pub fn compress(witnesses: &[DeltaWitness]) -> DeltaWitness {
+        let mut sum = witnesses[0].clone();
+        for i in 1..witnesses.len() {
+            sum = sum.compose(&witnesses[i]);
+        }
+        sum
+    }
 }
 
 impl DeltaInstance {
