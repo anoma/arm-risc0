@@ -44,6 +44,7 @@ sol! {
         bytes32 tag;
         bool isConsumed;
         bytes32 root;
+        bytes ciphertext;
         ExpirableBlob[] appData;
     }
 

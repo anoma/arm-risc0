@@ -7,8 +7,8 @@ use aarm::evm_adapter::{
     AdapterAction, AdapterComplianceUnit, AdapterDelta, AdapterLogicProof, AdapterTransaction,
 };
 
-use aarm_core::logic_instance::LogicInstance;
-use alloy::primitives::{B256, U256};
+use aarm_core::logic_instance::{ExpirableBlob, LogicInstance};
+use alloy::primitives::{B256, Bytes, U256};
 
 impl From<Resource> for EVMTypes::Resource {
     fn from(r: Resource) -> Self {
@@ -50,17 +50,26 @@ impl From<ComplianceInstance> for EVMTypes::ComplianceInstance {
     }
 }
 
+impl From<ExpirableBlob> for EVMTypes::ExpirableBlob {
+    fn from(expirable_blob: ExpirableBlob) -> Self {
+        Self {
+            blob: expirable_blob.blob.into(),
+            deletionCriterion: EVMTypes::DeletionCriterion::try_from(
+                expirable_blob.deletion_criterion,
+            )
+            .expect("Deletion criterion is invalid"),
+        }
+    }
+}
+
 impl From<LogicInstance> for EVMTypes::LogicInstance {
     fn from(instance: LogicInstance) -> Self {
         Self {
             tag: B256::from_slice(instance.tag.as_bytes()),
             isConsumed: instance.is_consumed,
             root: B256::from_slice(instance.root.as_bytes()),
-            // TODO what is `pub cipher: Ciphertext,` needed for?
-            appData: [EVMTypes::ExpirableBlob {
-                deletionCriterion: EVMTypes::DeletionCriterion::Immediately, // TODO! Xuyang's TX func must provide this value
-                blob: instance.app_data.,
-            }],
+            ciphertext: instance.cipher.inner().as_slice().into(),
+            appData: instance.app_data.into(),
         }
     }
 }
