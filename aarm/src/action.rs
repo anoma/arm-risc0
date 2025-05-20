@@ -134,30 +134,69 @@ pub mod tests {
     use crate::utils::groth16_prove;
     use aarm_core::{
         compliance::ComplianceWitness, constants::COMMITMENT_TREE_DEPTH, delta_proof::DeltaWitness,
-        resource_logic::TrivialLogicWitness,
+        nullifier_key::NullifierKey, resource::Resource, resource_logic::TrivialLogicWitness,
     };
     use compliance_circuit::COMPLIANCE_GUEST_ELF;
+    use risc0_zkvm::Digest;
     use trivial_logic::{TRIVIAL_GUEST_ELF, TRIVIAL_GUEST_ID};
 
     pub fn create_an_action() -> (Action, DeltaWitness) {
-        let compliance_witness = ComplianceWitness::<COMMITMENT_TREE_DEPTH>::default();
+        let (nf_key, nf_key_cm) = NullifierKey::random_pair();
+        let mut consumed_resource = Resource::default();
+        consumed_resource.logic_ref = Digest::new(TRIVIAL_GUEST_ID.into());
+        consumed_resource.nk_commitment = nf_key_cm;
+        let mut created_resource = consumed_resource.clone();
+        consumed_resource.reset_randomness_nonce();
+        created_resource.reset_randomness_nonce();
+
+        let compliance_witness = ComplianceWitness::<COMMITMENT_TREE_DEPTH>::from_resources(
+            consumed_resource,
+            nf_key,
+            created_resource,
+        );
         let compliance_receipt = groth16_prove(&compliance_witness, COMPLIANCE_GUEST_ELF);
 
-        let trivial_logic = TrivialLogicWitness::default();
-        let trivial_logic_receipt = groth16_prove(&trivial_logic, TRIVIAL_GUEST_ELF);
-        let logic_proof = LogicProof {
-            receipt: trivial_logic_receipt,
+        let consumed_resource_nf = consumed_resource.nullifier(&nf_key).unwrap();
+        let created_resource_cm = created_resource.commitment();
+        let action_tree = MerkleTree::new(vec![consumed_resource_nf, created_resource_cm]);
+        let consumed_resource_path = action_tree.generate_path(consumed_resource_nf).unwrap();
+        let created_resource_path = action_tree.generate_path(created_resource_cm).unwrap();
+
+        let consumed_logic_witness =
+            TrivialLogicWitness::new(consumed_resource, consumed_resource_path, nf_key, true);
+        let consumed_logic_receipt = groth16_prove(&consumed_logic_witness, TRIVIAL_GUEST_ELF);
+        let consumed_logic_proof = LogicProof {
+            receipt: consumed_logic_receipt,
+            verifying_key: TRIVIAL_GUEST_ID.into(),
+        };
+
+        let created_logic_witness =
+            TrivialLogicWitness::new(created_resource, created_resource_path, nf_key, false);
+        let created_logic_receipt = groth16_prove(&created_logic_witness, TRIVIAL_GUEST_ELF);
+        let created_logic_proof = LogicProof {
+            receipt: created_logic_receipt,
             verifying_key: TRIVIAL_GUEST_ID.into(),
         };
 
         let compliance_units = vec![compliance_receipt];
-        let logic_proofs = vec![logic_proof];
+        let logic_proofs = vec![consumed_logic_proof, created_logic_proof];
 
         let action = Action::new(compliance_units, logic_proofs);
         assert!(action.verify());
 
         let delta_witness = DeltaWitness::from_scalars(&[compliance_witness.rcv]);
         (action, delta_witness)
+    }
+
+    pub fn create_multiple_actions(n: usize) -> (Vec<Action>, DeltaWitness) {
+        let mut actions = Vec::new();
+        let mut delta_witnesses = Vec::new();
+        for _ in 0..n {
+            let (action, delta_witness) = create_an_action();
+            actions.push(action);
+            delta_witnesses.push(delta_witness);
+        }
+        (actions, DeltaWitness::compress(&delta_witnesses))
     }
 
     #[test]

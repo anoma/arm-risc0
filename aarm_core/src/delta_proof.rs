@@ -91,6 +91,13 @@ impl DeltaWitness {
             signing_key: SigningKey::from(sk),
         }
     }
+
+    pub fn compress(witnesses: &[DeltaWitness]) -> DeltaWitness {
+        let sum = witnesses
+            .iter()
+            .fold(DeltaWitness::from_scalars(&[]), |acc, x| acc.compose(x));
+        sum
+    }
 }
 
 impl DeltaInstance {
