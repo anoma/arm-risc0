@@ -1,9 +1,9 @@
-use alloy::sol;
 use tokio;
 
-use crate::call::ProtocolAdapter::ProtocolAdapterInstance;
+use crate::conversion::ProtocolAdapter;
+
 use alloy::network::EthereumWallet;
-use alloy::primitives::{Address, B256};
+use alloy::primitives::{Address, B256, U256};
 use alloy::providers::fillers::{
     BlobGasFiller, ChainIdFiller, FillProvider, GasFiller, JoinFill, NonceFiller, WalletFiller,
 };
@@ -12,14 +12,7 @@ use alloy::signers::local::PrivateKeySigner;
 use dotenv::dotenv;
 use std::env;
 
-sol!(
-    #[allow(missing_docs)]
-    #[sol(rpc)]
-    ProtocolAdapter,
-    "src/ProtocolAdapter.json"
-);
-
-fn get_pa() -> ProtocolAdapterInstance<
+pub fn get_pa() -> ProtocolAdapter::ProtocolAdapterInstance<
     (),
     FillProvider<
         JoinFill<
@@ -56,13 +49,13 @@ fn get_pa() -> ProtocolAdapterInstance<
     ProtocolAdapter::new(protocol_adapter, provider)
 }
 
-async fn get_latest_root() -> B256 {
+pub async fn get_latest_root() -> B256 {
     get_pa().latestRoot().call().await.unwrap().root
 }
 
-async fn get_merkle_proof(commitment: B256) -> (Vec<B256>, B256) {
+pub async fn get_merkle_proof(commitment: B256) -> (Vec<B256>, U256) {
     let res = get_pa().merkleProof(commitment).call().await.unwrap();
-    (res.proof, res.root)
+    (res.siblings, res.directionBits)
 }
 
 #[tokio::test]
@@ -74,10 +67,9 @@ async fn rpc_call() {
     println!("latest root: {:?}", latest_root);
 
     // https://sepolia.etherscan.io/tx/0xa1a85a81b995f71f76cb76be97b802ff5a154ef00c9d069929744c96eb7c05cc#eventlog
-    let cm = b256!("c63bb62c8c9624da71d220a5ba57b596f670d01934bcf94307d988028133bede");
-    let (proof, root) = get_merkle_proof(cm).await;
+    //let cm = b256!("c63bb62c8c9624da71d220a5ba57b596f670d01934bcf94307d988028133bede");
+    //let (proof, root) = get_merkle_proof(cm).await;
 
-
-    println!("{:?}", proof);
-    println!("{:?}", root);
+    //println!("{:?}", proof);
+    //println!("{:?}", root);
 }

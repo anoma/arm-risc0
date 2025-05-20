@@ -3,11 +3,26 @@ use aarm_core::{
     constants::COMMITMENT_TREE_DEPTH,
 };
 use compliance_methods::{COMPLIANCE_GUEST_ELF, COMPLIANCE_GUEST_ID};
-use risc0_zkvm::{default_prover, ExecutorEnv};
+use risc0_zkvm::{default_prover, Digest, ExecutorEnv};
 use std::time::Instant;
+
+// use alloy_primitives::FixedBytes;
 
 pub fn main() {
     let prove_start_timer = Instant::now();
+
+    // let bytes = Digest::new(COMPLIANCE_GUEST_ID.into()).as_bytes();
+    // let fixed_bytes = FixedBytes::from_slice(bytes);
+    // println!("COMPLIANCE_GUEST_ID: {fixed_bytes}");
+
+    println!(
+        "COMPLIANCE_GUEST_ID: 0x{}",
+        Digest::new(COMPLIANCE_GUEST_ID.into())
+            .as_bytes()
+            .iter()
+            .map(|b| format!("{:02x}", b))
+            .collect::<String>()
+    );
 
     let compliance_witness: ComplianceWitness<COMMITMENT_TREE_DEPTH> =
         ComplianceWitness::<COMMITMENT_TREE_DEPTH>::default();
@@ -39,6 +54,7 @@ pub fn main() {
     let verify_start_timer = Instant::now();
 
     receipt.verify(COMPLIANCE_GUEST_ID).unwrap();
+
     let verify_duration = verify_start_timer.elapsed();
     println!("Verify duration time: {:?}", verify_duration);
 }

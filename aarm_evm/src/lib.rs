@@ -1,14 +1,13 @@
 pub mod call;
 pub mod conversion;
-pub mod types;
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use alloy::primitives::{Bytes, B256, U256};
+    use alloy::primitives::{B256, Bytes, U256};
     use alloy::sol_types::SolType;
+    use conversion::ProtocolAdapter::Resource;
     use rand::random;
-    use types::Resource;
 
     #[test]
     fn test_encode_resource() {

@@ -1,1310 +1,1270 @@
 [
   {
+    "type": "constructor",
     "inputs": [
       {
-        "internalType": "contract IRiscZeroVerifier",
         "name": "riscZeroVerifier",
-        "type": "address"
+        "type": "address",
+        "internalType": "contract IRiscZeroVerifier"
       },
       {
-        "internalType": "bytes32",
-        "name": "logicCircuitID",
-        "type": "bytes32"
-      },
-      {
-        "internalType": "bytes32",
         "name": "complianceCircuitID",
-        "type": "bytes32"
+        "type": "bytes32",
+        "internalType": "bytes32"
       },
       {
-        "internalType": "uint8",
-        "name": "treeDepth",
-        "type": "uint8"
-      }
-    ],
-    "stateMutability": "nonpayable",
-    "type": "constructor"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "bytes32",
-        "name": "tag",
-        "type": "bytes32"
-      }
-    ],
-    "name": "AppDataTagNotFound",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "BlobEmpty",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "bytes32",
-        "name": "expected",
-        "type": "bytes32"
+        "name": "commitmentTreeDepth",
+        "type": "uint8",
+        "internalType": "uint8"
       },
       {
-        "internalType": "bytes32",
-        "name": "actual",
-        "type": "bytes32"
+        "name": "actionTreeDepth",
+        "type": "uint8",
+        "internalType": "uint8"
       }
     ],
-    "name": "BlobHashMismatch",
-    "type": "error"
+    "stateMutability": "nonpayable"
   },
   {
+    "type": "function",
+    "name": "containsRoot",
     "inputs": [
       {
-        "internalType": "bytes32",
-        "name": "blobHash",
-        "type": "bytes32"
-      }
-    ],
-    "name": "BlobNotFound",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "current",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "limit",
-        "type": "uint256"
-      }
-    ],
-    "name": "CommitmentIndexOutOfBounds",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "bytes32",
-        "name": "expected",
-        "type": "bytes32"
-      },
-      {
-        "internalType": "bytes32",
-        "name": "actual",
-        "type": "bytes32"
-      }
-    ],
-    "name": "CommitmentMismatch",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "enum DeletionCriterion",
-        "name": "deletionCriterion",
-        "type": "uint8"
-      }
-    ],
-    "name": "DeletionCriterionNotSupported",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "expected",
-        "type": "address"
-      },
-      {
-        "internalType": "address",
-        "name": "actual",
-        "type": "address"
-      }
-    ],
-    "name": "DeltaMismatch",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "ECDSAInvalidSignature",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "length",
-        "type": "uint256"
-      }
-    ],
-    "name": "ECDSAInvalidSignatureLength",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "bytes32",
-        "name": "s",
-        "type": "bytes32"
-      }
-    ],
-    "name": "ECDSAInvalidSignatureS",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "EmptyCommitment",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "bytes",
-        "name": "expected",
-        "type": "bytes"
-      },
-      {
-        "internalType": "bytes",
-        "name": "actual",
-        "type": "bytes"
-      }
-    ],
-    "name": "FFICallOutputMismatch",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "bytes32",
-        "name": "commitment",
-        "type": "bytes32"
-      }
-    ],
-    "name": "InvalidCommitmentRef",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "bytes32",
-        "name": "nullifier",
-        "type": "bytes32"
-      }
-    ],
-    "name": "InvalidNullifierRef",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "expected",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "actual",
-        "type": "uint256"
-      }
-    ],
-    "name": "InvalidPathLength",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "bytes32",
-        "name": "expected",
-        "type": "bytes32"
-      },
-      {
-        "internalType": "bytes32",
-        "name": "actual",
-        "type": "bytes32"
-      }
-    ],
-    "name": "InvalidRoot",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "bytes32",
         "name": "root",
-        "type": "bytes32"
+        "type": "bytes32",
+        "internalType": "bytes32"
       }
     ],
-    "name": "InvalidRootRef",
-    "type": "error"
-  },
-  {
-    "inputs": [
+    "outputs": [
       {
-        "internalType": "bytes32",
-        "name": "tag",
-        "type": "bytes32"
+        "name": "isContained",
+        "type": "bool",
+        "internalType": "bool"
       }
     ],
-    "name": "LogicProofTagNotFound",
-    "type": "error"
+    "stateMutability": "view"
   },
   {
+    "type": "function",
+    "name": "execute",
     "inputs": [
       {
-        "internalType": "uint256",
-        "name": "index",
-        "type": "uint256"
-      }
-    ],
-    "name": "NonExistentLeafIndex",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "bytes32",
-        "name": "commitment",
-        "type": "bytes32"
-      }
-    ],
-    "name": "NonExistingCommitment",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "bytes32",
-        "name": "root",
-        "type": "bytes32"
-      }
-    ],
-    "name": "NonExistingRoot",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "bytes32",
-        "name": "commitment",
-        "type": "bytes32"
-      }
-    ],
-    "name": "PreExistingCommitment",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "bytes32",
-        "name": "nullifier",
-        "type": "bytes32"
-      }
-    ],
-    "name": "PreExistingNullifier",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "bytes32",
-        "name": "root",
-        "type": "bytes32"
-      }
-    ],
-    "name": "PreExistingRoot",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "ReentrancyGuardReentrantCall",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "expected",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "actual",
-        "type": "uint256"
-      }
-    ],
-    "name": "TransactionUnbalanced",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "TreeCapacityExceeded",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "bytes32",
-        "name": "commitment",
-        "type": "bytes32"
-      }
-    ],
-    "name": "WrapperContractResourceCommitmentNotFound",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "bytes32",
-        "name": "expected",
-        "type": "bytes32"
-      },
-      {
-        "internalType": "bytes32",
-        "name": "actual",
-        "type": "bytes32"
-      }
-    ],
-    "name": "WrapperContractResourceLabelMismatch",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "bytes32",
-        "name": "expected",
-        "type": "bytes32"
-      },
-      {
-        "internalType": "bytes32",
-        "name": "actual",
-        "type": "bytes32"
-      }
-    ],
-    "name": "WrapperResourceAppDataMismatch",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "bytes32",
-        "name": "expected",
-        "type": "bytes32"
-      },
-      {
-        "internalType": "bytes32",
-        "name": "actual",
-        "type": "bytes32"
-      }
-    ],
-    "name": "WrapperResourceKindMismatch",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "WrongUsage",
-    "type": "error"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "bytes32",
-        "name": "commitment",
-        "type": "bytes32"
-      },
-      {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "index",
-        "type": "uint256"
-      }
-    ],
-    "name": "CommitmentAdded",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "bytes32",
-        "name": "nullifier",
-        "type": "bytes32"
-      },
-      {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "index",
-        "type": "uint256"
-      }
-    ],
-    "name": "NullifierAdded",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "bytes32",
-        "name": "root",
-        "type": "bytes32"
-      }
-    ],
-    "name": "RootAdded",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "id",
-        "type": "uint256"
-      },
-      {
+        "name": "transaction",
+        "type": "tuple",
+        "internalType": "struct Transaction",
         "components": [
           {
-            "internalType": "bytes32[]",
-            "name": "roots",
-            "type": "bytes32[]"
-          },
-          {
+            "name": "actions",
+            "type": "tuple[]",
+            "internalType": "struct Action[]",
             "components": [
               {
-                "internalType": "bytes32[]",
-                "name": "commitments",
-                "type": "bytes32[]"
-              },
-              {
-                "internalType": "bytes32[]",
-                "name": "nullifiers",
-                "type": "bytes32[]"
-              },
-              {
-                "components": [
-                  {
-                    "internalType": "bytes32",
-                    "name": "tag",
-                    "type": "bytes32"
-                  },
-                  {
-                    "components": [
-                      {
-                        "internalType": "bytes32",
-                        "name": "logicRef",
-                        "type": "bytes32"
-                      },
-                      {
-                        "internalType": "bytes",
-                        "name": "proof",
-                        "type": "bytes"
-                      }
-                    ],
-                    "internalType": "struct LogicRefProofPair",
-                    "name": "pair",
-                    "type": "tuple"
-                  }
-                ],
-                "internalType": "struct TagLogicProofPair[]",
                 "name": "logicProofs",
-                "type": "tuple[]"
-              },
-              {
+                "type": "tuple[]",
+                "internalType": "struct LogicProof[]",
                 "components": [
                   {
-                    "internalType": "bytes",
                     "name": "proof",
-                    "type": "bytes"
+                    "type": "bytes",
+                    "internalType": "bytes"
                   },
                   {
-                    "components": [
-                      {
-                        "components": [
-                          {
-                            "internalType": "bytes32",
-                            "name": "nullifierRef",
-                            "type": "bytes32"
-                          },
-                          {
-                            "internalType": "bytes32",
-                            "name": "rootRef",
-                            "type": "bytes32"
-                          },
-                          {
-                            "internalType": "bytes32",
-                            "name": "logicRef",
-                            "type": "bytes32"
-                          }
-                        ],
-                        "internalType": "struct ConsumedRefs",
-                        "name": "consumed",
-                        "type": "tuple"
-                      },
-                      {
-                        "components": [
-                          {
-                            "internalType": "bytes32",
-                            "name": "commitmentRef",
-                            "type": "bytes32"
-                          },
-                          {
-                            "internalType": "bytes32",
-                            "name": "logicRef",
-                            "type": "bytes32"
-                          }
-                        ],
-                        "internalType": "struct CreatedRefs",
-                        "name": "created",
-                        "type": "tuple"
-                      },
-                      {
-                        "internalType": "uint256[2]",
-                        "name": "unitDelta",
-                        "type": "uint256[2]"
-                      }
-                    ],
-                    "internalType": "struct ComplianceInstance",
                     "name": "instance",
-                    "type": "tuple"
+                    "type": "tuple",
+                    "internalType": "struct LogicInstance",
+                    "components": [
+                      {
+                        "name": "tag",
+                        "type": "bytes32",
+                        "internalType": "bytes32"
+                      },
+                      {
+                        "name": "isConsumed",
+                        "type": "bool",
+                        "internalType": "bool"
+                      },
+                      {
+                        "name": "root",
+                        "type": "bytes32",
+                        "internalType": "bytes32"
+                      },
+                      {
+                        "name": "ciphertext",
+                        "type": "bytes",
+                        "internalType": "bytes"
+                      },
+                      {
+                        "name": "appData",
+                        "type": "tuple[]",
+                        "internalType": "struct ExpirableBlob[]",
+                        "components": [
+                          {
+                            "name": "deletionCriterion",
+                            "type": "uint8",
+                            "internalType": "enum DeletionCriterion"
+                          },
+                          {
+                            "name": "blob",
+                            "type": "bytes",
+                            "internalType": "bytes"
+                          }
+                        ]
+                      }
+                    ]
                   },
                   {
-                    "internalType": "bytes32",
-                    "name": "verifyingKey",
-                    "type": "bytes32"
+                    "name": "logicRef",
+                    "type": "bytes32",
+                    "internalType": "bytes32"
                   }
-                ],
-                "internalType": "struct ComplianceUnit[]",
+                ]
+              },
+              {
                 "name": "complianceUnits",
-                "type": "tuple[]"
-              },
-              {
+                "type": "tuple[]",
+                "internalType": "struct ComplianceUnit[]",
                 "components": [
                   {
-                    "internalType": "bytes32",
-                    "name": "tag",
-                    "type": "bytes32"
+                    "name": "proof",
+                    "type": "bytes",
+                    "internalType": "bytes"
                   },
                   {
+                    "name": "instance",
+                    "type": "tuple",
+                    "internalType": "struct ComplianceInstance",
                     "components": [
                       {
-                        "internalType": "enum DeletionCriterion",
-                        "name": "deletionCriterion",
-                        "type": "uint8"
+                        "name": "consumed",
+                        "type": "tuple",
+                        "internalType": "struct ConsumedRefs",
+                        "components": [
+                          {
+                            "name": "nullifier",
+                            "type": "bytes32",
+                            "internalType": "bytes32"
+                          },
+                          {
+                            "name": "root",
+                            "type": "bytes32",
+                            "internalType": "bytes32"
+                          },
+                          {
+                            "name": "logicRef",
+                            "type": "bytes32",
+                            "internalType": "bytes32"
+                          }
+                        ]
                       },
                       {
-                        "internalType": "bytes",
-                        "name": "blob",
-                        "type": "bytes"
+                        "name": "created",
+                        "type": "tuple",
+                        "internalType": "struct CreatedRefs",
+                        "components": [
+                          {
+                            "name": "commitment",
+                            "type": "bytes32",
+                            "internalType": "bytes32"
+                          },
+                          {
+                            "name": "logicRef",
+                            "type": "bytes32",
+                            "internalType": "bytes32"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "unitDelta",
+                        "type": "uint256[2]",
+                        "internalType": "uint256[2]"
                       }
-                    ],
-                    "internalType": "struct ExpirableBlob",
-                    "name": "appData",
-                    "type": "tuple"
+                    ]
                   }
-                ],
-                "internalType": "struct TagAppDataPair[]",
-                "name": "tagAppDataPairs",
-                "type": "tuple[]"
+                ]
               },
               {
+                "name": "resourceCalldataPairs",
+                "type": "tuple[]",
+                "internalType": "struct ResourceForwarderCalldataPair[]",
                 "components": [
                   {
-                    "components": [
-                      {
-                        "internalType": "bytes32",
-                        "name": "logicRef",
-                        "type": "bytes32"
-                      },
-                      {
-                        "internalType": "bytes32",
-                        "name": "labelRef",
-                        "type": "bytes32"
-                      },
-                      {
-                        "internalType": "bytes32",
-                        "name": "valueRef",
-                        "type": "bytes32"
-                      },
-                      {
-                        "internalType": "bytes32",
-                        "name": "nullifierKeyCommitment",
-                        "type": "bytes32"
-                      },
-                      {
-                        "internalType": "uint256",
-                        "name": "quantity",
-                        "type": "uint256"
-                      },
-                      {
-                        "internalType": "uint256",
-                        "name": "nonce",
-                        "type": "uint256"
-                      },
-                      {
-                        "internalType": "uint256",
-                        "name": "randSeed",
-                        "type": "uint256"
-                      },
-                      {
-                        "internalType": "bool",
-                        "name": "ephemeral",
-                        "type": "bool"
-                      }
-                    ],
+                    "name": "carrier",
+                    "type": "tuple",
                     "internalType": "struct Resource",
-                    "name": "wrapperResource",
-                    "type": "tuple"
-                  },
-                  {
                     "components": [
                       {
-                        "internalType": "address",
-                        "name": "untrustedWrapperContract",
-                        "type": "address"
+                        "name": "logicRef",
+                        "type": "bytes32",
+                        "internalType": "bytes32"
                       },
                       {
-                        "internalType": "bytes",
-                        "name": "input",
-                        "type": "bytes"
+                        "name": "labelRef",
+                        "type": "bytes32",
+                        "internalType": "bytes32"
                       },
                       {
-                        "internalType": "bytes",
-                        "name": "output",
-                        "type": "bytes"
+                        "name": "valueRef",
+                        "type": "bytes32",
+                        "internalType": "bytes32"
+                      },
+                      {
+                        "name": "nullifierKeyCommitment",
+                        "type": "bytes32",
+                        "internalType": "bytes32"
+                      },
+                      {
+                        "name": "quantity",
+                        "type": "uint256",
+                        "internalType": "uint256"
+                      },
+                      {
+                        "name": "nonce",
+                        "type": "uint256",
+                        "internalType": "uint256"
+                      },
+                      {
+                        "name": "randSeed",
+                        "type": "uint256",
+                        "internalType": "uint256"
+                      },
+                      {
+                        "name": "ephemeral",
+                        "type": "bool",
+                        "internalType": "bool"
                       }
-                    ],
-                    "internalType": "struct FFICall",
-                    "name": "ffiCall",
-                    "type": "tuple"
+                    ]
+                  },
+                  {
+                    "name": "call",
+                    "type": "tuple",
+                    "internalType": "struct ForwarderCalldata",
+                    "components": [
+                      {
+                        "name": "untrustedForwarder",
+                        "type": "address",
+                        "internalType": "address"
+                      },
+                      {
+                        "name": "input",
+                        "type": "bytes",
+                        "internalType": "bytes"
+                      },
+                      {
+                        "name": "output",
+                        "type": "bytes",
+                        "internalType": "bytes"
+                      }
+                    ]
                   }
-                ],
-                "internalType": "struct WrapperResourceFFICallPair[]",
-                "name": "wrapperResourceFFICallPairs",
-                "type": "tuple[]"
+                ]
               }
-            ],
-            "internalType": "struct Action[]",
-            "name": "actions",
-            "type": "tuple[]"
+            ]
           },
           {
-            "internalType": "bytes",
             "name": "deltaProof",
-            "type": "bytes"
+            "type": "bytes",
+            "internalType": "bytes"
           }
-        ],
+        ]
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "latestRoot",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "root",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "lookupBlob",
+    "inputs": [
+      {
+        "name": "blobHash",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "blob",
+        "type": "bytes",
+        "internalType": "bytes"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "merkleProof",
+    "inputs": [
+      {
+        "name": "commitment",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "siblings",
+        "type": "bytes32[]",
+        "internalType": "bytes32[]"
+      },
+      {
+        "name": "directionBits",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "verify",
+    "inputs": [
+      {
+        "name": "transaction",
+        "type": "tuple",
+        "internalType": "struct Transaction",
+        "components": [
+          {
+            "name": "actions",
+            "type": "tuple[]",
+            "internalType": "struct Action[]",
+            "components": [
+              {
+                "name": "logicProofs",
+                "type": "tuple[]",
+                "internalType": "struct LogicProof[]",
+                "components": [
+                  {
+                    "name": "proof",
+                    "type": "bytes",
+                    "internalType": "bytes"
+                  },
+                  {
+                    "name": "instance",
+                    "type": "tuple",
+                    "internalType": "struct LogicInstance",
+                    "components": [
+                      {
+                        "name": "tag",
+                        "type": "bytes32",
+                        "internalType": "bytes32"
+                      },
+                      {
+                        "name": "isConsumed",
+                        "type": "bool",
+                        "internalType": "bool"
+                      },
+                      {
+                        "name": "root",
+                        "type": "bytes32",
+                        "internalType": "bytes32"
+                      },
+                      {
+                        "name": "ciphertext",
+                        "type": "bytes",
+                        "internalType": "bytes"
+                      },
+                      {
+                        "name": "appData",
+                        "type": "tuple[]",
+                        "internalType": "struct ExpirableBlob[]",
+                        "components": [
+                          {
+                            "name": "deletionCriterion",
+                            "type": "uint8",
+                            "internalType": "enum DeletionCriterion"
+                          },
+                          {
+                            "name": "blob",
+                            "type": "bytes",
+                            "internalType": "bytes"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "logicRef",
+                    "type": "bytes32",
+                    "internalType": "bytes32"
+                  }
+                ]
+              },
+              {
+                "name": "complianceUnits",
+                "type": "tuple[]",
+                "internalType": "struct ComplianceUnit[]",
+                "components": [
+                  {
+                    "name": "proof",
+                    "type": "bytes",
+                    "internalType": "bytes"
+                  },
+                  {
+                    "name": "instance",
+                    "type": "tuple",
+                    "internalType": "struct ComplianceInstance",
+                    "components": [
+                      {
+                        "name": "consumed",
+                        "type": "tuple",
+                        "internalType": "struct ConsumedRefs",
+                        "components": [
+                          {
+                            "name": "nullifier",
+                            "type": "bytes32",
+                            "internalType": "bytes32"
+                          },
+                          {
+                            "name": "root",
+                            "type": "bytes32",
+                            "internalType": "bytes32"
+                          },
+                          {
+                            "name": "logicRef",
+                            "type": "bytes32",
+                            "internalType": "bytes32"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "created",
+                        "type": "tuple",
+                        "internalType": "struct CreatedRefs",
+                        "components": [
+                          {
+                            "name": "commitment",
+                            "type": "bytes32",
+                            "internalType": "bytes32"
+                          },
+                          {
+                            "name": "logicRef",
+                            "type": "bytes32",
+                            "internalType": "bytes32"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "unitDelta",
+                        "type": "uint256[2]",
+                        "internalType": "uint256[2]"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "name": "resourceCalldataPairs",
+                "type": "tuple[]",
+                "internalType": "struct ResourceForwarderCalldataPair[]",
+                "components": [
+                  {
+                    "name": "carrier",
+                    "type": "tuple",
+                    "internalType": "struct Resource",
+                    "components": [
+                      {
+                        "name": "logicRef",
+                        "type": "bytes32",
+                        "internalType": "bytes32"
+                      },
+                      {
+                        "name": "labelRef",
+                        "type": "bytes32",
+                        "internalType": "bytes32"
+                      },
+                      {
+                        "name": "valueRef",
+                        "type": "bytes32",
+                        "internalType": "bytes32"
+                      },
+                      {
+                        "name": "nullifierKeyCommitment",
+                        "type": "bytes32",
+                        "internalType": "bytes32"
+                      },
+                      {
+                        "name": "quantity",
+                        "type": "uint256",
+                        "internalType": "uint256"
+                      },
+                      {
+                        "name": "nonce",
+                        "type": "uint256",
+                        "internalType": "uint256"
+                      },
+                      {
+                        "name": "randSeed",
+                        "type": "uint256",
+                        "internalType": "uint256"
+                      },
+                      {
+                        "name": "ephemeral",
+                        "type": "bool",
+                        "internalType": "bool"
+                      }
+                    ]
+                  },
+                  {
+                    "name": "call",
+                    "type": "tuple",
+                    "internalType": "struct ForwarderCalldata",
+                    "components": [
+                      {
+                        "name": "untrustedForwarder",
+                        "type": "address",
+                        "internalType": "address"
+                      },
+                      {
+                        "name": "input",
+                        "type": "bytes",
+                        "internalType": "bytes"
+                      },
+                      {
+                        "name": "output",
+                        "type": "bytes",
+                        "internalType": "bytes"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "deltaProof",
+            "type": "bytes",
+            "internalType": "bytes"
+          }
+        ]
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "verifyMerkleProof",
+    "inputs": [
+      {
+        "name": "root",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "commitment",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "path",
+        "type": "bytes32[]",
+        "internalType": "bytes32[]"
+      },
+      {
+        "name": "directionBits",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "view"
+  },
+  {
+    "type": "event",
+    "name": "BlobStored",
+    "inputs": [
+      {
+        "name": "blobHash",
+        "type": "bytes32",
+        "indexed": true,
+        "internalType": "bytes32"
+      },
+      {
+        "name": "deletionCriterion",
+        "type": "uint8",
+        "indexed": true,
+        "internalType": "enum DeletionCriterion"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "CommitmentAdded",
+    "inputs": [
+      {
+        "name": "commitment",
+        "type": "bytes32",
+        "indexed": true,
+        "internalType": "bytes32"
+      },
+      {
+        "name": "index",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "NullifierAdded",
+    "inputs": [
+      {
+        "name": "nullifier",
+        "type": "bytes32",
+        "indexed": true,
+        "internalType": "bytes32"
+      },
+      {
+        "name": "index",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "RootAdded",
+    "inputs": [
+      {
+        "name": "root",
+        "type": "bytes32",
+        "indexed": true,
+        "internalType": "bytes32"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "TransactionExecuted",
+    "inputs": [
+      {
+        "name": "id",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "transaction",
+        "type": "tuple",
         "indexed": false,
         "internalType": "struct Transaction",
-        "name": "transaction",
-        "type": "tuple"
-      }
-    ],
-    "name": "TransactionExecuted",
-    "type": "event"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "bytes32",
-        "name": "root",
-        "type": "bytes32"
-      }
-    ],
-    "name": "containsRoot",
-    "outputs": [
-      {
-        "internalType": "bool",
-        "name": "isContained",
-        "type": "bool"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "contract IWrapper",
-        "name": "untrustedWrapperContract",
-        "type": "address"
-      }
-    ],
-    "name": "createWrapperContractResource",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
         "components": [
           {
-            "internalType": "bytes32[]",
-            "name": "roots",
-            "type": "bytes32[]"
-          },
-          {
+            "name": "actions",
+            "type": "tuple[]",
+            "internalType": "struct Action[]",
             "components": [
               {
-                "internalType": "bytes32[]",
-                "name": "commitments",
-                "type": "bytes32[]"
-              },
-              {
-                "internalType": "bytes32[]",
-                "name": "nullifiers",
-                "type": "bytes32[]"
-              },
-              {
-                "components": [
-                  {
-                    "internalType": "bytes32",
-                    "name": "tag",
-                    "type": "bytes32"
-                  },
-                  {
-                    "components": [
-                      {
-                        "internalType": "bytes32",
-                        "name": "logicRef",
-                        "type": "bytes32"
-                      },
-                      {
-                        "internalType": "bytes",
-                        "name": "proof",
-                        "type": "bytes"
-                      }
-                    ],
-                    "internalType": "struct LogicRefProofPair",
-                    "name": "pair",
-                    "type": "tuple"
-                  }
-                ],
-                "internalType": "struct TagLogicProofPair[]",
                 "name": "logicProofs",
-                "type": "tuple[]"
-              },
-              {
+                "type": "tuple[]",
+                "internalType": "struct LogicProof[]",
                 "components": [
                   {
-                    "internalType": "bytes",
                     "name": "proof",
-                    "type": "bytes"
+                    "type": "bytes",
+                    "internalType": "bytes"
                   },
                   {
-                    "components": [
-                      {
-                        "components": [
-                          {
-                            "internalType": "bytes32",
-                            "name": "nullifierRef",
-                            "type": "bytes32"
-                          },
-                          {
-                            "internalType": "bytes32",
-                            "name": "rootRef",
-                            "type": "bytes32"
-                          },
-                          {
-                            "internalType": "bytes32",
-                            "name": "logicRef",
-                            "type": "bytes32"
-                          }
-                        ],
-                        "internalType": "struct ConsumedRefs",
-                        "name": "consumed",
-                        "type": "tuple"
-                      },
-                      {
-                        "components": [
-                          {
-                            "internalType": "bytes32",
-                            "name": "commitmentRef",
-                            "type": "bytes32"
-                          },
-                          {
-                            "internalType": "bytes32",
-                            "name": "logicRef",
-                            "type": "bytes32"
-                          }
-                        ],
-                        "internalType": "struct CreatedRefs",
-                        "name": "created",
-                        "type": "tuple"
-                      },
-                      {
-                        "internalType": "uint256[2]",
-                        "name": "unitDelta",
-                        "type": "uint256[2]"
-                      }
-                    ],
-                    "internalType": "struct ComplianceInstance",
                     "name": "instance",
-                    "type": "tuple"
+                    "type": "tuple",
+                    "internalType": "struct LogicInstance",
+                    "components": [
+                      {
+                        "name": "tag",
+                        "type": "bytes32",
+                        "internalType": "bytes32"
+                      },
+                      {
+                        "name": "isConsumed",
+                        "type": "bool",
+                        "internalType": "bool"
+                      },
+                      {
+                        "name": "root",
+                        "type": "bytes32",
+                        "internalType": "bytes32"
+                      },
+                      {
+                        "name": "ciphertext",
+                        "type": "bytes",
+                        "internalType": "bytes"
+                      },
+                      {
+                        "name": "appData",
+                        "type": "tuple[]",
+                        "internalType": "struct ExpirableBlob[]",
+                        "components": [
+                          {
+                            "name": "deletionCriterion",
+                            "type": "uint8",
+                            "internalType": "enum DeletionCriterion"
+                          },
+                          {
+                            "name": "blob",
+                            "type": "bytes",
+                            "internalType": "bytes"
+                          }
+                        ]
+                      }
+                    ]
                   },
                   {
-                    "internalType": "bytes32",
-                    "name": "verifyingKey",
-                    "type": "bytes32"
+                    "name": "logicRef",
+                    "type": "bytes32",
+                    "internalType": "bytes32"
                   }
-                ],
-                "internalType": "struct ComplianceUnit[]",
+                ]
+              },
+              {
                 "name": "complianceUnits",
-                "type": "tuple[]"
-              },
-              {
+                "type": "tuple[]",
+                "internalType": "struct ComplianceUnit[]",
                 "components": [
                   {
-                    "internalType": "bytes32",
-                    "name": "tag",
-                    "type": "bytes32"
+                    "name": "proof",
+                    "type": "bytes",
+                    "internalType": "bytes"
                   },
                   {
+                    "name": "instance",
+                    "type": "tuple",
+                    "internalType": "struct ComplianceInstance",
                     "components": [
                       {
-                        "internalType": "enum DeletionCriterion",
-                        "name": "deletionCriterion",
-                        "type": "uint8"
+                        "name": "consumed",
+                        "type": "tuple",
+                        "internalType": "struct ConsumedRefs",
+                        "components": [
+                          {
+                            "name": "nullifier",
+                            "type": "bytes32",
+                            "internalType": "bytes32"
+                          },
+                          {
+                            "name": "root",
+                            "type": "bytes32",
+                            "internalType": "bytes32"
+                          },
+                          {
+                            "name": "logicRef",
+                            "type": "bytes32",
+                            "internalType": "bytes32"
+                          }
+                        ]
                       },
                       {
-                        "internalType": "bytes",
-                        "name": "blob",
-                        "type": "bytes"
+                        "name": "created",
+                        "type": "tuple",
+                        "internalType": "struct CreatedRefs",
+                        "components": [
+                          {
+                            "name": "commitment",
+                            "type": "bytes32",
+                            "internalType": "bytes32"
+                          },
+                          {
+                            "name": "logicRef",
+                            "type": "bytes32",
+                            "internalType": "bytes32"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "unitDelta",
+                        "type": "uint256[2]",
+                        "internalType": "uint256[2]"
                       }
-                    ],
-                    "internalType": "struct ExpirableBlob",
-                    "name": "appData",
-                    "type": "tuple"
+                    ]
                   }
-                ],
-                "internalType": "struct TagAppDataPair[]",
-                "name": "tagAppDataPairs",
-                "type": "tuple[]"
+                ]
               },
               {
+                "name": "resourceCalldataPairs",
+                "type": "tuple[]",
+                "internalType": "struct ResourceForwarderCalldataPair[]",
                 "components": [
                   {
-                    "components": [
-                      {
-                        "internalType": "bytes32",
-                        "name": "logicRef",
-                        "type": "bytes32"
-                      },
-                      {
-                        "internalType": "bytes32",
-                        "name": "labelRef",
-                        "type": "bytes32"
-                      },
-                      {
-                        "internalType": "bytes32",
-                        "name": "valueRef",
-                        "type": "bytes32"
-                      },
-                      {
-                        "internalType": "bytes32",
-                        "name": "nullifierKeyCommitment",
-                        "type": "bytes32"
-                      },
-                      {
-                        "internalType": "uint256",
-                        "name": "quantity",
-                        "type": "uint256"
-                      },
-                      {
-                        "internalType": "uint256",
-                        "name": "nonce",
-                        "type": "uint256"
-                      },
-                      {
-                        "internalType": "uint256",
-                        "name": "randSeed",
-                        "type": "uint256"
-                      },
-                      {
-                        "internalType": "bool",
-                        "name": "ephemeral",
-                        "type": "bool"
-                      }
-                    ],
+                    "name": "carrier",
+                    "type": "tuple",
                     "internalType": "struct Resource",
-                    "name": "wrapperResource",
-                    "type": "tuple"
-                  },
-                  {
                     "components": [
                       {
-                        "internalType": "address",
-                        "name": "untrustedWrapperContract",
-                        "type": "address"
+                        "name": "logicRef",
+                        "type": "bytes32",
+                        "internalType": "bytes32"
                       },
                       {
-                        "internalType": "bytes",
-                        "name": "input",
-                        "type": "bytes"
+                        "name": "labelRef",
+                        "type": "bytes32",
+                        "internalType": "bytes32"
                       },
                       {
-                        "internalType": "bytes",
-                        "name": "output",
-                        "type": "bytes"
+                        "name": "valueRef",
+                        "type": "bytes32",
+                        "internalType": "bytes32"
+                      },
+                      {
+                        "name": "nullifierKeyCommitment",
+                        "type": "bytes32",
+                        "internalType": "bytes32"
+                      },
+                      {
+                        "name": "quantity",
+                        "type": "uint256",
+                        "internalType": "uint256"
+                      },
+                      {
+                        "name": "nonce",
+                        "type": "uint256",
+                        "internalType": "uint256"
+                      },
+                      {
+                        "name": "randSeed",
+                        "type": "uint256",
+                        "internalType": "uint256"
+                      },
+                      {
+                        "name": "ephemeral",
+                        "type": "bool",
+                        "internalType": "bool"
                       }
-                    ],
-                    "internalType": "struct FFICall",
-                    "name": "ffiCall",
-                    "type": "tuple"
+                    ]
+                  },
+                  {
+                    "name": "call",
+                    "type": "tuple",
+                    "internalType": "struct ForwarderCalldata",
+                    "components": [
+                      {
+                        "name": "untrustedForwarder",
+                        "type": "address",
+                        "internalType": "address"
+                      },
+                      {
+                        "name": "input",
+                        "type": "bytes",
+                        "internalType": "bytes"
+                      },
+                      {
+                        "name": "output",
+                        "type": "bytes",
+                        "internalType": "bytes"
+                      }
+                    ]
                   }
-                ],
-                "internalType": "struct WrapperResourceFFICallPair[]",
-                "name": "wrapperResourceFFICallPairs",
-                "type": "tuple[]"
+                ]
               }
-            ],
-            "internalType": "struct Action[]",
-            "name": "actions",
-            "type": "tuple[]"
+            ]
           },
           {
-            "internalType": "bytes",
             "name": "deltaProof",
-            "type": "bytes"
+            "type": "bytes",
+            "internalType": "bytes"
           }
-        ],
-        "internalType": "struct Transaction",
-        "name": "transaction",
-        "type": "tuple"
+        ]
       }
     ],
-    "name": "execute",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
+    "anonymous": false
   },
   {
-    "inputs": [],
-    "name": "latestRoot",
-    "outputs": [
-      {
-        "internalType": "bytes32",
-        "name": "root",
-        "type": "bytes32"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
+    "type": "error",
+    "name": "BlobEmpty",
+    "inputs": []
   },
   {
+    "type": "error",
+    "name": "BlobHashMismatch",
     "inputs": [
       {
-        "internalType": "bytes32",
+        "name": "expected",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "actual",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "BlobNotFound",
+    "inputs": [
+      {
         "name": "blobHash",
-        "type": "bytes32"
+        "type": "bytes32",
+        "internalType": "bytes32"
       }
-    ],
-    "name": "lookupBlob",
-    "outputs": [
-      {
-        "internalType": "bytes",
-        "name": "blob",
-        "type": "bytes"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
+    ]
   },
   {
+    "type": "error",
+    "name": "CalldataCarrierAppDataMismatch",
     "inputs": [
       {
-        "internalType": "bytes32",
+        "name": "expected",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "actual",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "CalldataCarrierCommitmentNotFound",
+    "inputs": [
+      {
         "name": "commitment",
-        "type": "bytes32"
+        "type": "bytes32",
+        "internalType": "bytes32"
       }
-    ],
-    "name": "merkleProof",
-    "outputs": [
-      {
-        "internalType": "bytes32[]",
-        "name": "proof",
-        "type": "bytes32[]"
-      },
-      {
-        "internalType": "bytes32",
-        "name": "root",
-        "type": "bytes32"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
+    ]
   },
   {
+    "type": "error",
+    "name": "CalldataCarrierKindMismatch",
     "inputs": [
       {
-        "components": [
-          {
-            "internalType": "bytes32[]",
-            "name": "roots",
-            "type": "bytes32[]"
-          },
-          {
-            "components": [
-              {
-                "internalType": "bytes32[]",
-                "name": "commitments",
-                "type": "bytes32[]"
-              },
-              {
-                "internalType": "bytes32[]",
-                "name": "nullifiers",
-                "type": "bytes32[]"
-              },
-              {
-                "components": [
-                  {
-                    "internalType": "bytes32",
-                    "name": "tag",
-                    "type": "bytes32"
-                  },
-                  {
-                    "components": [
-                      {
-                        "internalType": "bytes32",
-                        "name": "logicRef",
-                        "type": "bytes32"
-                      },
-                      {
-                        "internalType": "bytes",
-                        "name": "proof",
-                        "type": "bytes"
-                      }
-                    ],
-                    "internalType": "struct LogicRefProofPair",
-                    "name": "pair",
-                    "type": "tuple"
-                  }
-                ],
-                "internalType": "struct TagLogicProofPair[]",
-                "name": "logicProofs",
-                "type": "tuple[]"
-              },
-              {
-                "components": [
-                  {
-                    "internalType": "bytes",
-                    "name": "proof",
-                    "type": "bytes"
-                  },
-                  {
-                    "components": [
-                      {
-                        "components": [
-                          {
-                            "internalType": "bytes32",
-                            "name": "nullifierRef",
-                            "type": "bytes32"
-                          },
-                          {
-                            "internalType": "bytes32",
-                            "name": "rootRef",
-                            "type": "bytes32"
-                          },
-                          {
-                            "internalType": "bytes32",
-                            "name": "logicRef",
-                            "type": "bytes32"
-                          }
-                        ],
-                        "internalType": "struct ConsumedRefs",
-                        "name": "consumed",
-                        "type": "tuple"
-                      },
-                      {
-                        "components": [
-                          {
-                            "internalType": "bytes32",
-                            "name": "commitmentRef",
-                            "type": "bytes32"
-                          },
-                          {
-                            "internalType": "bytes32",
-                            "name": "logicRef",
-                            "type": "bytes32"
-                          }
-                        ],
-                        "internalType": "struct CreatedRefs",
-                        "name": "created",
-                        "type": "tuple"
-                      },
-                      {
-                        "internalType": "uint256[2]",
-                        "name": "unitDelta",
-                        "type": "uint256[2]"
-                      }
-                    ],
-                    "internalType": "struct ComplianceInstance",
-                    "name": "instance",
-                    "type": "tuple"
-                  },
-                  {
-                    "internalType": "bytes32",
-                    "name": "verifyingKey",
-                    "type": "bytes32"
-                  }
-                ],
-                "internalType": "struct ComplianceUnit[]",
-                "name": "complianceUnits",
-                "type": "tuple[]"
-              },
-              {
-                "components": [
-                  {
-                    "internalType": "bytes32",
-                    "name": "tag",
-                    "type": "bytes32"
-                  },
-                  {
-                    "components": [
-                      {
-                        "internalType": "enum DeletionCriterion",
-                        "name": "deletionCriterion",
-                        "type": "uint8"
-                      },
-                      {
-                        "internalType": "bytes",
-                        "name": "blob",
-                        "type": "bytes"
-                      }
-                    ],
-                    "internalType": "struct ExpirableBlob",
-                    "name": "appData",
-                    "type": "tuple"
-                  }
-                ],
-                "internalType": "struct TagAppDataPair[]",
-                "name": "tagAppDataPairs",
-                "type": "tuple[]"
-              },
-              {
-                "components": [
-                  {
-                    "components": [
-                      {
-                        "internalType": "bytes32",
-                        "name": "logicRef",
-                        "type": "bytes32"
-                      },
-                      {
-                        "internalType": "bytes32",
-                        "name": "labelRef",
-                        "type": "bytes32"
-                      },
-                      {
-                        "internalType": "bytes32",
-                        "name": "valueRef",
-                        "type": "bytes32"
-                      },
-                      {
-                        "internalType": "bytes32",
-                        "name": "nullifierKeyCommitment",
-                        "type": "bytes32"
-                      },
-                      {
-                        "internalType": "uint256",
-                        "name": "quantity",
-                        "type": "uint256"
-                      },
-                      {
-                        "internalType": "uint256",
-                        "name": "nonce",
-                        "type": "uint256"
-                      },
-                      {
-                        "internalType": "uint256",
-                        "name": "randSeed",
-                        "type": "uint256"
-                      },
-                      {
-                        "internalType": "bool",
-                        "name": "ephemeral",
-                        "type": "bool"
-                      }
-                    ],
-                    "internalType": "struct Resource",
-                    "name": "wrapperResource",
-                    "type": "tuple"
-                  },
-                  {
-                    "components": [
-                      {
-                        "internalType": "address",
-                        "name": "untrustedWrapperContract",
-                        "type": "address"
-                      },
-                      {
-                        "internalType": "bytes",
-                        "name": "input",
-                        "type": "bytes"
-                      },
-                      {
-                        "internalType": "bytes",
-                        "name": "output",
-                        "type": "bytes"
-                      }
-                    ],
-                    "internalType": "struct FFICall",
-                    "name": "ffiCall",
-                    "type": "tuple"
-                  }
-                ],
-                "internalType": "struct WrapperResourceFFICallPair[]",
-                "name": "wrapperResourceFFICallPairs",
-                "type": "tuple[]"
-              }
-            ],
-            "internalType": "struct Action[]",
-            "name": "actions",
-            "type": "tuple[]"
-          },
-          {
-            "internalType": "bytes",
-            "name": "deltaProof",
-            "type": "bytes"
-          }
-        ],
-        "internalType": "struct Transaction",
-        "name": "transaction",
-        "type": "tuple"
-      }
-    ],
-    "name": "verify",
-    "outputs": [],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "bytes32",
-        "name": "root",
-        "type": "bytes32"
+        "name": "expected",
+        "type": "bytes32",
+        "internalType": "bytes32"
       },
       {
-        "internalType": "bytes32",
+        "name": "actual",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "CalldataCarrierLabelMismatch",
+    "inputs": [
+      {
+        "name": "expected",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "actual",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "CommitmentIndexOutOfBounds",
+    "inputs": [
+      {
+        "name": "current",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "limit",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "CommitmentMismatch",
+    "inputs": [
+      {
+        "name": "expected",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "actual",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "DeletionCriterionNotSupported",
+    "inputs": [
+      {
+        "name": "deletionCriterion",
+        "type": "uint8",
+        "internalType": "enum DeletionCriterion"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "DeltaMismatch",
+    "inputs": [
+      {
+        "name": "expected",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "actual",
+        "type": "address",
+        "internalType": "address"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "ECDSAInvalidSignature",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "ECDSAInvalidSignatureLength",
+    "inputs": [
+      {
+        "name": "length",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "ECDSAInvalidSignatureS",
+    "inputs": [
+      {
+        "name": "s",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "EmptyCommitment",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "ForwarderCallOutputMismatch",
+    "inputs": [
+      {
+        "name": "expected",
+        "type": "bytes",
+        "internalType": "bytes"
+      },
+      {
+        "name": "actual",
+        "type": "bytes",
+        "internalType": "bytes"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "InvalidCommitmentRef",
+    "inputs": [
+      {
         "name": "commitment",
-        "type": "bytes32"
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "InvalidNullifierRef",
+    "inputs": [
+      {
+        "name": "nullifier",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "InvalidPathLength",
+    "inputs": [
+      {
+        "name": "expected",
+        "type": "uint256",
+        "internalType": "uint256"
       },
       {
-        "internalType": "bytes32[]",
-        "name": "path",
-        "type": "bytes32[]"
+        "name": "actual",
+        "type": "uint256",
+        "internalType": "uint256"
       }
-    ],
-    "name": "verifyMerkleProof",
-    "outputs": [],
-    "stateMutability": "view",
-    "type": "function"
+    ]
+  },
+  {
+    "type": "error",
+    "name": "InvalidRoot",
+    "inputs": [
+      {
+        "name": "expected",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "actual",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "InvalidRootRef",
+    "inputs": [
+      {
+        "name": "root",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "LogicProofTagNotFound",
+    "inputs": [
+      {
+        "name": "tag",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "LogicRefMismatch",
+    "inputs": [
+      {
+        "name": "expected",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "actual",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "NonExistentLeafIndex",
+    "inputs": [
+      {
+        "name": "index",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "NonExistingCommitment",
+    "inputs": [
+      {
+        "name": "commitment",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "NonExistingRoot",
+    "inputs": [
+      {
+        "name": "root",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "PreExistingCommitment",
+    "inputs": [
+      {
+        "name": "commitment",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "PreExistingNullifier",
+    "inputs": [
+      {
+        "name": "nullifier",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "PreExistingRoot",
+    "inputs": [
+      {
+        "name": "root",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "ReentrancyGuardReentrantCall",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "RootMismatch",
+    "inputs": [
+      {
+        "name": "expected",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "actual",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "TreeCapacityExceeded",
+    "inputs": []
   }
 ]

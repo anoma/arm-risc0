@@ -1,4 +1,5 @@
 use aarm::logic_proof::{LogicProver, PaddingResourceLogic};
+use aarm::transaction::Transaction;
 use aarm_core::{
     action_tree::MerkleTree,
     authorization::{AuthorizationSignature, AuthorizationSigningKey, AuthorizationVerifyingKey},
@@ -10,6 +11,9 @@ use kudo_resource::{KudoResourceLogic, KudoResourceLogicWitness};
 use kudo_tx::issue::IssueInstance;
 use simple_denomination::{SimpleDenominationResourceLogic, SimpleDenominationWitness};
 use simple_receive::{SimpleReceiveLogic, SimpleReceiveWitness};
+
+use aarm_evm::call::get_pa;
+use aarm_evm::conversion::ProtocolAdapter;
 
 pub fn build_issue_tx(
     issuer_sk: &AuthorizationSigningKey,
@@ -195,8 +199,7 @@ pub fn build_issue_tx(
     }
 }
 
-#[test]
-fn generate_an_issue_tx() {
+fn generate_issue_tx() -> Transaction {
     use kudo_core::utils::generate_receive_signature;
 
     let (receiver_pk, receiver_signature) = {
@@ -214,8 +217,25 @@ fn generate_an_issue_tx() {
         &NullifierKeyCommitment::default(),
     );
 
-    let mut tx = issue_witness.create_tx();
+    issue_witness.create_tx()
+}
+
+#[test]
+fn verify_local() {
+    let mut tx = generate_issue_tx();
     tx.generate_delta_proof();
 
     assert!(tx.verify());
+}
+
+#[tokio::test]
+async fn verify_on_pa() {
+    let mut tx = generate_issue_tx();
+    tx.generate_delta_proof();
+
+    let adapter_tx = tx.convert();
+
+    let evm_tx: ProtocolAdapter::Transaction = adapter_tx.into();
+
+    get_pa().verify(evm_tx).call().await.unwrap();
 }

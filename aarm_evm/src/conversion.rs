@@ -1,4 +1,5 @@
-use crate::types as EVMTypes;
+use alloy::sol;
+
 use aarm::evm_adapter::{
     AdapterAction, AdapterComplianceUnit, AdapterLogicProof, AdapterTransaction,
 };
@@ -8,7 +9,14 @@ use aarm_core::logic_instance::{ExpirableBlob, LogicInstance};
 use aarm_core::resource::Resource;
 use alloy::primitives::{B256, U256};
 
-impl From<Resource> for EVMTypes::Resource {
+sol!(
+    #[allow(missing_docs)]
+    #[sol(rpc)]
+    ProtocolAdapter,
+    "src/ProtocolAdapter.json"
+);
+
+impl From<Resource> for ProtocolAdapter::Resource {
     fn from(r: Resource) -> Self {
         Self {
             logicRef: B256::from_slice(r.logic_ref.as_bytes()),
@@ -23,15 +31,15 @@ impl From<Resource> for EVMTypes::Resource {
     }
 }
 
-impl From<ComplianceInstance> for EVMTypes::ComplianceInstance {
+impl From<ComplianceInstance> for ProtocolAdapter::ComplianceInstance {
     fn from(c: ComplianceInstance) -> Self {
         Self {
-            consumed: EVMTypes::ConsumedRefs {
+            consumed: ProtocolAdapter::ConsumedRefs {
                 nullifier: B256::from_slice(c.nullifier.as_bytes()),
                 root: B256::from_slice(c.merkle_root.as_bytes()),
                 logicRef: B256::from_slice(c.consumed_logic_ref.as_bytes()),
             },
-            created: EVMTypes::CreatedRefs {
+            created: ProtocolAdapter::CreatedRefs {
                 commitment: B256::from_slice(c.commitment.as_bytes()),
                 logicRef: B256::from_slice(c.created_logic_ref.as_bytes()),
             },
@@ -48,14 +56,11 @@ impl From<ComplianceInstance> for EVMTypes::ComplianceInstance {
     }
 }
 
-impl From<ExpirableBlob> for EVMTypes::ExpirableBlob {
+impl From<ExpirableBlob> for ProtocolAdapter::ExpirableBlob {
     fn from(expirable_blob: ExpirableBlob) -> Self {
         Self {
             blob: expirable_blob.blob.into(),
-            deletionCriterion: EVMTypes::DeletionCriterion::try_from(
-                expirable_blob.deletion_criterion,
-            )
-            .expect("Deletion criterion is invalid"),
+            deletionCriterion: expirable_blob.deletion_criterion,
         }
     }
 }
@@ -65,7 +70,7 @@ impl From<Vec<ExpirableBlob>> for Vec<EVMTypes::ExpirableBlob> {
     fn from(blobs: Vec<ExpirableBlob>) -> Self {}
 }*/
 
-impl From<LogicInstance> for EVMTypes::LogicInstance {
+impl From<LogicInstance> for ProtocolAdapter::LogicInstance {
     fn from(instance: LogicInstance) -> Self {
         Self {
             tag: B256::from_slice(instance.tag.as_bytes()),
@@ -77,7 +82,7 @@ impl From<LogicInstance> for EVMTypes::LogicInstance {
     }
 }
 
-impl From<AdapterLogicProof> for EVMTypes::LogicProof {
+impl From<AdapterLogicProof> for ProtocolAdapter::LogicProof {
     fn from(logic_proof: AdapterLogicProof) -> Self {
         Self {
             proof: logic_proof.proof.into(),
@@ -87,7 +92,7 @@ impl From<AdapterLogicProof> for EVMTypes::LogicProof {
     }
 }
 
-impl From<AdapterComplianceUnit> for EVMTypes::ComplianceUnit {
+impl From<AdapterComplianceUnit> for ProtocolAdapter::ComplianceUnit {
     fn from(compliance_unit: AdapterComplianceUnit) -> Self {
         Self {
             proof: compliance_unit.proof.into(),
@@ -96,7 +101,7 @@ impl From<AdapterComplianceUnit> for EVMTypes::ComplianceUnit {
     }
 }
 
-impl From<AdapterAction> for EVMTypes::Action {
+impl From<AdapterAction> for ProtocolAdapter::Action {
     fn from(action: AdapterAction) -> Self {
         Self {
             logicProofs: action
@@ -114,7 +119,7 @@ impl From<AdapterAction> for EVMTypes::Action {
     }
 }
 
-impl From<AdapterTransaction> for EVMTypes::Transaction {
+impl From<AdapterTransaction> for ProtocolAdapter::Transaction {
     fn from(tx: AdapterTransaction) -> Self {
         Self {
             actions: tx.actions.into_iter().map(|a| a.into()).collect(),
@@ -140,7 +145,7 @@ mod tests {
         let rand_seed = U256::from(77);
         let ephemeral = true;
 
-        let expected = EVMTypes::Resource {
+        let expected = ProtocolAdapter::Resource {
             logicRef: B256::from_slice(logic_ref),
             labelRef: B256::from_slice(label_ref),
             valueRef: B256::from_slice(value_ref),
@@ -162,7 +167,7 @@ mod tests {
             is_ephemeral: ephemeral,
         };
 
-        let converted: EVMTypes::Resource = aarm.into();
+        let converted: ProtocolAdapter::Resource = aarm.into();
 
         assert_eq!(converted.logicRef, expected.logicRef);
         assert_eq!(converted.labelRef, expected.labelRef);
