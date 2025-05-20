@@ -25,19 +25,13 @@ impl SecretKey {
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct Ciphertext {
-    // AES GCM encrypted message
-    cipher: Vec<u8>,
-    // 96-bits; unique per message
-    nonce: [u8; 12],
-    // Sender's public key
-    pk: AffinePoint,
-}
-
-#[derive(Debug, Clone)]
-struct InnerSecretKey(Key<Aes256Gcm>);
+pub struct Ciphertext(Vec<u8>);
 
 impl Ciphertext {
+    pub fn inner(&self) -> &Vec<u8> {
+        &self.0
+    }
+
     pub fn encrypt(
         message: &Vec<u8>,
         receiver_pk: &AffinePoint,
@@ -56,23 +50,39 @@ impl Ciphertext {
             .expect("encryption failure");
 
         let pk = generate_public_key(sender_sk.inner());
-        Ciphertext { cipher, nonce, pk }
+        let cipher = InnerCiphert { cipher, nonce, pk };
+        Self(bincode::serialize(&cipher).expect("serialization failure"))
     }
 
     pub fn decrypt(&self, sk: &SecretKey) -> Result<Vec<u8>, aes_gcm::Error> {
+        if self.inner().is_empty() {
+            return Err(aes_gcm::Error);
+        }
+        let cipher: InnerCiphert =
+            bincode::deserialize(self.inner()).expect("deserialization failure");
         // Generate the secret key using Diffie-Hellman exchange
-        let inner_secret_key = InnerSecretKey::from_dh_exchange(&self.pk, sk.inner());
+        let inner_secret_key = InnerSecretKey::from_dh_exchange(&cipher.pk, sk.inner());
 
         // Derive AES-256 key and nonce
         let aes_gcm = Aes256Gcm::new(&inner_secret_key.inner());
 
-        // Convert nonce to 96-bits
-        // let nonce = Nonce::<U12>::from_slice(&self.nonce);
-
         // Decrypt with AES-256-GCM
-        aes_gcm.decrypt(&self.nonce.into(), self.cipher.as_ref())
+        aes_gcm.decrypt(&cipher.nonce.into(), cipher.cipher.as_ref())
     }
 }
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+struct InnerCiphert {
+    // AES GCM encrypted message
+    pub cipher: Vec<u8>,
+    // 96-bits; unique per message
+    pub nonce: [u8; 12],
+    // Sender's public key
+    pub pk: AffinePoint,
+}
+
+#[derive(Debug, Clone)]
+struct InnerSecretKey(Key<Aes256Gcm>);
 
 impl InnerSecretKey {
     pub fn from_dh_exchange(pk: &AffinePoint, sk: &Scalar) -> Self {
