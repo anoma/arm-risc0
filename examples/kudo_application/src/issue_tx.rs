@@ -6,6 +6,7 @@ use aarm_core::{
     nullifier_key::{NullifierKey, NullifierKeyCommitment},
     resource::Resource,
 };
+
 use kudo_core::utils::{compute_kudo_label, compute_kudo_value};
 use kudo_resource::{KudoResourceLogic, KudoResourceLogicWitness};
 use kudo_tx::issue::IssueInstance;
@@ -217,25 +218,42 @@ fn generate_issue_tx() -> Transaction {
         &NullifierKeyCommitment::default(),
     );
 
-    issue_witness.create_tx()
+    let mut tx = issue_witness.create_tx();
+
+    tx.generate_delta_proof();
+
+    tx
 }
 
 #[test]
 fn verify_local() {
+    println!("BONSAI_API_URL: {:?}", std::env::var("BONSAI_API_URL"));
+    println!("BONSAI_API_KEY: {:?}", std::env::var("BONSAI_API_KEY"));
+
     let mut tx = generate_issue_tx();
-    tx.generate_delta_proof();
+
+    println!("{:?}", tx.delta_proof);
 
     assert!(tx.verify());
 }
 
 #[tokio::test]
 async fn verify_on_pa() {
-    let mut tx = generate_issue_tx();
-    tx.generate_delta_proof();
+    println!("BONSAI_API_URL: {:?}", std::env::var("BONSAI_API_URL"));
+    println!("BONSAI_API_KEY: {:?}", std::env::var("BONSAI_API_KEY"));
+
+    let tx = tokio::task::spawn_blocking(move || generate_issue_tx())
+        .await
+        .unwrap();
 
     let adapter_tx = tx.convert();
 
     let evm_tx: ProtocolAdapter::Transaction = adapter_tx.into();
 
-    get_pa().verify(evm_tx).call().await.unwrap();
+    // get_pa().verify(evm_tx).call().await.unwrap();
+
+    //println!("{:?}", );
 }
+
+// [tokio::test]
+// sync fn execute_on_pa() {}

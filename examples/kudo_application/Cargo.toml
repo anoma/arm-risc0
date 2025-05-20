@@ -14,11 +14,13 @@ k256 = { version = "=0.13.3", features = ["arithmetic", "serde", "expose-field",
 sha2 = "0.10.6"
 rand = "0.8"
 aarm_core = { path = "../../aarm_core" }
-aarm_evm = { path = "../../aarm_evm" }
+
 aarm = { path = "../../aarm" }
 kudo-core = { path = "kudo_core" }
 kudo-tx = { path = "kudo_tx" }
 kudo-resource = { path = "kudo_examples/kudo_resource" }
 simple-denomination = { path = "kudo_examples/simple_denomination" }
 simple-receive = { path = "kudo_examples/simple_receive" }
+
+aarm_evm = { path = "../../aarm_evm" }
 tokio = "1.44"

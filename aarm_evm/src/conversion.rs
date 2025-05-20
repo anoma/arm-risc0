@@ -4,7 +4,6 @@ use aarm::evm_adapter::{
     AdapterAction, AdapterComplianceUnit, AdapterLogicProof, AdapterTransaction,
 };
 use aarm_core::compliance::ComplianceInstance;
-use aarm_core::constants::DEFAULT_BYTES;
 use aarm_core::logic_instance::{ExpirableBlob, LogicInstance};
 use aarm_core::resource::Resource;
 use alloy::primitives::{B256, U256};
@@ -27,31 +26,6 @@ impl From<Resource> for ProtocolAdapter::Resource {
             nonce: U256::from_le_slice(r.nonce.as_slice()),
             nullifierKeyCommitment: B256::from_slice(r.nk_commitment.inner().as_bytes()),
             randSeed: U256::from_le_slice(r.rand_seed.as_slice()),
-        }
-    }
-}
-
-impl From<ComplianceInstance> for ProtocolAdapter::ComplianceInstance {
-    fn from(c: ComplianceInstance) -> Self {
-        Self {
-            consumed: ProtocolAdapter::ConsumedRefs {
-                nullifier: B256::from_slice(c.nullifier.as_bytes()),
-                root: B256::from_slice(c.merkle_root.as_bytes()),
-                logicRef: B256::from_slice(c.consumed_logic_ref.as_bytes()),
-            },
-            created: ProtocolAdapter::CreatedRefs {
-                commitment: B256::from_slice(c.commitment.as_bytes()),
-                logicRef: B256::from_slice(c.created_logic_ref.as_bytes()),
-            },
-            unitDelta: {
-                let (left, right) = c.delta.as_bytes().split_at(DEFAULT_BYTES / 2);
-                let left_bytes: [u8; 16] = left.try_into().unwrap();
-                let right_bytes: [u8; 16] = right.try_into().unwrap();
-                [
-                    U256::from_le_bytes(left_bytes),
-                    U256::from_le_bytes(right_bytes),
-                ]
-            },
         }
     }
 }
@@ -97,6 +71,26 @@ impl From<AdapterComplianceUnit> for ProtocolAdapter::ComplianceUnit {
         Self {
             proof: compliance_unit.proof.into(),
             instance: compliance_unit.instance.into(),
+        }
+    }
+}
+
+impl From<ComplianceInstance> for ProtocolAdapter::ComplianceInstance {
+    fn from(instance: ComplianceInstance) -> Self {
+        Self {
+            consumed: ProtocolAdapter::ConsumedRefs {
+                nullifier: B256::from_slice(instance.nullifier.as_bytes()),
+                root: B256::from_slice(instance.merkle_root.as_bytes()),
+                logicRef: B256::from_slice(instance.consumed_logic_ref.as_bytes()),
+            },
+            created: ProtocolAdapter::CreatedRefs {
+                commitment: B256::from_slice(instance.commitment.as_bytes()),
+                logicRef: B256::from_slice(instance.created_logic_ref.as_bytes()),
+            },
+            unitDelta: {
+                let (left, right) = instance.delta_coordinates();
+                [U256::from_be_bytes(left), U256::from_be_bytes(right)]
+            },
         }
     }
 }
