@@ -8,5 +8,11 @@ pub struct LogicInstance {
     pub is_consumed: bool,
     pub root: Digest,
     pub cipher: Ciphertext,
-    pub app_data: Vec<u8>,
+    pub app_data: Vec<ExpirableBlob>,
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct ExpirableBlob {
+    pub blob: Vec<u8>,
+    pub deletion_criterion: u8,
 }
