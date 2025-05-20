@@ -1,3 +1,4 @@
+use crate::action::{create_an_action, create_multiple_actions};
 use crate::{action::Action, evm_adapter::AdapterTransaction};
 use aarm_core::delta_proof::{DeltaInstance, DeltaProof, DeltaWitness};
 use serde::{Deserialize, Serialize};
@@ -94,28 +95,31 @@ impl Transaction {
     }
 }
 
+/* TODO
+pub fn generate_empty_transaction() -> Transaction {}
+*/
+
+pub fn generate_test_transaction() -> Transaction {
+    let (action, delta_witness) = create_an_action();
+    let mut tx = Transaction::new(vec![action], Delta::Witness(delta_witness));
+    tx.generate_delta_proof();
+    assert!(tx.verify()); // TODO move into separate test
+    let _adapter_tx = tx.convert();
+    tx
+}
+
+pub fn generate_test_transaction_with_multiple_actions(n: usize) -> Transaction {
+    let (actions, delta_witness) = create_multiple_actions(n);
+    let mut tx = Transaction::new(actions, Delta::Witness(delta_witness));
+    tx.generate_delta_proof();
+    assert!(tx.verify()); // TODO move into separate test
+    let _adapter_tx = tx.convert();
+    tx
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::action::tests::{create_an_action, create_multiple_actions};
-
-    pub fn generate_test_transaction() -> Transaction {
-        let (action, delta_witness) = create_an_action();
-        let mut tx = Transaction::new(vec![action], Delta::Witness(delta_witness));
-        tx.generate_delta_proof();
-        assert!(tx.verify());
-        let _adapter_tx = tx.convert();
-        tx
-    }
-
-    pub fn generate_test_transaction_with_multiple_actions() -> Transaction {
-        let (actions, delta_witness) = create_multiple_actions(2);
-        let mut tx = Transaction::new(actions, Delta::Witness(delta_witness));
-        tx.generate_delta_proof();
-        assert!(tx.verify());
-        let _adapter_tx = tx.convert();
-        tx
-    }
 
     #[test]
     fn test_transaction() {
@@ -124,6 +128,6 @@ mod tests {
 
     #[test]
     fn test_transaction_with_multiple_actions() {
-        let _ = generate_test_transaction_with_multiple_actions();
+        let _ = generate_test_transaction_with_multiple_actions(2);
     }
 }

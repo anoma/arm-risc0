@@ -10,6 +10,7 @@ use alloy::primitives::{B256, U256};
 
 sol!(
     #[allow(missing_docs)]
+    #[derive(Debug, PartialEq)]
     #[sol(rpc)]
     ProtocolAdapter,
     "src/ProtocolAdapter.json"
@@ -127,6 +128,50 @@ mod tests {
     use super::*;
     use aarm_core::nullifier_key::NullifierKeyCommitment;
     use aarm_core::resource::Resource;
+    use alloy::primitives::Uint;
+
+    fn example_arm_resource(
+        logic_ref: &[u8; 32],
+        label_ref: &[u8; 32],
+        value_ref: &[u8; 32],
+        nkc: &[u8; 32],
+        quantity: u128,
+        nonce: Uint<256, 4>,
+        rand_seed: Uint<256, 4>,
+        ephemeral: bool,
+    ) -> Resource {
+        Resource {
+            logic_ref: (*logic_ref).into(),
+            label_ref: (*label_ref).into(),
+            value_ref: (*value_ref).into(),
+            nk_commitment: NullifierKeyCommitment::from_bytes((*nkc).into()),
+            quantity,
+            nonce: nonce.to_le_bytes(),
+            rand_seed: rand_seed.to_le_bytes(),
+            is_ephemeral: ephemeral,
+        }
+    }
+    fn example_evm_resource(
+        logic_ref: &[u8; 32],
+        label_ref: &[u8; 32],
+        value_ref: &[u8; 32],
+        nkc: &[u8; 32],
+        quantity: u128,
+        nonce: Uint<256, 4>,
+        rand_seed: Uint<256, 4>,
+        ephemeral: bool,
+    ) -> ProtocolAdapter::Resource {
+        ProtocolAdapter::Resource {
+            logicRef: B256::from_slice(logic_ref),
+            labelRef: B256::from_slice(label_ref),
+            valueRef: B256::from_slice(value_ref),
+            nullifierKeyCommitment: B256::from_slice(nkc),
+            quantity: U256::from(quantity),
+            nonce,
+            randSeed: rand_seed,
+            ephemeral,
+        }
+    }
 
     #[test]
     fn convert_resource() {
@@ -139,40 +184,39 @@ mod tests {
         let rand_seed = U256::from(77);
         let ephemeral = true;
 
-        let expected = ProtocolAdapter::Resource {
-            logicRef: B256::from_slice(logic_ref),
-            labelRef: B256::from_slice(label_ref),
-            valueRef: B256::from_slice(value_ref),
-            nullifierKeyCommitment: B256::from_slice(nkc),
-            quantity: U256::from(quantity),
-            nonce,
-            randSeed: rand_seed,
-            ephemeral,
-        };
-
-        let aarm = Resource {
-            logic_ref: (*logic_ref).into(),
-            label_ref: (*label_ref).into(),
-            value_ref: (*value_ref).into(),
-            nk_commitment: NullifierKeyCommitment::from_bytes((*nkc).into()),
-            quantity,
-            nonce: nonce.to_le_bytes(),
-            rand_seed: rand_seed.to_le_bytes(),
-            is_ephemeral: ephemeral,
-        };
-
-        let converted: ProtocolAdapter::Resource = aarm.into();
-
-        assert_eq!(converted.logicRef, expected.logicRef);
-        assert_eq!(converted.labelRef, expected.labelRef);
-        assert_eq!(converted.valueRef, expected.valueRef);
         assert_eq!(
-            converted.nullifierKeyCommitment,
-            expected.nullifierKeyCommitment
+            ProtocolAdapter::Resource::from(example_arm_resource(
+                logic_ref, label_ref, value_ref, nkc, quantity, nonce, rand_seed, ephemeral,
+            )),
+            example_evm_resource(
+                logic_ref, label_ref, value_ref, nkc, quantity, nonce, rand_seed, ephemeral,
+            )
         );
-        assert_eq!(converted.quantity, expected.quantity);
-        assert_eq!(converted.nonce, expected.nonce);
-        assert_eq!(converted.randSeed, expected.randSeed);
-        assert_eq!(converted.ephemeral, expected.ephemeral);
+    }
+
+    #[test]
+    fn print_resource() {
+        println!(
+            "{:?}",
+            example_evm_resource(
+                &[0x11; 32],
+                &[0x22; 32],
+                &[0x33; 32],
+                &[0x44; 32],
+                55,
+                U256::from(66),
+                U256::from(77),
+                true,
+            )
+        )
+    }
+
+    #[test]
+    fn print_tx() {
+        let tx = ProtocolAdapter::Transaction::from(
+            aarm::transaction::generate_test_transaction().convert(),
+        );
+
+        print!("{:#?}", tx);
     }
 }

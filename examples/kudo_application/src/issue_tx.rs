@@ -244,11 +244,23 @@ async fn verify_on_pa() {
             .unwrap()
             .convert(),
     );
+    println!("{:#?}", tx);
 
     get_pa().verify(tx).call().await.unwrap();
-
-    //println!("{:?}", );
 }
 
-// [tokio::test]
-// sync fn execute_on_pa() {}
+#[tokio::test]
+async fn execute_on_pa() {
+    println!("BONSAI_API_URL: {:?}", std::env::var("BONSAI_API_URL"));
+    println!("BONSAI_API_KEY: {:?}", std::env::var("BONSAI_API_KEY"));
+
+    let tx = ProtocolAdapter::Transaction::from(
+        tokio::task::spawn_blocking(move || generate_issue_tx())
+            .await
+            .unwrap()
+            .convert(),
+    );
+    println!("{:#?}", tx);
+
+    get_pa().execute(tx).await.unwrap();
+}
