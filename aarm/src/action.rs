@@ -3,12 +3,13 @@ use crate::{
     logic_proof::LogicProof,
     utils::verify as verify_proof,
 };
-use aarm_core::compliance::ComplianceInstance;
+use aarm_core::{compliance::ComplianceInstance, logic_instance::LogicInstance};
 use compliance_circuit::COMPLIANCE_GUEST_ID;
 use k256::ProjectivePoint;
 use risc0_ethereum_contracts::encode_seal;
 use risc0_zkvm::Receipt;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Action {
@@ -75,20 +76,22 @@ impl Action {
             .compliance_units
             .iter()
             .map(|receipt| AdapterComplianceUnit {
-                seal: encode_seal(&receipt).unwrap(),
-                journal: receipt.journal.bytes.clone(),
+                proof: encode_seal(&receipt).unwrap(),
+                instance: receipt.journal.decode().unwrap(),
             })
             .collect();
 
-        let logic_proofs = self
-            .logic_proofs
-            .iter()
-            .map(|proof| AdapterLogicProof {
+        let mut logic_proofs = HashMap::new();
+        for proof in &self.logic_proofs {
+            let instance: LogicInstance = proof.receipt.journal.decode().unwrap();
+            let tag = instance.tag;
+            let logic_proof = AdapterLogicProof {
                 verifying_key: proof.verifying_key.as_bytes().to_vec(),
-                seal: encode_seal(&proof.receipt).unwrap(),
-                journal: proof.receipt.journal.bytes.clone(),
-            })
-            .collect();
+                proof: encode_seal(&proof.receipt).unwrap(),
+                instance,
+            };
+            logic_proofs.insert(tag, logic_proof);
+        }
 
         AdapterAction {
             compliance_units,
@@ -103,19 +106,23 @@ pub mod tests {
     use crate::utils::groth16_prove;
     use aarm_core::{
         compliance::ComplianceWitness, constants::COMMITMENT_TREE_DEPTH, delta_proof::DeltaWitness,
+        resource_logic::TrivialLogicWitness,
     };
-    use compliance_circuit::{COMPLIANCE_GUEST_ELF, COMPLIANCE_GUEST_ID};
+    use compliance_circuit::COMPLIANCE_GUEST_ELF;
+    use trivial_logic::{TRIVIAL_GUEST_ELF, TRIVIAL_GUEST_ID};
 
     pub fn create_an_action() -> (Action, DeltaWitness) {
         let compliance_witness = ComplianceWitness::<COMMITMENT_TREE_DEPTH>::default();
+        let compliance_receipt = groth16_prove(&compliance_witness, COMPLIANCE_GUEST_ELF);
 
-        let receipt = groth16_prove(&compliance_witness, COMPLIANCE_GUEST_ELF);
+        let trivial_logic = TrivialLogicWitness::default();
+        let trivial_logic_receipt = groth16_prove(&trivial_logic, TRIVIAL_GUEST_ELF);
         let logic_proof = LogicProof {
-            receipt: receipt.clone(),
-            verifying_key: COMPLIANCE_GUEST_ID.into(),
+            receipt: trivial_logic_receipt,
+            verifying_key: TRIVIAL_GUEST_ID.into(),
         };
 
-        let compliance_units = vec![receipt.clone()];
+        let compliance_units = vec![compliance_receipt];
         let logic_proofs = vec![logic_proof];
 
         let action = Action::new(compliance_units, logic_proofs);

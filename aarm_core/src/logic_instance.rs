@@ -2,7 +2,7 @@ use crate::encryption::Ciphertext;
 use risc0_zkvm::sha::Digest;
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct LogicInstance {
     pub tag: Digest,
     pub is_consumed: bool,
