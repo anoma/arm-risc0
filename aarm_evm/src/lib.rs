@@ -4,7 +4,7 @@ pub mod conversion;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use alloy::primitives::{B256, Bytes, U256};
+    use alloy::primitives::{Bytes, B256, U256};
     use alloy::sol_types::SolType;
     use conversion::ProtocolAdapter::Resource;
     use rand::random;
@@ -22,7 +22,7 @@ mod tests {
             randSeed: U256::from(0),
         };
 
-        let encoded: Vec<u8> = <Resource as SolType>::abi_encode(&res);
+        let encoded: Vec<u8> = Resource::abi_encode(&res);
         println!("{}", Bytes::from(encoded));
     }
 }

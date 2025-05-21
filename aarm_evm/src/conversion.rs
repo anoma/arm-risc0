@@ -50,7 +50,7 @@ impl From<LogicInstance> for ProtocolAdapter::LogicInstance {
         Self {
             tag: B256::from_slice(instance.tag.as_bytes()),
             isConsumed: instance.is_consumed,
-            root: B256::from_slice(instance.root.as_bytes()),
+            actionTreeRoot: B256::from_slice(instance.root.as_bytes()),
             ciphertext: instance.cipher.into(),
             appData: instance.app_data.into_iter().map(|b| b.into()).collect(), // TODO Refactor (see above).
         }
@@ -81,7 +81,7 @@ impl From<ComplianceInstance> for ProtocolAdapter::ComplianceInstance {
         Self {
             consumed: ProtocolAdapter::ConsumedRefs {
                 nullifier: B256::from_slice(instance.nullifier.as_bytes()),
-                root: B256::from_slice(instance.merkle_root.as_bytes()),
+                commitmentTreeRoot: B256::from_slice(instance.merkle_root.as_bytes()),
                 logicRef: B256::from_slice(instance.consumed_logic_ref.as_bytes()),
             },
             created: ProtocolAdapter::CreatedRefs {
