@@ -140,16 +140,17 @@ pub mod tests {
     use risc0_zkvm::Digest;
     use trivial_logic::{TRIVIAL_GUEST_ELF, TRIVIAL_GUEST_ID};
 
-    pub fn create_an_action() -> (Action, DeltaWitness) {
-        let (nf_key, nf_key_cm) = NullifierKey::random_pair();
+    pub fn create_an_action(nonce: u8) -> (Action, DeltaWitness) {
+        let nf_key = NullifierKey::new(Digest::default());
+        let nf_key_cm = nf_key.commit();
         let mut consumed_resource = Resource::default();
         consumed_resource.logic_ref = Digest::new(TRIVIAL_GUEST_ID.into());
         consumed_resource.nk_commitment = nf_key_cm;
+        consumed_resource.nonce[0] = nonce;
         let mut created_resource = consumed_resource.clone();
-        consumed_resource.reset_randomness_nonce();
-        created_resource.reset_randomness_nonce();
+        created_resource.nonce[10] = nonce;
 
-        let compliance_witness = ComplianceWitness::<COMMITMENT_TREE_DEPTH>::from_resources(
+        let compliance_witness = ComplianceWitness::<COMMITMENT_TREE_DEPTH>::with_fixed_rcv(
             consumed_resource,
             nf_key,
             created_resource,
@@ -191,8 +192,8 @@ pub mod tests {
     pub fn create_multiple_actions(n: usize) -> (Vec<Action>, DeltaWitness) {
         let mut actions = Vec::new();
         let mut delta_witnesses = Vec::new();
-        for _ in 0..n {
-            let (action, delta_witness) = create_an_action();
+        for i in 0..n {
+            let (action, delta_witness) = create_an_action(i as u8);
             actions.push(action);
             delta_witnesses.push(delta_witness);
         }
@@ -201,6 +202,6 @@ pub mod tests {
 
     #[test]
     fn test_action() {
-        let _ = create_an_action();
+        let _ = create_an_action(1);
     }
 }

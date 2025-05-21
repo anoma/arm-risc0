@@ -100,7 +100,7 @@ mod tests {
     use crate::action::tests::{create_an_action, create_multiple_actions};
 
     pub fn generate_test_transaction() -> Transaction {
-        let (action, delta_witness) = create_an_action();
+        let (action, delta_witness) = create_an_action(1);
         let mut tx = Transaction::new(vec![action], Delta::Witness(delta_witness));
         tx.generate_delta_proof();
         assert!(tx.verify());

@@ -93,9 +93,10 @@ impl DeltaWitness {
     }
 
     pub fn compress(witnesses: &[DeltaWitness]) -> DeltaWitness {
-        let sum = witnesses
-            .iter()
-            .fold(DeltaWitness::from_scalars(&[]), |acc, x| acc.compose(x));
+        let mut sum = witnesses[0].clone();
+        for i in 1..witnesses.len() {
+            sum = sum.compose(&witnesses[i]);
+        }
         sum
     }
 }
