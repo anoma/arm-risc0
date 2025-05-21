@@ -80,17 +80,19 @@ impl From<ComplianceInstance> for ProtocolAdapter::ComplianceInstance {
     fn from(instance: ComplianceInstance) -> Self {
         Self {
             consumed: ProtocolAdapter::ConsumedRefs {
-                nullifier: B256::from_slice(instance.nullifier.as_bytes()),
+                nullifier: B256::from_slice(instance.consumed_nullifier.as_bytes()),
                 commitmentTreeRoot: B256::from_slice(instance.merkle_root.as_bytes()),
                 logicRef: B256::from_slice(instance.consumed_logic_ref.as_bytes()),
             },
             created: ProtocolAdapter::CreatedRefs {
-                commitment: B256::from_slice(instance.commitment.as_bytes()),
+                commitment: B256::from_slice(instance.created_commitment.as_bytes()),
                 logicRef: B256::from_slice(instance.created_logic_ref.as_bytes()),
             },
             unitDelta: {
-                let (left, right) = instance.delta_coordinates();
-                [U256::from_be_bytes(left), U256::from_be_bytes(right)]
+                [
+                    U256::from_be_bytes(instance.delta_x),
+                    U256::from_be_bytes(instance.delta_y),
+                ]
             },
         }
     }
