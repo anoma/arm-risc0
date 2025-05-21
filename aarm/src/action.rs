@@ -58,7 +58,7 @@ impl Action {
         // Construct the action tree
         let tags = compliance_intances
             .iter()
-            .flat_map(|instance| vec![instance.nullifier, instance.commitment])
+            .flat_map(|instance| vec![instance.consumed_nullifier, instance.created_commitment])
             .collect::<Vec<_>>();
         let logics = compliance_intances
             .iter()
