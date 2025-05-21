@@ -95,12 +95,8 @@ impl Transaction {
     }
 }
 
-/* TODO
-pub fn generate_empty_transaction() -> Transaction {}
-*/
-
 pub fn generate_test_transaction() -> Transaction {
-    let (action, delta_witness) = create_an_action();
+    let (action, delta_witness) = create_an_action(1);
     let mut tx = Transaction::new(vec![action], Delta::Witness(delta_witness));
     tx.generate_delta_proof();
     assert!(tx.verify()); // TODO move into separate test
