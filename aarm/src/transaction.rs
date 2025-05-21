@@ -1,4 +1,4 @@
-use crate::action::{create_an_action, create_multiple_actions};
+use crate::action::create_multiple_actions;
 use crate::{action::Action, evm_adapter::AdapterTransaction};
 use aarm_core::delta_proof::{DeltaInstance, DeltaProof, DeltaWitness};
 use serde::{Deserialize, Serialize};
@@ -95,17 +95,8 @@ impl Transaction {
     }
 }
 
-pub fn generate_test_transaction() -> Transaction {
-    let (action, delta_witness) = create_an_action(1);
-    let mut tx = Transaction::new(vec![action], Delta::Witness(delta_witness));
-    tx.generate_delta_proof();
-    assert!(tx.verify()); // TODO move into separate test
-    let _adapter_tx = tx.convert();
-    tx
-}
-
-pub fn generate_test_transaction_with_multiple_actions(n: usize) -> Transaction {
-    let (actions, delta_witness) = create_multiple_actions(n);
+pub fn generate_test_transaction(n_actions: usize) -> Transaction {
+    let (actions, delta_witness) = create_multiple_actions(n_actions);
     let mut tx = Transaction::new(actions, Delta::Witness(delta_witness));
     tx.generate_delta_proof();
     assert!(tx.verify()); // TODO move into separate test
@@ -119,11 +110,6 @@ mod tests {
 
     #[test]
     fn test_transaction() {
-        let _ = generate_test_transaction();
-    }
-
-    #[test]
-    fn test_transaction_with_multiple_actions() {
-        let _ = generate_test_transaction_with_multiple_actions(2);
+        let _ = generate_test_transaction(1);
     }
 }

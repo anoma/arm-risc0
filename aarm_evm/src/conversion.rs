@@ -216,7 +216,7 @@ mod tests {
     #[test]
     fn print_tx() {
         let tx = ProtocolAdapter::Transaction::from(
-            aarm::transaction::generate_test_transaction().convert(),
+            aarm::transaction::generate_test_transaction(1).convert(),
         );
 
         print!("{:#?}", tx);
