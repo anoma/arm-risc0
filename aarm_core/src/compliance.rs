@@ -13,14 +13,15 @@ use k256::{
 };
 use risc0_zkvm::sha::{Digest, Impl, Sha256};
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct ComplianceInstance {
-    pub nullifier: Digest,
-    pub commitment: Digest,
-    pub merkle_root: Digest,
-    pub delta: EncodedPoint,
+    pub consumed_nullifier: Digest,
     pub consumed_logic_ref: Digest,
+    pub created_commitment: Digest,
     pub created_logic_ref: Digest,
+    pub merkle_root: Digest,
+    pub delta_x: [u8; 32],
+    pub delta_y: [u8; 32],
 }
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
@@ -96,19 +97,20 @@ impl<const COMMITMENT_TREE_DEPTH: usize> ComplianceWitness<COMMITMENT_TREE_DEPTH
     pub fn constrain(&self) -> ComplianceInstance {
         let consumed_logic_ref = self.get_consumed_resource_logic();
         let comsumed_cm = self.consumed_commitment();
-        let nullifier = self.consumed_nullifier(&comsumed_cm);
+        let consumed_nullifier = self.consumed_nullifier(&comsumed_cm);
         let created_logic_ref = self.get_created_resource_logic();
-        let commitment = self.created_commitment();
+        let created_commitment = self.created_commitment();
         let merkle_root = self.merkle_tree_root(comsumed_cm);
-        let delta = self.delta_commitment();
+        let (delta_x, delta_y) = self.delta_commitment();
 
         ComplianceInstance {
-            nullifier,
-            commitment,
+            consumed_nullifier,
+            created_commitment,
             consumed_logic_ref,
             created_logic_ref,
             merkle_root,
-            delta,
+            delta_x,
+            delta_y,
         }
     }
 
@@ -142,13 +144,17 @@ impl<const COMMITMENT_TREE_DEPTH: usize> ComplianceWitness<COMMITMENT_TREE_DEPTH
         }
     }
 
-    pub fn delta_commitment(&self) -> EncodedPoint {
+    pub fn delta_commitment(&self) -> ([u8; 32], [u8; 32]) {
         // Compute delta and make delta commitment public
         let delta = self.consumed_resource.kind() * self.consumed_resource.quantity_scalar()
             - self.created_resource.kind() * self.created_resource.quantity_scalar()
             + ProjectivePoint::GENERATOR * self.rcv;
 
-        delta.to_encoded_point(false)
+        let encoded_delta = delta.to_encoded_point(false);
+        (
+            encoded_delta.x().unwrap().as_slice().try_into().unwrap(),
+            encoded_delta.y().unwrap().as_slice().try_into().unwrap(),
+        )
     }
 }
 
@@ -194,20 +200,28 @@ impl<const COMMITMENT_TREE_DEPTH: usize> Default for ComplianceWitness<COMMITMEN
 }
 
 impl ComplianceInstance {
-    pub fn delta_coordinates(&self) -> ([u8; 32], [u8; 32]) {
-        let x = (*self.delta.x().unwrap()).into();
-        let y = (*self.delta.y().unwrap()).into();
-        (x, y)
-    }
-
     pub fn delta_projective(&self) -> ProjectivePoint {
-        ProjectivePoint::from_encoded_point(&self.delta).unwrap()
+        let encoded_point = EncodedPoint::from_affine_coordinates(
+            &self.delta_x.into(),
+            &self.delta_y.into(),
+            false,
+        );
+        ProjectivePoint::from_encoded_point(&encoded_point).unwrap()
     }
 
     pub fn delta_msg(&self) -> Vec<u8> {
         let mut msg = Vec::new();
-        msg.extend_from_slice(self.nullifier.as_bytes());
-        msg.extend_from_slice(self.commitment.as_bytes());
+        msg.extend_from_slice(self.consumed_nullifier.as_bytes());
+        msg.extend_from_slice(self.created_commitment.as_bytes());
         msg
     }
+}
+
+#[test]
+fn test_compliance_instance_encoding() {
+    let instance = ComplianceInstance::default();
+
+    let encoded = bincode::serialize(&instance).unwrap();
+    println!("Encoded instance: {:?}", encoded);
+    assert!(encoded.len() == 224);
 }
