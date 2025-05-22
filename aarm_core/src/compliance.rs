@@ -223,8 +223,6 @@ impl ComplianceInstance {
 fn test_compliance_instance_encoding() {
     let instance = ComplianceInstance::default();
 
-    println!("raw instance: {:?}", instance);
-
     let encoded = bincode::serialize(&instance).unwrap();
     println!("Encoded instance: {:?}", encoded);
     assert!(encoded.len() == 224);
