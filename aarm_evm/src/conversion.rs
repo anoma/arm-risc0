@@ -248,7 +248,7 @@ mod tests {
     }
 
     #[test]
-    fn print_tx() {
+    fn print_instance_encodings() {
         let raw_tx = aarm::transaction::generate_test_transaction(1);
 
         println!(
@@ -313,5 +313,12 @@ mod tests {
                 .map(|b| format!("{:02x}", *b))
                 .collect::<String>()
         );
+    }
+
+    #[test]
+    fn print_tx() {
+        let raw_tx = aarm::transaction::generate_test_transaction(1);
+        let evm_tx = ProtocolAdapter::Transaction::from(raw_tx.convert());
+        println!("EVM Tx:\n{:#?}", evm_tx);
     }
 }
