@@ -20,8 +20,8 @@ pub struct ComplianceInstance {
     pub consumed_commitment_tree_root: Digest,
     pub created_commitment: Digest,
     pub created_logic_ref: Digest,
-    pub delta_x: [u8; 32],
-    pub delta_y: [u8; 32],
+    pub delta_x: Digest,
+    pub delta_y: Digest,
 }
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
@@ -146,7 +146,7 @@ impl<const COMMITMENT_TREE_DEPTH: usize> ComplianceWitness<COMMITMENT_TREE_DEPTH
         }
     }
 
-    pub fn delta_commitment(&self) -> ([u8; 32], [u8; 32]) {
+    pub fn delta_commitment(&self) -> (Digest, Digest) {
         // Compute delta and make delta commitment public
         let delta = self.consumed_resource.kind() * self.consumed_resource.quantity_scalar()
             - self.created_resource.kind() * self.created_resource.quantity_scalar()
@@ -154,8 +154,8 @@ impl<const COMMITMENT_TREE_DEPTH: usize> ComplianceWitness<COMMITMENT_TREE_DEPTH
 
         let encoded_delta = delta.to_encoded_point(false);
         (
-            encoded_delta.x().unwrap().as_slice().try_into().unwrap(),
-            encoded_delta.y().unwrap().as_slice().try_into().unwrap(),
+            Digest::try_from(&encoded_delta.x().unwrap()[..]).unwrap(),
+            Digest::try_from(&encoded_delta.y().unwrap()[..]).unwrap(),
         )
     }
 }
@@ -203,11 +203,17 @@ impl<const COMMITMENT_TREE_DEPTH: usize> Default for ComplianceWitness<COMMITMEN
 
 impl ComplianceInstance {
     pub fn delta_projective(&self) -> ProjectivePoint {
-        let encoded_point = EncodedPoint::from_affine_coordinates(
-            &self.delta_x.into(),
-            &self.delta_y.into(),
-            false,
-        );
+        let x: [u8; 32] = self
+            .delta_x
+            .as_bytes()
+            .try_into()
+            .expect("delta_x must be 32 bytes");
+        let y: [u8; 32] = self
+            .delta_y
+            .as_bytes()
+            .try_into()
+            .expect("delta_y must be 32 bytes");
+        let encoded_point = EncodedPoint::from_affine_coordinates(&x.into(), &y.into(), false);
         ProjectivePoint::from_encoded_point(&encoded_point).unwrap()
     }
 
