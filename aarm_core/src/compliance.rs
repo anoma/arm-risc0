@@ -17,9 +17,9 @@ use risc0_zkvm::sha::{Digest, Impl, Sha256};
 pub struct ComplianceInstance {
     pub consumed_nullifier: Digest,
     pub consumed_logic_ref: Digest,
+    pub consumed_commitment_tree_root: Digest,
     pub created_commitment: Digest,
     pub created_logic_ref: Digest,
-    pub merkle_root: Digest,
     pub delta_x: [u8; 32],
     pub delta_y: [u8; 32],
 }
@@ -95,30 +95,32 @@ impl<const COMMITMENT_TREE_DEPTH: usize> ComplianceWitness<COMMITMENT_TREE_DEPTH
     }
 
     pub fn constrain(&self) -> ComplianceInstance {
-        let consumed_logic_ref = self.get_consumed_resource_logic();
-        let comsumed_cm = self.consumed_commitment();
-        let consumed_nullifier = self.consumed_nullifier(&comsumed_cm);
-        let created_logic_ref = self.get_created_resource_logic();
+        let consumed_cm = self.consumed_commitment();
+        let consumed_logic_ref = self.consumed_resource_logic();
+        let consumed_commitment_tree_root = self.consumed_commitment_tree_root(consumed_cm);
+
+        let consumed_nullifier = self.consumed_nullifier(&consumed_cm);
+        let created_logic_ref = self.created_resource_logic();
         let created_commitment = self.created_commitment();
-        let merkle_root = self.merkle_tree_root(comsumed_cm);
+
         let (delta_x, delta_y) = self.delta_commitment();
 
         ComplianceInstance {
             consumed_nullifier,
-            created_commitment,
             consumed_logic_ref,
+            consumed_commitment_tree_root,
+            created_commitment,
             created_logic_ref,
-            merkle_root,
             delta_x,
             delta_y,
         }
     }
 
-    pub fn get_consumed_resource_logic(&self) -> Digest {
+    pub fn consumed_resource_logic(&self) -> Digest {
         self.consumed_resource.logic_ref
     }
 
-    pub fn get_created_resource_logic(&self) -> Digest {
+    pub fn created_resource_logic(&self) -> Digest {
         self.created_resource.logic_ref
     }
 
@@ -136,7 +138,7 @@ impl<const COMMITMENT_TREE_DEPTH: usize> ComplianceWitness<COMMITMENT_TREE_DEPTH
             .unwrap()
     }
 
-    pub fn merkle_tree_root(&self, cm: Digest) -> Digest {
+    pub fn consumed_commitment_tree_root(&self, cm: Digest) -> Digest {
         if self.consumed_resource.is_ephemeral {
             self.ephemeral_root
         } else {
@@ -220,6 +222,8 @@ impl ComplianceInstance {
 #[test]
 fn test_compliance_instance_encoding() {
     let instance = ComplianceInstance::default();
+
+    println!("raw instance: {:?}", instance);
 
     let encoded = bincode::serialize(&instance).unwrap();
     println!("Encoded instance: {:?}", encoded);

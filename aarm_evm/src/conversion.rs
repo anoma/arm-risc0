@@ -10,7 +10,7 @@ use alloy::primitives::{B256, U256};
 
 sol!(
     #[allow(missing_docs)]
-    #[derive(Debug, PartialEq)]
+    #[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]
     #[sol(rpc)]
     ProtocolAdapter,
     "src/ProtocolAdapter.json"
@@ -81,8 +81,10 @@ impl From<ComplianceInstance> for ProtocolAdapter::ComplianceInstance {
         Self {
             consumed: ProtocolAdapter::ConsumedRefs {
                 nullifier: B256::from_slice(instance.consumed_nullifier.as_bytes()),
-                commitmentTreeRoot: B256::from_slice(instance.merkle_root.as_bytes()),
                 logicRef: B256::from_slice(instance.consumed_logic_ref.as_bytes()),
+                commitmentTreeRoot: B256::from_slice(
+                    instance.consumed_commitment_tree_root.as_bytes(),
+                ),
             },
             created: ProtocolAdapter::CreatedRefs {
                 commitment: B256::from_slice(instance.created_commitment.as_bytes()),
@@ -131,6 +133,7 @@ mod tests {
     use aarm_core::nullifier_key::NullifierKeyCommitment;
     use aarm_core::resource::Resource;
     use alloy::primitives::Uint;
+    use alloy::sol_types::SolValue;
 
     fn example_arm_resource(
         logic_ref: &[u8; 32],
@@ -213,12 +216,137 @@ mod tests {
         )
     }
 
+    fn vec_u8_to_hex_string(arr: &Vec<u8>) -> String {
+        arr.iter().map(|b| format!("{:02x}", b)).collect::<String>()
+    }
+
     #[test]
-    fn print_tx() {
-        let tx = ProtocolAdapter::Transaction::from(
-            aarm::transaction::generate_test_transaction(1).convert(),
+    fn difference() {
+        let raw_tx = aarm::transaction::generate_test_transaction(1);
+
+        let raw_journal_bytes = raw_tx.action[0].compliance_units[0].journal.bytes.clone();
+
+        // 8908b8d4641b053566380a6b900c07a1c6634ba1992bcedc30cc4f1e586b95f8b3efbbc411861566d8a690717f3beb93b6496b3f4d6659f6c0237713508a8a867e70786b1d52fc0412d75203ef2ac22de13d9596ace8a5a1ed5324c3ed7f31c3676f9cd10e72f99d2416ecc268dd7a6a2e5613085d471bd62d2685f977c7b55db3efbbc411861566d8a690717f3beb93b6496b3f4d6659f6c0237713508a8a8679000000be000000660000007e000000f9000000dc000000bb000000ac00000055000000a00000006200000095000000ce000000870000000b00000007000000020000009b000000fc000000db0000002d000000ce00000028000000d900000059000000f2000000810000005b00000016000000f80000001700000098000000480000003a000000da0000007700000026000000a3000000c4000000650000005d000000a4000000fb000000fc0000000e0000001100000008000000a8000000fd00000017000000b400000048000000a60000008500000054000000190000009c00000047000000d00000008f000000fb00000010000000d4000000b8000000
+        println!(
+            "Raw journal bytes:\n{:?}",
+            vec_u8_to_hex_string(&raw_journal_bytes)
         );
 
-        print!("{:#?}", tx);
+        let raw_journal_decoded: ComplianceInstance = raw_tx.action[0].compliance_units[0]
+            .journal
+            .decode()
+            .unwrap();
+        println!("Raw journal decoded:\n{:?}", raw_journal_decoded);
+
+        let instance_bincode_encoded = bincode::serialize(&raw_journal_decoded).unwrap();
+
+        // ComplianceUnit { proof: 0x9f39696c302c0274f3931815296c5e414526c8372fa6876ff4510b15a1917d0cc7b54cf601f2432b807f8c7937034f9155385bfc9512d1ad91b6a242d437d908b5b6a1e2161dcdbab5a2b957a5e3573b7f9debfefd962509deb4facc5b21fbe0cb283e2404738902c97f254ce959d0cf60bed30c79ff32be1a7836dfe6056e3cd51a18432930db0c9b68164725e31ec626fc5726800f886a0cd6a1e9304d06d8802794d41feb9061d3d2702328d8cb52eaed6f41852df1cc7015de3b5bab5810cc90689012bec6738228779b88ca97a78c1b845df0261ed56401513dec31b3208f3b5c9f2f4f9bad43fb5ee8d267decf6bf779fab263ac64fd10abd14e22271024e3dad7, instance:
+        // ComplianceInstance { consumed: ConsumedRefs {
+        // nullifier: 0x8908b8d4641b053566380a6b900c07a1c6634ba1992bcedc30cc4f1e586b95f8,
+        // logicRef: 0xb3efbbc411861566d8a690717f3beb93b6496b3f4d6659f6c0237713508a8a86,
+        // commitmentTreeRoot: 0x7e70786b1d52fc0412d75203ef2ac22de13d9596ace8a5a1ed5324c3ed7f31c3 },
+        // created: CreatedRefs { commitment: 0x676f9cd10e72f99d2416ecc268dd7a6a2e5613085d471bd62d2685f977c7b55d,
+        // logicRef: 0xb3efbbc411861566d8a690717f3beb93b6496b3f4d6659f6c0237713508a8a86 },
+        // unitDelta: [55066263022277343669578718895168534326250603453777594175500187360389116729240, 32670510020758816978083085130507043184471273380659243275938904335757337482424] } }
+
+        // 8908b8d4641b053566380a6b900c07a1c6634ba1992bcedc30cc4f1e586b95f8b3efbbc411861566d8a690717f3beb93b6496b3f4d6659f6c0237713508a8a867e70786b1d52fc0412d75203ef2ac22de13d9596ace8a5a1ed5324c3ed7f31c3676f9cd10e72f99d2416ecc268dd7a6a2e5613085d471bd62d2685f977c7b55db3efbbc411861566d8a690717f3beb93b6496b3f4d6659f6c0237713508a8a8679000000be000000660000007e000000f9000000dc000000bb000000ac00000055000000a00000006200000095000000ce000000870000000b00000007000000020000009b000000fc000000db0000002d000000ce00000028000000d900000059000000f2000000810000005b00000016000000f80000001700000098000000480000003a000000da0000007700000026000000a3000000c4000000650000005d000000a4000000fb000000fc0000000e0000001100000008000000a8000000fd00000017000000b400000048000000a60000008500000054000000190000009c00000047000000d00000008f000000fb00000010000000d4000000b8000000
+        // 8908b8d4641b053566380a6b900c07a1c6634ba1992bcedc30cc4f1e586b95f8b3efbbc411861566d8a690717f3beb93b6496b3f4d6659f6c0237713508a8a867e70786b1d52fc0412d75203ef2ac22de13d9596ace8a5a1ed5324c3ed7f31c3676f9cd10e72f99d2416ecc268dd7a6a2e5613085d471bd62d2685f977c7b55db3efbbc411861566d8a690717f3beb93b6496b3f4d6659f6c0237713508a8a8679be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8
+        println!(
+            "Instance_bincode_encoded:\n{:?}",
+            vec_u8_to_hex_string(&instance_bincode_encoded)
+        );
+
+        let solidity_ref = "9f39696c27416c218ea0af1e862af2bc719e6f235c287368e27eaf6685ac4826943e3d1201c603a7bbb42a9af31456fe5da8250ede2cad1f225b237f465293978469baf624f97e8ee38f610200326e34c7a15de612b4107f772c6629dd5913199acc2b1c1164cb7830e3a770cdf5d4e7d1e68927d4b06b1799edac2d706484589b55dc162140c5dde2082e8319584739cb55870cd8456e958d3fb94b22790f3bdf2e4bb8057c9fd6ad79bfeb8e043692a95aa0b5d9c8efcd089cf642e5e5363e9b971e3000ee7647ec367bf531ba36254750fd6711902aca792f72aeeb7114fcc79afdc617a09665a8d7f57ae76a2d658fb8d9f66cbc427b7c75576850369635f242be71";
+        println!(
+            "Solidity reference `abi.encode(cu.instance)`:\n{:?}",
+            solidity_ref
+        );
+    }
+
+    #[test]
+    fn print_tx() {
+        let raw_tx = aarm::transaction::generate_test_transaction(1);
+
+        println!(
+            "Raw journal:\n{:?}",
+            raw_tx.action[0].compliance_units[0]
+                .journal
+                .bytes
+                .iter()
+                .map(|b| format!("{:02x}", *b))
+                .collect::<String>()
+        );
+        let raw_instance: ComplianceInstance = raw_tx.action[0].compliance_units[0]
+            .journal
+            .decode()
+            .unwrap();
+
+        println!("Raw instance decoded:\n{:?}", raw_instance);
+
+        let raw_instance_encoded = bincode::serialize(&raw_instance).unwrap();
+        println!(
+            "Bincode encoded instance:\n{:?}",
+            raw_instance_encoded
+                .iter()
+                .map(|b| format!("{:02x}", *b))
+                .collect::<String>()
+        );
+
+        let adapter_tx = raw_tx.convert();
+
+        let raw_adatper_instance = adapter_tx.actions[0].compliance_units[0].instance.clone();
+
+        println!("Raw adapter instance:\n{:?}", raw_adatper_instance);
+
+        let raw_adapter_instance_encoded = bincode::serialize(&raw_adatper_instance).unwrap();
+        println!(
+            "Bincode encoded adapter instance:\n{:?}",
+            raw_adapter_instance_encoded
+                .iter()
+                .map(|b| format!("{:02x}", *b))
+                .collect::<String>()
+        );
+
+        let evm_tx = ProtocolAdapter::Transaction::from(adapter_tx);
+        let evm_instance = evm_tx.actions[0].complianceUnits[0].instance.clone();
+
+        println!("EVM CU:\n{:?}", evm_tx.actions[0].complianceUnits[0]);
+
+        println!(
+            "EVM instance encoded:\n{:?}",
+            evm_instance
+                .abi_encode()
+                .iter()
+                .map(|b| format!("{:02x}", *b))
+                .collect::<String>()
+        );
+
+        println!(
+            "EVM instance encoded packed:\n{:?}",
+            evm_instance
+                .abi_encode_packed()
+                .iter()
+                .map(|b| format!("{:02x}", *b))
+                .collect::<String>()
+        );
     }
 }
+
+/*
+Solidity reference
+8908b8d4641b053566380a6b900c07a1c6634ba1992bcedc30cc4f1e586b95f8b3efbbc411861566d8a690717f3beb93b6496b3f4d6659f6c0237713508a8a867e70786b1d52fc0412d75203ef2ac22de13d9596ace8a5a1ed5324c3ed7f31c3676f9cd10e72f99d2416ecc268dd7a6a2e5613085d471bd62d2685f977c7b55db3efbbc411861566d8a690717f3beb93b6496b3f4d6659f6c0237713508a8a8679be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8
+8908b8d4641b053566380a6b900c07a1c6634ba1992bcedc30cc4f1e586b95f8b3efbbc411861566d8a690717f3beb93b6496b3f4d6659f6c0237713508a8a867e70786b1d52fc0412d75203ef2ac22de13d9596ace8a5a1ed5324c3ed7f31c3676f9cd10e72f99d2416ecc268dd7a6a2e5613085d471bd62d2685f977c7b55db3efbbc411861566d8a690717f3beb93b6496b3f4d6659f6c0237713508a8a8679be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8
+---
+Raw instance:
+ComplianceInstance { consumed_nullifier: Digest(8908b8d4641b053566380a6b900c07a1c6634ba1992bcedc30cc4f1e586b95f8), consumed_logic_ref: Digest(b3efbbc411861566d8a690717f3beb93b6496b3f4d6659f6c0237713508a8a86), consumed_commitment_tree_root: Digest(7e70786b1d52fc0412d75203ef2ac22de13d9596ace8a5a1ed5324c3ed7f31c3), created_commitment: Digest(676f9cd10e72f99d2416ecc268dd7a6a2e5613085d471bd62d2685f977c7b55d), created_logic_ref: Digest(b3efbbc411861566d8a690717f3beb93b6496b3f4d6659f6c0237713508a8a86), delta_x: [121, 190, 102, 126, 249, 220, 187, 172, 85, 160, 98, 149, 206, 135, 11, 7, 2, 155, 252, 219, 45, 206, 40, 217, 89, 242, 129, 91, 22, 248, 23, 152], delta_y: [72, 58, 218, 119, 38, 163, 196, 101, 93, 164, 251, 252, 14, 17, 8, 168, 253, 23, 180, 72, 166, 133, 84, 25, 156, 71, 208, 143, 251, 16, 212, 184] }
+Bincode encoded instance:
+"8908b8d4641b053566380a6b900c07a1c6634ba1992bcedc30cc4f1e586b95f8b3efbbc411861566d8a690717f3beb93b6496b3f4d6659f6c0237713508a8a867e70786b1d52fc0412d75203ef2ac22de13d9596ace8a5a1ed5324c3ed7f31c3676f9cd10e72f99d2416ecc268dd7a6a2e5613085d471bd62d2685f977c7b55db3efbbc411861566d8a690717f3beb93b6496b3f4d6659f6c0237713508a8a8679be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8"
+EVM CU:
+ComplianceUnit { proof: 0x9f39696c302c0274f3931815296c5e414526c8372fa6876ff4510b15a1917d0cc7b54cf601f2432b807f8c7937034f9155385bfc9512d1ad91b6a242d437d908b5b6a1e2161dcdbab5a2b957a5e3573b7f9debfefd962509deb4facc5b21fbe0cb283e2404738902c97f254ce959d0cf60bed30c79ff32be1a7836dfe6056e3cd51a18432930db0c9b68164725e31ec626fc5726800f886a0cd6a1e9304d06d8802794d41feb9061d3d2702328d8cb52eaed6f41852df1cc7015de3b5bab5810cc90689012bec6738228779b88ca97a78c1b845df0261ed56401513dec31b3208f3b5c9f2f4f9bad43fb5ee8d267decf6bf779fab263ac64fd10abd14e22271024e3dad7, instance: ComplianceInstance { consumed: ConsumedRefs { nullifier: 0x8908b8d4641b053566380a6b900c07a1c6634ba1992bcedc30cc4f1e586b95f8, logicRef: 0xb3efbbc411861566d8a690717f3beb93b6496b3f4d6659f6c0237713508a8a86, commitmentTreeRoot: 0x7e70786b1d52fc0412d75203ef2ac22de13d9596ace8a5a1ed5324c3ed7f31c3 }, created: CreatedRefs { commitment: 0x676f9cd10e72f99d2416ecc268dd7a6a2e5613085d471bd62d2685f977c7b55d, logicRef: 0xb3efbbc411861566d8a690717f3beb93b6496b3f4d6659f6c0237713508a8a86 }, unitDelta: [55066263022277343669578718895168534326250603453777594175500187360389116729240, 32670510020758816978083085130507043184471273380659243275938904335757337482424] } }
+EVM instance encoded:
+"8908b8d4641b053566380a6b900c07a1c6634ba1992bcedc30cc4f1e586b95f8b3efbbc411861566d8a690717f3beb93b6496b3f4d6659f6c0237713508a8a867e70786b1d52fc0412d75203ef2ac22de13d9596ace8a5a1ed5324c3ed7f31c3676f9cd10e72f99d2416ecc268dd7a6a2e5613085d471bd62d2685f977c7b55db3efbbc411861566d8a690717f3beb93b6496b3f4d6659f6c0237713508a8a8679be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8"
+EVM instance encoded packed:
+"8908b8d4641b053566380a6b900c07a1c6634ba1992bcedc30cc4f1e586b95f8b3efbbc411861566d8a690717f3beb93b6496b3f4d6659f6c0237713508a8a867e70786b1d52fc0412d75203ef2ac22de13d9596ace8a5a1ed5324c3ed7f31c3676f9cd10e72f99d2416ecc268dd7a6a2e5613085d471bd62d2685f977c7b55db3efbbc411861566d8a690717f3beb93b6496b3f4d6659f6c0237713508a8a8679be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8"
+
+
+*/

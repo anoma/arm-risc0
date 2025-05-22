@@ -40,8 +40,10 @@ dependencies = [
  "aarm",
  "aarm_core",
  "alloy",
+ "bincode",
  "dotenv",
  "rand 0.9.1",
+ "serde",
  "tokio",
 ]
 

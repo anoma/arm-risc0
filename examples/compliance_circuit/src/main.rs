@@ -44,6 +44,7 @@ pub fn main() {
     let extract_journal_start_timer = Instant::now();
     // Extract journal of receipt
     let _compliance_instance: ComplianceInstance = receipt.journal.decode().unwrap();
+    println!("Extracted journal: {:?}", _compliance_instance);
 
     let extract_journal_duration = extract_journal_start_timer.elapsed();
     println!(
