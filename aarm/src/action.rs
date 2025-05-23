@@ -122,10 +122,13 @@ impl Action {
         let logic_proofs = self
             .logic_proofs
             .iter()
-            .map(|proof| AdapterLogicProof {
-                verifying_key: proof.verifying_key,
-                proof: encode_seal(&proof.receipt).unwrap(),
-                instance: proof.receipt.journal.decode().unwrap(),
+            .map(|proof| {
+                let instance: LogicInstance = proof.receipt.journal.decode().unwrap();
+                AdapterLogicProof {
+                    verifying_key: proof.verifying_key,
+                    proof: encode_seal(&proof.receipt).unwrap(),
+                    instance: instance.into(),
+                }
             })
             .collect();
 

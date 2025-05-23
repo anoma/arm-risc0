@@ -1,5 +1,5 @@
 use crate::{
-    action_tree::ACTION_TREE_DEPTH, encryption::Ciphertext, logic_instance::LogicInstance,
+    action_tree::ACTION_TREE_DEPTH, logic_instance::ExpirableBlob, logic_instance::LogicInstance,
     merkle_path::MerklePath, nullifier_key::NullifierKey, resource::Resource,
 };
 use serde::{Deserialize, Serialize};
@@ -45,8 +45,17 @@ impl LogicCircuit for TrivialLogicWitness {
             tag,
             is_consumed: self.is_consumed, // It can be either consumed or created to reduce padding resources
             root,
-            cipher: Ciphertext::default().inner(), // no cipher needed
-            app_data: Vec::new(),                  // no app data needed
+            cipher: vec![63, 127, 191, 255], // TODO; move it to a special test
+            app_data: vec![
+                ExpirableBlob {
+                    blob: vec![31, 63, 95, 127],
+                    deletion_criterion: 0,
+                },
+                ExpirableBlob {
+                    blob: vec![159, 191, 223, 255],
+                    deletion_criterion: 1,
+                },
+            ],
         }
     }
 }

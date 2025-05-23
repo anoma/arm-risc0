@@ -28,6 +28,10 @@ impl SecretKey {
 pub struct Ciphertext(Vec<u8>);
 
 impl Ciphertext {
+    pub fn new(cipher: Vec<u8>) -> Self {
+        Ciphertext(cipher)
+    }
+
     pub fn inner(&self) -> Vec<u8> {
         self.0.clone()
     }
