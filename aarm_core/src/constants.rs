@@ -1,6 +1,6 @@
 use hex::FromHex;
 use lazy_static::lazy_static;
-use risc0_zkvm::{sha::DIGEST_BYTES, Digest};
+use risc0_zkvm::sha::{DIGEST_BYTES, Digest};
 
 pub const DST: &[u8] = b"QUUX-V01-CS02-with-secp256k1_XMD:SHA-256_SSWU_RO_";
 

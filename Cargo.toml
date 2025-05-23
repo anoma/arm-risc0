@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = [ "aarm", "aarm_core", "examples/compliance_circuit", "examples/trivial_logic", "examples/kudo_application" ]
+members = ["aarm_core", "examples/compliance_circuit"]
 
 [profile.bench]
 lto = true
