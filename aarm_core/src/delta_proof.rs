@@ -50,14 +50,14 @@ impl DeltaProof {
     pub fn to_bytes(&self) -> [u8; 65] {
         let mut bytes = [0u8; 65];
         bytes[0..64].clone_from_slice(&self.signature.to_bytes());
-        bytes[64] = self.recid.to_byte();
+        bytes[64] = self.recid.to_byte() + 27;
         bytes
     }
 
     pub fn from_bytes(bytes: &[u8]) -> DeltaProof {
         DeltaProof {
             signature: Signature::from_bytes((&bytes[0..64]).into()).unwrap(),
-            recid: RecoveryId::from_byte(bytes[64]).unwrap(),
+            recid: RecoveryId::from_byte(bytes[64] - 27).unwrap(),
         }
     }
 }
