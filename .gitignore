@@ -5,4 +5,5 @@ target/
 _build/
 deps/
 .vscode/
+.idea/
 profile.*
