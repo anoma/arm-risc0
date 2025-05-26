@@ -89,9 +89,13 @@ impl From<LogicInstance> for AdapterLogicInstance {
     }
 }
 
+pub fn get_compliance_id() -> Digest {
+    Digest::from(compliance_circuit::COMPLIANCE_GUEST_ID)
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::transaction::generate_test_transaction;
+    use crate::{evm_adapter::get_compliance_id, transaction::generate_test_transaction};
     use std::env;
 
     #[test]
@@ -104,5 +108,10 @@ mod tests {
             "EVM Tx:\n{:#?}",
             raw_tx.convert().actions[0].logic_proofs[0].instance
         );
+    }
+
+    #[test]
+    fn print_compliance_id() {
+        println!("compliance_id: {:?}", get_compliance_id());
     }
 }
