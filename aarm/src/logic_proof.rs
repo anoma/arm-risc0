@@ -1,4 +1,7 @@
-use crate::utils::{groth16_prove, verify as verify_proof};
+use crate::{
+    constants::{PADDING_GUEST_ELF, PADDING_GUEST_ID},
+    utils::{groth16_prove, verify as verify_proof},
+};
 use aarm_core::{
     action_tree::ACTION_TREE_DEPTH, merkle_path::MerklePath, nullifier_key::NullifierKey,
     nullifier_key::NullifierKeyCommitment, resource::Resource, resource_logic::TrivialLogicWitness,
@@ -6,7 +9,6 @@ use aarm_core::{
 use rand::Rng;
 use risc0_zkvm::{sha::Digest, Receipt};
 use serde::{Deserialize, Serialize};
-use trivial_logic::{TRIVIAL_GUEST_ELF, TRIVIAL_GUEST_ID};
 
 pub trait LogicProver: Default + Clone + Serialize + for<'de> Deserialize<'de> {
     type Witness: Default + Clone + Serialize + for<'de> Deserialize<'de>;
@@ -48,11 +50,11 @@ impl LogicProver for PaddingResourceLogic {
     type Witness = TrivialLogicWitness;
 
     fn proving_key() -> Vec<u8> {
-        TRIVIAL_GUEST_ELF.to_vec()
+        PADDING_GUEST_ELF.to_vec()
     }
 
     fn verifying_key() -> Digest {
-        TRIVIAL_GUEST_ID.into()
+        PADDING_GUEST_ID.into()
     }
 
     fn witness(&self) -> &Self::Witness {

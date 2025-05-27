@@ -1,5 +1,6 @@
 use crate::utils::groth16_prove;
 use crate::{
+    constants::{COMPLIANCE_GUEST_ELF, COMPLIANCE_GUEST_ID, TEST_GUEST_ELF, TEST_GUEST_ID},
     evm_adapter::{AdapterAction, AdapterComplianceUnit, AdapterLogicProof},
     logic_proof::LogicProof,
     utils::verify as verify_proof,
@@ -13,12 +14,10 @@ use aarm_core::{
     action_tree::MerkleTree, compliance::ComplianceInstance, constants::COMMITMENT_TREE_DEPTH,
     logic_instance::LogicInstance,
 };
-use compliance_circuit::{COMPLIANCE_GUEST_ELF, COMPLIANCE_GUEST_ID};
 use k256::ProjectivePoint;
 use risc0_ethereum_contracts::encode_seal;
 use risc0_zkvm::{Digest, Receipt};
 use serde::{Deserialize, Serialize};
-use trivial_logic::{TRIVIAL_GUEST_ELF, TRIVIAL_GUEST_ID};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Action {
@@ -143,7 +142,7 @@ pub fn create_an_action(nonce: u8) -> (Action, DeltaWitness) {
     let nf_key = NullifierKey::new(Digest::default());
     let nf_key_cm = nf_key.commit();
     let mut consumed_resource = Resource::default();
-    consumed_resource.logic_ref = Digest::new(TRIVIAL_GUEST_ID.into());
+    consumed_resource.logic_ref = Digest::new(TEST_GUEST_ID.into());
     consumed_resource.nk_commitment = nf_key_cm;
     consumed_resource.nonce[0] = nonce;
     let mut created_resource = consumed_resource.clone();
@@ -154,7 +153,7 @@ pub fn create_an_action(nonce: u8) -> (Action, DeltaWitness) {
         nf_key,
         created_resource,
     );
-    let compliance_receipt = groth16_prove(&compliance_witness, COMPLIANCE_GUEST_ELF);
+    let compliance_receipt = groth16_prove(&compliance_witness, &COMPLIANCE_GUEST_ELF);
 
     let consumed_resource_nf = consumed_resource.nullifier(&nf_key).unwrap();
     let created_resource_cm = created_resource.commitment();
@@ -164,18 +163,18 @@ pub fn create_an_action(nonce: u8) -> (Action, DeltaWitness) {
 
     let consumed_logic_witness =
         TrivialLogicWitness::new(consumed_resource, consumed_resource_path, nf_key, true);
-    let consumed_logic_receipt = groth16_prove(&consumed_logic_witness, TRIVIAL_GUEST_ELF);
+    let consumed_logic_receipt = groth16_prove(&consumed_logic_witness, &TEST_GUEST_ELF);
     let consumed_logic_proof = LogicProof {
         receipt: consumed_logic_receipt,
-        verifying_key: TRIVIAL_GUEST_ID.into(),
+        verifying_key: TEST_GUEST_ID.into(),
     };
 
     let created_logic_witness =
         TrivialLogicWitness::new(created_resource, created_resource_path, nf_key, false);
-    let created_logic_receipt = groth16_prove(&created_logic_witness, TRIVIAL_GUEST_ELF);
+    let created_logic_receipt = groth16_prove(&created_logic_witness, &TEST_GUEST_ELF);
     let created_logic_proof = LogicProof {
         receipt: created_logic_receipt,
-        verifying_key: TRIVIAL_GUEST_ID.into(),
+        verifying_key: TEST_GUEST_ID.into(),
     };
 
     let compliance_units = vec![compliance_receipt];

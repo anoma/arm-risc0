@@ -90,7 +90,7 @@ impl From<LogicInstance> for AdapterLogicInstance {
 }
 
 pub fn get_compliance_id() -> Digest {
-    Digest::from(compliance_circuit::COMPLIANCE_GUEST_ID)
+    Digest::from(crate::constants::COMPLIANCE_GUEST_ID)
 }
 
 #[cfg(test)]
