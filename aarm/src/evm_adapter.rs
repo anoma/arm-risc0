@@ -1,7 +1,12 @@
+use crate::{
+    action::Action,
+    transaction::{Delta, Transaction},
+};
 use aarm_core::{
     compliance::ComplianceInstance,
     logic_instance::{ExpirableBlob, LogicInstance},
 };
+use risc0_ethereum_contracts::encode_seal;
 use risc0_zkvm::sha::Digest;
 use serde::{Deserialize, Serialize};
 
@@ -62,6 +67,52 @@ fn insert_zeros(vec: Vec<u8>) -> Vec<u8> {
         .collect() // Collect into a new Vec<u8>
 }
 
+impl From<Transaction> for AdapterTransaction {
+    fn from(tx: Transaction) -> Self {
+        let actions = tx.actions.into_iter().map(AdapterAction::from).collect();
+        let delta_proof = match &tx.delta_proof {
+            Delta::Witness(_) => panic!("Unbalanced Transactions cannot be converted"),
+            Delta::Proof(proof) => proof.to_bytes().to_vec(),
+        };
+
+        AdapterTransaction {
+            actions,
+            delta_proof,
+        }
+    }
+}
+
+impl From<Action> for AdapterAction {
+    fn from(action: Action) -> Self {
+        let compliance_units = action
+            .compliance_units
+            .iter()
+            .map(|receipt| AdapterComplianceUnit {
+                proof: encode_seal(&receipt).unwrap(),
+                instance: receipt.journal.decode().unwrap(),
+            })
+            .collect();
+
+        let logic_proofs = action
+            .logic_proofs
+            .iter()
+            .map(|proof| {
+                let instance: LogicInstance = proof.receipt.journal.decode().unwrap();
+                AdapterLogicProof {
+                    verifying_key: proof.verifying_key,
+                    proof: encode_seal(&proof.receipt).unwrap(),
+                    instance: instance.into(),
+                }
+            })
+            .collect();
+
+        AdapterAction {
+            compliance_units,
+            logic_proofs,
+        }
+    }
+}
+
 impl From<ExpirableBlob> for AdapterExpirableBlob {
     fn from(blob: ExpirableBlob) -> Self {
         AdapterExpirableBlob {
@@ -95,7 +146,10 @@ pub fn get_compliance_id() -> Digest {
 
 #[cfg(test)]
 mod tests {
-    use crate::{evm_adapter::get_compliance_id, transaction::generate_test_transaction};
+    use crate::{
+        evm_adapter::{get_compliance_id, AdapterTransaction},
+        transaction::generate_test_transaction,
+    };
     use std::env;
 
     #[test]
@@ -106,7 +160,7 @@ mod tests {
         let raw_tx = generate_test_transaction(1);
         println!(
             "EVM Tx:\n{:#?}",
-            raw_tx.convert().actions[0].logic_proofs[0].instance
+            AdapterTransaction::from(raw_tx).actions[0].logic_proofs[0].instance
         );
     }
 
