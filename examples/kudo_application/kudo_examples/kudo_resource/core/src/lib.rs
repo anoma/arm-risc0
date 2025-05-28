@@ -131,6 +131,7 @@ impl KudoResourceLogicWitness {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn generate_persistent_resource_creation_witness(
         kudo_resource: Resource,
         kudo_existence_path: MerklePath<ACTION_TREE_DEPTH>,

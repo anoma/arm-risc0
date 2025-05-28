@@ -144,9 +144,9 @@ pub fn build_swap_tx(
 
     // Construct the created kudo witness
     let receiver_signature =
-        generate_receive_signature(&SimpleReceiveLogic::verifying_key(), &owner_sk);
+        generate_receive_signature(&SimpleReceiveLogic::verifying_key(), owner_sk);
     let created_kudo = KudoResourceLogicWitness::generate_persistent_resource_creation_witness(
-        created_kudo_resource.clone(),
+        created_kudo_resource,
         created_kudo_existence_path,
         *created_issuer,
         created_denomination_resource,

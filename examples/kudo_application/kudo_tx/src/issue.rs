@@ -1,5 +1,6 @@
 use aarm::{
     action::Action,
+    constants::COMPLIANCE_GUEST_ELF,
     logic_proof::{LogicProver, PaddingResourceLogic},
     transaction::{Delta, Transaction},
     utils::groth16_prove,
@@ -7,7 +8,6 @@ use aarm::{
 use aarm_core::{
     compliance::ComplianceWitness, constants::COMMITMENT_TREE_DEPTH, delta_proof::DeltaWitness,
 };
-use compliance_circuit::COMPLIANCE_GUEST_ELF;
 use kudo_core::{denomination::Denomination, kudo::Kudo, receive::Receive};
 
 #[derive(Clone)]

@@ -65,7 +65,7 @@ fn insert_zeros(vec: Vec<u8>) -> Vec<u8> {
     vec.into_iter()
         .flat_map(|byte| {
             // Create an iterator that contains the original byte followed by three 0s
-            std::iter::once(byte).chain(std::iter::repeat(u8::from(0)).take(3))
+            std::iter::once(byte).chain(std::iter::repeat(0).take(3))
         })
         .collect() // Collect into a new Vec<u8>
 }
@@ -91,7 +91,7 @@ impl From<Action> for AdapterAction {
             .compliance_units
             .iter()
             .map(|receipt| AdapterComplianceUnit {
-                proof: encode_seal(&receipt).unwrap(),
+                proof: encode_seal(receipt).unwrap(),
                 instance: receipt.journal.decode().unwrap(),
             })
             .collect();
@@ -132,7 +132,7 @@ impl From<LogicInstance> for AdapterLogicInstance {
         let app_data = instance
             .app_data
             .into_iter()
-            .map(|blob| AdapterExpirableBlob::from(blob))
+            .map(AdapterExpirableBlob::from)
             .collect();
         AdapterLogicInstance {
             tag: instance.tag,

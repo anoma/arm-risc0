@@ -1,7 +1,10 @@
 use aarm::logic_proof::LogicProver;
 use aarm_core::{nullifier_key::NullifierKey, resource::Resource};
 use kudo_core::kudo::Kudo;
-use kudo_logic_circuit::{KUDO_LOGIC_ELF, KUDO_LOGIC_ID};
+pub const KUDO_LOGIC_ELF: &[u8] = include_bytes!("../../../elfs/kudo-logic.bin");
+pub const KUDO_LOGIC_ID: [u32; 8] = [
+    2180851034, 2718074376, 3239141689, 1351813527, 1622732300, 2436380035, 1838980537, 1125642721,
+];
 pub use kudo_resource_core::KudoResourceLogicWitness;
 use risc0_zkvm::sha::Digest;
 use serde::{Deserialize, Serialize};
@@ -14,8 +17,8 @@ pub struct KudoResourceLogic {
 impl LogicProver for KudoResourceLogic {
     type Witness = KudoResourceLogicWitness;
 
-    fn proving_key() -> Vec<u8> {
-        KUDO_LOGIC_ELF.to_vec()
+    fn proving_key() -> &'static [u8] {
+        KUDO_LOGIC_ELF
     }
 
     fn verifying_key() -> Digest {
@@ -29,11 +32,11 @@ impl LogicProver for KudoResourceLogic {
 
 impl Kudo for KudoResourceLogic {
     fn resource(&self) -> Resource {
-        self.witness.kudo_resource.clone()
+        self.witness.kudo_resource
     }
 
     fn nf_key(&self) -> NullifierKey {
-        self.witness.kudo_nf_key.clone()
+        self.witness.kudo_nf_key
     }
 }
 

@@ -1,7 +1,10 @@
 use aarm::logic_proof::LogicProver;
 use aarm_core::{nullifier_key::NullifierKey, resource::Resource};
 pub use denomination_core::SimpleDenominationWitness;
-use denomination_logic_circuit::{DENOMINATION_ELF, DENOMINATION_ID};
+pub const DENOMINATION_ELF: &[u8] = include_bytes!("../../../elfs/denomination.bin");
+pub const DENOMINATION_ID: [u32; 8] = [
+    752765321, 2072722720, 3155356202, 794211336, 1132666731, 942238722, 2377137829, 2293574572,
+];
 use kudo_core::denomination::Denomination;
 use risc0_zkvm::sha::Digest;
 use serde::{Deserialize, Serialize};
@@ -14,8 +17,8 @@ pub struct SimpleDenominationResourceLogic {
 impl LogicProver for SimpleDenominationResourceLogic {
     type Witness = SimpleDenominationWitness;
 
-    fn proving_key() -> Vec<u8> {
-        DENOMINATION_ELF.to_vec()
+    fn proving_key() -> &'static [u8] {
+        DENOMINATION_ELF
     }
 
     fn verifying_key() -> Digest {
@@ -29,11 +32,11 @@ impl LogicProver for SimpleDenominationResourceLogic {
 
 impl Denomination for SimpleDenominationResourceLogic {
     fn resource(&self) -> Resource {
-        self.witness.denomination_resource.clone()
+        self.witness.denomination_resource
     }
 
     fn nf_key(&self) -> NullifierKey {
-        self.witness.denomination_nf_key.clone()
+        self.witness.denomination_nf_key
     }
 }
 

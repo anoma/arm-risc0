@@ -94,8 +94,8 @@ impl DeltaWitness {
 
     pub fn compress(witnesses: &[DeltaWitness]) -> DeltaWitness {
         let mut sum = witnesses[0].clone();
-        for i in 1..witnesses.len() {
-            sum = sum.compose(&witnesses[i]);
+        for witness in witnesses.iter().skip(1) {
+            sum = sum.compose(witness);
         }
         sum
     }

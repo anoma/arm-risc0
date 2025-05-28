@@ -4,7 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-receive-logic-circuit = { path = "methods" }
 receive-core = { path = "core" }
 serde = { version = "1.0.197", default-features = false }
 risc0-zkvm = "2.0.2"
