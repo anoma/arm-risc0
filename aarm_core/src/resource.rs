@@ -12,7 +12,7 @@ use risc0_zkvm::sha::{rust_crypto::Sha256 as Sha256Type, Digest, Impl, Sha256, D
 use serde::{Deserialize, Serialize};
 
 /// A resource that can be created and consumed
-#[derive(Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct Resource {
     // a succinct representation of the predicate associated with the resource
     pub logic_ref: Digest,

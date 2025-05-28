@@ -21,13 +21,26 @@ use serde::{Deserialize, Serialize};
 pub struct Action {
     pub compliance_units: Vec<Receipt>,
     pub logic_proofs: Vec<LogicProof>,
+    pub resource_forwarder_calldata_pairs: Vec<(Resource, ForwarderCalldata)>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct ForwarderCalldata {
+    untrusted_forwarder: [u8; 20],
+    input: Vec<u8>,
+    output: Vec<u8>,
 }
 
 impl Action {
-    pub fn new(compliance_units: Vec<Receipt>, logic_proofs: Vec<LogicProof>) -> Self {
+    pub fn new(
+        compliance_units: Vec<Receipt>,
+        logic_proofs: Vec<LogicProof>,
+        resource_forwarder_calldata_pairs: Vec<(Resource, ForwarderCalldata)>,
+    ) -> Self {
         Action {
             compliance_units,
             logic_proofs,
+            resource_forwarder_calldata_pairs,
         }
     }
 
@@ -37,6 +50,10 @@ impl Action {
 
     pub fn get_logic_proofs(&self) -> &Vec<LogicProof> {
         &self.logic_proofs
+    }
+
+    pub fn get_resource_forwarder_calldata_pairs(&self) -> &Vec<(Resource, ForwarderCalldata)> {
+        &self.resource_forwarder_calldata_pairs
     }
 
     pub fn verify(&self) -> bool {
@@ -148,8 +165,13 @@ pub fn create_an_action(nonce: u8) -> (Action, DeltaWitness) {
 
     let compliance_units = vec![compliance_receipt];
     let logic_proofs = vec![consumed_logic_proof, created_logic_proof];
+    let resource_forwarder_calldata_pairs = vec![];
 
-    let action = Action::new(compliance_units, logic_proofs);
+    let action = Action::new(
+        compliance_units,
+        logic_proofs,
+        resource_forwarder_calldata_pairs,
+    );
     assert!(action.verify());
 
     let delta_witness = DeltaWitness::from_scalars(&[compliance_witness.rcv]);
