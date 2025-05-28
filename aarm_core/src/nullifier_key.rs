@@ -33,7 +33,7 @@ impl NullifierKey {
 }
 
 /// Commitment to nullifier key
-#[derive(Clone, Copy, Eq, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Default, Serialize, Deserialize)]
 pub struct NullifierKeyCommitment(Digest);
 
 impl NullifierKeyCommitment {

@@ -121,6 +121,7 @@ where
                         padding_resource_proof,
                         receive_logic_proof,
                     ],
+                    vec![],
                 ),
                 DeltaWitness::from_scalars(&[delta_witness_1, delta_witness_2, delta_witness_3]),
             )

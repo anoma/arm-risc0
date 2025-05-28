@@ -1,7 +1,9 @@
+use crate::action::ForwarderCalldata;
 use crate::{
     action::Action,
     transaction::{Delta, Transaction},
 };
+use aarm_core::resource::Resource;
 use aarm_core::{
     compliance::ComplianceInstance,
     logic_instance::{ExpirableBlob, LogicInstance},
@@ -23,6 +25,7 @@ pub struct AdapterTransaction {
 pub struct AdapterAction {
     pub compliance_units: Vec<AdapterComplianceUnit>,
     pub logic_proofs: Vec<AdapterLogicProof>,
+    pub resource_forwarder_calldata_pairs: Vec<(Resource, ForwarderCalldata)>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -109,6 +112,7 @@ impl From<Action> for AdapterAction {
         AdapterAction {
             compliance_units,
             logic_proofs,
+            resource_forwarder_calldata_pairs: action.resource_forwarder_calldata_pairs,
         }
     }
 }
