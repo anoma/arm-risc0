@@ -32,11 +32,11 @@ impl LogicProver for SimpleReceiveLogic {
 
 impl Receive for SimpleReceiveLogic {
     fn resource(&self) -> Resource {
-        self.witness.receive_resource.clone()
+        self.witness.receive_resource
     }
 
     fn nf_key(&self) -> NullifierKey {
-        self.witness.nf_key.clone()
+        self.witness.nf_key
     }
 }
 

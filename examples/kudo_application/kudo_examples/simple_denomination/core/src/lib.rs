@@ -153,6 +153,7 @@ impl SimpleDenominationWitness {
     }
 
     // Create a denomination witness corresponding to a consumed kudo resource
+    #[allow(clippy::too_many_arguments)]
     pub fn generate_persistent_resource_consumption_witness(
         denomination_resource: Resource,
         denomination_existence_path: MerklePath<ACTION_TREE_DEPTH>,
@@ -179,6 +180,7 @@ impl SimpleDenominationWitness {
     }
 
     // Create a witness for the burn, corresponding to an ephemeral kudo resource
+    #[allow(clippy::too_many_arguments)]
     pub fn generate_burned_ephemeral_witness(
         denomination_resource: Resource,
         denomination_existence_path: MerklePath<ACTION_TREE_DEPTH>,

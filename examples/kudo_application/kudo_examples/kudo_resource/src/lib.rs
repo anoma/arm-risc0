@@ -32,11 +32,11 @@ impl LogicProver for KudoResourceLogic {
 
 impl Kudo for KudoResourceLogic {
     fn resource(&self) -> Resource {
-        self.witness.kudo_resource.clone()
+        self.witness.kudo_resource
     }
 
     fn nf_key(&self) -> NullifierKey {
-        self.witness.kudo_nf_key.clone()
+        self.witness.kudo_nf_key
     }
 }
 

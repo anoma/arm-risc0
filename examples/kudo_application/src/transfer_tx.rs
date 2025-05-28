@@ -13,6 +13,7 @@ use kudo_tx::transfer::TransferInstance;
 use simple_denomination::{SimpleDenominationResourceLogic, SimpleDenominationWitness};
 use simple_receive::{SimpleReceiveLogic, SimpleReceiveWitness};
 
+#[allow(clippy::too_many_arguments)]
 pub fn build_transfer_tx(
     issuer: &AuthorizationVerifyingKey,
     owner_sk: &AuthorizationSigningKey,
@@ -49,7 +50,7 @@ pub fn build_transfer_tx(
     let consumed_denomination_resource_cm = consumed_denomination_resource.commitment();
 
     // Construct the created kudo resource
-    let mut created_kudo_resource = consumed_kudo_resource.clone();
+    let mut created_kudo_resource = *consumed_kudo_resource;
     // Set the new ownership to the created kudo resource
     created_kudo_resource.set_nf_commitment(*receiver_nk_commitment);
     let created_kudo_value = compute_kudo_value(receiver_pk);
@@ -138,7 +139,7 @@ pub fn build_transfer_tx(
 
     // Construct the created kudo witness
     let created_kudo = KudoResourceLogicWitness::generate_persistent_resource_creation_witness(
-        created_kudo_resource.clone(),
+        created_kudo_resource,
         created_kudo_existence_path,
         *issuer,
         created_denomination_resource,

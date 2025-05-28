@@ -110,11 +110,13 @@ impl Action {
 pub fn create_an_action(nonce: u8) -> (Action, DeltaWitness) {
     let nf_key = NullifierKey::new(Digest::default());
     let nf_key_cm = nf_key.commit();
-    let mut consumed_resource = Resource::default();
-    consumed_resource.logic_ref = Digest::new(TEST_GUEST_ID.into());
-    consumed_resource.nk_commitment = nf_key_cm;
+    let mut consumed_resource = Resource {
+        logic_ref: Digest::new(TEST_GUEST_ID),
+        nk_commitment: nf_key_cm,
+        ..Default::default()
+    };
     consumed_resource.nonce[0] = nonce;
-    let mut created_resource = consumed_resource.clone();
+    let mut created_resource = consumed_resource;
     created_resource.nonce[10] = nonce;
 
     let compliance_witness = ComplianceWitness::<COMMITMENT_TREE_DEPTH>::with_fixed_rcv(
@@ -122,7 +124,7 @@ pub fn create_an_action(nonce: u8) -> (Action, DeltaWitness) {
         nf_key,
         created_resource,
     );
-    let compliance_receipt = groth16_prove(&compliance_witness, &COMPLIANCE_GUEST_ELF);
+    let compliance_receipt = groth16_prove(&compliance_witness, COMPLIANCE_GUEST_ELF);
 
     let consumed_resource_nf = consumed_resource.nullifier(&nf_key).unwrap();
     let created_resource_cm = created_resource.commitment();
@@ -132,7 +134,7 @@ pub fn create_an_action(nonce: u8) -> (Action, DeltaWitness) {
 
     let consumed_logic_witness =
         TrivialLogicWitness::new(consumed_resource, consumed_resource_path, nf_key, true);
-    let consumed_logic_receipt = groth16_prove(&consumed_logic_witness, &TEST_GUEST_ELF);
+    let consumed_logic_receipt = groth16_prove(&consumed_logic_witness, TEST_GUEST_ELF);
     let consumed_logic_proof = LogicProof {
         receipt: consumed_logic_receipt,
         verifying_key: TEST_GUEST_ID.into(),
@@ -140,7 +142,7 @@ pub fn create_an_action(nonce: u8) -> (Action, DeltaWitness) {
 
     let created_logic_witness =
         TrivialLogicWitness::new(created_resource, created_resource_path, nf_key, false);
-    let created_logic_receipt = groth16_prove(&created_logic_witness, &TEST_GUEST_ELF);
+    let created_logic_receipt = groth16_prove(&created_logic_witness, TEST_GUEST_ELF);
     let created_logic_proof = LogicProof {
         receipt: created_logic_receipt,
         verifying_key: TEST_GUEST_ID.into(),

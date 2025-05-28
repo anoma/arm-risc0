@@ -20,7 +20,7 @@ pub trait LogicProver: Default + Clone + Serialize + for<'de> Deserialize<'de> {
     fn witness(&self) -> &Self::Witness;
 
     fn prove(&self) -> LogicProof {
-        let receipt = groth16_prove(self.witness(), &Self::proving_key());
+        let receipt = groth16_prove(self.witness(), Self::proving_key());
         LogicProof {
             receipt,
             verifying_key: Self::verifying_key(),

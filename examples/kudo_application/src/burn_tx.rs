@@ -45,7 +45,7 @@ pub fn build_burn_tx(
     let burned_denomination_resource_cm = burned_denomination_resource.commitment();
 
     // Construct the ephemeral kudo resource
-    let mut ephemeral_kudo_resource = burned_kudo_resource.clone();
+    let mut ephemeral_kudo_resource = *burned_kudo_resource;
     ephemeral_kudo_resource.is_ephemeral = true;
     let ephemeral_kudo_resource_cm = ephemeral_kudo_resource.commitment();
 
@@ -112,7 +112,7 @@ pub fn build_burn_tx(
 
     // Construct the ephemeral kudo witness
     let ephemeral_kudo = KudoResourceLogicWitness::generate_created_ephemeral_witness(
-        ephemeral_kudo_resource.clone(),
+        ephemeral_kudo_resource,
         ephemeral_kudo_existence_path,
         issuer,
         ephemeral_denomination_resource,
@@ -128,7 +128,7 @@ pub fn build_burn_tx(
         ephemeral_denomination_existence_path,
         instant_nk,
         burn_signature,
-        ephemeral_kudo_resource.clone(),
+        ephemeral_kudo_resource,
         ephemeral_kudo_existence_path,
         issuer,
         owner,

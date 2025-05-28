@@ -32,11 +32,11 @@ impl LogicProver for SimpleDenominationResourceLogic {
 
 impl Denomination for SimpleDenominationResourceLogic {
     fn resource(&self) -> Resource {
-        self.witness.denomination_resource.clone()
+        self.witness.denomination_resource
     }
 
     fn nf_key(&self) -> NullifierKey {
-        self.witness.denomination_nf_key.clone()
+        self.witness.denomination_nf_key
     }
 }
 
