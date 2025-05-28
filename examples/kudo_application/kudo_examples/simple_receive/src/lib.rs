@@ -2,7 +2,10 @@ use aarm::logic_proof::LogicProver;
 use aarm_core::{nullifier_key::NullifierKey, resource::Resource};
 use kudo_core::receive::Receive;
 pub use receive_core::SimpleReceiveWitness;
-use receive_logic_circuit::{RECEIVE_ELF, RECEIVE_ID};
+pub const RECEIVE_ELF: &[u8] = include_bytes!("../../../elfs/receive.bin");
+pub const RECEIVE_ID: [u32; 8] = [
+    3310211775, 589008629, 4235198033, 3102914864, 1797110209, 280090754, 4131591913, 700179597,
+];
 use risc0_zkvm::sha::Digest;
 use serde::{Deserialize, Serialize};
 
@@ -14,8 +17,8 @@ pub struct SimpleReceiveLogic {
 impl LogicProver for SimpleReceiveLogic {
     type Witness = SimpleReceiveWitness;
 
-    fn proving_key() -> Vec<u8> {
-        RECEIVE_ELF.to_vec()
+    fn proving_key() -> &'static [u8] {
+        RECEIVE_ELF
     }
 
     fn verifying_key() -> Digest {

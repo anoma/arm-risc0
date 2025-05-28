@@ -9,5 +9,3 @@ kudo-core = { path = "../kudo_core" }
 aarm = { path = "../../../aarm" }
 serde = { version = "1.0.197", default-features = false }
 risc0-zkvm = "2.0.2"
-compliance_circuit = { path = "../../compliance_circuit/methods", package = "compliance-methods"}
-trivial_logic = { path = "../../trivial_logic/trivial_logic" }

@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 pub trait LogicProver: Default + Clone + Serialize + for<'de> Deserialize<'de> {
     type Witness: Default + Clone + Serialize + for<'de> Deserialize<'de>;
 
-    fn proving_key() -> Vec<u8>;
+    fn proving_key() -> &'static [u8];
 
     fn verifying_key() -> Digest;
 
@@ -49,8 +49,8 @@ pub struct PaddingResourceLogic {
 impl LogicProver for PaddingResourceLogic {
     type Witness = TrivialLogicWitness;
 
-    fn proving_key() -> Vec<u8> {
-        PADDING_GUEST_ELF.to_vec()
+    fn proving_key() -> &'static [u8] {
+        PADDING_GUEST_ELF
     }
 
     fn verifying_key() -> Digest {
