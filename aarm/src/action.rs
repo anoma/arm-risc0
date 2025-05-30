@@ -26,9 +26,9 @@ pub struct Action {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ForwarderCalldata {
-    untrusted_forwarder: [u8; 20],
-    input: Vec<u8>,
-    output: Vec<u8>,
+    pub untrusted_forwarder: [u8; 20],
+    pub input: Vec<u8>,
+    pub output: Vec<u8>,
 }
 
 impl Action {
