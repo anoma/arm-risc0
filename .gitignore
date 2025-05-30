@@ -1,10 +1,9 @@
 .DS_Store
 Cargo.lock
-methods/guest/Cargo.lock
 target/
-!native/examples/compliance_circuit/target/riscv-guest/riscv32im-risc0-zkvm-elf/release/compliance_guest
-!native/examples/compliance_circuit/target/debug/build/methods*
 .elixir_ls/
 _build/
 deps/
 .vscode/
+.idea/
+profile.*

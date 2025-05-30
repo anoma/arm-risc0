@@ -1,0 +1,22 @@
+[package]
+name = "kudo-application"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+# If you want to try (experimental) std support, add `features = [ "std" ]` to risc0-zkvm
+risc0-zkvm = "2.0.2"
+serde = { version = "1.0.197", default-features = false }
+serde-big-array = "0.5.1"
+k256 = { version = "=0.13.3", features = ["arithmetic", "serde", "expose-field", "std", "ecdsa", "hash2curve"], default-features = false }
+sha2 = "0.10.6"
+rand = "0.8"
+aarm_core = { path = "../../aarm_core" }
+aarm = { path = "../../aarm" }
+kudo-core = { path = "kudo_core" }
+kudo-tx = { path = "kudo_tx" }
+kudo-resource = { path = "kudo_examples/kudo_resource" }
+simple-denomination = { path = "kudo_examples/simple_denomination" }
+simple-receive = { path = "kudo_examples/simple_receive" }

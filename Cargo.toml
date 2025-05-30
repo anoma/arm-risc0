@@ -1,0 +1,12 @@
+[workspace]
+resolver = "2"
+members = [ "aarm", "aarm_core", "examples/kudo_application" ]
+
+[profile.bench]
+lto = true
+
+[profile.dev]
+opt-level = 3
+
+[profile.release]
+lto = true
