@@ -1,4 +1,5 @@
 use k256::ecdsa::{Error, RecoveryId, Signature, SigningKey, VerifyingKey};
+use k256::elliptic_curve::pkcs8::der::Writer;
 use k256::{elliptic_curve::ScalarPrimitive, ProjectivePoint, PublicKey, Scalar, SecretKey};
 use rustler::types::map::map_new;
 use rustler::{Atom, Binary, Decoder, Encoder, Env, NifResult, OwnedBinary, Term};
@@ -10,6 +11,62 @@ use std::io::Write;
 pub struct DeltaProof {
     pub signature: Signature,
     pub recid: RecoveryId,
+}
+
+impl Encoder for DeltaProof {
+    fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
+        let map = map_new(env);
+        // store the name of the elixir struct
+        let map = map
+            .map_put(
+                Atom::from_str(env, "__struct__").unwrap(),
+                Atom::from_str(env, "Elixir.Anoma.Arm.DeltaProof").unwrap(),
+            )
+            .unwrap();
+
+        // store the bytes for the signing key
+        let key_bytes = self.signature.to_bytes();
+        let mut erl_bin = OwnedBinary::new(key_bytes.len()).unwrap();
+        erl_bin.as_mut_slice().write_all(&key_bytes).unwrap();
+        let erl_binary = Binary::from_owned(erl_bin, env);
+
+        let map = map
+            .map_put(Atom::from_str(env, "signature").unwrap(), erl_binary)
+            .unwrap();
+
+        // store the byte for the recovery id
+        let recovery_id_byte = self.recid.to_byte();
+        let mut erl_bin = OwnedBinary::new(1).unwrap();
+        erl_bin.as_mut_slice().write_byte(recovery_id_byte).unwrap();
+        let erl_binary = Binary::from_owned(erl_bin, env);
+        let map = map
+            .map_put(Atom::from_str(env, "recid").unwrap(), erl_binary)
+            .unwrap();
+
+        map
+    }
+}
+
+impl<'a> Decoder<'a> for DeltaProof {
+    fn decode(term: Term<'a>) -> NifResult<Self> {
+        // fetch the bytes for the signature
+        let key = Atom::from_str(term.get_env(), "signature")?;
+        let value = term.map_get(key).expect("signing_key found in struct");
+        let binary = Binary::from_term(value).expect("could not decode bytes into binary");
+        let bytes = binary.to_vec();
+        let sig = Signature::from_slice(bytes.as_slice()).unwrap();
+
+        // decode the recovery id
+        let key = Atom::from_str(term.get_env(), "recid")?;
+        let value = term.map_get(key).expect("recid found in struct");
+        let binary = Binary::from_term(value).expect("could not decode bytes into binary");
+        let bytes = binary.to_vec();
+        let val = RecoveryId::from_byte(bytes[0]).unwrap();
+        Ok(DeltaProof {
+            signature: sig,
+            recid: val,
+        })
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -52,10 +109,7 @@ impl<'a> Decoder<'a> for DeltaWitness {
         let bytes = binary.to_vec();
         let sk = SigningKey::from_slice(bytes.as_slice()).unwrap();
 
-
-        Ok(DeltaWitness {
-            signing_key: sk,
-        })
+        Ok(DeltaWitness { signing_key: sk })
     }
 }
 pub struct DeltaInstance {
