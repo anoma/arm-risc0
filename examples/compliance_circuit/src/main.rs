@@ -43,7 +43,6 @@ pub fn main() {
     println!("Verify duration time: {:?}", verify_duration);
 }
 
-#[ignore]
 #[test]
 fn print_compliance_elf_id() {
     // Write the elf binary to a file
@@ -51,5 +50,9 @@ fn print_compliance_elf_id() {
         .expect("Failed to write compliance guest ELF binary");
 
     // Print the ID
-    println!("Compliance Guest ID: {:?}", COMPLIANCE_GUEST_ID);
+    use risc0_zkvm::sha::Digest;
+    println!(
+        "Compliance Guest ELF ID: {:?}",
+        Digest::from(COMPLIANCE_GUEST_ID).as_bytes()
+    );
 }

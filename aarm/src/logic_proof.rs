@@ -7,7 +7,7 @@ use aarm_core::{
     nullifier_key::NullifierKeyCommitment, resource::Resource, resource_logic::TrivialLogicWitness,
 };
 use rand::Rng;
-use risc0_zkvm::{sha::Digest, Receipt};
+use risc0_zkvm::Receipt;
 use serde::{Deserialize, Serialize};
 
 pub trait LogicProver: Default + Clone + Serialize + for<'de> Deserialize<'de> {
@@ -15,7 +15,7 @@ pub trait LogicProver: Default + Clone + Serialize + for<'de> Deserialize<'de> {
 
     fn proving_key() -> &'static [u8];
 
-    fn verifying_key() -> Digest;
+    fn verifying_key() -> Vec<u8>;
 
     fn witness(&self) -> &Self::Witness;
 
@@ -32,12 +32,12 @@ pub trait LogicProver: Default + Clone + Serialize + for<'de> Deserialize<'de> {
 pub struct LogicProof {
     // Receipt contains the proof and the public inputs
     pub receipt: Receipt,
-    pub verifying_key: Digest,
+    pub verifying_key: Vec<u8>,
 }
 
 impl LogicProof {
     pub fn verify(&self) -> bool {
-        verify_proof(&self.receipt, self.verifying_key)
+        verify_proof(&self.receipt, &self.verifying_key)
     }
 }
 
@@ -53,7 +53,7 @@ impl LogicProver for PaddingResourceLogic {
         PADDING_GUEST_ELF
     }
 
-    fn verifying_key() -> Digest {
+    fn verifying_key() -> Vec<u8> {
         PADDING_GUEST_ID.into()
     }
 
@@ -79,15 +79,17 @@ impl PaddingResourceLogic {
     }
     pub fn create_padding_resource(nk_commitment: NullifierKeyCommitment) -> Resource {
         let mut rng = rand::thread_rng();
+        let nonce: [u8; 32] = rng.gen();
+        let rand_seed: [u8; 32] = rng.gen();
         Resource {
             logic_ref: Self::verifying_key(),
-            label_ref: Digest::default(),
+            label_ref: vec![0; 32],
             quantity: 0,
-            value_ref: Digest::default(),
+            value_ref: vec![0; 32],
             is_ephemeral: true,
-            nonce: rng.gen(),
+            nonce: nonce.to_vec(),
             nk_commitment,
-            rand_seed: rng.gen(),
+            rand_seed: rand_seed.to_vec(),
         }
     }
 }

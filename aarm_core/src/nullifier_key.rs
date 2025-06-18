@@ -1,47 +1,59 @@
 use rand::Rng;
-use risc0_zkvm::sha::{Digest, Impl, Sha256, DIGEST_BYTES};
+use risc0_zkvm::sha::{Impl, Sha256, DIGEST_BYTES};
 use serde::{Deserialize, Serialize};
 
 /// Nullifier key
-#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize)]
-pub struct NullifierKey(Digest);
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct NullifierKey(Vec<u8>);
 
 impl NullifierKey {
-    pub fn new(nf_key: Digest) -> NullifierKey {
-        NullifierKey(nf_key)
+    pub fn new(nf_key: &[u8]) -> NullifierKey {
+        NullifierKey(nf_key.to_vec())
     }
     /// Compute the commitment to the nullifier key
     pub fn commit(&self) -> NullifierKeyCommitment {
-        let bytes: [u8; DIGEST_BYTES] = *self.0.as_ref();
-        NullifierKeyCommitment(*Impl::hash_bytes(&bytes))
+        NullifierKeyCommitment(Impl::hash_bytes(self.inner()).as_bytes().to_vec())
     }
 
-    pub fn inner(&self) -> Digest {
-        self.0
+    pub fn inner(&self) -> &[u8] {
+        &self.0
     }
 
-    pub fn from_bytes(bytes: [u8; DIGEST_BYTES]) -> NullifierKey {
-        NullifierKey(Digest::from_bytes(bytes))
+    pub fn from_bytes(bytes: &[u8]) -> NullifierKey {
+        NullifierKey(bytes.to_vec())
     }
 
     pub fn random_pair() -> (NullifierKey, NullifierKeyCommitment) {
         let mut rng = rand::thread_rng();
-        let nf_key = NullifierKey(Digest::new(rng.gen()));
+        let rng_bytes: [u8; DIGEST_BYTES] = rng.gen();
+        let nf_key = NullifierKey(rng_bytes.to_vec());
         let nk_commitment = nf_key.commit();
         (nf_key, nk_commitment)
     }
 }
 
+impl Default for NullifierKey {
+    fn default() -> Self {
+        NullifierKey(vec![0u8; DIGEST_BYTES])
+    }
+}
+
 /// Commitment to nullifier key
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Default, Serialize, Deserialize)]
-pub struct NullifierKeyCommitment(Digest);
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+pub struct NullifierKeyCommitment(Vec<u8>);
 
 impl NullifierKeyCommitment {
-    pub fn inner(&self) -> Digest {
-        self.0
+    pub fn inner(&self) -> &[u8] {
+        &self.0
     }
 
-    pub fn from_bytes(bytes: [u8; DIGEST_BYTES]) -> NullifierKeyCommitment {
-        NullifierKeyCommitment(Digest::from_bytes(bytes))
+    pub fn from_bytes(bytes: &[u8]) -> NullifierKeyCommitment {
+        NullifierKeyCommitment(bytes.to_vec())
+    }
+}
+
+impl Default for NullifierKeyCommitment {
+    fn default() -> Self {
+        NullifierKey::default().commit()
     }
 }

@@ -11,10 +11,10 @@ use aarm_core::resource::Resource;
 use aarm_core::resource_logic::TrivialLogicWitness;
 use aarm_core::{
     action_tree::MerkleTree, compliance::ComplianceInstance, constants::COMMITMENT_TREE_DEPTH,
-    logic_instance::LogicInstance,
+    logic_instance::LogicInstance, merkle_path::Leaf,
 };
 use k256::ProjectivePoint;
-use risc0_zkvm::{Digest, Receipt};
+use risc0_zkvm::Receipt;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -72,11 +72,21 @@ impl Action {
         // Construct the action tree
         let tags = compliance_intances
             .iter()
-            .flat_map(|instance| vec![instance.consumed_nullifier, instance.created_commitment])
-            .collect::<Vec<_>>();
+            .flat_map(|instance| {
+                vec![
+                    instance.consumed_nullifier.clone().into(),
+                    instance.created_commitment.clone().into(),
+                ]
+            })
+            .collect::<Vec<Leaf>>();
         let logics = compliance_intances
             .iter()
-            .flat_map(|instance| vec![instance.consumed_logic_ref, instance.created_logic_ref])
+            .flat_map(|instance| {
+                vec![
+                    instance.consumed_logic_ref.clone(),
+                    instance.created_logic_ref.clone(),
+                ]
+            })
             .collect::<Vec<_>>();
         let action_tree = MerkleTree::new(tags.clone());
         let root = action_tree.root();
@@ -88,7 +98,8 @@ impl Action {
                 return false;
             }
 
-            if let Some(index) = tags.iter().position(|&tag| tag == instance.tag) {
+            let instance_tag: Leaf = instance.tag.clone().into();
+            if let Some(index) = tags.iter().position(|tag| tag == &instance_tag) {
                 if proof.verifying_key != logics[index] {
                     return false;
                 }
@@ -96,7 +107,7 @@ impl Action {
                 return false;
             }
 
-            if !verify_proof(&proof.receipt, proof.verifying_key) {
+            if !verify_proof(&proof.receipt, &proof.verifying_key) {
                 return false;
             }
         }
@@ -125,32 +136,39 @@ impl Action {
 }
 
 pub fn create_an_action(nonce: u8) -> (Action, DeltaWitness) {
-    let nf_key = NullifierKey::new(Digest::default());
+    let nf_key = NullifierKey::default();
     let nf_key_cm = nf_key.commit();
     let mut consumed_resource = Resource {
-        logic_ref: Digest::new(TEST_GUEST_ID),
+        logic_ref: TEST_GUEST_ID.to_vec(),
         nk_commitment: nf_key_cm,
         ..Default::default()
     };
     consumed_resource.nonce[0] = nonce;
-    let mut created_resource = consumed_resource;
+    let mut created_resource = consumed_resource.clone();
     created_resource.nonce[10] = nonce;
 
     let compliance_witness = ComplianceWitness::<COMMITMENT_TREE_DEPTH>::with_fixed_rcv(
-        consumed_resource,
-        nf_key,
-        created_resource,
+        consumed_resource.clone(),
+        nf_key.clone(),
+        created_resource.clone(),
     );
     let compliance_receipt = groth16_prove(&compliance_witness, COMPLIANCE_GUEST_ELF);
 
     let consumed_resource_nf = consumed_resource.nullifier(&nf_key).unwrap();
     let created_resource_cm = created_resource.commitment();
-    let action_tree = MerkleTree::new(vec![consumed_resource_nf, created_resource_cm]);
-    let consumed_resource_path = action_tree.generate_path(consumed_resource_nf).unwrap();
-    let created_resource_path = action_tree.generate_path(created_resource_cm).unwrap();
+    let action_tree = MerkleTree::new(vec![
+        consumed_resource_nf.clone().into(),
+        created_resource_cm.clone().into(),
+    ]);
+    let consumed_resource_path = action_tree.generate_path(&consumed_resource_nf).unwrap();
+    let created_resource_path = action_tree.generate_path(&created_resource_cm).unwrap();
 
-    let consumed_logic_witness =
-        TrivialLogicWitness::new(consumed_resource, consumed_resource_path, nf_key, true);
+    let consumed_logic_witness = TrivialLogicWitness::new(
+        consumed_resource,
+        consumed_resource_path,
+        nf_key.clone(),
+        true,
+    );
     let consumed_logic_receipt = groth16_prove(&consumed_logic_witness, TEST_GUEST_ELF);
     let consumed_logic_proof = LogicProof {
         receipt: consumed_logic_receipt,

@@ -34,7 +34,7 @@ impl LogicCircuit for TrivialLogicWitness {
         } else {
             self_cm
         };
-        let root = self.receive_existence_path.root(tag);
+        let root = self.receive_existence_path.root(&tag);
 
         // The trivial resource is ephemeral and has zero quantity
         assert_eq!(self.resource.quantity, 0);
@@ -75,7 +75,7 @@ impl TrivialLogicWitness {
         } else {
             self_cm
         };
-        let root = self.receive_existence_path.root(tag);
+        let root = self.receive_existence_path.root(&tag);
 
         // The trivial resource is ephemeral and has zero quantity
         assert_eq!(self.resource.quantity, 0);
