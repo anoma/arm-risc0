@@ -7,6 +7,7 @@ name = "aarm"
 version = "0.1.0"
 dependencies = [
  "aarm_core",
+ "bincode",
  "k256",
  "rand 0.8.5",
  "risc0-zkvm",

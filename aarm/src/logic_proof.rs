@@ -1,13 +1,14 @@
 use crate::{
-    constants::{PADDING_GUEST_ELF, PADDING_GUEST_ID},
+    constants::{PADDING_GUEST_ELF, PADDING_GUEST_ID, TEST_GUEST_ELF, TEST_GUEST_ID},
     utils::{groth16_prove, verify as verify_proof},
 };
 use aarm_core::{
-    action_tree::ACTION_TREE_DEPTH, merkle_path::MerklePath, nullifier_key::NullifierKey,
-    nullifier_key::NullifierKeyCommitment, resource::Resource, resource_logic::TrivialLogicWitness,
+    action_tree::ACTION_TREE_DEPTH, logic_instance::LogicInstance, merkle_path::MerklePath,
+    nullifier_key::NullifierKey, nullifier_key::NullifierKeyCommitment, resource::Resource,
+    resource_logic::TrivialLogicWitness,
 };
 use rand::Rng;
-use risc0_zkvm::Receipt;
+use risc0_zkvm::{InnerReceipt, Journal, Receipt};
 use serde::{Deserialize, Serialize};
 
 pub trait LogicProver: Default + Clone + Serialize + for<'de> Deserialize<'de> {
@@ -22,7 +23,9 @@ pub trait LogicProver: Default + Clone + Serialize + for<'de> Deserialize<'de> {
     fn prove(&self) -> LogicProof {
         let receipt = groth16_prove(self.witness(), Self::proving_key());
         LogicProof {
-            receipt,
+            // TODO: handle the unwrap properly
+            proof: bincode::serialize(&receipt.inner).unwrap(),
+            instance: receipt.journal.bytes,
             verifying_key: Self::verifying_key(),
         }
     }
@@ -30,14 +33,24 @@ pub trait LogicProver: Default + Clone + Serialize + for<'de> Deserialize<'de> {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct LogicProof {
-    // Receipt contains the proof and the public inputs
-    pub receipt: Receipt,
+    pub proof: Vec<u8>,
+    pub instance: Vec<u8>,
     pub verifying_key: Vec<u8>,
 }
 
 impl LogicProof {
     pub fn verify(&self) -> bool {
-        verify_proof(&self.receipt, &self.verifying_key)
+        let inner: InnerReceipt = bincode::deserialize(&self.proof).unwrap();
+        let receipt = Receipt::new(inner, self.instance.clone());
+        verify_proof(&receipt, &self.verifying_key)
+    }
+
+    pub fn get_instance(&self) -> LogicInstance {
+        let journal = Journal {
+            bytes: self.instance.clone(),
+        };
+        // TODO: handle the unwrap properly
+        journal.decode().unwrap()
     }
 }
 
@@ -105,6 +118,22 @@ impl Default for PaddingResourceLogic {
             nf_key,
         };
         PaddingResourceLogic { witness }
+    }
+}
+
+impl LogicProver for TrivialLogicWitness {
+    type Witness = TrivialLogicWitness;
+
+    fn proving_key() -> &'static [u8] {
+        TEST_GUEST_ELF
+    }
+
+    fn verifying_key() -> Vec<u8> {
+        TEST_GUEST_ID.into()
+    }
+
+    fn witness(&self) -> &Self::Witness {
+        self
     }
 }
 
