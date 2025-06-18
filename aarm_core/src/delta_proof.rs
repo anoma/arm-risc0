@@ -73,6 +73,14 @@ impl DeltaWitness {
         DeltaWitness { signing_key }
     }
 
+    pub fn from_bytes_vec(keys: &[Vec<u8>]) -> DeltaWitness {
+        let witnesses: Vec<DeltaWitness> = keys
+            .iter()
+            .map(|key| DeltaWitness::from_bytes(key))
+            .collect();
+        DeltaWitness::compress(&witnesses)
+    }
+
     pub fn from_bytes(bytes: &[u8]) -> DeltaWitness {
         DeltaWitness {
             signing_key: SigningKey::from_bytes(bytes.into()).unwrap(),

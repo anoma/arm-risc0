@@ -11,10 +11,14 @@ use k256::{
 };
 use rand::Rng;
 use risc0_zkvm::sha::{rust_crypto::Sha256 as Sha256Type, Impl, Sha256, DIGEST_BYTES};
+#[cfg(feature = "nif")]
+use rustler::NifStruct;
 use serde::{Deserialize, Serialize};
 
 /// A resource that can be created and consumed
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "nif", derive(NifStruct))]
+#[cfg_attr(feature = "nif", module = "Elixir.Resource")]
 pub struct Resource {
     // a succinct representation of the predicate associated with the resource
     pub logic_ref: Vec<u8>,

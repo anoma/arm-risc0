@@ -1,7 +1,8 @@
 use crate::constants::PADDING_LEAVE;
 use risc0_zkvm::sha::{Digest, Impl, Sha256, DIGEST_BYTES};
+#[cfg(feature = "nif")]
+use rustler::{NifStruct, NifTuple};
 use serde::{Deserialize, Serialize};
-use serde_big_array::BigArray;
 
 /// A hashable node within a Merkle tree.
 pub trait Hashable: Clone + Copy {
@@ -36,19 +37,24 @@ impl Hashable for Digest {
 
 /// A path from a position in a particular commitment tree to the root of that tree.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "nif", derive(NifStruct))]
+#[cfg_attr(feature = "nif", module = "Elixir.MerklePath")]
 pub struct MerklePath<const TREE_DEPTH: usize> {
-    #[serde(with = "BigArray")]
-    auth_path: [(Leaf, bool); TREE_DEPTH],
+    auth_path: Vec<(Leaf, bool)>,
 }
 
 impl<const TREE_DEPTH: usize> MerklePath<TREE_DEPTH> {
     /// Constructs a Merkle path directly from a path and position.
     pub fn from_path(auth_path: [(Leaf, bool); TREE_DEPTH]) -> Self {
-        MerklePath { auth_path }
+        MerklePath {
+            auth_path: auth_path.to_vec(),
+        }
     }
-
     /// Returns the root of the tree corresponding to this path applied to `leaf`.
     pub fn root(&self, leaf: &[u8]) -> Vec<u8> {
+        if self.auth_path.len() != TREE_DEPTH {
+            panic!("Merkle path length does not match TREE_DEPTH");
+        }
         let leaf: Digest = if leaf.len() == DIGEST_BYTES {
             Digest::from_bytes(leaf.try_into().unwrap())
         } else {
@@ -74,12 +80,12 @@ impl<const TREE_DEPTH: usize> MerklePath<TREE_DEPTH> {
 impl<const TREE_DEPTH: usize> Default for MerklePath<TREE_DEPTH> {
     fn default() -> Self {
         MerklePath {
-            auth_path: core::array::from_fn(|_| (Leaf::default(), false)),
+            auth_path: vec![(Leaf::default(), false); TREE_DEPTH],
         }
     }
 }
-
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "nif", derive(NifTuple))]
 pub struct Leaf(Vec<u8>);
 
 impl Leaf {

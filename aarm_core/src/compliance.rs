@@ -5,12 +5,16 @@ use crate::{
 use k256::{
     elliptic_curve::{
         sec1::{FromEncodedPoint, ToEncodedPoint},
-        Field,
+        Field, PrimeField,
     },
     EncodedPoint, ProjectivePoint, Scalar,
 };
+#[cfg(feature = "nif")]
+use rustler::NifStruct;
 
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "nif", derive(NifStruct))]
+#[cfg_attr(feature = "nif", module = "Elixir.ComplianceInstance")]
 pub struct ComplianceInstance {
     pub consumed_nullifier: Vec<u8>,
     pub consumed_logic_ref: Vec<u8>,
@@ -22,6 +26,8 @@ pub struct ComplianceInstance {
 }
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "nif", derive(NifStruct))]
+#[cfg_attr(feature = "nif", module = "Elixir.ComplianceWitness")]
 pub struct ComplianceWitness<const COMMITMENT_TREE_DEPTH: usize> {
     /// The consumed resource
     pub consumed_resource: Resource,
@@ -34,7 +40,7 @@ pub struct ComplianceWitness<const COMMITMENT_TREE_DEPTH: usize> {
     /// The created resource
     pub created_resource: Resource,
     /// Random scalar for delta commitment
-    pub rcv: Scalar,
+    pub rcv: Vec<u8>,
     // TODO: If we want to add function privacy, include:
     // pub input_resource_logic_cm_r: [u8; DATA_BYTES],
     // pub output_resource_logic_cm_r: [u8; DATA_BYTES],
@@ -46,12 +52,12 @@ impl<const COMMITMENT_TREE_DEPTH: usize> ComplianceWitness<COMMITMENT_TREE_DEPTH
         nf_key: NullifierKey,
         created_resource: Resource,
     ) -> Self {
-        let rng = rand::thread_rng();
+        let mut rng = rand::thread_rng();
         ComplianceWitness {
             consumed_resource,
             created_resource,
             merkle_path: MerklePath::<COMMITMENT_TREE_DEPTH>::default(),
-            rcv: Scalar::random(rng),
+            rcv: Scalar::random(&mut rng).to_bytes().to_vec(),
             nf_key,
             ephemeral_root: INITIAL_ROOT.as_bytes().to_vec(),
         }
@@ -63,13 +69,12 @@ impl<const COMMITMENT_TREE_DEPTH: usize> ComplianceWitness<COMMITMENT_TREE_DEPTH
         merkle_path: MerklePath<COMMITMENT_TREE_DEPTH>,
         created_resource: Resource,
     ) -> Self {
-        let rng = rand::thread_rng();
-        let rcv = Scalar::random(rng);
+        let mut rng = rand::thread_rng();
         ComplianceWitness {
             consumed_resource,
             created_resource,
             merkle_path,
-            rcv,
+            rcv: Scalar::random(&mut rng).to_bytes().to_vec(),
             nf_key,
             ephemeral_root: vec![0; 32], // not used
         }
@@ -85,7 +90,7 @@ impl<const COMMITMENT_TREE_DEPTH: usize> ComplianceWitness<COMMITMENT_TREE_DEPTH
             consumed_resource,
             created_resource,
             merkle_path: MerklePath::<COMMITMENT_TREE_DEPTH>::default(),
-            rcv: Scalar::ONE,
+            rcv: Scalar::ONE.to_bytes().to_vec(),
             nf_key,
             ephemeral_root: INITIAL_ROOT.as_bytes().to_vec(),
         }
@@ -145,9 +150,15 @@ impl<const COMMITMENT_TREE_DEPTH: usize> ComplianceWitness<COMMITMENT_TREE_DEPTH
 
     pub fn delta_commitment(&self) -> (Vec<u8>, Vec<u8>) {
         // Compute delta and make delta commitment public
+        let rcv_array: [u8; 32] = self
+            .rcv
+            .as_slice()
+            .try_into()
+            .expect("rcv must be 32 bytes");
+        let rcv_scalar = Scalar::from_repr(rcv_array.into()).expect("rcv must be a valid scalar");
         let delta = self.consumed_resource.kind() * self.consumed_resource.quantity_scalar()
             - self.created_resource.kind() * self.created_resource.quantity_scalar()
-            + ProjectivePoint::GENERATOR * self.rcv;
+            + ProjectivePoint::GENERATOR * rcv_scalar;
 
         let encoded_delta = delta.to_encoded_point(false);
         (
@@ -185,7 +196,7 @@ impl<const COMMITMENT_TREE_DEPTH: usize> Default for ComplianceWitness<COMMITMEN
 
         let merkle_path = MerklePath::<COMMITMENT_TREE_DEPTH>::default();
 
-        let rcv = Scalar::ONE;
+        let rcv = Scalar::ONE.to_bytes().to_vec();
 
         ComplianceWitness {
             consumed_resource,

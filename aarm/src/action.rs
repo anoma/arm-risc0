@@ -194,7 +194,7 @@ pub fn create_an_action(nonce: u8) -> (Action, DeltaWitness) {
     );
     assert!(action.verify());
 
-    let delta_witness = DeltaWitness::from_scalars(&[compliance_witness.rcv]);
+    let delta_witness = DeltaWitness::from_bytes_vec(&[compliance_witness.rcv]);
     (action, delta_witness)
 }
 
