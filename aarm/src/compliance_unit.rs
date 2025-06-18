@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[cfg_attr(feature = "nif", derive(NifStruct))]
-#[cfg_attr(feature = "nif", module = "Elixir.ComplianceUnit")]
+#[cfg_attr(feature = "nif", module = "Anoma.Arm.ComplianceUnit")]
 pub struct ComplianceUnit {
     pub proof: Vec<u8>,
     pub instance: Vec<u8>,

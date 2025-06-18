@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 /// A resource that can be created and consumed
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "nif", derive(NifStruct))]
-#[cfg_attr(feature = "nif", module = "Elixir.Resource")]
+#[cfg_attr(feature = "nif", module = "Anoma.Arm.Resource")]
 pub struct Resource {
     // a succinct representation of the predicate associated with the resource
     pub logic_ref: Vec<u8>,
