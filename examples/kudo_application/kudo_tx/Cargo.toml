@@ -8,4 +8,4 @@ aarm_core = { path = "../../../aarm_core" }
 kudo-core = { path = "../kudo_core" }
 aarm = { path = "../../../aarm" }
 serde = { version = "1.0.197", default-features = false }
-risc0-zkvm = "2.0.2"
+risc0-zkvm = "2.1.0"
