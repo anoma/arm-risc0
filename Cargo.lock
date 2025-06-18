@@ -11,6 +11,7 @@ dependencies = [
  "k256",
  "rand 0.8.5",
  "risc0-zkvm",
+ "rustler",
  "serde",
 ]
 

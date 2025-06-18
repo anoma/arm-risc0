@@ -9,6 +9,8 @@ use aarm_core::{
 };
 use rand::Rng;
 use risc0_zkvm::{InnerReceipt, Journal, Receipt};
+#[cfg(feature = "nif")]
+use rustler::NifStruct;
 use serde::{Deserialize, Serialize};
 
 pub trait LogicProver: Default + Clone + Serialize + for<'de> Deserialize<'de> {
@@ -32,6 +34,8 @@ pub trait LogicProver: Default + Clone + Serialize + for<'de> Deserialize<'de> {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
+#[cfg_attr(feature = "nif", derive(NifStruct))]
+#[cfg_attr(feature = "nif", module = "Elixir.LogicProof")]
 pub struct LogicProof {
     pub proof: Vec<u8>,
     pub instance: Vec<u8>,
