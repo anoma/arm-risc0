@@ -4,8 +4,9 @@ use aarm_core::delta_proof::{DeltaInstance, DeltaProof, DeltaWitness};
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "nif")]
-use rustler::{NifTaggedEnum};
 use rustler::NifStruct;
+#[cfg(feature = "nif")]
+use rustler::NifTaggedEnum;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[cfg_attr(feature = "nif", derive(NifStruct))]

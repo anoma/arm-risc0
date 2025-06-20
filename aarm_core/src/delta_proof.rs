@@ -1,10 +1,14 @@
 use k256::ecdsa::{Error, RecoveryId, Signature, SigningKey, VerifyingKey};
+#[cfg(feature = "nif")]
 use k256::elliptic_curve::pkcs8::der::Writer;
 use k256::{elliptic_curve::ScalarPrimitive, ProjectivePoint, PublicKey, Scalar, SecretKey};
-use rustler::types::map::map_new;
-use rustler::{Atom, Binary, Decoder, Encoder, Env, NifResult, OwnedBinary, Term};
+#[cfg(feature = "nif")]
+use rustler::{
+    types::map::map_new, Atom, Binary, Decoder, Encoder, Env, NifResult, OwnedBinary, Term,
+};
 use serde::{Deserialize, Serialize};
 use sha3::{Digest, Keccak256};
+#[cfg(feature = "nif")]
 use std::io::Write;
 
 #[derive(Clone, Debug)]
@@ -13,6 +17,7 @@ pub struct DeltaProof {
     pub recid: RecoveryId,
 }
 
+#[cfg(feature = "nif")]
 impl Encoder for DeltaProof {
     fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
         let map = map_new(env);
@@ -47,6 +52,7 @@ impl Encoder for DeltaProof {
     }
 }
 
+#[cfg(feature = "nif")]
 impl<'a> Decoder<'a> for DeltaProof {
     fn decode(term: Term<'a>) -> NifResult<Self> {
         // fetch the bytes for the signature
@@ -74,6 +80,7 @@ pub struct DeltaWitness {
     pub signing_key: SigningKey,
 }
 
+#[cfg(feature = "nif")]
 impl Encoder for DeltaWitness {
     fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
         let map = map_new(env);
@@ -100,6 +107,7 @@ impl Encoder for DeltaWitness {
     }
 }
 
+#[cfg(feature = "nif")]
 impl<'a> Decoder<'a> for DeltaWitness {
     fn decode(term: Term<'a>) -> NifResult<Self> {
         // fetch the bytes for the signing key

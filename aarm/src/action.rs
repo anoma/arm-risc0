@@ -10,10 +10,10 @@ use aarm_core::{
     merkle_path::Leaf,
 };
 use k256::ProjectivePoint;
-use rustler::{Atom, Decoder, Encoder, Env, NifResult, Term};
+#[cfg(feature = "nif")]
+use rustler::{types::map::map_new, Atom, Decoder, Encoder, Env, NifResult, Term};
 use serde::{Deserialize, Serialize};
 
-use rustler::types::map::map_new;
 #[cfg(feature = "nif")]
 use rustler::NifStruct;
 
@@ -33,6 +33,7 @@ pub struct ForwarderCalldata {
     pub output: Vec<u8>,
 }
 
+#[cfg(feature = "nif")]
 impl Encoder for ForwarderCalldata {
     fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
         let map = map_new(env);
@@ -48,6 +49,7 @@ impl Encoder for ForwarderCalldata {
     }
 }
 
+#[cfg(feature = "nif")]
 impl<'a> Decoder<'a> for ForwarderCalldata {
     fn decode(_term: Term<'a>) -> NifResult<Self> {
         Ok(ForwarderCalldata {
