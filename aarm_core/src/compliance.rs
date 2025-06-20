@@ -27,7 +27,7 @@ pub struct ComplianceInstance {
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 #[cfg_attr(feature = "nif", derive(NifStruct))]
-#[cfg_attr(feature = "nif", module = "Elixir.ComplianceWitness")]
+#[cfg_attr(feature = "nif", module = "Anoma.Arm.ComplianceWitness")]
 pub struct ComplianceWitness<const COMMITMENT_TREE_DEPTH: usize> {
     /// The consumed resource
     pub consumed_resource: Resource,

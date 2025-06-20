@@ -38,7 +38,7 @@ impl Hashable for Digest {
 /// A path from a position in a particular commitment tree to the root of that tree.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "nif", derive(NifStruct))]
-#[cfg_attr(feature = "nif", module = "Elixir.MerklePath")]
+#[cfg_attr(feature = "nif", module = "Anoma.Arm.MerklePath")]
 pub struct MerklePath<const TREE_DEPTH: usize> {
     auth_path: Vec<(Leaf, bool)>,
 }
