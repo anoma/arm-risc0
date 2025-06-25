@@ -1,0 +1,12 @@
+[package]
+name = "app"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+counter-methods = { path = "../counter_logic_circuit" }
+serde = "1.0"
+counter = { path = "../counter" }
+aarm_core = { path = "../../../aarm_core" }
+aarm= { path = "../../../aarm" }
+rand = "0.8"

@@ -35,3 +35,11 @@ pub fn verify(receipt: &Receipt, verifying_key: &[u8]) -> bool {
     };
     receipt.verify(verifying_key).is_ok()
 }
+
+pub fn convert_image_id_to_bytes(id: &[u32]) -> Vec<u8> {
+    let mut bytes = Vec::with_capacity(id.len() * 4);
+    for &word in id {
+        bytes.extend_from_slice(&word.to_le_bytes());
+    }
+    bytes
+}

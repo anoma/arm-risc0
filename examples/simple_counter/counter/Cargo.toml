@@ -1,0 +1,8 @@
+[package]
+name = "counter"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+aarm_core = { path = "../../../aarm_core" }
+serde = { version = "1.0.197", default-features = false }
