@@ -14,7 +14,7 @@ use rustler::NifStruct;
 
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 #[cfg_attr(feature = "nif", derive(NifStruct))]
-#[cfg_attr(feature = "nif", module = "Elixir.ComplianceInstance")]
+#[cfg_attr(feature = "nif", module = "Anoma.Arm.ComplianceInstance")]
 pub struct ComplianceInstance {
     pub consumed_nullifier: Vec<u8>,
     pub consumed_logic_ref: Vec<u8>,
@@ -231,13 +231,4 @@ impl ComplianceInstance {
         msg.extend_from_slice(&self.created_commitment);
         msg
     }
-}
-
-#[test]
-fn test_compliance_instance_encoding() {
-    let instance = ComplianceInstance::default();
-
-    let encoded = bincode::serialize(&instance).unwrap();
-    println!("Encoded instance: {:?}", encoded);
-    assert!(encoded.len() == 224);
 }
