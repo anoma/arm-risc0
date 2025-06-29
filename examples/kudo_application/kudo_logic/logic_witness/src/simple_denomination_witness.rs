@@ -61,6 +61,9 @@ impl LogicCircuit for SimpleDenominationLogicWitness {
         let kudo_root = self.kudo_existence_path.root(&kudo_tag);
         assert_eq!(root, kudo_root);
 
+        // Check denomination.label = kudo_resource.tag
+        assert_eq!(self.denomination_resource.label_ref, kudo_tag);
+
         // Decode label of the kudo resource and check the correspondence between the
         // kudo resource and the domination resource
         let label = compute_kudo_label(&self.kudo_resource.logic_ref, &self.kudo_issuer);
