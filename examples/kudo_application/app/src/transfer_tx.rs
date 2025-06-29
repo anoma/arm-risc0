@@ -50,7 +50,7 @@ pub fn build_transfer_tx(
     let denomination_logic = SimpleDenominationInfo::verifying_key();
     let consumed_denomination_resource = Resource::create(
         denomination_logic.clone(),
-        [0u8; 32].into(), // TODO: fix the label?
+        consumed_kudo_nf.clone(), // Use the consumed kudo nullifier as the label
         0,
         [0u8; 32].into(),
         true,
@@ -66,12 +66,12 @@ pub fn build_transfer_tx(
     created_kudo_resource.set_value_ref(created_kudo_value);
     // Reset the randomness and nonce
     created_kudo_resource.reset_randomness_nonce();
-    let created_kudo_value_cm = created_kudo_resource.commitment();
+    let created_kudo_cm = created_kudo_resource.commitment();
 
     // Construct the denomination resource corresponding to the created kudo resource
     let created_denomination_resource = Resource::create(
         denomination_logic.clone(),
-        [0u8; 32].into(), // TODO: fix the label?
+        created_kudo_cm.clone(), // Use the created kudo commitment as the label
         0,
         [0u8; 32].into(),
         true,
@@ -84,7 +84,7 @@ pub fn build_transfer_tx(
     // Construct the receive logic resource
     let receive_resource = Resource::create(
         SimpleReceiveInfo::verifying_key(),
-        created_kudo_value_cm.clone(),
+        created_kudo_cm.clone(),
         0,
         [0u8; 32].into(),
         true,
@@ -101,7 +101,7 @@ pub fn build_transfer_tx(
         consumed_kudo_nf.clone().into(),
         consumed_denomination_resource_cm.clone().into(),
         created_denomination_resource_nf.clone().into(),
-        created_kudo_value_cm.clone().into(),
+        created_kudo_cm.clone().into(),
         padding_resource_nf.clone().into(),
         receive_resource_cm.clone().into(),
     ]);
@@ -115,7 +115,7 @@ pub fn build_transfer_tx(
     let created_denomination_existence_path = action_tree
         .generate_path(&created_denomination_resource_nf)
         .unwrap();
-    let created_kudo_existence_path = action_tree.generate_path(&created_kudo_value_cm).unwrap();
+    let created_kudo_existence_path = action_tree.generate_path(&created_kudo_cm).unwrap();
     let padding_resource_existence_path = action_tree.generate_path(&padding_resource_nf).unwrap();
     let receive_existence_path = action_tree.generate_path(&receive_resource_cm).unwrap();
 

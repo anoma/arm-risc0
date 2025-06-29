@@ -59,7 +59,7 @@ pub fn build_issue_tx(
     let denomination_logic = SimpleDenominationInfo::verifying_key();
     let issued_denomination_resource = Resource::create(
         denomination_logic.clone(),
-        [0u8; 32].into(), // TODO: fix the label?
+        issued_kudo_resource_cm.clone(), // Use the issued kudo commitment as the label
         0,
         [0u8; 32].into(),
         true,
@@ -81,7 +81,7 @@ pub fn build_issue_tx(
     // Construct the ephemeral denomination resource
     let ephemeral_denomination_resource = Resource::create(
         denomination_logic,
-        [0u8; 32].into(), // TODO: fix the label?
+        ephemeral_kudo_resource_nf.clone(), // Use the ephemeral kudo nullifier as the label
         0,
         [0u8; 32].into(),
         true,

@@ -39,7 +39,7 @@ pub fn build_burn_tx(
     let denomination_logic = SimpleDenominationInfo::verifying_key();
     let burned_denomination_resource = Resource::create(
         denomination_logic.clone(),
-        [0u8; 32].into(), // TODO: fix the label?
+        burned_kudo_resource_nf.clone(), // Use the burned kudo nullifier as the label
         0,
         [0u8; 32].into(),
         true,
@@ -55,7 +55,7 @@ pub fn build_burn_tx(
     // Construct the ephemeral denomination resource
     let ephemeral_denomination_resource = Resource::create(
         denomination_logic.clone(),
-        [0u8; 32].into(), // TODO: fix the label?
+        ephemeral_kudo_resource_cm.clone(), // Use the ephemeral kudo commitment as the label
         0,
         [0u8; 32].into(),
         true,

@@ -46,7 +46,7 @@ pub fn build_swap_tx(
     let denomination_logic = SimpleDenominationInfo::verifying_key();
     let consumed_denomination_resource = Resource::create(
         denomination_logic.clone(),
-        [0u8; 32].into(), // TODO: fix the label?
+        consumed_kudo_nf.clone(), // Use the consumed kudo nullifier as the label
         0,
         [0u8; 32].into(),
         true,
@@ -70,7 +70,7 @@ pub fn build_swap_tx(
     // Construct the denomination resource corresponding to the created kudo resource
     let created_denomination_resource = Resource::create(
         denomination_logic.clone(),
-        [0u8; 32].into(), // TODO: fix the label?
+        created_kudo_value_cm.clone(), // Use the created kudo commitment as the label
         0,
         [0u8; 32].into(),
         true,

@@ -48,7 +48,7 @@ impl LogicCircuit for KudoMainWitness {
                 .nullifier_from_commitment(&self.kudo_nf_key, &self_cm)
                 .unwrap()
         } else {
-            self_cm.clone()
+            self_cm
         };
         let root = self.kudo_existence_path.root(&tag);
 
@@ -63,6 +63,9 @@ impl LogicCircuit for KudoMainWitness {
         };
         let dr_root = self.denomination_existence_path.root(&dr_tag);
         assert_eq!(root, dr_root);
+
+        // Check denomination.label = kudo_resource.tag
+        assert_eq!(self.denomination_resource.label_ref, tag);
 
         // Decode label of the kudo resource and check the correspondence between the
         // kudo resource and the domination resource
@@ -90,8 +93,8 @@ impl LogicCircuit for KudoMainWitness {
                 *Impl::hash_bytes(&owner_bytes).as_bytes().to_vec()
             );
 
-            // Check receive_resource.label = kudo_resource.cm
-            assert_eq!(self.receive_resource.label_ref, self_cm);
+            // Check receive_resource.label = kudo_resource.tag
+            assert_eq!(self.receive_resource.label_ref, tag);
 
             // Verify signature
             let mut receive_logic_and_owner_bytes = self.receive_resource.logic_ref.clone();
