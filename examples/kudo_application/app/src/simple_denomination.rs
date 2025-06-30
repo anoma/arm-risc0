@@ -9,8 +9,8 @@ use serde::{Deserialize, Serialize};
 
 pub const DENOMINATION_ELF: &[u8] = include_bytes!("../../kudo_logic/elfs/simple-denomination.bin");
 pub const DENOMINATION_ID: &[u8] = &[
-    231, 242, 232, 37, 214, 63, 179, 49, 162, 105, 11, 85, 74, 186, 228, 88, 50, 191, 226, 129, 76,
-    82, 20, 170, 36, 196, 98, 246, 215, 30, 122, 60,
+    204, 243, 111, 159, 250, 219, 40, 69, 175, 188, 43, 216, 109, 8, 171, 224, 138, 233, 125, 221,
+    43, 66, 16, 51, 209, 146, 232, 188, 120, 103, 59, 127,
 ];
 
 #[derive(Clone, Default, Deserialize, Serialize)]

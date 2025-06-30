@@ -9,8 +9,8 @@ use serde::{Deserialize, Serialize};
 
 pub const KUDO_LOGIC_ELF: &[u8] = include_bytes!("../../kudo_logic/elfs/kudo-main.bin");
 pub const KUDO_LOGIC_ID: &[u8] = &[
-    220, 32, 25, 191, 149, 22, 167, 110, 0, 208, 179, 152, 191, 193, 166, 167, 15, 123, 174, 43, 4,
-    224, 5, 148, 16, 73, 133, 176, 66, 186, 77, 104,
+    93, 171, 244, 80, 153, 188, 243, 229, 181, 155, 202, 172, 86, 212, 116, 73, 90, 238, 138, 207,
+    53, 159, 191, 132, 201, 173, 87, 59, 143, 184, 68, 94,
 ];
 
 #[derive(Clone, Default, Deserialize, Serialize)]

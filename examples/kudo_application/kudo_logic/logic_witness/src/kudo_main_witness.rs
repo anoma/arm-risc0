@@ -106,14 +106,13 @@ impl LogicCircuit for KudoMainWitness {
         }
 
         // Generate the ciphertext
-        let cipher = self.generate_ciphertext().inner();
+        let cipher = self.generate_ciphertext();
 
         LogicInstance {
             tag,
             is_consumed: self.kudo_is_consumed,
             root,
-            cipher,
-            app_data: Vec::new(),
+            app_data: vec![cipher.into()],
         }
     }
 }

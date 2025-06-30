@@ -1,7 +1,7 @@
 pub use aarm_core::resource_logic::LogicCircuit;
 use aarm_core::{
-    action_tree::ACTION_TREE_DEPTH, encryption::Ciphertext, logic_instance::LogicInstance,
-    merkle_path::MerklePath, nullifier_key::NullifierKey, resource::Resource,
+    action_tree::ACTION_TREE_DEPTH, logic_instance::LogicInstance, merkle_path::MerklePath,
+    nullifier_key::NullifierKey, resource::Resource,
 };
 use serde::{Deserialize, Serialize};
 
@@ -51,8 +51,7 @@ impl LogicCircuit for SimpleReceiveLogicWitness {
             tag,
             is_consumed: self.is_consumed, // It can be either consumed or created to reduce padding resources
             root,
-            cipher: Ciphertext::default().inner(), // no cipher needed
-            app_data: Vec::new(),                  // no app data needed
+            app_data: Vec::new(), // no app data needed
         }
     }
 }

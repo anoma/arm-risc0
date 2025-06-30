@@ -47,7 +47,6 @@ impl LogicCircuit for CounterWitness {
             tag,
             is_consumed: self.is_consumed,
             root: old_counter_root,
-            cipher: vec![],
             app_data: vec![],
         }
     }

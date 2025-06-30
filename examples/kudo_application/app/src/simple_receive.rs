@@ -9,8 +9,8 @@ use serde::{Deserialize, Serialize};
 
 pub const RECEIVE_ELF: &[u8] = include_bytes!("../../kudo_logic/elfs/simple-receive.bin");
 pub const RECEIVE_ID: &[u8] = &[
-    13, 157, 190, 9, 17, 139, 254, 163, 145, 217, 23, 103, 79, 36, 85, 215, 39, 82, 30, 133, 69,
-    112, 15, 82, 171, 71, 242, 125, 112, 161, 181, 58,
+    163, 90, 122, 135, 118, 170, 8, 224, 253, 97, 158, 242, 49, 251, 3, 96, 234, 174, 170, 170, 57,
+    119, 91, 72, 209, 240, 28, 131, 144, 23, 68, 103,
 ];
 
 #[derive(Clone, Default, Deserialize, Serialize)]
