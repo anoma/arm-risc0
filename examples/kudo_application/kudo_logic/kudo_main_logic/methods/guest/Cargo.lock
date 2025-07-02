@@ -3,22 +3,6 @@
 version = 4
 
 [[package]]
-name = "aarm_core"
-version = "0.1.0"
-dependencies = [
- "aes-gcm",
- "bincode",
- "hex",
- "k256",
- "lazy_static",
- "rand 0.8.5",
- "risc0-zkvm",
- "serde",
- "sha2",
- "sha3",
-]
-
-[[package]]
 name = "addr2line"
 version = "0.24.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -313,6 +297,22 @@ checksum = "246a225cc6131e9ee4f24619af0f19d67761fff15d7ccc22e42b80846e69449a"
 dependencies = [
  "num-traits",
  "rand 0.8.5",
+]
+
+[[package]]
+name = "arm_core"
+version = "0.1.0"
+dependencies = [
+ "aes-gcm",
+ "bincode",
+ "hex",
+ "k256",
+ "lazy_static",
+ "rand 0.8.5",
+ "risc0-zkvm",
+ "serde",
+ "sha2",
+ "sha3",
 ]
 
 [[package]]
@@ -1499,7 +1499,7 @@ dependencies = [
 name = "kudo-logic-witness"
 version = "0.1.0"
 dependencies = [
- "aarm_core",
+ "arm_core",
  "rand 0.8.5",
  "risc0-zkvm",
  "serde",
