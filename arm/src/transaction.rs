@@ -1,6 +1,6 @@
 use crate::action::create_multiple_actions;
 use crate::action::Action;
-use aarm_core::delta_proof::{DeltaInstance, DeltaProof, DeltaWitness};
+use arm_core::delta_proof::{DeltaInstance, DeltaProof, DeltaWitness};
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "nif")]

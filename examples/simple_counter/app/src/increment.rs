@@ -1,9 +1,9 @@
 use crate::{convert_counter_to_value_ref, generate_compliance_proof, generate_logic_proofs};
-use aarm::{
+use arm::{
     action::Action,
     transaction::{Delta, Transaction},
 };
-use aarm_core::{
+use arm_core::{
     delta_proof::DeltaWitness, merkle_path::MerklePath, nullifier_key::NullifierKey,
     resource::Resource,
 };

@@ -1,4 +1,4 @@
-use aarm_core::{
+use arm_core::{
     constants::COMMITMENT_TREE_DEPTH, merkle_path::MerklePath, nullifier_key::NullifierKey,
     resource::Resource,
 };

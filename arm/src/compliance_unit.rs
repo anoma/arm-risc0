@@ -2,7 +2,7 @@ use crate::{
     constants::{COMPLIANCE_GUEST_ELF, COMPLIANCE_GUEST_ID},
     utils::{groth16_prove, verify as verify_proof},
 };
-use aarm_core::{
+use arm_core::{
     compliance::{ComplianceInstance, ComplianceWitness},
     constants::COMMITMENT_TREE_DEPTH,
 };

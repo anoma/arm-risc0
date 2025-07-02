@@ -1,5 +1,5 @@
 use crate::compliance_info::ComplianceWitnessInfo;
-use aarm::logic_proof::LogicProver;
+use arm::logic_proof::LogicProver;
 
 // TODO: Add methods for specific types
 pub trait KudoInfo: ComplianceWitnessInfo + LogicProver {

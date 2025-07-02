@@ -1,11 +1,11 @@
 use crate::logic_proof::LogicProver;
 use crate::{compliance_unit::ComplianceUnit, logic_proof::LogicProof};
-use aarm_core::compliance::ComplianceWitness;
-use aarm_core::delta_proof::DeltaWitness;
-use aarm_core::nullifier_key::NullifierKey;
-use aarm_core::resource::Resource;
-use aarm_core::resource_logic::TrivialLogicWitness;
-use aarm_core::{
+use arm_core::compliance::ComplianceWitness;
+use arm_core::delta_proof::DeltaWitness;
+use arm_core::nullifier_key::NullifierKey;
+use arm_core::resource::Resource;
+use arm_core::resource_logic::TrivialLogicWitness;
+use arm_core::{
     action_tree::MerkleTree, compliance::ComplianceInstance, constants::COMMITMENT_TREE_DEPTH,
     merkle_path::Leaf,
 };

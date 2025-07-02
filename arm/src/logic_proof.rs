@@ -2,7 +2,7 @@ use crate::{
     constants::{PADDING_GUEST_ELF, PADDING_GUEST_ID, TEST_GUEST_ELF, TEST_GUEST_ID},
     utils::{groth16_prove, verify as verify_proof},
 };
-use aarm_core::{
+use arm_core::{
     action_tree::ACTION_TREE_DEPTH, logic_instance::LogicInstance, merkle_path::MerklePath,
     nullifier_key::NullifierKey, nullifier_key::NullifierKeyCommitment, resource::Resource,
     resource_logic::TrivialLogicWitness,

@@ -1,6 +1,6 @@
 use crate::utils::compute_kudo_label;
-pub use aarm_core::resource_logic::LogicCircuit;
-use aarm_core::{
+pub use arm_core::resource_logic::LogicCircuit;
+use arm_core::{
     action_tree::ACTION_TREE_DEPTH,
     authorization::{AuthorizationSignature, AuthorizationVerifyingKey},
     encryption::Ciphertext,

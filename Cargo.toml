@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = [ "aarm", "aarm_core" ]
+members = [ "arm", "arm_core" ]
 
 [profile.bench]
 lto = true
