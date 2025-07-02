@@ -2,7 +2,6 @@
 pub const COMPLIANCE_PK: &[u8] = include_bytes!("../elfs/compliance_pk.bin");
 // Padding logic proving key / padding logic guest ELF binary
 pub const PADDING_LOGIC_PK: &[u8] = include_bytes!("../elfs/padding_logic_pk.bin");
-pub const TEST_GUEST_ELF: &[u8] = include_bytes!("../elfs/test_logic_elf.bin");
 
 // compliance verification key / compliance image id
 pub const COMPLIANCE_VK: &[u8; 32] = &[
@@ -14,9 +13,4 @@ pub const COMPLIANCE_VK: &[u8; 32] = &[
 pub const PADDING_LOGIC_VK: &[u8; 32] = &[
     95, 196, 191, 159, 188, 223, 251, 22, 99, 181, 41, 84, 33, 169, 183, 41, 206, 30, 164, 75, 81,
     95, 141, 226, 84, 246, 88, 154, 232, 67, 169, 239,
-];
-
-pub const TEST_GUEST_ID: &[u8; 32] = &[
-    115, 46, 90, 182, 221, 164, 139, 3, 72, 121, 239, 156, 172, 144, 63, 152, 226, 182, 236, 83,
-    133, 151, 61, 113, 135, 101, 21, 20, 64, 143, 50, 150,
 ];
