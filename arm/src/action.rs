@@ -22,7 +22,7 @@ use {
 #[cfg_attr(feature = "nif", module = "Anoma.Arm.Action")]
 pub struct Action {
     pub compliance_units: Vec<ComplianceUnit>,
-    pub logic_proofs: Vec<LogicProof>,
+    pub logic_verifier_inputs: Vec<LogicProof>,
     pub resource_forwarder_calldata_pairs: Vec<(Resource, ForwarderCalldata)>,
 }
 
@@ -63,12 +63,12 @@ impl<'a> Decoder<'a> for ForwarderCalldata {
 impl Action {
     pub fn new(
         compliance_units: Vec<ComplianceUnit>,
-        logic_proofs: Vec<LogicProof>,
+        logic_verifier_inputs: Vec<LogicProof>,
         resource_forwarder_calldata_pairs: Vec<(Resource, ForwarderCalldata)>,
     ) -> Self {
         Action {
             compliance_units,
-            logic_proofs,
+            logic_verifier_inputs,
             resource_forwarder_calldata_pairs,
         }
     }
@@ -77,8 +77,8 @@ impl Action {
         &self.compliance_units
     }
 
-    pub fn get_logic_proofs(&self) -> &Vec<LogicProof> {
-        &self.logic_proofs
+    pub fn get_logic_verifier_inputs(&self) -> &Vec<LogicProof> {
+        &self.logic_verifier_inputs
     }
 
     pub fn get_resource_forwarder_calldata_pairs(&self) -> &Vec<(Resource, ForwarderCalldata)> {
@@ -120,7 +120,7 @@ impl Action {
         let action_tree = MerkleTree::new(tags.clone());
         let root = action_tree.root();
 
-        for proof in &self.logic_proofs {
+        for proof in &self.logic_verifier_inputs {
             let instance = proof.get_instance();
 
             if root != instance.root {
@@ -203,12 +203,12 @@ pub fn create_an_action(nonce: u8) -> (Action, DeltaWitness) {
     let created_logic_proof = created_logic_witness.prove();
 
     let compliance_units = vec![compliance_receipt];
-    let logic_proofs = vec![consumed_logic_proof, created_logic_proof];
+    let logic_verifier_inputs = vec![consumed_logic_proof, created_logic_proof];
     let resource_forwarder_calldata_pairs = vec![];
 
     let action = Action::new(
         compliance_units,
-        logic_proofs,
+        logic_verifier_inputs,
         resource_forwarder_calldata_pairs,
     );
     assert!(action.verify());

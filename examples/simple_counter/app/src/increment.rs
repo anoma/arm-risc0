@@ -28,9 +28,9 @@ pub fn create_increment_tx(
         MerklePath::default(),
         new_counter.clone(),
     );
-    let logic_proofs = generate_logic_proofs(counter_resource, nf_key, new_counter.clone());
+    let logic_verifier_inputs = generate_logic_proofs(counter_resource, nf_key, new_counter.clone());
 
-    let action = Action::new(vec![compliance_unit], logic_proofs, vec![]);
+    let action = Action::new(vec![compliance_unit], logic_verifier_inputs, vec![]);
     let delta_witness = DeltaWitness::from_bytes(&rcv);
     let mut tx = Transaction::new(vec![action], Delta::Witness(delta_witness));
     tx.generate_delta_proof();
