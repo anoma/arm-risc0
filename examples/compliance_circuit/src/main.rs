@@ -2,7 +2,7 @@ use arm_core::{
     compliance::{ComplianceInstance, ComplianceWitness},
     constants::COMMITMENT_TREE_DEPTH,
 };
-use compliance_methods::{COMPLIANCE_GUEST_ELF, COMPLIANCE_GUEST_ID};
+use compliance_methods::{COMPLIANCE_PK, COMPLIANCE_VK};
 use risc0_zkvm::{default_prover, ExecutorEnv};
 use std::time::Instant;
 
@@ -21,7 +21,7 @@ pub fn main() {
     let prover = default_prover();
 
     // Produce a receipt by proving the specified ELF binary.
-    let receipt = prover.prove(env, COMPLIANCE_GUEST_ELF).unwrap().receipt;
+    let receipt = prover.prove(env, COMPLIANCE_PK).unwrap().receipt;
 
     let prove_duration = prove_start_timer.elapsed();
     println!("Prove duration time: {:?}", prove_duration);
@@ -38,7 +38,7 @@ pub fn main() {
 
     let verify_start_timer = Instant::now();
 
-    receipt.verify(COMPLIANCE_GUEST_ID).unwrap();
+    receipt.verify(COMPLIANCE_VK).unwrap();
     let verify_duration = verify_start_timer.elapsed();
     println!("Verify duration time: {:?}", verify_duration);
 }
@@ -46,13 +46,13 @@ pub fn main() {
 #[test]
 fn print_compliance_elf_id() {
     // Write the elf binary to a file
-    std::fs::write("../../arm/elfs/compliance_elf.bin", COMPLIANCE_GUEST_ELF)
+    std::fs::write("../../arm/elfs/compliance_pk.bin", COMPLIANCE_PK)
         .expect("Failed to write compliance guest ELF binary");
 
     // Print the ID
     use risc0_zkvm::sha::Digest;
     println!(
         "Compliance Guest ELF ID: {:?}",
-        Digest::from(COMPLIANCE_GUEST_ID).as_bytes()
+        Digest::from(COMPLIANCE_VK).as_bytes()
     );
 }
