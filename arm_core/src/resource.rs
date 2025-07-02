@@ -211,6 +211,15 @@ impl Resource {
         self.rand_seed = rand_seed.to_vec();
         self.nonce = nonce.to_vec();
     }
+
+    pub fn tag(&self, is_consumed: bool, nf_key: &NullifierKey) -> Vec<u8> {
+        let cm = self.commitment();
+        if is_consumed {
+            self.nullifier_from_commitment(&nf_key, &cm).unwrap()
+        } else {
+            cm
+        }
+    }
 }
 
 impl Default for Resource {

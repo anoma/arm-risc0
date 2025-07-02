@@ -32,14 +32,7 @@ pub struct TrivialLogicWitness {
 impl LogicCircuit for TrivialLogicWitness {
     fn constrain(&self) -> LogicInstance {
         // Load the self resource
-        let self_cm = self.resource.commitment();
-        let tag = if self.is_consumed {
-            self.resource
-                .nullifier_from_commitment(&self.nf_key, &self_cm)
-                .unwrap()
-        } else {
-            self_cm
-        };
+        let tag = self.resource.tag(self.is_consumed, &self.nf_key);
         let root = self.receive_existence_path.root(&tag);
 
         // The trivial resource is ephemeral and has zero quantity
@@ -73,14 +66,7 @@ impl TrivialLogicWitness {
 
     pub fn test_constrain(&self) -> LogicInstance {
         // Load the self resource
-        let self_cm = self.resource.commitment();
-        let tag = if self.is_consumed {
-            self.resource
-                .nullifier_from_commitment(&self.nf_key, &self_cm)
-                .unwrap()
-        } else {
-            self_cm
-        };
+        let tag = self.resource.tag(self.is_consumed, &self.nf_key);
         let root = self.receive_existence_path.root(&tag);
 
         // The trivial resource is ephemeral and has zero quantity
