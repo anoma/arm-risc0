@@ -22,14 +22,7 @@ impl LogicCircuit for SimpleReceiveLogicWitness {
     fn constrain(&self) -> LogicInstance {
         // Load the self resource, the receive resource is always a
         // created resource
-        let self_cm = self.receive_resource.commitment();
-        let tag = if self.is_consumed {
-            self.receive_resource
-                .nullifier_from_commitment(&self.nf_key, &self_cm)
-                .unwrap()
-        } else {
-            self_cm
-        };
+        let tag = self.receive_resource.tag(self.is_consumed, &self.nf_key);
         let root = self.receive_existence_path.root(&tag);
 
         // Check basic properties of the receive resource
