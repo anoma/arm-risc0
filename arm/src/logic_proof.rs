@@ -1,5 +1,5 @@
 use crate::{
-    constants::{PADDING_LOGIC_PK, PADDING_LOGIC_VK, TEST_GUEST_ELF, TEST_GUEST_ID},
+    constants::{PADDING_LOGIC_PK, PADDING_LOGIC_VK},
     proving_system::{journal_to_instance, prove, verify as verify_proof},
 };
 use arm_core::{
@@ -122,11 +122,11 @@ impl LogicProver for TrivialLogicWitness {
     type Witness = TrivialLogicWitness;
 
     fn proving_key() -> &'static [u8] {
-        TEST_GUEST_ELF
+        PADDING_LOGIC_PK
     }
 
     fn verifying_key() -> Vec<u8> {
-        TEST_GUEST_ID.into()
+        PADDING_LOGIC_VK.into()
     }
 
     fn witness(&self) -> &Self::Witness {
