@@ -18,5 +18,9 @@ rustler = { version = "0.36.2", optional = true }
 [dev-dependencies]
 
 [features]
-default = []
+default = ["succinct_prover"]
 nif = ["dep:rustler"]
+fast_prover = []
+composite_prover = []
+succinct_prover = []
+groth16_prover = []
