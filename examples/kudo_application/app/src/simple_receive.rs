@@ -1,5 +1,5 @@
-use aarm::logic_proof::LogicProver;
-use aarm_core::{
+use arm::logic_proof::LogicProver;
+use arm_core::{
     constants::COMMITMENT_TREE_DEPTH, merkle_path::MerklePath, nullifier_key::NullifierKey,
     resource::Resource,
 };

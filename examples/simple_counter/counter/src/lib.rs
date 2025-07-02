@@ -1,5 +1,5 @@
-pub use aarm_core::resource_logic::LogicCircuit;
-use aarm_core::{
+pub use arm_core::resource_logic::LogicCircuit;
+use arm_core::{
     action_tree::ACTION_TREE_DEPTH, logic_instance::LogicInstance, merkle_path::MerklePath,
     nullifier_key::NullifierKey, resource::Resource,
 };

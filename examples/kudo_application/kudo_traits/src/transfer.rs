@@ -1,11 +1,11 @@
 use crate::resource_info::{DenominationInfo, KudoInfo, ReceiveInfo};
-use aarm::{
+use arm::{
     action::Action,
     compliance_unit::ComplianceUnit,
     logic_proof::{LogicProver, PaddingResourceLogic},
     transaction::{Delta, Transaction},
 };
-use aarm_core::{
+use arm_core::{
     compliance::ComplianceWitness, constants::COMMITMENT_TREE_DEPTH, delta_proof::DeltaWitness,
 };
 

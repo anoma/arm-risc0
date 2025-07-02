@@ -2,11 +2,11 @@ use crate::{
     kudo_main::KudoMainInfo, simple_denomination::SimpleDenominationInfo,
     simple_receive::SimpleReceiveInfo,
 };
-use aarm::{
+use arm::{
     logic_proof::{LogicProver, PaddingResourceLogic},
     transaction::Transaction,
 };
-use aarm_core::{
+use arm_core::{
     action_tree::MerkleTree,
     authorization::{AuthorizationSigningKey, AuthorizationVerifyingKey},
     constants::COMMITMENT_TREE_DEPTH,
@@ -215,7 +215,7 @@ pub fn build_swap_tx(
 
 #[test]
 fn generate_a_swap_tx() {
-    use aarm::transaction::Transaction;
+    use arm::transaction::Transaction;
 
     let kudo_logic = KudoMainInfo::verifying_key();
     // The issuer determines the kind of kudo

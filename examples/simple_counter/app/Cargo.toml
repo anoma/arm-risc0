@@ -7,6 +7,6 @@ edition = "2021"
 counter-methods = { path = "../counter_logic_circuit" }
 serde = "1.0"
 counter = { path = "../counter" }
-aarm_core = { path = "../../../aarm_core" }
-aarm= { path = "../../../aarm" }
+arm_core = { path = "../../../arm_core" }
+arm= { path = "../../../arm" }
 rand = "0.8"

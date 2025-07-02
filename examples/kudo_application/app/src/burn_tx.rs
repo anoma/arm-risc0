@@ -1,6 +1,6 @@
 use crate::{kudo_main::KudoMainInfo, simple_denomination::SimpleDenominationInfo};
-use aarm::{logic_proof::LogicProver, transaction::Transaction};
-use aarm_core::{
+use arm::{logic_proof::LogicProver, transaction::Transaction};
+use arm_core::{
     action_tree::MerkleTree,
     authorization::{AuthorizationSigningKey, AuthorizationVerifyingKey},
     constants::COMMITMENT_TREE_DEPTH,

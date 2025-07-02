@@ -1,4 +1,4 @@
-use aarm_core::{
+use arm_core::{
     compliance::{ComplianceInstance, ComplianceWitness},
     constants::COMMITMENT_TREE_DEPTH,
 };
@@ -46,7 +46,7 @@ pub fn main() {
 #[test]
 fn print_compliance_elf_id() {
     // Write the elf binary to a file
-    std::fs::write("../../aarm/elfs/compliance_elf.bin", COMPLIANCE_GUEST_ELF)
+    std::fs::write("../../arm/elfs/compliance_elf.bin", COMPLIANCE_GUEST_ELF)
         .expect("Failed to write compliance guest ELF binary");
 
     // Print the ID
