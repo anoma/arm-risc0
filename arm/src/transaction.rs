@@ -46,7 +46,7 @@ impl Transaction {
         match &self.delta_proof {
             Delta::Proof(ref proof) => {
                 let msg = self.get_delta_msg();
-                let instance = self.get_delta_instance();
+                let instance = self.delta();
                 if DeltaProof::verify(&msg, proof, instance).is_err() {
                     return false;
                 }
@@ -61,11 +61,13 @@ impl Transaction {
         }
     }
 
-    pub fn get_delta_instance(&self) -> DeltaInstance {
+    // Returns the DeltaInstance constructed from the sum of all actions'
+    // deltas.
+    pub fn delta(&self) -> DeltaInstance {
         let deltas = self
             .actions
             .iter()
-            .flat_map(|action| action.get_delta())
+            .map(|action| action.delta())
             .collect::<Vec<_>>();
         DeltaInstance::from_deltas(&deltas).unwrap()
     }
