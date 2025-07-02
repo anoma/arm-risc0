@@ -144,14 +144,14 @@ impl Action {
         true
     }
 
-    pub fn get_delta(&self) -> Vec<ProjectivePoint> {
+    // This function computes the delta of the action by summing up the deltas
+    // of each compliance unit.
+    pub fn delta(&self) -> ProjectivePoint {
         self.compliance_units
             .iter()
-            .map(|unit| {
-                let instance = unit.get_instance();
-                instance.delta_projective()
+            .fold(ProjectivePoint::IDENTITY, |acc, unit| {
+                acc + unit.get_instance().delta_projective()
             })
-            .collect()
     }
 
     pub fn get_delta_msg(&self) -> Vec<u8> {
