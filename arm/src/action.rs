@@ -149,9 +149,7 @@ impl Action {
     pub fn delta(&self) -> ProjectivePoint {
         self.compliance_units
             .iter()
-            .fold(ProjectivePoint::IDENTITY, |acc, unit| {
-                acc + unit.get_instance().delta_projective()
-            })
+            .fold(ProjectivePoint::IDENTITY, |acc, unit| acc + unit.delta())
     }
 
     pub fn get_delta_msg(&self) -> Vec<u8> {
@@ -181,7 +179,7 @@ pub fn create_an_action(nonce: u8) -> (Action, DeltaWitness) {
         nf_key.clone(),
         created_resource.clone(),
     );
-    let compliance_receipt = ComplianceUnit::prove(&compliance_witness);
+    let compliance_receipt = ComplianceUnit::create(&compliance_witness);
 
     let consumed_resource_nf = consumed_resource.nullifier(&nf_key).unwrap();
     let created_resource_cm = created_resource.commitment();

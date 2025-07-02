@@ -215,7 +215,7 @@ impl Resource {
     pub fn tag(&self, is_consumed: bool, nf_key: &NullifierKey) -> Vec<u8> {
         let cm = self.commitment();
         if is_consumed {
-            self.nullifier_from_commitment(&nf_key, &cm).unwrap()
+            self.nullifier_from_commitment(nf_key, &cm).unwrap()
         } else {
             cm
         }
