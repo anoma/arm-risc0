@@ -47,7 +47,7 @@ where
                     );
 
                 (
-                    ComplianceUnit::prove(&compliance_witness),
+                    ComplianceUnit::create(&compliance_witness),
                     compliance_witness.rcv,
                 )
             };
@@ -64,7 +64,7 @@ where
                     );
 
                 (
-                    ComplianceUnit::prove(&compliance_witness),
+                    ComplianceUnit::create(&compliance_witness),
                     compliance_witness.rcv,
                 )
             };
@@ -81,7 +81,7 @@ where
                     );
 
                 (
-                    ComplianceUnit::prove(&compliance_witness),
+                    ComplianceUnit::create(&compliance_witness),
                     compliance_witness.rcv,
                 )
             };
@@ -125,6 +125,6 @@ where
         };
 
         // Create the transaction
-        Transaction::new(vec![action], Delta::Witness(delta_witness))
+        Transaction::create(vec![action], Delta::Witness(delta_witness))
     }
 }

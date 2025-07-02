@@ -4,7 +4,7 @@ pub mod init;
 use arm::{
     compliance_unit::ComplianceUnit,
     logic_proof::{LogicProof, LogicProver},
-    utils::convert_image_id_to_bytes,
+    proving_system::convert_image_id_to_bytes,
 };
 use arm_core::{
     action_tree::{MerkleTree, ACTION_TREE_DEPTH},
@@ -83,7 +83,7 @@ pub fn generate_compliance_proof(
         merkle_path,
         created_counter,
     );
-    let compliance_unit = ComplianceUnit::prove(&compliance_witness);
+    let compliance_unit = ComplianceUnit::create(&compliance_witness);
     (compliance_unit, compliance_witness.rcv)
 }
 

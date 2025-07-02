@@ -42,7 +42,9 @@ pub struct KudoMainWitness {
 impl LogicCircuit for KudoMainWitness {
     fn constrain(&self) -> LogicInstance {
         // Load the kudo resource
-        let tag = self.kudo_resource.tag(self.kudo_is_consumed, &self.kudo_nf_key);
+        let tag = self
+            .kudo_resource
+            .tag(self.kudo_is_consumed, &self.kudo_nf_key);
         let root = self.kudo_existence_path.root(&tag);
 
         // Load the denomination resource

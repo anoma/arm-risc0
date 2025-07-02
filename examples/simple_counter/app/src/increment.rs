@@ -28,17 +28,20 @@ pub fn create_increment_tx(
         MerklePath::default(),
         new_counter.clone(),
     );
-    let logic_verifier_inputs = generate_logic_proofs(counter_resource, nf_key, new_counter.clone());
+    let logic_verifier_inputs =
+        generate_logic_proofs(counter_resource, nf_key, new_counter.clone());
 
     let action = Action::new(vec![compliance_unit], logic_verifier_inputs, vec![]);
     let delta_witness = DeltaWitness::from_bytes(&rcv);
-    let mut tx = Transaction::new(vec![action], Delta::Witness(delta_witness));
+    let mut tx = Transaction::create(vec![action], Delta::Witness(delta_witness));
     tx.generate_delta_proof();
     (tx, new_counter)
 }
 
 #[test]
 fn test_create_increment_tx() {
+    use crate::init::create_init_counter_tx;
+
     let (init_tx, counter_resource, nf_key) = create_init_counter_tx();
     assert!(init_tx.verify(), "Initial transaction verification failed");
     let (increment_tx, new_counter) = create_increment_tx(counter_resource, nf_key);
