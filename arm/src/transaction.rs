@@ -13,7 +13,11 @@ use rustler::NifTaggedEnum;
 #[cfg_attr(feature = "nif", module = "Anoma.Arm.Transacttion")]
 pub struct Transaction {
     pub actions: Vec<Action>,
+    // delta verification is a deterministic process, so we don't need a
+    // separate delta_vk here.
     pub delta_proof: Delta,
+    // We can't support unbalanced transactions, so this is just a placeholder.
+    pub expected_balance: Option<Vec<u8>>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -24,10 +28,14 @@ pub enum Delta {
 }
 
 impl Transaction {
-    pub fn new(actions: Vec<Action>, delta: Delta) -> Self {
+    // Create a new transaction with the given actions and delta.
+    // Delta proof is a deterministic process, no proving key is needed.
+    // Delta instance can be constructed from the actions.
+    pub fn create(actions: Vec<Action>, delta: Delta) -> Self {
         Transaction {
             actions,
             delta_proof: delta,
+            expected_balance: None,
         }
     }
 
@@ -89,13 +97,13 @@ impl Transaction {
             }
             _ => panic!("Cannot compose transactions with different delta types"),
         };
-        Transaction::new(actions, delta)
+        Transaction::create(actions, delta)
     }
 }
 
 pub fn generate_test_transaction(n_actions: usize) -> Transaction {
     let (actions, delta_witness) = create_multiple_actions(n_actions);
-    let mut tx = Transaction::new(actions, Delta::Witness(delta_witness));
+    let mut tx = Transaction::create(actions, Delta::Witness(delta_witness));
     tx.generate_delta_proof();
     assert!(tx.verify());
     tx
