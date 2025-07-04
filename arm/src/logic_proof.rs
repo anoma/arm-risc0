@@ -30,7 +30,7 @@ pub trait LogicProver: Default + Clone + Serialize + for<'de> Deserialize<'de> {
     fn prove(&self) -> Result<LogicVerifier, ArmError> {
         let (proof, instance) = prove(Self::proving_key(), self.witness())?;
         Ok(LogicVerifier {
-            proof,
+            proof: Some(proof),
             instance,
             verifying_key: Self::verifying_key(),
         })
@@ -39,7 +39,7 @@ pub trait LogicProver: Default + Clone + Serialize + for<'de> Deserialize<'de> {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct LogicVerifier {
-    pub proof: Vec<u8>,
+    pub proof: Option<Vec<u8>>,
     pub instance: Vec<u8>,
     pub verifying_key: Digest,
 }
@@ -49,13 +49,19 @@ pub struct LogicVerifierInputs {
     pub tag: Digest,
     pub verifying_key: Digest,
     pub app_data: AppData,
-    pub proof: Vec<u8>,
+    pub proof: Option<Vec<u8>>,
 }
 
 impl LogicVerifier {
     pub fn verify(&self) -> Result<(), ArmError> {
-        verify_proof(&self.verifying_key, &self.instance, &self.proof)
-            .map_err(|err| ArmError::ProofVerificationFailed(err.to_string()))
+        if let Some(proof) = &self.proof {
+            verify_proof(&self.verifying_key, &self.instance, proof)
+                .map_err(|err| ArmError::ProofVerificationFailed(err.to_string()))
+        } else {
+            Err(ArmError::ProofVerificationFailed(
+                "Missing logic proof".into(),
+            ))
+        }
     }
 
     pub fn get_instance(&self) -> Result<LogicInstance, ArmError> {

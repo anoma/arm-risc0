@@ -1,3 +1,8 @@
+#[cfg(feature = "aggregation")]
+use crate::aggregation::{
+    batch::BatchAggregation, sequential::SequentialAggregation, AggregationProof,
+    AggregationStrategy,
+};
 use crate::{
     action::Action,
     delta_proof::{DeltaInstance, DeltaProof, DeltaWitness},
@@ -13,6 +18,8 @@ pub struct Transaction {
     pub delta_proof: Delta,
     // We can't support unbalanced transactions, so this is just a placeholder.
     pub expected_balance: Option<Vec<u8>>,
+    // If present, attests to the validity of all individual proofs.
+    pub aggregation_proof: Option<Vec<u8>>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -30,6 +37,7 @@ impl Transaction {
             actions,
             delta_proof: delta,
             expected_balance: None,
+            aggregation_proof: None,
         }
     }
 
@@ -43,6 +51,7 @@ impl Transaction {
                     actions: self.actions,
                     delta_proof,
                     expected_balance: self.expected_balance,
+                    aggregation_proof: self.aggregation_proof,
                 })
             }
             Delta::Proof(_) => Ok(self),
@@ -92,5 +101,79 @@ impl Transaction {
             _ => panic!("Cannot compose transactions with different delta types"),
         };
         Transaction::create(actions, delta)
+    }
+}
+
+#[cfg(feature = "aggregation")]
+impl Transaction {
+    /// Aggregates all the transaction proofs with the default strategy.
+    pub fn aggregate(&mut self) -> Result<(), ArmError> {
+        self.aggregate_with_strategy(AggregationStrategy::Batch)
+    }
+
+    /// Aggregates all the transaction proofs using the passed aggregation strategy.
+    /// If aggregation is successful, `self` contains an aggregation proof and its
+    /// compliance and logic proofs are set to `None`. Else proofs are untouched.
+    pub fn aggregate_with_strategy(
+        &mut self,
+        strategy: AggregationStrategy,
+    ) -> Result<(), ArmError> {
+        let agg_proof = match strategy {
+            AggregationStrategy::Sequential => {
+                SequentialAggregation::prove_transaction_aggregation(self)
+                    .map(AggregationProof::Sequential)?
+            }
+            AggregationStrategy::Batch => BatchAggregation::prove_transaction_aggregation(self)
+                .map(AggregationProof::Batch)?,
+        };
+
+        self.aggregation_proof =
+            Some(bincode::serialize(&agg_proof).map_err(|_| ArmError::SerializationError)?);
+
+        self.erase_base_proofs();
+        Ok(())
+    }
+
+    /// Verifies the aggregated proof of the transaction.
+    pub fn verify_aggregation(&self) -> Result<(), ArmError> {
+        if let Some(agg_proof) = &self.aggregation_proof {
+            match bincode::deserialize(agg_proof)
+                .map_err(|_| ArmError::InnerReceiptDeserializationError)?
+            {
+                AggregationProof::Sequential(proof) => {
+                    SequentialAggregation::verify_transaction_aggregation(self, &proof)
+                }
+                AggregationProof::Batch(proof) => {
+                    BatchAggregation::verify_transaction_aggregation(self, &proof)
+                }
+            }
+        } else {
+            Err(ArmError::ProofVerificationFailed(
+                "Missing aggregation proof".into(),
+            ))
+        }
+    }
+
+    pub fn get_raw_aggregation_proof(&self) -> Option<Vec<u8>> {
+        if let Some(agg_proof) = &self.aggregation_proof {
+            match bincode::deserialize(agg_proof).unwrap() {
+                AggregationProof::Sequential(proof) => Some(bincode::serialize(&proof.0).unwrap()),
+                AggregationProof::Batch(proof) => Some(bincode::serialize(&proof.0).unwrap()),
+            }
+        } else {
+            None
+        }
+    }
+
+    // Replaces all compliance and resource logic proofs with `None`.
+    fn erase_base_proofs(&mut self) {
+        for a in self.actions.iter_mut() {
+            for cu in a.compliance_units.iter_mut() {
+                cu.proof = None;
+            }
+            for lp in a.logic_verifier_inputs.iter_mut() {
+                lp.proof = None;
+            }
+        }
     }
 }
