@@ -19,6 +19,8 @@ pub struct Transaction {
     pub delta_proof: Delta,
     // We can't support unbalanced transactions, so this is just a placeholder.
     pub expected_balance: Option<Vec<u8>>,
+    // If present, attests to the validity of all individual proofs.
+    pub aggregation_proof: Option<Vec<u8>>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -37,6 +39,7 @@ impl Transaction {
             actions,
             delta_proof: delta,
             expected_balance: None,
+            aggregation_proof: None,
         }
     }
 

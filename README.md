@@ -81,7 +81,9 @@ We hava the following feature flags in arm lib:
 | succinct_prover(default) |                           | Generates constant-size STARK proofs using recursion                                                                            |
 | composite_prover         |                           | Fastest option producing linear-size proofs without compression                                                                 |
 | groth16_prover           |                           | Generates groth16 proofs(requires x86_64 machines)                                                                              |
-| nif                      |                           | Enables Erlang/Elixir NIF (Native Implemented Function) bindings                                                                |
+| nif                      |                           | Enables Erlang/Elixir NIF (Native Implemented Function) bindings  
+| aggregation              |                           | Enables proof aggregation (with constant-sized proofs by default) |
+|fast_aggregation          |                           | Faster aggregation with linear-sized proofs without compression
 
 
 ### Usage Examples
@@ -98,6 +100,9 @@ arm = { version = "0.1.0", default-features = false, features = ["logic_circuit"
 
 # Elixir Anoma SDK
 arm = { version = "0.1.0", features = ["nif"] }
+
+# Proof aggregation
+arm = { version = "0.1.0", features = ["aggregation"] }
 ```
 
 
@@ -125,3 +130,10 @@ Note: The `unstable` feature of `risc0-zkvm` currently causes issues in circuits
 ```bash
 cargo install --force --git https://github.com/risc0/risc0 --tag v2.1.0 -Fexperimental cargo-risczero
 ```
+
+## Benches
+Benchmarks are in **`arm/benches`**. For example, to run benchmarks for proof aggregation run:
+```bash
+  cargo bench --features aggregation
+```
+or with the extra feature `fast_aggregation` to enable the RISC Zero fast prover option.

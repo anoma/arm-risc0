@@ -18,6 +18,10 @@ hex = "0.4"
 lazy_static = "1.5.0"
 rustler = { version = "0.36.2", optional = true }
 
+[dev-dependencies]
+app = { path = "../examples/kudo_application/app" } # For aggregation benchmarks.
+kudo-logic-witness = { path = "../examples/kudo_application/kudo_logic/logic_witness" } # For aggregation benchmarks.
+
 [features]
 default = ["transaction"]
 prove = ["risc0-zkvm/prove"]
@@ -29,3 +33,11 @@ fast_prover = []
 composite_prover = []
 succinct_prover = []
 groth16_prover = []
+aggregation = ["aggregation_circuit","transaction"]
+aggregation_circuit = []
+fast_aggregation = []
+
+[[bench]]
+name = "aggregation"
+harness = false
+required-features = ["aggregation"]
