@@ -95,6 +95,10 @@ We have the following feature flags in arm lib:
 | `composite_prover`         |                           | Fastest option producing linear-size proofs, and supports compression via recursion                                                                 |
 | `groth16_prover`           |                           | Generates groth16 proofs(requires x86_64 machines)                                                                              |
 | `nif`                      |                           | Enables Erlang/Elixir NIF (Native Implemented Function) bindings                                                                |
+| `aggregation_circuit`      |                           | A specific feature for (pcd-based) aggregation circuits |
+| `aggregation`              | `aggregation_circuit`, `transaction`       | Enables proof aggregation (with constant-sized proofs by default) |
+|`fast_aggregation`          | `aggregation`               | Faster aggregation with linear-sized proofs without compression
+|`groth16_aggregation`       | `aggregation`               | Generates groth16 aggregation proofs (requires x86_64 machines)
 
 
 ### Usage Examples
@@ -111,6 +115,9 @@ arm = { version = "0.4.0", default-features = false }
 
 # Elixir Anoma SDK
 arm = { version = "0.4.0", features = ["nif"] }
+
+# Proof aggregation
+arm = { version = "0.4.0", features = ["aggregation"] }
 ```
 
 
@@ -130,7 +137,7 @@ will reproduce the output to:
 View build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/zbrzf1brqyb5evydjxs9h3gvl
 
 ELFs ready at:
-ImageID: ab5a67860b67f0bc448c1ac55d71561e837601a85591581055cf80e216ddc216 - 
+ImageID: 58d2d38d948b3448910d733ac58c6a51ea0e4ca6a8c42af0803087b92944c77b - 
 arm-risc0/arm_circuits/compliance/methods/guest/target/riscv32im-risc0-zkvm-elf/docker/compliance-guest.bin
 ```
 
@@ -138,3 +145,27 @@ Note: The `unstable` feature of `risc0-zkvm` currently causes issues in circuits
 ```bash
 cargo install --force --git https://github.com/risc0/risc0 --tag v3.0.3 -Fexperimental cargo-risczero
 ```
+
+## Proof aggregation
+If a single transaction bundles too many resources, it is possible to aggregate all compliance and logic proofs into a single aggregation proof, attesting to the validity of them all. This reduces overall verification time and transaction size. The type of the aggregation proof is selected via a feature. See above. 
+
+
+The _batch_ strategy aggregates all proofs in the transaction in a single run. It is the default aggregation.
+
+```rust
+use arm::transaction;
+
+let mut tx = generate_test_transaction(1);
+tx.aggregate(); // Upon succesful aggregation, compliance and resource logic proofs are erased.
+assert_eq!(true,tx.verify_aggregation().is_some());
+```
+
+The _sequential_ strategy aggregates sequentially, in a proof-carrying-data (PCD) style.
+
+```rust
+use arm::transaction;
+use arm::aggregation::AggregationStrategy;
+
+tx.aggregate_with_strategy(AggregationStrategy::Sequential);
+``` 
+**Note:** PCD-based aggregation can be distributed across mutually _untrusted_ nodes, and proofs to be aggregated arbitrarily grouped and arranged in different transcripts. Parallel aggregation is possible with tree-like transcripts. Currently, only the sequential (IVC) aggregation is implemented.
