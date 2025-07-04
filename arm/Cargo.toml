@@ -9,6 +9,7 @@ edition = "2021"
 # If you want to try (experimental) std support, add `features = [ "std" ]` to risc0-zkvm
 risc0-zkvm = { version = "3.0.3", features = ["std", "unstable"], default-features = false }
 serde = { version = "1.0.197", default-features = false }
+serde_with = "3.14.1"
 k256 = { version = "=0.13.3", features = ["arithmetic", "serde", "expose-field", "std", "ecdsa", "hash2curve"], default-features = false }
 sha3 = { version = "0.10", optional = true }
 rand = "0.8"
@@ -36,3 +37,7 @@ client = ["risc0-zkvm/client"]
 cuda = ["risc0-zkvm/cuda"]
 test_circuit = []
 test = ["transaction", "test_circuit"]
+aggregation = ["aggregation_circuit","transaction"]
+aggregation_circuit = []
+fast_aggregation = ["aggregation"]
+groth16_aggregation = ["aggregation"]

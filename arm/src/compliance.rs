@@ -1,3 +1,6 @@
+// Size hard-coded to two resources per unit
+const COMPLIANCE_INSTANCE_SIZE: usize = 56;
+
 use crate::{
     error::ArmError,
     merkle_path::MerklePath,
@@ -15,6 +18,7 @@ use k256::{
 };
 use lazy_static::lazy_static;
 use risc0_zkvm::Digest;
+use serde_with::serde_as;
 lazy_static! {
     pub static ref INITIAL_ROOT: Digest =
         Digest::from_hex("cc1d2f838445db7aec431df9ee8a871f40e7aa5e064fc056633ef8c60fab7b06")
@@ -31,6 +35,13 @@ pub struct ComplianceInstance {
     // Use u32 array to avoid padding issues in risc0
     pub delta_x: [u32; 8],
     pub delta_y: [u32; 8],
+}
+
+#[serde_as]
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct ComplianceInstanceWords {
+    #[serde_as(as = "[_; COMPLIANCE_INSTANCE_SIZE]")]
+    pub u32_words: [u32; COMPLIANCE_INSTANCE_SIZE],
 }
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]

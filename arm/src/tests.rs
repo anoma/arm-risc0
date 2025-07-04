@@ -151,3 +151,63 @@ fn test_action() {
 fn test_transaction() {
     let _ = generate_test_transaction(1);
 }
+
+#[test]
+#[cfg(feature = "aggregation")]
+fn test_aggregation_works() {
+    use crate::aggregation::AggregationStrategy;
+
+    let tx = generate_test_transaction(1);
+
+    for strategy in [AggregationStrategy::Sequential, AggregationStrategy::Batch] {
+        let mut tx_str = tx.clone();
+        assert!(tx_str.aggregate_with_strategy(strategy.clone()).is_ok());
+        assert!(tx_str.aggregation_proof.is_some());
+        assert!(tx_str.verify_aggregation().is_ok());
+    }
+}
+
+#[test]
+#[cfg(feature = "aggregation")]
+fn test_verify_aggregation_fails_for_incorrect_instances() {
+    use crate::aggregation::AggregationStrategy;
+
+    let tx = generate_test_transaction(2);
+
+    for strategy in [AggregationStrategy::Sequential, AggregationStrategy::Batch] {
+        let mut tx_str = tx.clone();
+        assert!(tx_str.aggregate_with_strategy(strategy).is_ok());
+
+        tx_str.actions[0].logic_verifier_inputs.pop();
+
+        assert!(tx_str.verify_aggregation().is_err());
+    }
+}
+
+#[test]
+#[cfg(feature = "aggregation")]
+fn test_cannot_aggregate_invalid_proofs() {
+    use crate::{aggregation::AggregationStrategy, logic_proof::LogicVerifierInputs};
+
+    let tx = generate_test_transaction(2);
+
+    // Create a transaction with one invalid proof.
+    let bad_lproof = LogicVerifierInputs {
+        proof: tx.actions[0].logic_verifier_inputs[0].clone().proof,
+        verifying_key: Digest::from_bytes([66u8; 32]), //vec![666u32; 8], // Bad key.
+        tag: tx.actions[0].logic_verifier_inputs[0].tag,
+        app_data: tx.actions[0].logic_verifier_inputs[0].app_data.clone(),
+    };
+
+    let bad_action = Action {
+        compliance_units: tx.actions[0].clone().compliance_units,
+        logic_verifier_inputs: vec![bad_lproof],
+    };
+    let bad_tx = Transaction::create(vec![bad_action, tx.actions[1].clone()], tx.delta_proof);
+
+    for strategy in [AggregationStrategy::Sequential, AggregationStrategy::Batch] {
+        let mut bad_tx_str = bad_tx.clone();
+        assert!(bad_tx_str.aggregate_with_strategy(strategy).is_err());
+        assert!(bad_tx_str.aggregation_proof.is_none());
+    }
+}
