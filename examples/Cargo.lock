@@ -300,7 +300,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "arm_core"
+name = "arm"
 version = "0.1.0"
 dependencies = [
  "aes-gcm",
@@ -567,7 +567,7 @@ checksum = "67ba02a97a2bd10f4b59b25c7973101c79642302776489e030cd13cdab09ed15"
 name = "compliance"
 version = "0.1.0"
 dependencies = [
- "arm_core",
+ "arm",
  "compliance-methods",
  "k256",
  "rand 0.8.5",
@@ -2919,7 +2919,7 @@ dependencies = [
 name = "trivial-logic"
 version = "0.1.0"
 dependencies = [
- "arm_core",
+ "arm",
  "risc0-zkvm",
  "trivial_logic",
 ]

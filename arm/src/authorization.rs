@@ -1,8 +1,8 @@
-use k256::ecdsa::{
-    signature::{Signer, Verifier},
-    Error, Signature, SigningKey, VerifyingKey,
-};
 use k256::{
+    ecdsa::{
+        signature::{Signer, Verifier},
+        Error, Signature, SigningKey, VerifyingKey,
+    },
     elliptic_curve::{rand_core::OsRng, sec1::ToEncodedPoint},
     AffinePoint,
 };

@@ -1,13 +1,14 @@
-use crate::logic_proof::LogicProver;
-use crate::{compliance_unit::ComplianceUnit, logic_proof::LogicProof};
-use arm_core::compliance::ComplianceWitness;
-use arm_core::delta_proof::DeltaWitness;
-use arm_core::nullifier_key::NullifierKey;
-use arm_core::resource::Resource;
-use arm_core::resource_logic::TrivialLogicWitness;
-use arm_core::{
-    action_tree::MerkleTree, compliance::ComplianceInstance, constants::COMMITMENT_TREE_DEPTH,
+use crate::{
+    action_tree::MerkleTree,
+    compliance::{ComplianceInstance, ComplianceWitness},
+    compliance_unit::ComplianceUnit,
+    delta_proof::DeltaWitness,
+    logic_proof::{LogicProof, LogicProver},
     merkle_path::Leaf,
+    merkle_path::COMMITMENT_TREE_DEPTH,
+    nullifier_key::NullifierKey,
+    resource::Resource,
+    resource_logic::TrivialLogicWitness,
 };
 use k256::ProjectivePoint;
 use serde::{Deserialize, Serialize};

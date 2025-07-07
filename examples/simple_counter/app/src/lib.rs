@@ -2,17 +2,17 @@ pub mod increment;
 pub mod init;
 
 use arm::{
+    action_tree::{MerkleTree, ACTION_TREE_DEPTH},
+    compliance::ComplianceWitness,
+    merkle_path::MerklePath,
+    merkle_path::COMMITMENT_TREE_DEPTH,
+    nullifier_key::NullifierKey,
+    resource::Resource,
+};
+use arm::{
     compliance_unit::ComplianceUnit,
     logic_proof::{LogicProof, LogicProver},
     proving_system::convert_image_id_to_bytes,
-};
-use arm_core::{
-    action_tree::{MerkleTree, ACTION_TREE_DEPTH},
-    compliance::ComplianceWitness,
-    constants::COMMITMENT_TREE_DEPTH,
-    merkle_path::MerklePath,
-    nullifier_key::NullifierKey,
-    resource::Resource,
 };
 use counter::CounterWitness;
 use counter_methods::{SIMPLE_COUNTER_ELF, SIMPLE_COUNTER_ID};

@@ -1,10 +1,8 @@
 use crate::{
-    constants::{COMPLIANCE_PK, COMPLIANCE_VK},
-    proving_system::{journal_to_instance, prove, verify as verify_proof},
-};
-use arm_core::{
     compliance::{ComplianceInstance, ComplianceWitness},
-    constants::COMMITMENT_TREE_DEPTH,
+    constants::{COMPLIANCE_PK, COMPLIANCE_VK},
+    merkle_path::COMMITMENT_TREE_DEPTH,
+    proving_system::{journal_to_instance, prove, verify as verify_proof},
 };
 use k256::ProjectivePoint;
 #[cfg(feature = "nif")]

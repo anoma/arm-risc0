@@ -3,14 +3,14 @@ use crate::{
     simple_receive::SimpleReceiveInfo,
 };
 use arm::{
-    logic_proof::{LogicProver, PaddingResourceLogic},
-    transaction::Transaction,
-};
-use arm_core::{
     action_tree::MerkleTree,
     authorization::{AuthorizationSignature, AuthorizationSigningKey, AuthorizationVerifyingKey},
     nullifier_key::{NullifierKey, NullifierKeyCommitment},
     resource::Resource,
+};
+use arm::{
+    logic_proof::{LogicProver, PaddingResourceLogic},
+    transaction::Transaction,
 };
 use kudo_logic_witness::{
     kudo_main_witness::KudoMainWitness,

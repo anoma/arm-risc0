@@ -1,7 +1,5 @@
-use crate::{
-    constants::INITIAL_ROOT, merkle_path::MerklePath, nullifier_key::NullifierKey,
-    resource::Resource,
-};
+use crate::{merkle_path::MerklePath, nullifier_key::NullifierKey, resource::Resource};
+use hex::FromHex;
 use k256::{
     elliptic_curve::{
         sec1::{FromEncodedPoint, ToEncodedPoint},
@@ -9,8 +7,15 @@ use k256::{
     },
     EncodedPoint, ProjectivePoint, Scalar,
 };
+use lazy_static::lazy_static;
+use risc0_zkvm::Digest;
 #[cfg(feature = "nif")]
 use rustler::NifStruct;
+lazy_static! {
+    pub static ref INITIAL_ROOT: Digest =
+        Digest::from_hex("7e70786b1d52fc0412d75203ef2ac22de13d9596ace8a5a1ed5324c3ed7f31c3")
+            .unwrap();
+}
 
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 #[cfg_attr(feature = "nif", derive(NifStruct))]

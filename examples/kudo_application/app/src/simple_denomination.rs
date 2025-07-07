@@ -1,6 +1,6 @@
 use arm::logic_proof::LogicProver;
-use arm_core::{
-    constants::COMMITMENT_TREE_DEPTH, merkle_path::MerklePath, nullifier_key::NullifierKey,
+use arm::{
+    merkle_path::MerklePath, merkle_path::COMMITMENT_TREE_DEPTH, nullifier_key::NullifierKey,
     resource::Resource,
 };
 use kudo_logic_witness::simple_denomination_witness::SimpleDenominationLogicWitness;
