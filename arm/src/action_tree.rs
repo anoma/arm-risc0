@@ -1,7 +1,7 @@
 use crate::merkle_path::{Hashable, Leaf, MerklePath};
 use risc0_zkvm::sha::Digest;
 
-pub const ACTION_TREE_MAX_NUM: usize = 1 << ACTION_TREE_DEPTH;
+const ACTION_TREE_MAX_NUM: usize = 1 << ACTION_TREE_DEPTH;
 pub const ACTION_TREE_DEPTH: usize = 4;
 
 #[derive(Debug, Clone, PartialEq, Eq)]

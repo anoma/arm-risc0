@@ -3,16 +3,16 @@ use crate::{
     simple_receive::SimpleReceiveInfo,
 };
 use arm::{
-    logic_proof::{LogicProver, PaddingResourceLogic},
-    transaction::Transaction,
-};
-use arm_core::{
     action_tree::MerkleTree,
     authorization::{AuthorizationSigningKey, AuthorizationVerifyingKey},
-    constants::COMMITMENT_TREE_DEPTH,
     merkle_path::MerklePath,
+    merkle_path::COMMITMENT_TREE_DEPTH,
     nullifier_key::NullifierKey,
     resource::Resource,
+};
+use arm::{
+    logic_proof::{LogicProver, PaddingResourceLogic},
+    transaction::Transaction,
 };
 use kudo_logic_witness::{
     kudo_main_witness::KudoMainWitness,

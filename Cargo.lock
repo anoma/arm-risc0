@@ -341,19 +341,6 @@ dependencies = [
 name = "arm"
 version = "0.1.0"
 dependencies = [
- "arm_core",
- "bincode",
- "k256",
- "rand 0.8.5",
- "risc0-zkvm",
- "rustler",
- "serde",
-]
-
-[[package]]
-name = "arm_core"
-version = "0.1.0"
-dependencies = [
  "aes-gcm",
  "bincode",
  "hex",

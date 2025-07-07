@@ -1,6 +1,7 @@
-use crate::action::create_multiple_actions;
-use crate::action::Action;
-use arm_core::delta_proof::{DeltaInstance, DeltaProof, DeltaWitness};
+use crate::{
+    action::Action,
+    delta_proof::{DeltaInstance, DeltaProof, DeltaWitness},
+};
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "nif")]
@@ -102,6 +103,7 @@ impl Transaction {
 }
 
 pub fn generate_test_transaction(n_actions: usize) -> Transaction {
+    use crate::action::create_multiple_actions;
     let (actions, delta_witness) = create_multiple_actions(n_actions);
     let mut tx = Transaction::create(actions, Delta::Witness(delta_witness));
     tx.generate_delta_proof();

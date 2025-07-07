@@ -1,10 +1,11 @@
 use crate::{
+    action_tree::ACTION_TREE_DEPTH,
     constants::{PADDING_LOGIC_PK, PADDING_LOGIC_VK},
+    logic_instance::LogicInstance,
+    merkle_path::MerklePath,
+    nullifier_key::{NullifierKey, NullifierKeyCommitment},
     proving_system::{journal_to_instance, prove, verify as verify_proof},
-};
-use arm_core::{
-    action_tree::ACTION_TREE_DEPTH, logic_instance::LogicInstance, merkle_path::MerklePath,
-    nullifier_key::NullifierKey, nullifier_key::NullifierKeyCommitment, resource::Resource,
+    resource::Resource,
     resource_logic::TrivialLogicWitness,
 };
 use rand::Rng;

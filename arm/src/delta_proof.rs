@@ -1,7 +1,10 @@
-use k256::ecdsa::{Error, RecoveryId, Signature, SigningKey, VerifyingKey};
 #[cfg(feature = "nif")]
 use k256::elliptic_curve::pkcs8::der::Writer;
-use k256::{elliptic_curve::ScalarPrimitive, ProjectivePoint, PublicKey, Scalar, SecretKey};
+use k256::{
+    ecdsa::{Error, RecoveryId, Signature, SigningKey, VerifyingKey},
+    elliptic_curve::ScalarPrimitive,
+    ProjectivePoint, PublicKey, Scalar, SecretKey,
+};
 #[cfg(feature = "nif")]
 use rustler::{
     types::map::map_new, Atom, Binary, Decoder, Encoder, Env, NifResult, OwnedBinary, Term,

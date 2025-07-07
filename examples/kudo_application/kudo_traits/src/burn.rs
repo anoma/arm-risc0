@@ -4,8 +4,8 @@ use arm::{
     compliance_unit::ComplianceUnit,
     transaction::{Delta, Transaction},
 };
-use arm_core::{
-    compliance::ComplianceWitness, constants::COMMITMENT_TREE_DEPTH, delta_proof::DeltaWitness,
+use arm::{
+    compliance::ComplianceWitness, delta_proof::DeltaWitness, merkle_path::COMMITMENT_TREE_DEPTH,
 };
 
 #[derive(Clone)]

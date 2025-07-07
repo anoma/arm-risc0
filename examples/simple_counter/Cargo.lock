@@ -119,7 +119,6 @@ name = "app"
 version = "0.1.0"
 dependencies = [
  "arm",
- "arm_core",
  "counter",
  "counter-methods",
  "rand 0.8.5",
@@ -351,18 +350,6 @@ dependencies = [
 
 [[package]]
 name = "arm"
-version = "0.1.0"
-dependencies = [
- "arm_core",
- "bincode",
- "k256",
- "rand 0.8.5",
- "risc0-zkvm",
- "serde",
-]
-
-[[package]]
-name = "arm_core"
 version = "0.1.0"
 dependencies = [
  "aes-gcm",
@@ -691,7 +678,7 @@ dependencies = [
 name = "counter"
 version = "0.1.0"
 dependencies = [
- "arm_core",
+ "arm",
  "serde",
 ]
 
