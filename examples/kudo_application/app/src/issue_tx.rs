@@ -211,6 +211,7 @@ pub fn build_issue_tx(
 #[test]
 fn generate_an_issue_tx() {
     use kudo_logic_witness::utils::generate_receive_signature;
+    use std::time::Instant;
 
     let (receiver_pk, receiver_signature) = {
         let sk = AuthorizationSigningKey::new();
@@ -219,6 +220,7 @@ fn generate_an_issue_tx() {
         (pk, signature)
     };
 
+    let tx_start_timer = Instant::now();
     let mut tx = build_issue_tx(
         &AuthorizationSigningKey::new(),
         100,
@@ -228,6 +230,12 @@ fn generate_an_issue_tx() {
     );
 
     tx.generate_delta_proof();
+    println!("Tx build duration time: {:?}", tx_start_timer.elapsed());
 
+    let tx_verify_start_timer = Instant::now();
     assert!(tx.verify());
+    println!(
+        "TX verify duration time: {:?}",
+        tx_verify_start_timer.elapsed()
+    );
 }
