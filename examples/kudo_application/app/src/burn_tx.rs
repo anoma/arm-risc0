@@ -154,6 +154,8 @@ pub fn build_burn_tx(
 
 #[test]
 fn generate_a_burn_tx() {
+    use std::time::Instant;
+
     let issuer_sk = AuthorizationSigningKey::new();
     let issuer = AuthorizationVerifyingKey::from_signing_key(&issuer_sk);
     // TODO: fix the kudo_logic
@@ -167,6 +169,7 @@ fn generate_a_burn_tx() {
     let kudo_resource =
         Resource::create(kudo_logic, kudo_lable, 100, kudo_value, false, kudo_nk_cm);
 
+    let tx_start_timer = Instant::now();
     let mut tx = build_burn_tx(
         &issuer_sk,
         &owner_sk,
@@ -176,6 +179,12 @@ fn generate_a_burn_tx() {
     );
 
     tx.generate_delta_proof();
+    println!("Tx build duration time: {:?}", tx_start_timer.elapsed());
 
+    let tx_verify_start_timer = Instant::now();
     assert!(tx.verify());
+    println!(
+        "TX verify duration time: {:?}",
+        tx_verify_start_timer.elapsed()
+    );
 }

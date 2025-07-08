@@ -214,6 +214,7 @@ pub fn build_transfer_tx(
 #[test]
 fn generate_a_transfer_tx() {
     use kudo_logic_witness::utils::generate_receive_signature;
+    use std::time::Instant;
 
     let kudo_logic = KudoMainInfo::verifying_key();
     let issuer_sk = AuthorizationSigningKey::new();
@@ -235,6 +236,7 @@ fn generate_a_transfer_tx() {
     let consumed_kudo_resource =
         Resource::create(kudo_logic, kudo_lable, 100, kudo_value, false, kudo_nk_cm);
 
+    let tx_start_timer = Instant::now();
     let mut tx = build_transfer_tx(
         &issuer,
         &owner_sk,
@@ -247,6 +249,12 @@ fn generate_a_transfer_tx() {
     );
 
     tx.generate_delta_proof();
+    println!("Tx build duration time: {:?}", tx_start_timer.elapsed());
 
+    let tx_verify_start_timer = Instant::now();
     assert!(tx.verify());
+    println!(
+        "TX verify duration time: {:?}",
+        tx_verify_start_timer.elapsed()
+    );
 }

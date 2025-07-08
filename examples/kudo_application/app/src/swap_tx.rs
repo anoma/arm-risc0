@@ -216,6 +216,7 @@ pub fn build_swap_tx(
 #[test]
 fn generate_a_swap_tx() {
     use arm::transaction::Transaction;
+    use std::time::Instant;
 
     let kudo_logic = KudoMainInfo::verifying_key();
     // The issuer determines the kind of kudo
@@ -271,6 +272,8 @@ fn generate_a_swap_tx() {
     let bob_consumed_issuer = alice_created_issuer;
     let bob_created_issuer = alice_consumed_issuer;
     let bob_created_kudo_quantity = alice_consumed_kudo_quantity;
+
+    let tx_start_timer = Instant::now();
     let bob_tx = build_swap_tx(
         &bob_consumed_issuer,
         &bob_sk,
@@ -283,5 +286,12 @@ fn generate_a_swap_tx() {
 
     let mut tx = Transaction::compose(alice_tx, bob_tx);
     tx.generate_delta_proof();
+    println!("Tx build duration time: {:?}", tx_start_timer.elapsed());
+
+    let tx_verify_start_timer = Instant::now();
     assert!(tx.verify());
+    println!(
+        "TX verify duration time: {:?}",
+        tx_verify_start_timer.elapsed()
+    );
 }
