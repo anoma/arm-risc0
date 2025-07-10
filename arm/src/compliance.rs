@@ -110,6 +110,12 @@ impl<const COMMITMENT_TREE_DEPTH: usize> ComplianceWitness<COMMITMENT_TREE_DEPTH
         let created_logic_ref = self.created_resource_logic();
         let created_commitment = self.created_commitment();
 
+        // constrain created_resource.nonce and consumed_resource.nf
+        assert_eq!(
+            self.created_resource.nonce, consumed_nullifier,
+            "Created resource nonce must match consumed nullifier"
+        );
+
         let (delta_x, delta_y) = self.delta();
 
         ComplianceInstance {
@@ -188,13 +194,15 @@ impl<const COMMITMENT_TREE_DEPTH: usize> Default for ComplianceWitness<COMMITMEN
             rand_seed: vec![0; 32],
         };
 
+        let nf = consumed_resource.nullifier(&nf_key).unwrap();
+
         let created_resource = Resource {
             logic_ref: vec![0; 32],
             label_ref: vec![0; 32],
             quantity: 1u128,
             value_ref: vec![0; 32],
             is_ephemeral: false,
-            nonce: vec![0; 32],
+            nonce: nf,
             nk_commitment: nf_key.commit(),
             rand_seed: vec![0; 32],
         };
