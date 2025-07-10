@@ -21,6 +21,7 @@ use kudo_logic_witness::{
     utils::{compute_kudo_label, compute_kudo_value},
 };
 use kudo_traits::transfer::Transfer;
+use rand::Rng;
 
 #[allow(clippy::too_many_arguments)]
 pub fn build_transfer_tx(
@@ -46,18 +47,6 @@ pub fn build_transfer_tx(
         .nullifier(consumed_kudo_nf_key)
         .unwrap();
 
-    // Construct the denomination resource corresponding to the consumed kudo resource
-    let denomination_logic = SimpleDenominationInfo::verifying_key();
-    let consumed_denomination_resource = Resource::create(
-        denomination_logic.clone(),
-        consumed_kudo_nf.clone(), // Use the consumed kudo nullifier as the label
-        0,
-        [0u8; 32].into(),
-        true,
-        instant_nk_commitment.clone(),
-    );
-    let consumed_denomination_resource_cm = consumed_denomination_resource.commitment();
-
     // Construct the created kudo resource
     let mut created_kudo_resource = consumed_kudo_resource.clone();
     // Set the new ownership to the created kudo resource
@@ -65,8 +54,26 @@ pub fn build_transfer_tx(
     let created_kudo_value = compute_kudo_value(receiver_pk);
     created_kudo_resource.set_value_ref(created_kudo_value);
     // Reset the randomness and nonce
-    created_kudo_resource.reset_randomness_nonce();
+    created_kudo_resource.reset_randomness();
+    created_kudo_resource.set_nonce(consumed_kudo_nf.clone());
     let created_kudo_cm = created_kudo_resource.commitment();
+
+    // Construct the denomination resource corresponding to the consumed kudo resource
+    let denomination_logic = SimpleDenominationInfo::verifying_key();
+    let mut rng = rand::thread_rng();
+    let nonce: [u8; 32] = rng.gen(); // Random nonce for the ephemeral resource
+    let consumed_denomination_resource = Resource::create(
+        denomination_logic.clone(),
+        consumed_kudo_nf.clone(), // Use the consumed kudo nullifier as the label
+        0,
+        [0u8; 32].into(),
+        true,
+        nonce.to_vec(),
+        instant_nk_commitment.clone(),
+    );
+    let consumed_denomination_resource_nf = consumed_denomination_resource
+        .nullifier(&instant_nk)
+        .unwrap();
 
     // Construct the denomination resource corresponding to the created kudo resource
     let created_denomination_resource = Resource::create(
@@ -75,11 +82,15 @@ pub fn build_transfer_tx(
         0,
         [0u8; 32].into(),
         true,
+        consumed_denomination_resource_nf.clone(),
         instant_nk_commitment.clone(),
     );
-    let created_denomination_resource_nf = created_denomination_resource
-        .nullifier(&instant_nk)
-        .unwrap();
+    let created_denomination_resource_cm = created_denomination_resource.commitment();
+
+    // Construct the padding resource
+    let padding_resource =
+        PaddingResourceLogic::create_padding_resource(instant_nk_commitment.clone());
+    let padding_resource_nf = padding_resource.nullifier(&instant_nk).unwrap();
 
     // Construct the receive logic resource
     let receive_resource = Resource::create(
@@ -88,20 +99,17 @@ pub fn build_transfer_tx(
         0,
         [0u8; 32].into(),
         true,
+        padding_resource_nf.clone(),
         instant_nk_commitment.clone(),
     );
     let receive_resource_cm = receive_resource.commitment();
 
-    // Construct the padding resource
-    let padding_resource = PaddingResourceLogic::create_padding_resource(instant_nk_commitment);
-    let padding_resource_nf = padding_resource.nullifier(&instant_nk).unwrap();
-
     // Construct the action tree
     let action_tree = MerkleTree::new(vec![
         consumed_kudo_nf.clone().into(),
-        consumed_denomination_resource_cm.clone().into(),
-        created_denomination_resource_nf.clone().into(),
         created_kudo_cm.clone().into(),
+        consumed_denomination_resource_nf.clone().into(),
+        created_denomination_resource_cm.clone().into(),
         padding_resource_nf.clone().into(),
         receive_resource_cm.clone().into(),
     ]);
@@ -110,10 +118,10 @@ pub fn build_transfer_tx(
     // Generate paths
     let consumed_kudo_existence_path = action_tree.generate_path(&consumed_kudo_nf).unwrap();
     let consumed_denomination_existence_path = action_tree
-        .generate_path(&consumed_denomination_resource_cm)
+        .generate_path(&consumed_denomination_resource_nf)
         .unwrap();
     let created_denomination_existence_path = action_tree
-        .generate_path(&created_denomination_resource_nf)
+        .generate_path(&created_denomination_resource_cm)
         .unwrap();
     let created_kudo_existence_path = action_tree.generate_path(&created_kudo_cm).unwrap();
     let padding_resource_existence_path = action_tree.generate_path(&padding_resource_nf).unwrap();
@@ -128,19 +136,23 @@ pub fn build_transfer_tx(
             *issuer,
             consumed_denomination_resource.clone(),
             consumed_denomination_existence_path.clone(),
-            false,
+            true,
+            instant_nk.clone(),
         );
     let consumed_kudo = KudoMainInfo::new(consumed_kudo_logic_witness, Some(consumed_kudo_path));
 
     // Construct the denomination witness corresponding to the consumed kudo resource
     let consumption_signature = owner_sk.sign(&root);
     let consumed_denomination_logic_witness =
-        SimpleDenominationLogicWitness::generate_persistent_resource_consumption_witness(
+        SimpleDenominationLogicWitness::generate_denomimation_witness(
             consumed_denomination_resource.clone(),
             consumed_denomination_existence_path.clone(),
+            true,
+            instant_nk.clone(),
             consumption_signature,
             consumed_kudo_resource.clone(),
             consumed_kudo_existence_path.clone(),
+            true, // The kudo resource is consumed
             consumed_kudo_nf_key.clone(),
             *issuer,
             owner,
@@ -155,10 +167,10 @@ pub fn build_transfer_tx(
         *issuer,
         created_denomination_resource.clone(),
         created_denomination_existence_path.clone(),
-        instant_nk.clone(),
-        true,
+        NullifierKey::default(), // Not used in this case
+        false,
         receive_resource.clone(),
-        instant_nk.clone(),
+        NullifierKey::default(), // Not used in this case
         false,
         receive_existence_path.clone(),
         *receiver_pk,
@@ -168,11 +180,11 @@ pub fn build_transfer_tx(
 
     // Construct the denomination witness corresponding to the created kudo resource
     let created_denomination_logic_witness =
-        SimpleDenominationLogicWitness::generate_persistent_resource_creation_witness(
+        SimpleDenominationLogicWitness::generate_created_kudo_denomination_witness(
             created_denomination_resource.clone(),
             created_denomination_existence_path.clone(),
-            true,
-            instant_nk.clone(),
+            false,
+            NullifierKey::default(), // Not used in this case
             created_kudo_resource.clone(),
             created_kudo_existence_path.clone(),
             *issuer,
@@ -232,9 +244,11 @@ fn generate_a_transfer_tx() {
         (pk, signature)
     };
     let (_receiver_nf_key, receiver_nk_commitment) = NullifierKey::random_pair();
+    let nonce = vec![0u8; 32]; // Random nonce for the ephemeral resource
 
-    let consumed_kudo_resource =
-        Resource::create(kudo_logic, kudo_lable, 100, kudo_value, false, kudo_nk_cm);
+    let consumed_kudo_resource = Resource::create(
+        kudo_logic, kudo_lable, 100, kudo_value, false, nonce, kudo_nk_cm,
+    );
 
     let tx_start_timer = Instant::now();
     let mut tx = build_transfer_tx(

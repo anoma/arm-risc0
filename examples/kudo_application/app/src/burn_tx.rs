@@ -14,6 +14,7 @@ use kudo_logic_witness::{
     utils::{compute_kudo_label, compute_kudo_value},
 };
 use kudo_traits::burn::Burn;
+use rand::Rng;
 
 pub fn build_burn_tx(
     issuer_sk: &AuthorizationSigningKey,
@@ -35,42 +36,48 @@ pub fn build_burn_tx(
         .nullifier(burned_kudoresource_nf_key)
         .unwrap();
 
-    // Construct the burned denomination resource
-    let denomination_logic = SimpleDenominationInfo::verifying_key();
-    let burned_denomination_resource = Resource::create(
-        denomination_logic.clone(),
-        burned_kudo_resource_nf.clone(), // Use the burned kudo nullifier as the label
-        0,
-        [0u8; 32].into(),
-        true,
-        instant_nk_commitment.clone(),
-    );
-    let burned_denomination_resource_cm = burned_denomination_resource.commitment();
-
     // Construct the ephemeral kudo resource
     let mut ephemeral_kudo_resource = burned_kudo_resource.clone();
     ephemeral_kudo_resource.is_ephemeral = true;
+    ephemeral_kudo_resource.reset_randomness();
+    ephemeral_kudo_resource.set_nonce(burned_kudo_resource_nf.clone());
     let ephemeral_kudo_resource_cm = ephemeral_kudo_resource.commitment();
 
     // Construct the ephemeral denomination resource
+    let denomination_logic = SimpleDenominationInfo::verifying_key();
+    let mut rng = rand::thread_rng();
+    let nonce: [u8; 32] = rng.gen(); // Random nonce for the ephemeral resource
     let ephemeral_denomination_resource = Resource::create(
         denomination_logic.clone(),
         ephemeral_kudo_resource_cm.clone(), // Use the ephemeral kudo commitment as the label
         0,
         [0u8; 32].into(),
         true,
+        nonce.to_vec(),
         instant_nk_commitment.clone(),
     );
     let ephemeral_denomination_resource_nf = ephemeral_denomination_resource
         .nullifier(&instant_nk)
         .unwrap();
 
+    // Construct the burned denomination resource
+    let burned_denomination_resource = Resource::create(
+        denomination_logic.clone(),
+        burned_kudo_resource_nf.clone(), // Use the burned kudo nullifier as the label
+        0,
+        [0u8; 32].into(),
+        true,
+        ephemeral_denomination_resource_nf.clone(),
+        instant_nk_commitment.clone(),
+    );
+    let burned_denomination_resource_cm = burned_denomination_resource.commitment();
+
     // Construct the action tree
     let action_tree = MerkleTree::new(vec![
         burned_kudo_resource_nf.clone().into(),
-        burned_denomination_resource_cm.clone().into(),
-        ephemeral_denomination_resource_nf.clone().into(),
         ephemeral_kudo_resource_cm.clone().into(),
+        ephemeral_denomination_resource_nf.clone().into(),
+        burned_denomination_resource_cm.clone().into(),
     ]);
     let root = action_tree.root();
 
@@ -96,18 +103,22 @@ pub fn build_burn_tx(
             burned_denomination_resource.clone(),
             burned_denomination_existence_path.clone(),
             false,
+            NullifierKey::default(), // Not used in this case
         );
     let burned_kudo_info = KudoMainInfo::new(burned_kudo_logic_witness, Some(burned_kudo_path));
 
     // Construct the denomination witness corresponding to the consumed kudo resource
     let consumption_signature = owner_sk.sign(&root);
     let burned_denomination_logic_witness =
-        SimpleDenominationLogicWitness::generate_persistent_resource_consumption_witness(
+        SimpleDenominationLogicWitness::generate_denomimation_witness(
             burned_denomination_resource,
             burned_denomination_existence_path,
+            false,
+            NullifierKey::default(), // Not used in this case
             consumption_signature,
             burned_kudo_resource.clone(),
             burned_kudo_existence_path,
+            true, // The kudo resource is consumed
             burned_kudoresource_nf_key.clone(),
             issuer,
             owner,
@@ -165,9 +176,11 @@ fn generate_a_burn_tx() {
     let owner = AuthorizationVerifyingKey::from_signing_key(&owner_sk);
     let kudo_value = compute_kudo_value(&owner);
     let (kudo_nf_key, kudo_nk_cm) = NullifierKey::random_pair();
+    let nonce = vec![0u8; 32]; // Use a fixed nonce for testing
 
-    let kudo_resource =
-        Resource::create(kudo_logic, kudo_lable, 100, kudo_value, false, kudo_nk_cm);
+    let kudo_resource = Resource::create(
+        kudo_logic, kudo_lable, 100, kudo_value, false, nonce, kudo_nk_cm,
+    );
 
     let tx_start_timer = Instant::now();
     let mut tx = build_burn_tx(

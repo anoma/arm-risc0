@@ -16,12 +16,12 @@ where
     D: DenominationInfo,
     R: ReceiveInfo,
 {
-    pub issue_kudo: K,
-    pub issue_denomination: D,
-    pub issue_receive: R,
-    pub ephemeral_kudo: K,
-    pub ephemeral_denomination: D,
-    pub padding_resource_logic: PaddingResourceLogic,
+    pub ephemeral_kudo: K,     // consumed resource - compliance unit 1
+    pub issue_kudo: K,         // created resource - compliance unit 1
+    pub issue_receive: R,      // consumed resource - compliance unit 2
+    pub issue_denomination: D, // created resource - compliance unit 2
+    pub padding_resource_logic: PaddingResourceLogic, // consumed resource - compliance unit 3
+    pub ephemeral_denomination: D, // created resource - compliance unit 3
 }
 
 impl<K, D, R> Issue<K, D, R>
