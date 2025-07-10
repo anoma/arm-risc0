@@ -12,34 +12,42 @@ use arm::{
 };
 use rand::Rng;
 
-// This function initializes a counter resource with a value of 1 and returns it
-// along with a nullifier key.
-pub fn init_counter_resource() -> (Resource, NullifierKey) {
+// It creates a random label reference and a nullifier key for the
+// ephermeral counter resource.
+pub fn ephemeral_counter() -> (Resource, NullifierKey) {
     let mut rng = rand::thread_rng();
     let (nf_key, nf_key_cm) = NullifierKey::random_pair();
     let label_ref: [u8; 32] = rng.gen(); // Random label reference, it should be unique for each counter
-    let counter_resource = Resource::create(
+    let nonce: [u8; 32] = rng.gen(); // Random nonce for the ephemeral resource
+    let ephemeral_resource = Resource::create(
         counter_logic_ref(),
         label_ref.to_vec(),
         1,
-        convert_counter_to_value_ref(1u128), // Initialize with value/counter 1
-        false,
+        convert_counter_to_value_ref(0u128), // Initialize with value/counter 0
+        true,
+        nonce.to_vec(),
         nf_key_cm,
     );
-    (counter_resource, nf_key)
+    (ephemeral_resource, nf_key)
 }
 
-// This function creates an ephemeral counter resource based on an initialized
-// counter. It resets the nonce, sets the value to 0, and generates a new
-// nullifier key.
-pub fn ephemeral_counter(inited_counter: &Resource) -> (Resource, NullifierKey) {
+// This function initializes a counter resource from an ephemeral counter
+// resource and its nullifier key. It sets the resource as non-ephemeral, renews
+// its randomness, resets the nonce from the ephemeral counter, and sets the
+// value reference to 1 (the initial counter value). It also renews the
+// nullifier key(commitment) for the counter resource.
+pub fn init_counter_resource(
+    ephemeral_counter: &Resource,
+    ephemeral_counter_nf_key: &NullifierKey,
+) -> (Resource, NullifierKey) {
     let (nf_key, nf_key_cm) = NullifierKey::random_pair();
-    let mut ephemeral_counter = inited_counter.clone();
-    ephemeral_counter.is_ephemeral = true;
-    ephemeral_counter.reset_randomness_nonce();
-    ephemeral_counter.set_value_ref(convert_counter_to_value_ref(0u128));
-    ephemeral_counter.set_nf_commitment(nf_key_cm.clone());
-    (ephemeral_counter, nf_key)
+    let mut init_counter = ephemeral_counter.clone();
+    init_counter.is_ephemeral = false;
+    init_counter.reset_randomness();
+    init_counter.set_nonce_from_nf(ephemeral_counter, ephemeral_counter_nf_key);
+    init_counter.set_value_ref(convert_counter_to_value_ref(1u128));
+    init_counter.set_nf_commitment(nf_key_cm.clone());
+    (init_counter, nf_key)
 }
 
 // This function creates an initial transaction that initializes a counter
@@ -47,8 +55,9 @@ pub fn ephemeral_counter(inited_counter: &Resource) -> (Resource, NullifierKey) 
 // the transaction. The transaction is then returned along with the counter
 // resource and nullifier key.
 pub fn create_init_counter_tx() -> (Transaction, Resource, NullifierKey) {
-    let (counter_resource, nf_key) = init_counter_resource();
-    let (ephemeral_counter, ephemeral_nf_key) = ephemeral_counter(&counter_resource);
+    let (ephemeral_counter, ephemeral_nf_key) = ephemeral_counter();
+    let (counter_resource, counter_nf_key) =
+        init_counter_resource(&ephemeral_counter, &ephemeral_nf_key);
     let (compliance_unit, rcv) = generate_compliance_proof(
         ephemeral_counter.clone(),
         ephemeral_nf_key.clone(),
@@ -65,7 +74,7 @@ pub fn create_init_counter_tx() -> (Transaction, Resource, NullifierKey) {
     let delta_witness = DeltaWitness::from_bytes(&rcv);
     let mut tx = Transaction::create(vec![action], Delta::Witness(delta_witness));
     tx.generate_delta_proof();
-    (tx, counter_resource, nf_key)
+    (tx, counter_resource, counter_nf_key)
 }
 
 #[test]
