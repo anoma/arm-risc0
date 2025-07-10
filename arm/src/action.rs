@@ -172,8 +172,10 @@ pub fn create_an_action(nonce: u8) -> (Action, DeltaWitness) {
         ..Default::default()
     };
     consumed_resource.nonce[0] = nonce;
+    let consumed_resource_nf = consumed_resource.nullifier(&nf_key).unwrap();
+
     let mut created_resource = consumed_resource.clone();
-    created_resource.nonce[10] = nonce;
+    created_resource.set_nonce(consumed_resource_nf.clone());
 
     let compliance_witness = ComplianceWitness::<COMMITMENT_TREE_DEPTH>::with_fixed_rcv(
         consumed_resource.clone(),
@@ -182,7 +184,6 @@ pub fn create_an_action(nonce: u8) -> (Action, DeltaWitness) {
     );
     let compliance_receipt = ComplianceUnit::create(&compliance_witness);
 
-    let consumed_resource_nf = consumed_resource.nullifier(&nf_key).unwrap();
     let created_resource_cm = created_resource.commitment();
     let action_tree = MerkleTree::new(vec![
         consumed_resource_nf.clone().into(),

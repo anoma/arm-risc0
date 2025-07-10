@@ -55,10 +55,10 @@ impl Resource {
         quantity: u128,
         value_ref: Vec<u8>,
         is_ephemeral: bool,
+        nonce: Vec<u8>,
         nk_commitment: NullifierKeyCommitment,
     ) -> Self {
         let mut rng = rand::thread_rng();
-        let nonce: [u8; DEFAULT_BYTES] = rng.gen();
         let rand_seed: [u8; DEFAULT_BYTES] = rng.gen();
         Self {
             logic_ref,
@@ -66,7 +66,7 @@ impl Resource {
             quantity,
             value_ref,
             is_ephemeral,
-            nonce: nonce.to_vec(),
+            nonce,
             nk_commitment,
             rand_seed: rand_seed.to_vec(),
         }
@@ -214,12 +214,19 @@ impl Resource {
         self.nk_commitment = nf_commitment;
     }
 
-    pub fn reset_randomness_nonce(&mut self) {
+    pub fn reset_randomness(&mut self) {
         let mut rng = rand::thread_rng();
-        let nonce: [u8; DEFAULT_BYTES] = rng.gen();
         let rand_seed: [u8; DEFAULT_BYTES] = rng.gen();
         self.rand_seed = rand_seed.to_vec();
-        self.nonce = nonce.to_vec();
+    }
+
+    pub fn set_nonce(&mut self, nonce: Vec<u8>) {
+        self.nonce = nonce;
+    }
+
+    pub fn set_nonce_from_nf(&mut self, resource: &Resource, nf_key: &NullifierKey) {
+        let nf = resource.nullifier(nf_key).unwrap();
+        self.nonce = nf;
     }
 
     pub fn tag(&self, is_consumed: bool, nf_key: &NullifierKey) -> Vec<u8> {
