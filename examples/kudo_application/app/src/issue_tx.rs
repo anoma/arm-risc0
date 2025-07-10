@@ -19,6 +19,7 @@ use kudo_logic_witness::{
     utils::{compute_kudo_label, compute_kudo_value},
 };
 use kudo_traits::issue::Issue;
+use rand::Rng;
 
 pub fn build_issue_tx(
     issuer_sk: &AuthorizationSigningKey,
@@ -29,31 +30,48 @@ pub fn build_issue_tx(
 ) -> Transaction {
     let issuer = AuthorizationVerifyingKey::from_signing_key(issuer_sk);
     let (instant_nk, instant_nk_commitment) = NullifierKey::random_pair();
-
-    // Construct the issued kudo resource
     let kudo_logic = KudoMainInfo::verifying_key();
     let kudo_lable = compute_kudo_label(&kudo_logic, &issuer);
     let kudo_value = compute_kudo_value(receiver_pk);
-    let issued_kudo_resource = Resource::create(
+
+    // Construct the ephemeral kudo resource
+    let mut rng = rand::thread_rng();
+    let nonce: [u8; 32] = rng.gen(); // Random nonce for the ephemeral resource
+    let ephemeral_kudo_resource = Resource::create(
         kudo_logic.clone(),
         kudo_lable.clone(),
         quantity,
         kudo_value.clone(),
-        false,
-        receiver_nk_commitment.clone(),
+        true,
+        nonce.to_vec(),
+        instant_nk_commitment.clone(),
     );
-    let issued_kudo_resource_cm = issued_kudo_resource.commitment();
+    let ephemeral_kudo_resource_nf = ephemeral_kudo_resource.nullifier(&instant_nk).unwrap();
 
-    // Construct the ephemeral kudo resource
-    let ephemeral_kudo_resource = Resource::create(
+    // Construct the issued kudo resource
+    let issued_kudo_resource = Resource::create(
         kudo_logic,
         kudo_lable,
         quantity,
         kudo_value,
+        false,
+        ephemeral_kudo_resource_nf.clone(),
+        receiver_nk_commitment.clone(),
+    );
+    let issued_kudo_resource_cm = issued_kudo_resource.commitment();
+
+    // Construct the issued receive logic resource
+    let nonce: [u8; 32] = rng.gen(); // Random nonce for the ephemeral resource
+    let issued_receive_resource = Resource::create(
+        SimpleReceiveInfo::verifying_key(),
+        issued_kudo_resource_cm.clone(),
+        0,
+        [0u8; 32].into(),
         true,
+        nonce.to_vec(),
         instant_nk_commitment.clone(),
     );
-    let ephemeral_kudo_resource_nf = ephemeral_kudo_resource.nullifier(&instant_nk).unwrap();
+    let issued_receive_resource_nf = issued_receive_resource.nullifier(&instant_nk).unwrap();
 
     // Construct the issued denomination resource
     let denomination_logic = SimpleDenominationInfo::verifying_key();
@@ -63,20 +81,15 @@ pub fn build_issue_tx(
         0,
         [0u8; 32].into(),
         true,
+        issued_receive_resource_nf.clone(),
         instant_nk_commitment.clone(),
     );
     let issued_denomination_resource_cm = issued_denomination_resource.commitment();
 
-    // Construct the issued receive logic resource
-    let issued_receive_resource = Resource::create(
-        SimpleReceiveInfo::verifying_key(),
-        issued_kudo_resource_cm.clone(),
-        0,
-        [0u8; 32].into(),
-        true,
-        instant_nk_commitment.clone(),
-    );
-    let issued_receive_resource_nf = issued_receive_resource.nullifier(&instant_nk).unwrap();
+    // Construct the padding resource
+    let padding_resource =
+        PaddingResourceLogic::create_padding_resource(instant_nk_commitment.clone());
+    let padding_resource_nf = padding_resource.nullifier(&instant_nk).unwrap();
 
     // Construct the ephemeral denomination resource
     let ephemeral_denomination_resource = Resource::create(
@@ -85,13 +98,10 @@ pub fn build_issue_tx(
         0,
         [0u8; 32].into(),
         true,
+        padding_resource_nf.clone(),
         instant_nk_commitment.clone(),
     );
     let ephemeral_denomination_resource_cm = ephemeral_denomination_resource.commitment();
-
-    // Construct the padding resource
-    let padding_resource = PaddingResourceLogic::create_padding_resource(instant_nk_commitment);
-    let padding_resource_nf = padding_resource.nullifier(&instant_nk).unwrap();
 
     // Construct the action tree
     let action_tree = MerkleTree::new(vec![
@@ -140,7 +150,7 @@ pub fn build_issue_tx(
 
     // Construct the denomination witness corresponding to the issued kudo resource
     let issue_denomination_logic_witness =
-        SimpleDenominationLogicWitness::generate_persistent_resource_creation_witness(
+        SimpleDenominationLogicWitness::generate_created_kudo_denomination_witness(
             issued_denomination_resource.clone(),
             issued_denomination_existence_path.clone(),
             false,

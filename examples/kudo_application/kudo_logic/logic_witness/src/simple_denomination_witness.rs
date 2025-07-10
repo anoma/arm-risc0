@@ -100,7 +100,7 @@ impl LogicCircuit for SimpleDenominationLogicWitness {
 impl SimpleDenominationLogicWitness {
     // Seems this logic does nothing in this case
     // Create a denomination witness corresponding to a created kudo resource
-    pub fn generate_persistent_resource_creation_witness(
+    pub fn generate_created_kudo_denomination_witness(
         denomination_resource: Resource,
         denomination_existence_path: MerklePath<ACTION_TREE_DEPTH>,
         denomination_is_consumed: bool,
@@ -149,27 +149,29 @@ impl SimpleDenominationLogicWitness {
         }
     }
 
-    // Create a denomination witness corresponding to a consumed kudo resource
     #[allow(clippy::too_many_arguments)]
-    pub fn generate_persistent_resource_consumption_witness(
+    pub fn generate_denomimation_witness(
         denomination_resource: Resource,
         denomination_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+        denomination_is_consumed: bool,
+        denomination_nf_key: NullifierKey,
         signature: AuthorizationSignature,
         kudo_resource: Resource,
         kudo_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+        kudo_is_consumed: bool,
         kudo_nf_key: NullifierKey,
         kudo_issuer: AuthorizationVerifyingKey,
         kudo_owner: AuthorizationVerifyingKey,
     ) -> Self {
         Self {
             denomination_resource,
-            denomination_is_consumed: false,
-            denomination_nf_key: NullifierKey::default(), // not used
+            denomination_is_consumed,
+            denomination_nf_key,
             denomination_existence_path,
             signature,
             kudo_resource,
             kudo_existence_path,
-            kudo_is_consumed: true,
+            kudo_is_consumed,
             kudo_nf_key,
             kudo_issuer,
             kudo_owner,
