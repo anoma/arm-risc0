@@ -1,10 +1,13 @@
 use crate::merkle_path::{Hashable, Leaf, MerklePath};
 use risc0_zkvm::sha::Digest;
+use rustler::NifStruct;
 
 pub const ACTION_TREE_MAX_NUM: usize = 1 << ACTION_TREE_DEPTH;
 pub const ACTION_TREE_DEPTH: usize = 4;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "nif", derive(NifStruct))]
+#[cfg_attr(feature = "nif", module = "Anoma.Arm.MerkleTree")]
 pub struct MerkleTree {
     leaves: Vec<Leaf>,
 }
