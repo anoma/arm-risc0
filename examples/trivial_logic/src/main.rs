@@ -30,17 +30,3 @@ fn main() {
 
     println!("TRIVIAL_GUEST_ID: {:?}", TRIVIAL_GUEST_ID);
 }
-
-#[test]
-fn print_trivial_elf_id() {
-    // Write the elf binary to a file
-    std::fs::write("../../arm/elfs/padding_logic_pk.bin", TRIVIAL_GUEST_ELF)
-        .expect("Failed to write trivial guest ELF binary");
-
-    // Print the ID
-    use risc0_zkvm::sha::Digest;
-    println!(
-        "Trivial Guest ID: {:?}",
-        Digest::from(TRIVIAL_GUEST_ID).as_bytes()
-    );
-}
