@@ -9,10 +9,10 @@ use crate::{
     resource_logic::TrivialLogicWitness,
 };
 use rand::Rng;
+use risc0_zkvm::Digest;
 #[cfg(feature = "nif")]
 use rustler::NifStruct;
 use serde::{Deserialize, Serialize};
-use risc0_zkvm::Digest;
 
 pub trait LogicProver: Default + Clone + Serialize + for<'de> Deserialize<'de> {
     type Witness: Default + Clone + Serialize + for<'de> Deserialize<'de>;

@@ -1,14 +1,14 @@
 use crate::{
-    convert_counter_to_value_ref, counter_logic_ref, generate_compliance_proof,
-    generate_logic_proofs,
+    convert_counter_to_value_ref, generate_compliance_proof, generate_logic_proofs, CounterLogic,
 };
 use arm::{
     action::Action,
-    transaction::{Delta, Transaction},
-};
-use arm::{
-    delta_proof::DeltaWitness, merkle_path::MerklePath, nullifier_key::NullifierKey,
+    delta_proof::DeltaWitness,
+    logic_proof::LogicProver,
+    merkle_path::MerklePath,
+    nullifier_key::NullifierKey,
     resource::Resource,
+    transaction::{Delta, Transaction},
 };
 use rand::Rng;
 
@@ -20,7 +20,7 @@ pub fn ephemeral_counter() -> (Resource, NullifierKey) {
     let label_ref: [u8; 32] = rng.gen(); // Random label reference, it should be unique for each counter
     let nonce: [u8; 32] = rng.gen(); // Random nonce for the ephemeral resource
     let ephemeral_resource = Resource::create(
-        counter_logic_ref(),
+        CounterLogic::verifying_key_as_bytes(),
         label_ref.to_vec(),
         1,
         convert_counter_to_value_ref(0u128), // Initialize with value/counter 0

@@ -12,11 +12,19 @@ use arm::{
 use arm::{
     compliance_unit::ComplianceUnit,
     logic_proof::{LogicProof, LogicProver},
-    proving_system::convert_image_id_to_bytes,
 };
 use counter::CounterWitness;
-use counter_methods::{SIMPLE_COUNTER_ELF, SIMPLE_COUNTER_ID};
+use hex::FromHex;
+use lazy_static::lazy_static;
+use risc0_zkvm::Digest;
 use serde::{Deserialize, Serialize};
+
+pub const SIMPLE_COUNTER_ELF: &[u8] = include_bytes!("../elf/simple_counter.bin");
+lazy_static! {
+    pub static ref SIMPLE_COUNTER_ID: Digest =
+        Digest::from_hex("59f42e09af8feda551cb6eed3aa63a9369748552daf5b640ac6a9b94aea267b6")
+            .unwrap();
+}
 
 #[derive(Clone, Default, Deserialize, Serialize)]
 pub struct CounterLogic {
@@ -51,8 +59,8 @@ impl LogicProver for CounterLogic {
         SIMPLE_COUNTER_ELF
     }
 
-    fn verifying_key() -> Vec<u8> {
-        convert_image_id_to_bytes(&SIMPLE_COUNTER_ID)
+    fn verifying_key() -> Digest {
+        *SIMPLE_COUNTER_ID
     }
 
     fn witness(&self) -> &Self::Witness {
@@ -65,10 +73,6 @@ pub fn convert_counter_to_value_ref(value: u128) -> Vec<u8> {
     let bytes = value.to_le_bytes();
     arr[..16].copy_from_slice(&bytes); // left-align, right-pad with 0
     arr.to_vec()
-}
-
-pub fn counter_logic_ref() -> Vec<u8> {
-    convert_image_id_to_bytes(&SIMPLE_COUNTER_ID)
 }
 
 pub fn generate_compliance_proof(

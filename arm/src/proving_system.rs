@@ -1,7 +1,5 @@
 use risc0_zkvm::{
-    default_prover,
-    sha::Digest,
-    ExecutorEnv, InnerReceipt, ProverOpts, Receipt, VerifierContext,
+    default_prover, sha::Digest, ExecutorEnv, InnerReceipt, ProverOpts, Receipt, VerifierContext,
 };
 use serde::{de::DeserializeOwned, Serialize};
 
@@ -27,14 +25,6 @@ pub fn journal_to_instance<T: DeserializeOwned>(journal: &[u8]) -> T {
         bytes: journal.to_vec(),
     };
     journal.decode().unwrap()
-}
-
-pub fn convert_image_id_to_bytes(id: &[u32]) -> Vec<u8> {
-    let mut bytes = Vec::with_capacity(id.len() * 4);
-    for &word in id {
-        bytes.extend_from_slice(&word.to_le_bytes());
-    }
-    bytes
 }
 
 fn prove_inner<T: Serialize>(witness: &T, proving_key: &[u8]) -> Receipt {
