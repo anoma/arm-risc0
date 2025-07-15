@@ -3,15 +3,19 @@ use arm::{
     merkle_path::MerklePath, merkle_path::COMMITMENT_TREE_DEPTH, nullifier_key::NullifierKey,
     resource::Resource,
 };
+use hex::FromHex;
 use kudo_logic_witness::simple_denomination_witness::SimpleDenominationLogicWitness;
 use kudo_traits::{compliance_info::ComplianceWitnessInfo, resource_info::DenominationInfo};
+use lazy_static::lazy_static;
+use risc0_zkvm::Digest;
 use serde::{Deserialize, Serialize};
 
-pub const DENOMINATION_ELF: &[u8] = include_bytes!("../../kudo_logic/elfs/simple-denomination.bin");
-pub const DENOMINATION_ID: &[u8] = &[
-    240, 124, 171, 65, 107, 23, 137, 225, 185, 107, 213, 183, 26, 200, 244, 48, 74, 158, 3, 103,
-    18, 138, 38, 34, 115, 148, 39, 28, 172, 72, 29, 234,
-];
+pub const DENOMINATION_ELF: &[u8] = include_bytes!("../../kudo_logic/elfs/denomination.bin");
+lazy_static! {
+    pub static ref DENOMINATION_ID: Digest =
+        Digest::from_hex("d5a6768ccf874156fa2fe9b63e48410df2979bfedd1cf7964817f9494dac527d")
+            .unwrap();
+}
 
 #[derive(Clone, Default, Deserialize, Serialize)]
 pub struct SimpleDenominationInfo {
@@ -26,8 +30,8 @@ impl LogicProver for SimpleDenominationInfo {
         DENOMINATION_ELF
     }
 
-    fn verifying_key() -> Vec<u8> {
-        DENOMINATION_ID.to_vec()
+    fn verifying_key() -> Digest {
+        *DENOMINATION_ID
     }
 
     fn witness(&self) -> &Self::Witness {

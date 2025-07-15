@@ -37,7 +37,7 @@ pub fn build_transfer_tx(
     let (instant_nk, instant_nk_commitment) = NullifierKey::random_pair();
 
     // Construct the consumed kudo resource
-    let kudo_logic = KudoMainInfo::verifying_key();
+    let kudo_logic = KudoMainInfo::verifying_key_as_bytes();
     let kudo_lable = compute_kudo_label(&kudo_logic, issuer);
     assert_eq!(consumed_kudo_resource.label_ref, kudo_lable);
     let owner = AuthorizationVerifyingKey::from_signing_key(owner_sk);
@@ -59,7 +59,7 @@ pub fn build_transfer_tx(
     let created_kudo_cm = created_kudo_resource.commitment();
 
     // Construct the denomination resource corresponding to the consumed kudo resource
-    let denomination_logic = SimpleDenominationInfo::verifying_key();
+    let denomination_logic = SimpleDenominationInfo::verifying_key_as_bytes();
     let mut rng = rand::thread_rng();
     let nonce: [u8; 32] = rng.gen(); // Random nonce for the ephemeral resource
     let consumed_denomination_resource = Resource::create(
@@ -94,7 +94,7 @@ pub fn build_transfer_tx(
 
     // Construct the receive logic resource
     let receive_resource = Resource::create(
-        SimpleReceiveInfo::verifying_key(),
+        SimpleReceiveInfo::verifying_key_as_bytes(),
         created_kudo_cm.clone(),
         0,
         [0u8; 32].into(),
@@ -228,7 +228,7 @@ fn generate_a_transfer_tx() {
     use kudo_logic_witness::utils::generate_receive_signature;
     use std::time::Instant;
 
-    let kudo_logic = KudoMainInfo::verifying_key();
+    let kudo_logic = KudoMainInfo::verifying_key_as_bytes();
     let issuer_sk = AuthorizationSigningKey::new();
     let issuer = AuthorizationVerifyingKey::from_signing_key(&issuer_sk);
     let kudo_lable = compute_kudo_label(&kudo_logic, &issuer);
@@ -240,7 +240,8 @@ fn generate_a_transfer_tx() {
     let (receiver_pk, receiver_signature) = {
         let sk = AuthorizationSigningKey::new();
         let pk = AuthorizationVerifyingKey::from_signing_key(&sk);
-        let signature = generate_receive_signature(&SimpleReceiveInfo::verifying_key(), &sk);
+        let signature =
+            generate_receive_signature(&SimpleReceiveInfo::verifying_key_as_bytes(), &sk);
         (pk, signature)
     };
     let (_receiver_nf_key, receiver_nk_commitment) = NullifierKey::random_pair();
