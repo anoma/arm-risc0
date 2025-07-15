@@ -120,8 +120,10 @@ version = "0.1.0"
 dependencies = [
  "arm",
  "counter",
- "counter-methods",
+ "hex",
+ "lazy_static",
  "rand 0.8.5",
+ "risc0-zkvm",
  "serde",
 ]
 
@@ -680,13 +682,6 @@ version = "0.1.0"
 dependencies = [
  "arm",
  "serde",
-]
-
-[[package]]
-name = "counter-methods"
-version = "0.1.0"
-dependencies = [
- "risc0-build",
 ]
 
 [[package]]

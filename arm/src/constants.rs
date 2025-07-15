@@ -1,12 +1,11 @@
+use hex::FromHex;
 use lazy_static::lazy_static;
 use risc0_zkvm::Digest;
-use hex::FromHex;
 
 // Compliance proving key / compliance guest ELF binary
 pub const COMPLIANCE_PK: &[u8] = include_bytes!("../elfs/compliance-guest.bin");
 // Padding logic proving key / padding logic guest ELF binary
 pub const PADDING_LOGIC_PK: &[u8] = include_bytes!("../elfs/trivial-guest.bin");
-
 
 lazy_static! {
     // compliance verification key / compliance image id
