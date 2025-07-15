@@ -30,7 +30,7 @@ pub fn build_issue_tx(
 ) -> Transaction {
     let issuer = AuthorizationVerifyingKey::from_signing_key(issuer_sk);
     let (instant_nk, instant_nk_commitment) = NullifierKey::random_pair();
-    let kudo_logic = KudoMainInfo::verifying_key();
+    let kudo_logic = KudoMainInfo::verifying_key_as_bytes();
     let kudo_lable = compute_kudo_label(&kudo_logic, &issuer);
     let kudo_value = compute_kudo_value(receiver_pk);
 
@@ -63,7 +63,7 @@ pub fn build_issue_tx(
     // Construct the issued receive logic resource
     let nonce: [u8; 32] = rng.gen(); // Random nonce for the ephemeral resource
     let issued_receive_resource = Resource::create(
-        SimpleReceiveInfo::verifying_key(),
+        SimpleReceiveInfo::verifying_key_as_bytes(),
         issued_kudo_resource_cm.clone(),
         0,
         [0u8; 32].into(),
@@ -74,7 +74,7 @@ pub fn build_issue_tx(
     let issued_receive_resource_nf = issued_receive_resource.nullifier(&instant_nk).unwrap();
 
     // Construct the issued denomination resource
-    let denomination_logic = SimpleDenominationInfo::verifying_key();
+    let denomination_logic = SimpleDenominationInfo::verifying_key_as_bytes();
     let issued_denomination_resource = Resource::create(
         denomination_logic.clone(),
         issued_kudo_resource_cm.clone(), // Use the issued kudo commitment as the label
@@ -226,7 +226,8 @@ fn generate_an_issue_tx() {
     let (receiver_pk, receiver_signature) = {
         let sk = AuthorizationSigningKey::new();
         let pk = AuthorizationVerifyingKey::from_signing_key(&sk);
-        let signature = generate_receive_signature(&SimpleReceiveInfo::verifying_key(), &sk);
+        let signature =
+            generate_receive_signature(&SimpleReceiveInfo::verifying_key_as_bytes(), &sk);
         (pk, signature)
     };
 
