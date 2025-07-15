@@ -9,6 +9,8 @@ edition = "2021"
 # If you want to try (experimental) std support, add `features = [ "std" ]` to risc0-zkvm
 risc0-zkvm = { version = "2.1.0", features = ["std", "unstable"] }
 arm = { path = "../../../../arm", features = ["logic_circuit"], default-features = false }
+alloy-sol-types = "1.2.1"
+alloy-primitives = "1.2.1"
 
 [patch.crates-io]
 # Placing this patch statement in the workspace Cargo.toml will add RISC Zero SHA-256 accelerator
