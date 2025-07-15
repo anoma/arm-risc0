@@ -27,7 +27,7 @@ impl ComplianceUnit {
     }
 
     pub fn verify(&self) -> bool {
-        verify_proof(COMPLIANCE_VK, &self.instance, &self.proof)
+        verify_proof(&COMPLIANCE_VK, &self.instance, &self.proof)
     }
 
     pub fn delta(&self) -> ProjectivePoint {

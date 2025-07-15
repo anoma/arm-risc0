@@ -167,7 +167,7 @@ pub fn create_an_action(nonce: u8) -> (Action, DeltaWitness) {
     let nf_key = NullifierKey::default();
     let nf_key_cm = nf_key.commit();
     let mut consumed_resource = Resource {
-        logic_ref: TrivialLogicWitness::verifying_key(),
+        logic_ref: TrivialLogicWitness::verifying_key_as_bytes(),
         nk_commitment: nf_key_cm,
         ..Default::default()
     };
