@@ -19,12 +19,12 @@ lazy_static = "1.5.0"
 rustler = { version = "0.36.2", optional = true }
 
 [features]
-default = ["succinct_prover", "transaction"]
+default = ["transaction"]
 prove = ["risc0-zkvm/prove"]
 nif = ["dep:rustler"]
-transaction = ["compliance_circuit", "prove", "dep:sha3"]
+transaction = ["logic_circuit", "compliance_circuit", "prove", "dep:sha3"]
 logic_circuit = []
-compliance_circuit = ["logic_circuit"]
+compliance_circuit = []
 fast_prover = []
 composite_prover = []
 succinct_prover = []
