@@ -1,6 +1,7 @@
 use k256::ecdsa::{Error, RecoveryId, Signature, SigningKey, VerifyingKey};
-use k256::{elliptic_curve::ScalarPrimitive, ProjectivePoint, PublicKey, Scalar, SecretKey};
+use k256::{elliptic_curve::ScalarPrimitive, elliptic_curve::PublicKey, ProjectivePoint, SecretKey, Scalar};
 use serde::{Deserialize, Serialize};
+
 use sha3::{Digest, Keccak256};
 #[cfg(feature = "nif")]
 use {
