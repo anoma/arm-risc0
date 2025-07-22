@@ -11,8 +11,15 @@ use aarm_core::{
 };
 use k256::ProjectivePoint;
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "nif")]
+use {
+    rustler::types::map::map_new,
+    rustler::{Atom, Decoder, Encoder, Env, NifResult, NifStruct, Term},
+};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
+#[cfg_attr(feature = "nif", derive(NifStruct))]
+#[cfg_attr(feature = "nif", module = "Anoma.Arm.Action")]
 pub struct Action {
     pub compliance_units: Vec<ComplianceUnit>,
     pub logic_proofs: Vec<LogicProof>,
@@ -24,6 +31,33 @@ pub struct ForwarderCalldata {
     pub untrusted_forwarder: [u8; 20],
     pub input: Vec<u8>,
     pub output: Vec<u8>,
+}
+
+#[cfg(feature = "nif")]
+impl Encoder for ForwarderCalldata {
+    fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
+        let map = map_new(env);
+        // store the name of the elixir struct
+        let map = map
+            .map_put(
+                Atom::from_str(env, "__struct__").unwrap(),
+                Atom::from_str(env, "Elixir.Anoma.Arm.ForwarderCalldata").unwrap(),
+            )
+            .unwrap();
+
+        map
+    }
+}
+
+#[cfg(feature = "nif")]
+impl<'a> Decoder<'a> for ForwarderCalldata {
+    fn decode(_term: Term<'a>) -> NifResult<Self> {
+        Ok(ForwarderCalldata {
+            untrusted_forwarder: [0u8; 20],
+            input: vec![],
+            output: vec![],
+        })
+    }
 }
 
 impl Action {

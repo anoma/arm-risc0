@@ -14,7 +14,7 @@ use rustler::NifStruct;
 
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 #[cfg_attr(feature = "nif", derive(NifStruct))]
-#[cfg_attr(feature = "nif", module = "Elixir.ComplianceInstance")]
+#[cfg_attr(feature = "nif", module = "Anoma.Arm.ComplianceInstance")]
 pub struct ComplianceInstance {
     pub consumed_nullifier: Vec<u8>,
     pub consumed_logic_ref: Vec<u8>,
@@ -27,7 +27,7 @@ pub struct ComplianceInstance {
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 #[cfg_attr(feature = "nif", derive(NifStruct))]
-#[cfg_attr(feature = "nif", module = "Elixir.ComplianceWitness")]
+#[cfg_attr(feature = "nif", module = "Anoma.Arm.ComplianceWitness")]
 pub struct ComplianceWitness<const COMMITMENT_TREE_DEPTH: usize> {
     /// The consumed resource
     pub consumed_resource: Resource,
