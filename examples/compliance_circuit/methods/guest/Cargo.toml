@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 # If you want to try (experimental) std support, add `features = [ "std" ]` to risc0-zkvm
-risc0-zkvm = { version = "2.0.2", features = ["std", "unstable"] }
+risc0-zkvm = { version = "2.1.0", features = ["std", "unstable"] }
 aarm_core = { path = "../../../../aarm_core" }
 
 [patch.crates-io]

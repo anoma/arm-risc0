@@ -1,4 +1,8 @@
-use risc0_zkvm::{default_prover, sha::Digest, ExecutorEnv, ProverOpts, Receipt, VerifierContext};
+use risc0_zkvm::{
+    default_prover,
+    sha::{Digest, DIGEST_BYTES},
+    ExecutorEnv, ProverOpts, Receipt, VerifierContext,
+};
 use serde::Serialize;
 
 // TODO: handle errors properly
@@ -23,6 +27,11 @@ pub fn groth16_prove<T: Serialize>(witness: &T, proving_key: &[u8]) -> Receipt {
 // TODO: add a stark prove API
 
 // Receipt contains the proof and the public inputs
-pub fn verify(receipt: &Receipt, verifying_key: impl Into<Digest>) -> bool {
+pub fn verify(receipt: &Receipt, verifying_key: &[u8]) -> bool {
+    let verifying_key = if verifying_key.len() == DIGEST_BYTES {
+        Digest::from_bytes(verifying_key.try_into().unwrap())
+    } else {
+        return false;
+    };
     receipt.verify(verifying_key).is_ok()
 }

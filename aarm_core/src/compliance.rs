@@ -1,43 +1,46 @@
 use crate::{
-    constants::{INITIAL_ROOT, TRIVIAL_RESOURCE_LOGIC_VK},
-    merkle_path::MerklePath,
-    nullifier_key::NullifierKey,
+    constants::INITIAL_ROOT, merkle_path::MerklePath, nullifier_key::NullifierKey,
     resource::Resource,
 };
 use k256::{
     elliptic_curve::{
         sec1::{FromEncodedPoint, ToEncodedPoint},
-        Field,
+        Field, PrimeField,
     },
     EncodedPoint, ProjectivePoint, Scalar,
 };
-use risc0_zkvm::sha::{Digest, Impl, Sha256};
+#[cfg(feature = "nif")]
+use rustler::NifStruct;
 
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "nif", derive(NifStruct))]
+#[cfg_attr(feature = "nif", module = "Elixir.ComplianceInstance")]
 pub struct ComplianceInstance {
-    pub consumed_nullifier: Digest,
-    pub consumed_logic_ref: Digest,
-    pub consumed_commitment_tree_root: Digest,
-    pub created_commitment: Digest,
-    pub created_logic_ref: Digest,
-    pub delta_x: Digest,
-    pub delta_y: Digest,
+    pub consumed_nullifier: Vec<u8>,
+    pub consumed_logic_ref: Vec<u8>,
+    pub consumed_commitment_tree_root: Vec<u8>,
+    pub created_commitment: Vec<u8>,
+    pub created_logic_ref: Vec<u8>,
+    pub delta_x: Vec<u8>,
+    pub delta_y: Vec<u8>,
 }
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "nif", derive(NifStruct))]
+#[cfg_attr(feature = "nif", module = "Elixir.ComplianceWitness")]
 pub struct ComplianceWitness<const COMMITMENT_TREE_DEPTH: usize> {
     /// The consumed resource
     pub consumed_resource: Resource,
     /// The path from the consumed commitment to the root in the commitment tree
     pub merkle_path: MerklePath<COMMITMENT_TREE_DEPTH>,
     /// The existing root for the ephemeral resource
-    pub ephemeral_root: Digest,
+    pub ephemeral_root: Vec<u8>,
     /// Nullifier key of the consumed resource
     pub nf_key: NullifierKey,
     /// The created resource
     pub created_resource: Resource,
     /// Random scalar for delta commitment
-    pub rcv: Scalar,
+    pub rcv: Vec<u8>,
     // TODO: If we want to add function privacy, include:
     // pub input_resource_logic_cm_r: [u8; DATA_BYTES],
     // pub output_resource_logic_cm_r: [u8; DATA_BYTES],
@@ -49,14 +52,14 @@ impl<const COMMITMENT_TREE_DEPTH: usize> ComplianceWitness<COMMITMENT_TREE_DEPTH
         nf_key: NullifierKey,
         created_resource: Resource,
     ) -> Self {
-        let rng = rand::thread_rng();
+        let mut rng = rand::thread_rng();
         ComplianceWitness {
             consumed_resource,
             created_resource,
             merkle_path: MerklePath::<COMMITMENT_TREE_DEPTH>::default(),
-            rcv: Scalar::random(rng),
+            rcv: Scalar::random(&mut rng).to_bytes().to_vec(),
             nf_key,
-            ephemeral_root: *INITIAL_ROOT,
+            ephemeral_root: INITIAL_ROOT.as_bytes().to_vec(),
         }
     }
 
@@ -66,15 +69,14 @@ impl<const COMMITMENT_TREE_DEPTH: usize> ComplianceWitness<COMMITMENT_TREE_DEPTH
         merkle_path: MerklePath<COMMITMENT_TREE_DEPTH>,
         created_resource: Resource,
     ) -> Self {
-        let rng = rand::thread_rng();
-        let rcv = Scalar::random(rng);
+        let mut rng = rand::thread_rng();
         ComplianceWitness {
             consumed_resource,
             created_resource,
             merkle_path,
-            rcv,
+            rcv: Scalar::random(&mut rng).to_bytes().to_vec(),
             nf_key,
-            ephemeral_root: Digest::default(), // not used
+            ephemeral_root: vec![0; 32], // not used
         }
     }
 
@@ -88,16 +90,16 @@ impl<const COMMITMENT_TREE_DEPTH: usize> ComplianceWitness<COMMITMENT_TREE_DEPTH
             consumed_resource,
             created_resource,
             merkle_path: MerklePath::<COMMITMENT_TREE_DEPTH>::default(),
-            rcv: Scalar::ONE,
+            rcv: Scalar::ONE.to_bytes().to_vec(),
             nf_key,
-            ephemeral_root: *INITIAL_ROOT,
+            ephemeral_root: INITIAL_ROOT.as_bytes().to_vec(),
         }
     }
 
     pub fn constrain(&self) -> ComplianceInstance {
         let consumed_cm = self.consumed_commitment();
         let consumed_logic_ref = self.consumed_resource_logic();
-        let consumed_commitment_tree_root = self.consumed_commitment_tree_root(consumed_cm);
+        let consumed_commitment_tree_root = self.consumed_commitment_tree_root(&consumed_cm);
 
         let consumed_nullifier = self.consumed_nullifier(&consumed_cm);
         let created_logic_ref = self.created_resource_logic();
@@ -116,84 +118,90 @@ impl<const COMMITMENT_TREE_DEPTH: usize> ComplianceWitness<COMMITMENT_TREE_DEPTH
         }
     }
 
-    pub fn consumed_resource_logic(&self) -> Digest {
-        self.consumed_resource.logic_ref
+    pub fn consumed_resource_logic(&self) -> Vec<u8> {
+        self.consumed_resource.logic_ref.clone()
     }
 
-    pub fn created_resource_logic(&self) -> Digest {
-        self.created_resource.logic_ref
+    pub fn created_resource_logic(&self) -> Vec<u8> {
+        self.created_resource.logic_ref.clone()
     }
 
-    pub fn consumed_commitment(&self) -> Digest {
+    pub fn consumed_commitment(&self) -> Vec<u8> {
         self.consumed_resource.commitment()
     }
 
-    pub fn created_commitment(&self) -> Digest {
+    pub fn created_commitment(&self) -> Vec<u8> {
         self.created_resource.commitment()
     }
 
-    pub fn consumed_nullifier(&self, cm: &Digest) -> Digest {
+    pub fn consumed_nullifier(&self, cm: &[u8]) -> Vec<u8> {
         self.consumed_resource
             .nullifier_from_commitment(&self.nf_key, cm)
             .unwrap()
     }
 
-    pub fn consumed_commitment_tree_root(&self, cm: Digest) -> Digest {
+    pub fn consumed_commitment_tree_root(&self, cm: &[u8]) -> Vec<u8> {
         if self.consumed_resource.is_ephemeral {
-            self.ephemeral_root
+            self.ephemeral_root.clone()
         } else {
             self.merkle_path.root(cm)
         }
     }
 
-    pub fn delta_commitment(&self) -> (Digest, Digest) {
+    pub fn delta_commitment(&self) -> (Vec<u8>, Vec<u8>) {
         // Compute delta and make delta commitment public
+        let rcv_array: [u8; 32] = self
+            .rcv
+            .as_slice()
+            .try_into()
+            .expect("rcv must be 32 bytes");
+        let rcv_scalar = Scalar::from_repr(rcv_array.into()).expect("rcv must be a valid scalar");
         let delta = self.consumed_resource.kind() * self.consumed_resource.quantity_scalar()
             - self.created_resource.kind() * self.created_resource.quantity_scalar()
-            + ProjectivePoint::GENERATOR * self.rcv;
+            + ProjectivePoint::GENERATOR * rcv_scalar;
 
         let encoded_delta = delta.to_encoded_point(false);
         (
-            Digest::try_from(&encoded_delta.x().unwrap()[..]).unwrap(),
-            Digest::try_from(&encoded_delta.y().unwrap()[..]).unwrap(),
+            encoded_delta.x().unwrap().to_vec(),
+            encoded_delta.y().unwrap().to_vec(),
         )
     }
 }
 
 impl<const COMMITMENT_TREE_DEPTH: usize> Default for ComplianceWitness<COMMITMENT_TREE_DEPTH> {
     fn default() -> Self {
-        let nf_key = NullifierKey::new(Digest::default());
+        let nf_key = NullifierKey::default();
 
         let consumed_resource = Resource {
-            logic_ref: *Impl::hash_bytes(TRIVIAL_RESOURCE_LOGIC_VK),
-            label_ref: Digest::default(),
+            logic_ref: vec![0; 32],
+            label_ref: vec![0; 32],
             quantity: 1u128,
-            value_ref: Digest::default(),
+            value_ref: vec![0; 32],
             is_ephemeral: false,
-            nonce: [0u8; 32],
+            nonce: vec![0; 32],
             nk_commitment: nf_key.commit(),
-            rand_seed: [0u8; 32],
+            rand_seed: vec![0; 32],
         };
 
         let created_resource = Resource {
-            logic_ref: *Impl::hash_bytes(TRIVIAL_RESOURCE_LOGIC_VK),
-            label_ref: Digest::default(),
+            logic_ref: vec![0; 32],
+            label_ref: vec![0; 32],
             quantity: 1u128,
-            value_ref: Digest::default(),
+            value_ref: vec![0; 32],
             is_ephemeral: false,
-            nonce: [0u8; 32],
+            nonce: vec![0; 32],
             nk_commitment: nf_key.commit(),
-            rand_seed: [0u8; 32],
+            rand_seed: vec![0; 32],
         };
 
         let merkle_path = MerklePath::<COMMITMENT_TREE_DEPTH>::default();
 
-        let rcv = Scalar::ONE;
+        let rcv = Scalar::ONE.to_bytes().to_vec();
 
         ComplianceWitness {
             consumed_resource,
             created_resource,
-            ephemeral_root: Digest::default(),
+            ephemeral_root: vec![0; 32],
             merkle_path,
             rcv,
             nf_key,
@@ -205,12 +213,12 @@ impl ComplianceInstance {
     pub fn delta_projective(&self) -> ProjectivePoint {
         let x: [u8; 32] = self
             .delta_x
-            .as_bytes()
+            .clone()
             .try_into()
             .expect("delta_x must be 32 bytes");
         let y: [u8; 32] = self
             .delta_y
-            .as_bytes()
+            .clone()
             .try_into()
             .expect("delta_y must be 32 bytes");
         let encoded_point = EncodedPoint::from_affine_coordinates(&x.into(), &y.into(), false);
@@ -219,8 +227,8 @@ impl ComplianceInstance {
 
     pub fn delta_msg(&self) -> Vec<u8> {
         let mut msg = Vec::new();
-        msg.extend_from_slice(self.consumed_nullifier.as_bytes());
-        msg.extend_from_slice(self.created_commitment.as_bytes());
+        msg.extend_from_slice(&self.consumed_nullifier);
+        msg.extend_from_slice(&self.created_commitment);
         msg
     }
 }
