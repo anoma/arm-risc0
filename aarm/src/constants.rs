@@ -1,26 +1,20 @@
-use risc0_zkvm::Digest;
+// use risc0_zkvm::Digest;
 
 pub const COMPLIANCE_GUEST_ELF: &[u8] = include_bytes!("../elfs/compliance_elf.bin");
 pub const PADDING_GUEST_ELF: &[u8] = include_bytes!("../elfs/padding_logic_elf.bin");
 pub const TEST_GUEST_ELF: &[u8] = include_bytes!("../elfs/test_logic_elf.bin");
 
-pub const COMPLIANCE_GUEST_ID: [u32; 8] = [
-    2701349585, 2527110832, 1097996496, 2632817458, 249378437, 3823558497, 3512528456, 3033479435,
+pub const COMPLIANCE_GUEST_ID: &[u8; 32] = &[
+    188, 234, 168, 141, 91, 54, 127, 126, 66, 108, 74, 127, 86, 181, 21, 173, 213, 69, 176, 73,
+    143, 122, 63, 15, 4, 75, 36, 104, 9, 239, 0, 194,
 ];
 
-pub const PADDING_GUEST_ID: [u32; 8] = [
-    3568301530, 3855691811, 2315865068, 3130072989, 1647038886, 2441233379, 1348193728, 1587710096,
+pub const PADDING_GUEST_ID: &[u8; 32] = &[
+    95, 196, 191, 159, 188, 223, 251, 22, 99, 181, 41, 84, 33, 169, 183, 41, 206, 30, 164, 75, 81,
+    95, 141, 226, 84, 246, 88, 154, 232, 67, 169, 239,
 ];
 
-pub const TEST_GUEST_ID: [u32; 8] = [
-    1139820909, 997563335, 2353495433, 3120987745, 583364796, 1182468441, 3901448634, 2610842315,
+pub const TEST_GUEST_ID: &[u8; 32] = &[
+    115, 46, 90, 182, 221, 164, 139, 3, 72, 121, 239, 156, 172, 144, 63, 152, 226, 182, 236, 83,
+    133, 151, 61, 113, 135, 101, 21, 20, 64, 143, 50, 150,
 ];
-
-pub fn get_compliance_id() -> Digest {
-    Digest::from(crate::constants::COMPLIANCE_GUEST_ID)
-}
-
-#[test]
-fn print_compliance_id() {
-    println!("compliance_id: {:?}", get_compliance_id());
-}

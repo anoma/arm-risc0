@@ -1,7 +1,15 @@
 use k256::ecdsa::{Error, RecoveryId, Signature, SigningKey, VerifyingKey};
-use k256::{elliptic_curve::ScalarPrimitive, ProjectivePoint, PublicKey, Scalar, SecretKey};
+use k256::{elliptic_curve::ScalarPrimitive, elliptic_curve::PublicKey, ProjectivePoint, SecretKey, Scalar};
 use serde::{Deserialize, Serialize};
+
 use sha3::{Digest, Keccak256};
+#[cfg(feature = "nif")]
+use {
+    k256::elliptic_curve::pkcs8::der::Writer,
+    rustler::types::map::map_new,
+    rustler::{Atom, Binary, Decoder, Encoder, Env, NifResult, OwnedBinary, Term},
+    std::io::Write,
+};
 
 #[derive(Clone, Debug)]
 pub struct DeltaProof {
@@ -9,11 +17,109 @@ pub struct DeltaProof {
     pub recid: RecoveryId,
 }
 
+#[cfg(feature = "nif")]
+impl Encoder for DeltaProof {
+    fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
+        let map = map_new(env);
+        // store the name of the elixir struct
+        let map = map
+            .map_put(
+                Atom::from_str(env, "__struct__").unwrap(),
+                Atom::from_str(env, "Elixir.Anoma.Arm.DeltaProof").unwrap(),
+            )
+            .unwrap();
+
+        // store the bytes for the signing key
+        let key_bytes = self.signature.to_bytes();
+        let mut erl_bin = OwnedBinary::new(key_bytes.len()).unwrap();
+        erl_bin.as_mut_slice().write_all(&key_bytes).unwrap();
+        let erl_binary = Binary::from_owned(erl_bin, env);
+
+        let map = map
+            .map_put(Atom::from_str(env, "signature").unwrap(), erl_binary)
+            .unwrap();
+
+        // store the byte for the recovery id
+        let recovery_id_byte = self.recid.to_byte();
+        let mut erl_bin = OwnedBinary::new(1).unwrap();
+        erl_bin.as_mut_slice().write_byte(recovery_id_byte).unwrap();
+        let erl_binary = Binary::from_owned(erl_bin, env);
+        let map = map
+            .map_put(Atom::from_str(env, "recid").unwrap(), erl_binary)
+            .unwrap();
+
+        map
+    }
+}
+
+#[cfg(feature = "nif")]
+impl<'a> Decoder<'a> for DeltaProof {
+    fn decode(term: Term<'a>) -> NifResult<Self> {
+        // fetch the bytes for the signature
+        let key = Atom::from_str(term.get_env(), "signature")?;
+        let value = term.map_get(key).expect("signing_key found in struct");
+        let binary = Binary::from_term(value).expect("could not decode bytes into binary");
+        let bytes = binary.to_vec();
+        let sig = Signature::from_slice(bytes.as_slice()).unwrap();
+
+        // decode the recovery id
+        let key = Atom::from_str(term.get_env(), "recid")?;
+        let value = term.map_get(key).expect("recid found in struct");
+        let binary = Binary::from_term(value).expect("could not decode bytes into binary");
+        let bytes = binary.to_vec();
+        let val = RecoveryId::from_byte(bytes[0]).unwrap();
+        Ok(DeltaProof {
+            signature: sig,
+            recid: val,
+        })
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct DeltaWitness {
     pub signing_key: SigningKey,
 }
 
+#[cfg(feature = "nif")]
+impl Encoder for DeltaWitness {
+    fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
+        let map = map_new(env);
+        // store the name of the elixir struct
+        let map = map
+            .map_put(
+                Atom::from_str(env, "__struct__").unwrap(),
+                Atom::from_str(env, "Elixir.Anoma.Arm.DeltaWitness").unwrap(),
+            )
+            .unwrap();
+
+        // store the bytes for the signing key
+        let key_bytes = self.signing_key.to_bytes();
+        // let key_bytess = key_bytes.to_vec();
+        let mut erl_bin = OwnedBinary::new(key_bytes.len()).unwrap();
+        erl_bin.as_mut_slice().write_all(&key_bytes).unwrap();
+        let erl_binary = Binary::from_owned(erl_bin, env);
+
+        let map = map
+            .map_put(Atom::from_str(env, "signing_key").unwrap(), erl_binary)
+            .unwrap();
+
+        map
+    }
+}
+
+#[cfg(feature = "nif")]
+impl<'a> Decoder<'a> for DeltaWitness {
+    fn decode(term: Term<'a>) -> NifResult<Self> {
+        // fetch the bytes for the signing key
+        let key = Atom::from_str(term.get_env(), "signing_key")?;
+        let value = term.map_get(key).expect("signing_key found in struct");
+        let binary = Binary::from_term(value).expect("could not decode bytes into binary");
+        let bytes = binary.to_vec();
+        let sk = SigningKey::from_slice(bytes.as_slice()).unwrap();
+
+        Ok(DeltaWitness { signing_key: sk })
+    }
+}
 pub struct DeltaInstance {
     pub verifying_key: VerifyingKey,
 }
@@ -71,6 +177,14 @@ impl DeltaWitness {
         let sk: SecretKey = SecretKey::new(sum);
         let signing_key = SigningKey::from(&sk);
         DeltaWitness { signing_key }
+    }
+
+    pub fn from_bytes_vec(keys: &[Vec<u8>]) -> DeltaWitness {
+        let witnesses: Vec<DeltaWitness> = keys
+            .iter()
+            .map(|key| DeltaWitness::from_bytes(key))
+            .collect();
+        DeltaWitness::compress(&witnesses)
     }
 
     pub fn from_bytes(bytes: &[u8]) -> DeltaWitness {

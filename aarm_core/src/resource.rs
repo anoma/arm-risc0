@@ -1,3 +1,5 @@
+use std::vec;
+
 use crate::constants::{
     DEFAULT_BYTES, DST, PRF_EXPAND_PERSONALIZATION, PRF_EXPAND_PERSONALIZATION_LEN, PRF_EXPAND_PSI,
     PRF_EXPAND_RCM, QUANTITY_BYTES, RESOURCE_BYTES,
@@ -8,49 +10,55 @@ use k256::{
     ProjectivePoint, Scalar, Secp256k1,
 };
 use rand::Rng;
-use risc0_zkvm::sha::{rust_crypto::Sha256 as Sha256Type, Digest, Impl, Sha256, DIGEST_BYTES};
+use risc0_zkvm::sha::{rust_crypto::Sha256 as Sha256Type, Impl, Sha256, DIGEST_BYTES};
+#[cfg(feature = "nif")]
+use rustler::NifStruct;
 use serde::{Deserialize, Serialize};
 
 /// A resource that can be created and consumed
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "nif", derive(NifStruct))]
+#[cfg_attr(feature = "nif", module = "Anoma.Arm.Resource")]
 pub struct Resource {
     // a succinct representation of the predicate associated with the resource
-    pub logic_ref: Digest,
+    pub logic_ref: Vec<u8>,
     // specifies the fungibility domain for the resource
-    pub label_ref: Digest,
+    pub label_ref: Vec<u8>,
     // number representing the quantity of the resource
     pub quantity: u128,
     // the fungible value reference of the resource
-    pub value_ref: Digest,
+    pub value_ref: Vec<u8>,
     // flag that reflects the resource ephemerality
     pub is_ephemeral: bool,
     // guarantees the uniqueness of the resource computable components
-    pub nonce: [u8; DEFAULT_BYTES],
+    pub nonce: Vec<u8>,
     // commitment to nullifier key
     pub nk_commitment: NullifierKeyCommitment,
     // randomness seed used to derive whatever randomness needed
-    pub rand_seed: [u8; DEFAULT_BYTES],
+    pub rand_seed: Vec<u8>,
 }
 
 impl Resource {
     pub fn create(
-        logic_ref: Digest,
-        label_ref: Digest,
+        logic_ref: Vec<u8>,
+        label_ref: Vec<u8>,
         quantity: u128,
-        value_ref: Digest,
+        value_ref: Vec<u8>,
         is_ephemeral: bool,
         nk_commitment: NullifierKeyCommitment,
     ) -> Self {
         let mut rng = rand::thread_rng();
+        let nonce: [u8; DEFAULT_BYTES] = rng.gen();
+        let rand_seed: [u8; DEFAULT_BYTES] = rng.gen();
         Self {
             logic_ref,
             label_ref,
             quantity,
             value_ref,
             is_ephemeral,
-            nonce: rng.gen(),
+            nonce: nonce.to_vec(),
             nk_commitment,
-            rand_seed: rng.gen(),
+            rand_seed: rand_seed.to_vec(),
         }
     }
 
@@ -69,7 +77,7 @@ impl Resource {
         Secp256k1::hash_from_bytes::<ExpandMsgXmd<Sha256Type>>(&[&bytes], &[DST]).unwrap()
     }
 
-    fn psi(&self) -> Digest {
+    fn psi(&self) -> Vec<u8> {
         let mut bytes = [0u8; PRF_EXPAND_PERSONALIZATION_LEN + 1 + 2 * DIGEST_BYTES];
         let mut offset: usize = 0;
         // Write the PRF_EXPAND_PERSONALIZATION
@@ -88,10 +96,10 @@ impl Resource {
             offset,
             PRF_EXPAND_PERSONALIZATION_LEN + 1 + 2 * DIGEST_BYTES
         );
-        *Impl::hash_bytes(&bytes)
+        Impl::hash_bytes(&bytes).as_bytes().to_vec()
     }
 
-    fn rcm(&self) -> Digest {
+    fn rcm(&self) -> Vec<u8> {
         let mut bytes = [0u8; PRF_EXPAND_PERSONALIZATION_LEN + 1 + 2 * DIGEST_BYTES];
         let mut offset: usize = 0;
         // Write the PRF_EXPAND_PERSONALIZATION
@@ -110,11 +118,11 @@ impl Resource {
             offset,
             PRF_EXPAND_PERSONALIZATION_LEN + 1 + 2 * DIGEST_BYTES
         );
-        *Impl::hash_bytes(&bytes)
+        Impl::hash_bytes(&bytes).as_bytes().to_vec()
     }
 
     // Compute the commitment to the resource
-    pub fn commitment(&self) -> Digest {
+    pub fn commitment(&self) -> Vec<u8> {
         // Concatenate all the components of this resource
         let mut bytes = [0u8; RESOURCE_BYTES];
         let mut offset: usize = 0;
@@ -145,16 +153,16 @@ impl Resource {
         offset += DEFAULT_BYTES;
         assert_eq!(offset, RESOURCE_BYTES);
         // Now produce the hash
-        *Impl::hash_bytes(&bytes)
+        Impl::hash_bytes(&bytes).as_bytes().to_vec()
     }
 
     // Compute the nullifier of the resource
-    pub fn nullifier(&self, nf_key: &NullifierKey) -> Option<Digest> {
+    pub fn nullifier(&self, nf_key: &NullifierKey) -> Option<Vec<u8>> {
         let cm = self.commitment();
         self.nullifier_from_commitment(nf_key, &cm)
     }
 
-    pub fn nullifier_from_commitment(&self, nf_key: &NullifierKey, cm: &Digest) -> Option<Digest> {
+    pub fn nullifier_from_commitment(&self, nf_key: &NullifierKey, cm: &[u8]) -> Option<Vec<u8>> {
         // Make sure that the nullifier public key corresponds to the secret key
         if self.nk_commitment == nf_key.commit() {
             let mut bytes = [0u8; 4 * DIGEST_BYTES];
@@ -174,7 +182,7 @@ impl Resource {
 
             assert_eq!(offset, 4 * DIGEST_BYTES);
 
-            Some(*Impl::hash_bytes(&bytes))
+            Some(Impl::hash_bytes(&bytes).as_bytes().to_vec())
         } else {
             None
         }
@@ -188,7 +196,7 @@ impl Resource {
         bincode::deserialize(bytes).unwrap()
     }
 
-    pub fn set_value_ref(&mut self, value_ref: Digest) {
+    pub fn set_value_ref(&mut self, value_ref: Vec<u8>) {
         self.value_ref = value_ref;
     }
 
@@ -198,22 +206,24 @@ impl Resource {
 
     pub fn reset_randomness_nonce(&mut self) {
         let mut rng = rand::thread_rng();
-        self.rand_seed = rng.gen();
-        self.nonce = rng.gen();
+        let nonce: [u8; DEFAULT_BYTES] = rng.gen();
+        let rand_seed: [u8; DEFAULT_BYTES] = rng.gen();
+        self.rand_seed = rand_seed.to_vec();
+        self.nonce = nonce.to_vec();
     }
 }
 
 impl Default for Resource {
     fn default() -> Self {
         Self {
-            logic_ref: Digest::default(),
-            label_ref: Digest::default(),
+            logic_ref: vec![0; DEFAULT_BYTES],
+            label_ref: vec![0; DEFAULT_BYTES],
             quantity: 0,
-            value_ref: Digest::default(),
+            value_ref: vec![0; DEFAULT_BYTES],
             is_ephemeral: true,
-            nonce: [0; DEFAULT_BYTES],
+            nonce: vec![0; DEFAULT_BYTES],
             nk_commitment: NullifierKeyCommitment::default(),
-            rand_seed: [0; DEFAULT_BYTES],
+            rand_seed: vec![0; DEFAULT_BYTES],
         }
     }
 }

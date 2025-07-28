@@ -9,8 +9,6 @@ pub const PRF_EXPAND_PERSONALIZATION: &[u8; PRF_EXPAND_PERSONALIZATION_LEN] = b"
 pub const PRF_EXPAND_PSI: u8 = 0;
 pub const PRF_EXPAND_RCM: u8 = 1;
 
-pub const TRIVIAL_RESOURCE_LOGIC_VK: &[u8] = b"trivial_resource_logic_vk";
-
 pub const COMMITMENT_TREE_DEPTH: usize = 32;
 
 pub const DEFAULT_BYTES: usize = 32;

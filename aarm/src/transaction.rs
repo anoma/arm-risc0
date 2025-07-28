@@ -3,13 +3,23 @@ use crate::action::Action;
 use aarm_core::delta_proof::{DeltaInstance, DeltaProof, DeltaWitness};
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "nif")]
+use {
+     rustler::NifStruct,
+     rustler::NifTaggedEnum,
+};
+
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
+#[cfg_attr(feature = "nif", derive(NifStruct))]
+#[cfg_attr(feature = "nif", module = "Anoma.Arm.Transacttion")]
 pub struct Transaction {
     pub actions: Vec<Action>,
     pub delta_proof: Delta,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
+#[cfg_attr(feature = "nif", derive(NifTaggedEnum))]
 pub enum Delta {
     Witness(DeltaWitness),
     Proof(DeltaProof),

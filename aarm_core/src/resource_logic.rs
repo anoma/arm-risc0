@@ -4,6 +4,9 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "nif")]
+use rustler::NifStruct;
+
 /// This is a trait for logic constraints implementation.
 pub trait LogicCircuit: Default + Clone + Serialize + for<'de> Deserialize<'de> {
     // In general, it's implemented as `Self::default()`
@@ -16,6 +19,9 @@ pub trait LogicCircuit: Default + Clone + Serialize + for<'de> Deserialize<'de> 
 }
 
 #[derive(Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "nif", derive(NifStruct))]
+#[cfg_attr(feature = "nif", module = "Anoma.Arm.TrivialLogicWitness")]
+
 pub struct TrivialLogicWitness {
     pub resource: Resource,
     pub receive_existence_path: MerklePath<ACTION_TREE_DEPTH>,
@@ -34,7 +40,7 @@ impl LogicCircuit for TrivialLogicWitness {
         } else {
             self_cm
         };
-        let root = self.receive_existence_path.root(tag);
+        let root = self.receive_existence_path.root(&tag);
 
         // The trivial resource is ephemeral and has zero quantity
         assert_eq!(self.resource.quantity, 0);
@@ -75,7 +81,7 @@ impl TrivialLogicWitness {
         } else {
             self_cm
         };
-        let root = self.receive_existence_path.root(tag);
+        let root = self.receive_existence_path.root(&tag);
 
         // The trivial resource is ephemeral and has zero quantity
         assert_eq!(self.resource.quantity, 0);
