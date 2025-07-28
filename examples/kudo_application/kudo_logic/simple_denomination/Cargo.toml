@@ -1,0 +1,14 @@
+[workspace]
+resolver = "2"
+members = []
+
+[package]
+name = "simple-denomination"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde = { version = "1.0.197", default-features = false }
+risc0-zkvm = "2.1.0"
+kudo-logic-witness = { path = "../logic_witness" }
+denomination-logic-circuit = { path = "methods" }

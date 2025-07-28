@@ -1,12 +1,12 @@
 pub mod increment;
 pub mod init;
 
-use aarm::{
+use arm::{
     compliance_unit::ComplianceUnit,
     logic_proof::{LogicProof, LogicProver},
     utils::convert_image_id_to_bytes,
 };
-use aarm_core::{
+use arm_core::{
     action_tree::{MerkleTree, ACTION_TREE_DEPTH},
     compliance::ComplianceWitness,
     constants::COMMITMENT_TREE_DEPTH,

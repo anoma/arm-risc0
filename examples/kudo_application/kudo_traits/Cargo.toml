@@ -1,0 +1,11 @@
+[package]
+name = "kudo-traits"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+arm_core = { path = "../../../arm_core" }
+serde = { version = "1.0.197", default-features = false }
+risc0-zkvm = "2.1.0"
+rand = "0.8"
+arm = { path = "../../../arm" }
