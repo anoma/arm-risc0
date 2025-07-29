@@ -3,15 +3,19 @@ use arm::{
     merkle_path::MerklePath, merkle_path::COMMITMENT_TREE_DEPTH, nullifier_key::NullifierKey,
     resource::Resource,
 };
+use hex::FromHex;
 use kudo_logic_witness::simple_receive_witness::SimpleReceiveLogicWitness;
 use kudo_traits::{compliance_info::ComplianceWitnessInfo, resource_info::ReceiveInfo};
+use lazy_static::lazy_static;
+use risc0_zkvm::Digest;
 use serde::{Deserialize, Serialize};
 
-pub const RECEIVE_ELF: &[u8] = include_bytes!("../../kudo_logic/elfs/simple-receive.bin");
-pub const RECEIVE_ID: &[u8] = &[
-    204, 33, 50, 39, 220, 132, 240, 103, 23, 203, 82, 42, 15, 68, 87, 216, 137, 171, 95, 45, 178,
-    55, 192, 48, 30, 195, 159, 131, 150, 68, 96, 251,
-];
+pub const RECEIVE_ELF: &[u8] = include_bytes!("../../kudo_logic/elfs/receive.bin");
+lazy_static! {
+    pub static ref RECEIVE_ID: Digest =
+        Digest::from_hex("434f851a83ffef9c39db2343dba8f8c9a2d2b3dbd93eb652a410a9d0b6f15dbf")
+            .unwrap();
+}
 
 #[derive(Clone, Default, Deserialize, Serialize)]
 pub struct SimpleReceiveInfo {
@@ -26,8 +30,8 @@ impl LogicProver for SimpleReceiveInfo {
         RECEIVE_ELF
     }
 
-    fn verifying_key() -> Vec<u8> {
-        RECEIVE_ID.to_vec()
+    fn verifying_key() -> Digest {
+        *RECEIVE_ID
     }
 
     fn witness(&self) -> &Self::Witness {

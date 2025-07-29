@@ -9,6 +9,7 @@ use crate::{
     resource_logic::TrivialLogicWitness,
 };
 use rand::Rng;
+use risc0_zkvm::Digest;
 #[cfg(feature = "nif")]
 use rustler::NifStruct;
 use serde::{Deserialize, Serialize};
@@ -18,7 +19,11 @@ pub trait LogicProver: Default + Clone + Serialize + for<'de> Deserialize<'de> {
 
     fn proving_key() -> &'static [u8];
 
-    fn verifying_key() -> Vec<u8>;
+    fn verifying_key() -> Digest;
+
+    fn verifying_key_as_bytes() -> Vec<u8> {
+        Self::verifying_key().as_bytes().to_vec()
+    }
 
     fn witness(&self) -> &Self::Witness;
 
@@ -28,7 +33,7 @@ pub trait LogicProver: Default + Clone + Serialize + for<'de> Deserialize<'de> {
             // TODO: handle the unwrap properly
             proof,
             instance,
-            verifying_key: Self::verifying_key(),
+            verifying_key: Self::verifying_key_as_bytes(),
         }
     }
 }
@@ -44,7 +49,13 @@ pub struct LogicProof {
 
 impl LogicProof {
     pub fn verify(&self) -> bool {
-        verify_proof(&self.verifying_key, &self.instance, &self.proof)
+        let vk = if self.verifying_key.len() == 32 {
+            Digest::from_bytes(self.verifying_key.clone().try_into().unwrap())
+        } else {
+            return false; // Invalid verifying key length
+        };
+
+        verify_proof(&vk, &self.instance, &self.proof)
     }
 
     pub fn get_instance(&self) -> LogicInstance {
@@ -64,8 +75,8 @@ impl LogicProver for PaddingResourceLogic {
         PADDING_LOGIC_PK
     }
 
-    fn verifying_key() -> Vec<u8> {
-        PADDING_LOGIC_VK.into()
+    fn verifying_key() -> Digest {
+        *PADDING_LOGIC_VK
     }
 
     fn witness(&self) -> &Self::Witness {
@@ -93,7 +104,7 @@ impl PaddingResourceLogic {
         let nonce: [u8; 32] = rng.gen();
         let rand_seed: [u8; 32] = rng.gen();
         Resource {
-            logic_ref: Self::verifying_key(),
+            logic_ref: Self::verifying_key().as_bytes().to_vec(),
             label_ref: vec![0; 32],
             quantity: 0,
             value_ref: vec![0; 32],
@@ -126,8 +137,8 @@ impl LogicProver for TrivialLogicWitness {
         PADDING_LOGIC_PK
     }
 
-    fn verifying_key() -> Vec<u8> {
-        PADDING_LOGIC_VK.into()
+    fn verifying_key() -> Digest {
+        *PADDING_LOGIC_VK
     }
 
     fn witness(&self) -> &Self::Witness {

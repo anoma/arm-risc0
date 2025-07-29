@@ -35,7 +35,7 @@ pub fn build_swap_tx(
     let (instant_nk, instant_nk_commitment) = NullifierKey::random_pair();
 
     // Construct the consumed kudo resource
-    let kudo_logic = KudoMainInfo::verifying_key();
+    let kudo_logic = KudoMainInfo::verifying_key_as_bytes();
     let consumed_kudo_lable = compute_kudo_label(&kudo_logic, consumed_issuer);
     assert_eq!(consumed_kudo_resource.label_ref, consumed_kudo_lable);
     let owner = AuthorizationVerifyingKey::from_signing_key(owner_sk);
@@ -58,7 +58,7 @@ pub fn build_swap_tx(
     let created_kudo_value_cm = created_kudo_resource.commitment();
 
     // Construct the denomination resource corresponding to the consumed kudo resource
-    let denomination_logic = SimpleDenominationInfo::verifying_key();
+    let denomination_logic = SimpleDenominationInfo::verifying_key_as_bytes();
     let mut rng = rand::thread_rng();
     let nonce: [u8; 32] = rng.gen(); // Random nonce for the ephemeral resource
     let consumed_denomination_resource = Resource::create(
@@ -93,7 +93,7 @@ pub fn build_swap_tx(
 
     // Construct the receive logic resource
     let receive_resource = Resource::create(
-        SimpleReceiveInfo::verifying_key(),
+        SimpleReceiveInfo::verifying_key_as_bytes(),
         created_kudo_value_cm.clone(),
         0,
         [0u8; 32].into(),
@@ -161,7 +161,7 @@ pub fn build_swap_tx(
 
     // Construct the created kudo witness
     let receiver_signature =
-        generate_receive_signature(&SimpleReceiveInfo::verifying_key(), owner_sk);
+        generate_receive_signature(&SimpleReceiveInfo::verifying_key_as_bytes(), owner_sk);
     let created_kudo_logic_witness = KudoMainWitness::generate_persistent_resource_creation_witness(
         created_kudo_resource.clone(),
         created_kudo_existence_path.clone(),
@@ -229,7 +229,7 @@ fn generate_a_swap_tx() {
     use arm::transaction::Transaction;
     use std::time::Instant;
 
-    let kudo_logic = KudoMainInfo::verifying_key();
+    let kudo_logic = KudoMainInfo::verifying_key_as_bytes();
     // The issuer determines the kind of kudo
     let alice_consumed_issuer_sk = AuthorizationSigningKey::new();
     let alice_consumed_issuer =

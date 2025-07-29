@@ -300,7 +300,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "arm_core"
+name = "arm"
 version = "0.1.0"
 dependencies = [
  "aes-gcm",
@@ -1491,7 +1491,7 @@ dependencies = [
 name = "kudo-logic-witness"
 version = "0.1.0"
 dependencies = [
- "arm_core",
+ "arm",
  "rand 0.8.5",
  "risc0-zkvm",
  "serde",

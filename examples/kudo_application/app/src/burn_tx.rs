@@ -27,7 +27,7 @@ pub fn build_burn_tx(
     let (instant_nk, instant_nk_commitment) = NullifierKey::random_pair();
 
     // Construct the burned kudo resource
-    let kudo_lable = compute_kudo_label(&KudoMainInfo::verifying_key(), &issuer);
+    let kudo_lable = compute_kudo_label(&KudoMainInfo::verifying_key_as_bytes(), &issuer);
     assert_eq!(burned_kudo_resource.label_ref, kudo_lable);
     let owner = AuthorizationVerifyingKey::from_signing_key(owner_sk);
     let kudo_value = compute_kudo_value(&owner);
@@ -44,7 +44,7 @@ pub fn build_burn_tx(
     let ephemeral_kudo_resource_cm = ephemeral_kudo_resource.commitment();
 
     // Construct the ephemeral denomination resource
-    let denomination_logic = SimpleDenominationInfo::verifying_key();
+    let denomination_logic = SimpleDenominationInfo::verifying_key_as_bytes();
     let mut rng = rand::thread_rng();
     let nonce: [u8; 32] = rng.gen(); // Random nonce for the ephemeral resource
     let ephemeral_denomination_resource = Resource::create(
@@ -170,7 +170,7 @@ fn generate_a_burn_tx() {
     let issuer_sk = AuthorizationSigningKey::new();
     let issuer = AuthorizationVerifyingKey::from_signing_key(&issuer_sk);
     // TODO: fix the kudo_logic
-    let kudo_logic = KudoMainInfo::verifying_key();
+    let kudo_logic = KudoMainInfo::verifying_key_as_bytes();
     let kudo_lable = compute_kudo_label(&kudo_logic, &issuer);
     let owner_sk = issuer_sk.clone();
     let owner = AuthorizationVerifyingKey::from_signing_key(&owner_sk);

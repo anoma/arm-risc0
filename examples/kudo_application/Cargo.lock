@@ -119,9 +119,11 @@ name = "app"
 version = "0.1.0"
 dependencies = [
  "arm",
+ "hex",
  "k256",
  "kudo-logic-witness",
  "kudo-traits",
+ "lazy_static",
  "rand 0.8.5",
  "risc0-zkvm",
  "serde",

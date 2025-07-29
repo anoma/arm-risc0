@@ -3,15 +3,19 @@ use arm::{
     merkle_path::MerklePath, merkle_path::COMMITMENT_TREE_DEPTH, nullifier_key::NullifierKey,
     resource::Resource,
 };
+use hex::FromHex;
 use kudo_logic_witness::kudo_main_witness::KudoMainWitness;
 use kudo_traits::{compliance_info::ComplianceWitnessInfo, resource_info::KudoInfo};
+use lazy_static::lazy_static;
+use risc0_zkvm::Digest;
 use serde::{Deserialize, Serialize};
 
-pub const KUDO_LOGIC_ELF: &[u8] = include_bytes!("../../kudo_logic/elfs/kudo-main.bin");
-pub const KUDO_LOGIC_ID: &[u8] = &[
-    250, 57, 201, 1, 136, 161, 188, 217, 64, 220, 29, 176, 123, 150, 131, 101, 82, 3, 198, 218,
-    161, 178, 19, 124, 77, 131, 32, 71, 192, 234, 174, 27,
-];
+pub const KUDO_LOGIC_ELF: &[u8] = include_bytes!("../../kudo_logic/elfs/kudo-logic.bin");
+lazy_static! {
+    pub static ref KUDO_LOGIC_ID: Digest =
+        Digest::from_hex("9efd73b5d2f3a4b8498a0ecba30f6a8d1d9ff326b6b35af7a15d2f48cfc441a3")
+            .unwrap();
+}
 
 #[derive(Clone, Default, Deserialize, Serialize)]
 pub struct KudoMainInfo {
@@ -26,8 +30,8 @@ impl LogicProver for KudoMainInfo {
         KUDO_LOGIC_ELF
     }
 
-    fn verifying_key() -> Vec<u8> {
-        KUDO_LOGIC_ID.to_vec()
+    fn verifying_key() -> Digest {
+        *KUDO_LOGIC_ID
     }
 
     fn witness(&self) -> &Self::Witness {
