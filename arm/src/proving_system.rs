@@ -34,37 +34,26 @@ fn prove_inner<T: Serialize>(witness: &T, proving_key: &[u8]) -> Receipt {
         .build()
         .unwrap();
 
-    // Prover option selection logic:
-    // Only one prover feature should be enabled at a time. The selected feature determines
-    // the type of receipt generated. If none are enabled, default to succinct prover.
-    #[cfg(feature = "succinct_prover")]
-    let prover_opts = ProverOpts::succinct(); // Succinct receipts, constant size.
-
-    #[cfg(all(not(feature = "succinct_prover"), feature = "fast_prover"))]
+    #[cfg(feature = "fast_prover")]
     let prover_opts = ProverOpts::fast(); // Fastest, linear size, no recursion.
 
-    #[cfg(all(
-        not(feature = "succinct_prover"),
-        not(feature = "fast_prover"),
-        feature = "composite_prover"
-    ))]
+    #[cfg(all(not(feature = "fast_prover"), feature = "composite_prover"))]
     let prover_opts = ProverOpts::composite(); // Composite receipts, linear size, supports recursion.
 
     #[cfg(all(
-        not(feature = "succinct_prover"),
         not(feature = "fast_prover"),
         not(feature = "composite_prover"),
         feature = "groth16_prover"
     ))]
     let prover_opts = ProverOpts::groth16(); // Groth16 receipts, constant size, blockchain-friendly.
 
+    // If no specific prover feature is enabled, default to succinct prover.
     #[cfg(all(
-        not(feature = "succinct_prover"),
         not(feature = "fast_prover"),
         not(feature = "composite_prover"),
         not(feature = "groth16_prover")
     ))]
-    let prover_opts = ProverOpts::succinct(); // Fallback to succinct if no feature is enabled.
+    let prover_opts = ProverOpts::succinct(); // Succinct receipts, constant size.
 
     default_prover()
         .prove_with_ctx(env, &VerifierContext::default(), proving_key, &prover_opts)
