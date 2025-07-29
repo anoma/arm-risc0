@@ -12,6 +12,5 @@ risc0-zkvm = "2.1.0"
 serde = { version = "1.0.197", default-features = false }
 serde-big-array = "0.5.1"
 k256 = { version = "=0.13.3", features = ["arithmetic", "serde", "expose-field", "std", "ecdsa", "hash2curve"], default-features = false }
-sha2 = "0.10.6"
 rand = "0.8"
 arm = { path = "../../arm", features = ["compliance_circuit"], default-features = false }

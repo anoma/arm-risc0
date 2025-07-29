@@ -10,11 +10,11 @@ pub const PADDING_LOGIC_PK: &[u8] = include_bytes!("../elfs/trivial-guest.bin");
 lazy_static! {
     // compliance verification key / compliance image id
     pub static ref COMPLIANCE_VK: Digest =
-        Digest::from_hex("292f133f48a8a74efaec4079554f9b33e3ef1ffb263273f0e15850dfc3799895")
+        Digest::from_hex("e9f77211dc64f622255312cbe02fb883b3cf89d9a0c325f8495636e63e4cbdcb")
             .unwrap();
 
     // compliance verification key / compliance image id
     pub static ref PADDING_LOGIC_VK: Digest =
-        Digest::from_hex("d22bf61b3446db08cf1eeebbbbcdadcfd9369ff0bff8d4784a6991184546ceb8")
+        Digest::from_hex("5e9bd5a4da94855383db7a4abb4cb1bebc733cb53362fada9deb8453f20be56d")
             .unwrap();
 }

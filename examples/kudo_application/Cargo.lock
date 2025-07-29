@@ -127,7 +127,6 @@ dependencies = [
  "rand 0.8.5",
  "risc0-zkvm",
  "serde",
- "sha2",
 ]
 
 [[package]]
@@ -365,7 +364,6 @@ dependencies = [
  "rand 0.8.5",
  "risc0-zkvm",
  "serde",
- "sha2",
  "sha3",
 ]
 

@@ -10,7 +10,6 @@ edition = "2021"
 risc0-zkvm = "2.1.0"
 serde = { version = "1.0.197", default-features = false }
 k256 = { version = "=0.13.3", features = ["arithmetic", "serde", "expose-field", "std", "ecdsa", "hash2curve"], default-features = false }
-sha2 = "0.10.6"
 rand = "0.8"
 arm = { path = "../../../arm" }
 kudo-traits = { path = "../kudo_traits" }

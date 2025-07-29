@@ -10,8 +10,7 @@ edition = "2021"
 risc0-zkvm = { version = "2.1.0", features = ["std", "unstable"], default-features = false }
 serde = { version = "1.0.197", default-features = false }
 k256 = { version = "=0.13.3", features = ["arithmetic", "serde", "expose-field", "std", "ecdsa", "hash2curve"], default-features = false }
-sha2 = "0.10.6"
-sha3 = "0.10"
+sha3 = { version = "0.10", optional = true }
 rand = "0.8"
 aes-gcm = "0.10"
 bincode = "1.3.3"
@@ -23,7 +22,7 @@ rustler = { version = "0.36.2", optional = true }
 default = ["succinct_prover", "transaction"]
 prove = ["risc0-zkvm/prove"]
 nif = ["dep:rustler"]
-transaction = ["compliance_circuit", "prove"]
+transaction = ["compliance_circuit", "prove", "dep:sha3"]
 logic_circuit = []
 compliance_circuit = ["logic_circuit"]
 fast_prover = []
