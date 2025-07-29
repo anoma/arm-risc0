@@ -105,7 +105,7 @@ impl<const COMMITMENT_TREE_DEPTH: usize> ComplianceWitness<COMMITMENT_TREE_DEPTH
         let created_logic_ref = self.created_resource_logic();
         let created_commitment = self.created_commitment();
 
-        let (delta_x, delta_y) = self.delta_commitment();
+        let (delta_x, delta_y) = self.delta();
 
         ComplianceInstance {
             consumed_nullifier,
@@ -148,7 +148,7 @@ impl<const COMMITMENT_TREE_DEPTH: usize> ComplianceWitness<COMMITMENT_TREE_DEPTH
         }
     }
 
-    pub fn delta_commitment(&self) -> (Vec<u8>, Vec<u8>) {
+    pub fn delta(&self) -> (Vec<u8>, Vec<u8>) {
         // Compute delta and make delta commitment public
         let rcv_array: [u8; 32] = self
             .rcv

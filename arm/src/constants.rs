@@ -1,20 +1,16 @@
-// use risc0_zkvm::Digest;
+// Compliance proving key / compliance guest ELF binary
+pub const COMPLIANCE_PK: &[u8] = include_bytes!("../elfs/compliance_pk.bin");
+// Padding logic proving key / padding logic guest ELF binary
+pub const PADDING_LOGIC_PK: &[u8] = include_bytes!("../elfs/padding_logic_pk.bin");
 
-pub const COMPLIANCE_GUEST_ELF: &[u8] = include_bytes!("../elfs/compliance_elf.bin");
-pub const PADDING_GUEST_ELF: &[u8] = include_bytes!("../elfs/padding_logic_elf.bin");
-pub const TEST_GUEST_ELF: &[u8] = include_bytes!("../elfs/test_logic_elf.bin");
-
-pub const COMPLIANCE_GUEST_ID: &[u8; 32] = &[
-    188, 234, 168, 141, 91, 54, 127, 126, 66, 108, 74, 127, 86, 181, 21, 173, 213, 69, 176, 73,
-    143, 122, 63, 15, 4, 75, 36, 104, 9, 239, 0, 194,
+// compliance verification key / compliance image id
+pub const COMPLIANCE_VK: &[u8; 32] = &[
+    249, 49, 216, 207, 16, 60, 39, 4, 62, 82, 155, 56, 28, 212, 10, 232, 253, 237, 8, 204, 234,
+    243, 245, 31, 208, 117, 188, 0, 1, 104, 79, 215,
 ];
 
-pub const PADDING_GUEST_ID: &[u8; 32] = &[
-    95, 196, 191, 159, 188, 223, 251, 22, 99, 181, 41, 84, 33, 169, 183, 41, 206, 30, 164, 75, 81,
-    95, 141, 226, 84, 246, 88, 154, 232, 67, 169, 239,
-];
-
-pub const TEST_GUEST_ID: &[u8; 32] = &[
-    115, 46, 90, 182, 221, 164, 139, 3, 72, 121, 239, 156, 172, 144, 63, 152, 226, 182, 236, 83,
-    133, 151, 61, 113, 135, 101, 21, 20, 64, 143, 50, 150,
+// Padding logic verification key / padding logic image id
+pub const PADDING_LOGIC_VK: &[u8; 32] = &[
+    19, 97, 29, 167, 105, 176, 190, 224, 230, 169, 137, 143, 90, 210, 176, 192, 2, 215, 191, 183,
+    42, 243, 127, 105, 6, 188, 151, 12, 100, 187, 118, 6,
 ];

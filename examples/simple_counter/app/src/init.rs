@@ -55,15 +55,15 @@ pub fn create_init_counter_tx() -> (Transaction, Resource, NullifierKey) {
         MerklePath::default(),
         counter_resource.clone(),
     );
-    let logic_proofs = generate_logic_proofs(
+    let logic_verifier_inputs = generate_logic_proofs(
         ephemeral_counter,
         ephemeral_nf_key,
         counter_resource.clone(),
     );
 
-    let action = Action::new(vec![compliance_unit], logic_proofs, vec![]);
+    let action = Action::new(vec![compliance_unit], logic_verifier_inputs, vec![]);
     let delta_witness = DeltaWitness::from_bytes(&rcv);
-    let mut tx = Transaction::new(vec![action], Delta::Witness(delta_witness));
+    let mut tx = Transaction::create(vec![action], Delta::Witness(delta_witness));
     tx.generate_delta_proof();
     (tx, counter_resource, nf_key)
 }

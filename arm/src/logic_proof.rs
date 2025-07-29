@@ -1,6 +1,6 @@
 use crate::{
-    constants::{PADDING_GUEST_ELF, PADDING_GUEST_ID, TEST_GUEST_ELF, TEST_GUEST_ID},
-    utils::{groth16_prove, verify as verify_proof},
+    constants::{PADDING_LOGIC_PK, PADDING_LOGIC_VK},
+    proving_system::{journal_to_instance, prove, verify as verify_proof},
 };
 use arm_core::{
     action_tree::ACTION_TREE_DEPTH, logic_instance::LogicInstance, merkle_path::MerklePath,
@@ -8,7 +8,6 @@ use arm_core::{
     resource_logic::TrivialLogicWitness,
 };
 use rand::Rng;
-use risc0_zkvm::{InnerReceipt, Journal, Receipt};
 #[cfg(feature = "nif")]
 use rustler::NifStruct;
 use serde::{Deserialize, Serialize};
@@ -23,11 +22,11 @@ pub trait LogicProver: Default + Clone + Serialize + for<'de> Deserialize<'de> {
     fn witness(&self) -> &Self::Witness;
 
     fn prove(&self) -> LogicProof {
-        let receipt = groth16_prove(self.witness(), Self::proving_key());
+        let (proof, instance) = prove(Self::proving_key(), self.witness());
         LogicProof {
             // TODO: handle the unwrap properly
-            proof: bincode::serialize(&receipt.inner).unwrap(),
-            instance: receipt.journal.bytes,
+            proof,
+            instance,
             verifying_key: Self::verifying_key(),
         }
     }
@@ -44,17 +43,11 @@ pub struct LogicProof {
 
 impl LogicProof {
     pub fn verify(&self) -> bool {
-        let inner: InnerReceipt = bincode::deserialize(&self.proof).unwrap();
-        let receipt = Receipt::new(inner, self.instance.clone());
-        verify_proof(&receipt, &self.verifying_key)
+        verify_proof(&self.verifying_key, &self.instance, &self.proof)
     }
 
     pub fn get_instance(&self) -> LogicInstance {
-        let journal = Journal {
-            bytes: self.instance.clone(),
-        };
-        // TODO: handle the unwrap properly
-        journal.decode().unwrap()
+        journal_to_instance(&self.instance)
     }
 }
 
@@ -67,11 +60,11 @@ impl LogicProver for PaddingResourceLogic {
     type Witness = TrivialLogicWitness;
 
     fn proving_key() -> &'static [u8] {
-        PADDING_GUEST_ELF
+        PADDING_LOGIC_PK
     }
 
     fn verifying_key() -> Vec<u8> {
-        PADDING_GUEST_ID.into()
+        PADDING_LOGIC_VK.into()
     }
 
     fn witness(&self) -> &Self::Witness {
@@ -129,11 +122,11 @@ impl LogicProver for TrivialLogicWitness {
     type Witness = TrivialLogicWitness;
 
     fn proving_key() -> &'static [u8] {
-        TEST_GUEST_ELF
+        PADDING_LOGIC_PK
     }
 
     fn verifying_key() -> Vec<u8> {
-        TEST_GUEST_ID.into()
+        PADDING_LOGIC_VK.into()
     }
 
     fn witness(&self) -> &Self::Witness {
