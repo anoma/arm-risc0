@@ -17,11 +17,11 @@ where
     R: ReceiveInfo,
 {
     pub consumed_kudo: K,         // consumed resource - compliance unit 1
-    pub consumed_denomination: D, // created resource - compliance unit 1
-    pub created_kudo: K,          // created resource - compliance unit 2
-    pub created_denomination: D,  // consumed resource - compliance unit 2
-    pub created_receive: R,       // created resource - compliance unit 3
+    pub created_kudo: K,          // created resource - compliance unit 1
+    pub consumed_denomination: D, // consumed resource - compliance unit 2
+    pub created_denomination: D,  // created resource - compliance unit 2
     pub padding_resource_logic: PaddingResourceLogic, // consumed resource - compliance unit 3
+    pub created_receive: R,       // created resource - compliance unit 3
 }
 
 impl<K, D, R> Transfer<K, D, R>
@@ -43,7 +43,7 @@ where
                         self.consumed_kudo.resource(),
                         self.consumed_kudo.nf_key().unwrap(),
                         self.consumed_kudo.merkle_path().unwrap(),
-                        self.consumed_denomination.resource(),
+                        self.created_kudo.resource(),
                     );
 
                 (
@@ -58,9 +58,9 @@ where
             let (compliance_unit_2, delta_witness_2) = {
                 let compliance_witness: ComplianceWitness<COMMITMENT_TREE_DEPTH> =
                     ComplianceWitness::from_resources(
+                        self.consumed_denomination.resource(),
+                        self.consumed_denomination.nf_key().unwrap(),
                         self.created_denomination.resource(),
-                        self.created_denomination.nf_key().unwrap(),
-                        self.created_kudo.resource(),
                     );
 
                 (

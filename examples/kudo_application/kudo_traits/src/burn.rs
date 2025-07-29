@@ -14,10 +14,10 @@ where
     K: KudoInfo,
     D: DenominationInfo,
 {
-    pub burned_kudo: K,            // consumed resource
-    pub burned_denomination: D,    // created resource
-    pub ephemeral_kudo: K,         // created resource
-    pub ephemeral_denomination: D, // consumed resource
+    pub burned_kudo: K,            // consumed resource - compliance unit 1
+    pub ephemeral_kudo: K,         // created resource - compliance unit 1
+    pub ephemeral_denomination: D, // consumed resource - compliance unit 2
+    pub burned_denomination: D,    // created resource - compliance unit 2
 }
 
 impl<K, D> Burn<K, D>
@@ -38,7 +38,7 @@ where
                         self.burned_kudo.resource(),
                         self.burned_kudo.nf_key().unwrap(),
                         self.burned_kudo.merkle_path().unwrap(),
-                        self.burned_denomination.resource(),
+                        self.ephemeral_kudo.resource(),
                     );
 
                 (
@@ -54,7 +54,7 @@ where
                     ComplianceWitness::from_resources(
                         self.ephemeral_denomination.resource(),
                         self.ephemeral_denomination.nf_key().unwrap(),
-                        self.ephemeral_kudo.resource(),
+                        self.burned_denomination.resource(),
                     );
 
                 (
@@ -83,9 +83,9 @@ where
                     vec![compliance_unit_1, compliance_unit_2],
                     vec![
                         burned_kudo_proof,
-                        burned_denomination_proof,
                         ephemeral_kudo_proof,
                         ephemeral_denomination_proof,
+                        burned_denomination_proof,
                     ],
                     vec![],
                 ),

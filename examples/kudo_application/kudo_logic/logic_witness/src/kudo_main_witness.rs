@@ -165,6 +165,7 @@ impl KudoMainWitness {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn generate_persistent_resource_consumption_witness(
         kudo_resource: Resource,
         kudo_existence_path: MerklePath<ACTION_TREE_DEPTH>,
@@ -173,6 +174,7 @@ impl KudoMainWitness {
         denomination_resource: Resource,
         denomination_existence_path: MerklePath<ACTION_TREE_DEPTH>,
         denomination_is_consumed: bool,
+        denomination_nf_key: NullifierKey,
     ) -> Self {
         Self {
             kudo_resource,
@@ -185,11 +187,11 @@ impl KudoMainWitness {
             denomination_resource,
             denomination_existence_path,
             denomination_is_consumed,
-            denomination_nf_key: NullifierKey::default(), // not used
-            receive_resource: Resource::default(),        // not used
-            receive_nf_key: NullifierKey::default(),      // not used
-            receive_is_consumed: false,                   // not used
-            owner: AuthorizationVerifyingKey::default(),  // not used
+            denomination_nf_key,
+            receive_resource: Resource::default(),   // not used
+            receive_nf_key: NullifierKey::default(), // not used
+            receive_is_consumed: false,              // not used
+            owner: AuthorizationVerifyingKey::default(), // not used
             receiver_signature: AuthorizationSignature::default(), // not used
             receive_existence_path: MerklePath::default(), // not used
         }

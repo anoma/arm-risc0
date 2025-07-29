@@ -61,3 +61,9 @@ impl Default for NullifierKeyCommitment {
         NullifierKey::default().commit()
     }
 }
+
+impl From<Vec<u8>> for NullifierKeyCommitment {
+    fn from(bytes: Vec<u8>) -> Self {
+        NullifierKeyCommitment(bytes)
+    }
+}

@@ -5,8 +5,8 @@ pub const PADDING_LOGIC_PK: &[u8] = include_bytes!("../elfs/padding_logic_pk.bin
 
 // compliance verification key / compliance image id
 pub const COMPLIANCE_VK: &[u8; 32] = &[
-    249, 49, 216, 207, 16, 60, 39, 4, 62, 82, 155, 56, 28, 212, 10, 232, 253, 237, 8, 204, 234,
-    243, 245, 31, 208, 117, 188, 0, 1, 104, 79, 215,
+    131, 139, 251, 125, 224, 45, 29, 63, 235, 117, 6, 44, 89, 168, 194, 40, 160, 163, 214, 149,
+    113, 231, 229, 246, 255, 51, 247, 116, 26, 125, 129, 56,
 ];
 
 // Padding logic verification key / padding logic image id

@@ -10,10 +10,12 @@ use arm::{
 
 // This function creates a counter resource based on the old counter resource.
 // It increments the counter value by 1 and returns the new counter resource.
-pub fn increment_counter(old_counter: &Resource) -> Resource {
+pub fn increment_counter(old_counter: &Resource, old_counter_nf_key: &NullifierKey) -> Resource {
     let mut new_counter = old_counter.clone();
     let current_value = u128::from_le_bytes(new_counter.value_ref[0..16].try_into().unwrap());
     new_counter.set_value_ref(convert_counter_to_value_ref(current_value + 1));
+    new_counter.reset_randomness();
+    new_counter.set_nonce_from_nf(old_counter, old_counter_nf_key);
     new_counter
 }
 
@@ -21,7 +23,7 @@ pub fn create_increment_tx(
     counter_resource: Resource,
     nf_key: NullifierKey,
 ) -> (Transaction, Resource) {
-    let new_counter = increment_counter(&counter_resource);
+    let new_counter = increment_counter(&counter_resource, &nf_key);
     let (compliance_unit, rcv) = generate_compliance_proof(
         counter_resource.clone(),
         nf_key.clone(),
