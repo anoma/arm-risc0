@@ -1,4 +1,4 @@
-use arm_core::authorization::{
+use arm::authorization::{
     AuthorizationSignature, AuthorizationSigningKey, AuthorizationVerifyingKey,
 };
 use risc0_zkvm::sha::{Impl, Sha256};

@@ -5,8 +5,8 @@ use arm::{
     logic_proof::{LogicProver, PaddingResourceLogic},
     transaction::{Delta, Transaction},
 };
-use arm_core::{
-    compliance::ComplianceWitness, constants::COMMITMENT_TREE_DEPTH, delta_proof::DeltaWitness,
+use arm::{
+    compliance::ComplianceWitness, delta_proof::DeltaWitness, merkle_path::COMMITMENT_TREE_DEPTH,
 };
 
 // TODO: Swap seems simillar to TransferWitness, consider abstracting and

@@ -1,6 +1,6 @@
-use arm_core::{
+use arm::{
     compliance::{ComplianceInstance, ComplianceWitness},
-    constants::COMMITMENT_TREE_DEPTH,
+    merkle_path::COMMITMENT_TREE_DEPTH,
 };
 use compliance_methods::{COMPLIANCE_GUEST_ELF, COMPLIANCE_GUEST_ID};
 use risc0_zkvm::{default_prover, ExecutorEnv};

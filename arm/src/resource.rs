@@ -1,9 +1,19 @@
-use std::vec;
+const DST: &[u8] = b"QUUX-V01-CS02-with-secp256k1_XMD:SHA-256_SSWU_RO_";
+const PRF_EXPAND_PERSONALIZATION_LEN: usize = 16;
+const PRF_EXPAND_PERSONALIZATION: &[u8; PRF_EXPAND_PERSONALIZATION_LEN] = b"RISC0_ExpandSeed";
+const PRF_EXPAND_PSI: u8 = 0;
+const PRF_EXPAND_RCM: u8 = 1;
+const DEFAULT_BYTES: usize = 32;
+const QUANTITY_BYTES: usize = 16;
+const RESOURCE_BYTES: usize = DIGEST_BYTES
+    + DEFAULT_BYTES
+    + DEFAULT_BYTES
+    + QUANTITY_BYTES
+    + 1
+    + DIGEST_BYTES
+    + DIGEST_BYTES
+    + DEFAULT_BYTES;
 
-use crate::constants::{
-    DEFAULT_BYTES, DST, PRF_EXPAND_PERSONALIZATION, PRF_EXPAND_PERSONALIZATION_LEN, PRF_EXPAND_PSI,
-    PRF_EXPAND_RCM, QUANTITY_BYTES, RESOURCE_BYTES,
-};
 use crate::nullifier_key::{NullifierKey, NullifierKeyCommitment};
 use k256::{
     elliptic_curve::hash2curve::{ExpandMsgXmd, GroupDigest},

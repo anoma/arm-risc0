@@ -3,7 +3,7 @@ use arm::{
     action::Action,
     transaction::{Delta, Transaction},
 };
-use arm_core::{
+use arm::{
     delta_proof::DeltaWitness, merkle_path::MerklePath, nullifier_key::NullifierKey,
     resource::Resource,
 };

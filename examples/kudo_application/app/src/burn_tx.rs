@@ -1,13 +1,13 @@
 use crate::{kudo_main::KudoMainInfo, simple_denomination::SimpleDenominationInfo};
-use arm::{logic_proof::LogicProver, transaction::Transaction};
-use arm_core::{
+use arm::{
     action_tree::MerkleTree,
     authorization::{AuthorizationSigningKey, AuthorizationVerifyingKey},
-    constants::COMMITMENT_TREE_DEPTH,
     merkle_path::MerklePath,
+    merkle_path::COMMITMENT_TREE_DEPTH,
     nullifier_key::NullifierKey,
     resource::Resource,
 };
+use arm::{logic_proof::LogicProver, transaction::Transaction};
 use kudo_logic_witness::{
     kudo_main_witness::KudoMainWitness,
     simple_denomination_witness::SimpleDenominationLogicWitness,

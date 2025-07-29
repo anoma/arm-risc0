@@ -1,5 +1,5 @@
-pub use arm_core::resource_logic::LogicCircuit;
-use arm_core::{
+pub use arm::resource_logic::LogicCircuit;
+use arm::{
     action_tree::ACTION_TREE_DEPTH, encryption::Ciphertext, logic_instance::LogicInstance,
     merkle_path::MerklePath, nullifier_key::NullifierKey, resource::Resource,
 };
