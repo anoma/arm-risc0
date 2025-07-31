@@ -9,7 +9,7 @@ use {rustler::NifStruct, rustler::NifTaggedEnum};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[cfg_attr(feature = "nif", derive(NifStruct))]
-#[cfg_attr(feature = "nif", module = "Anoma.Arm.Transacttion")]
+#[cfg_attr(feature = "nif", module = "Anoma.Arm.Transaction")]
 pub struct Transaction {
     pub actions: Vec<Action>,
     // delta verification is a deterministic process, so we don't need a
