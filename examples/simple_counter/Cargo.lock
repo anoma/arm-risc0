@@ -352,7 +352,7 @@ dependencies = [
 
 [[package]]
 name = "arm"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "aes-gcm",
  "bincode",
@@ -362,7 +362,6 @@ dependencies = [
  "rand 0.8.5",
  "risc0-zkvm",
  "serde",
- "sha2",
  "sha3",
 ]
 
