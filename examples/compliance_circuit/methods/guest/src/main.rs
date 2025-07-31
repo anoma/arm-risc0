@@ -1,4 +1,4 @@
-use aarm_core::{compliance::ComplianceWitness, constants::COMMITMENT_TREE_DEPTH};
+use arm::{compliance::ComplianceWitness, merkle_path::COMMITMENT_TREE_DEPTH};
 use risc0_zkvm::guest::env;
 
 // Guest code:

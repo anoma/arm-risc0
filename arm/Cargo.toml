@@ -1,0 +1,30 @@
+[package]
+name = "arm"
+version = "0.2.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+# If you want to try (experimental) std support, add `features = [ "std" ]` to risc0-zkvm
+risc0-zkvm = { version = "2.1.0", features = ["std", "unstable"], default-features = false }
+serde = { version = "1.0.197", default-features = false }
+k256 = { version = "=0.13.3", features = ["arithmetic", "serde", "expose-field", "std", "ecdsa", "hash2curve"], default-features = false }
+sha3 = { version = "0.10", optional = true }
+rand = "0.8"
+aes-gcm = "0.10"
+bincode = "1.3.3"
+hex = "0.4"
+lazy_static = "1.5.0"
+rustler = { version = "0.36.2", optional = true }
+
+[features]
+default = ["transaction"]
+prove = ["risc0-zkvm/prove"]
+nif = ["dep:rustler"]
+transaction = ["logic_circuit", "compliance_circuit", "prove", "dep:sha3"]
+logic_circuit = []
+compliance_circuit = []
+fast_prover = []
+composite_prover = []
+groth16_prover = []

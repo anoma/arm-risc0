@@ -1,6 +1,6 @@
-use aarm_core::{
+use arm::{
     compliance::{ComplianceInstance, ComplianceWitness},
-    constants::COMMITMENT_TREE_DEPTH,
+    merkle_path::COMMITMENT_TREE_DEPTH,
 };
 use compliance_methods::{COMPLIANCE_GUEST_ELF, COMPLIANCE_GUEST_ID};
 use risc0_zkvm::{default_prover, ExecutorEnv};
@@ -41,15 +41,4 @@ pub fn main() {
     receipt.verify(COMPLIANCE_GUEST_ID).unwrap();
     let verify_duration = verify_start_timer.elapsed();
     println!("Verify duration time: {:?}", verify_duration);
-}
-
-#[ignore]
-#[test]
-fn print_compliance_elf_id() {
-    // Write the elf binary to a file
-    std::fs::write("../../aarm/elfs/compliance_elf.bin", COMPLIANCE_GUEST_ELF)
-        .expect("Failed to write compliance guest ELF binary");
-
-    // Print the ID
-    println!("Compliance Guest ID: {:?}", COMPLIANCE_GUEST_ID);
 }

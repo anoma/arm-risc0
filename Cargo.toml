@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = [ "aarm", "aarm_core", "examples/kudo_application" ]
+members = [ "arm" ]
 
 [profile.bench]
 lto = true
