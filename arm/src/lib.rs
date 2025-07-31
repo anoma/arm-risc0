@@ -1,6 +1,5 @@
 #[cfg(feature = "transaction")]
 pub mod action;
-#[cfg(feature = "logic_circuit")]
 pub mod action_tree;
 #[cfg(feature = "logic_circuit")]
 pub mod authorization;
@@ -21,6 +20,7 @@ pub mod nullifier_key;
 #[cfg(feature = "transaction")]
 pub mod proving_system;
 pub mod resource;
+#[cfg(feature = "logic_circuit")]
 pub mod resource_logic;
 #[cfg(feature = "transaction")]
 pub mod transaction;

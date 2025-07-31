@@ -34,26 +34,26 @@ fn prove_inner<T: Serialize>(witness: &T, proving_key: &[u8]) -> Receipt {
         .build()
         .unwrap();
 
-    // Defualt prover: it generates succinct receipts, which are constant size in the length of
-    // execution.
-    #[cfg(feature = "succinct_prover")]
-    let prover_opts = ProverOpts::succinct();
-
-    // The fastest prover options.  Receipt will be linear in length of the
-    // execution, and does not support compression via recursion.
     #[cfg(feature = "fast_prover")]
-    let prover_opts = ProverOpts::fast();
+    let prover_opts = ProverOpts::fast(); // Fastest, linear size, no recursion.
 
-    // It generates composite receipts, linear in the length of the execution,
-    // and supports compression via recursion.
-    #[cfg(feature = "composite_prover")]
-    let prover_opts = ProverOpts::composite();
+    #[cfg(all(not(feature = "fast_prover"), feature = "composite_prover"))]
+    let prover_opts = ProverOpts::composite(); // Composite receipts, linear size, supports recursion.
 
-    // generates Groth16 receipts which are constant size in the length of the
-    // execution and small enough to verify on blockchains, like Ethereum. Only
-    // supported for x86_64 Linux with Docker installed.
-    #[cfg(feature = "groth16_prover")]
-    let prover_opts = ProverOpts::groth16();
+    #[cfg(all(
+        not(feature = "fast_prover"),
+        not(feature = "composite_prover"),
+        feature = "groth16_prover"
+    ))]
+    let prover_opts = ProverOpts::groth16(); // Groth16 receipts, constant size, blockchain-friendly.
+
+    // If no specific prover feature is enabled, default to succinct prover.
+    #[cfg(all(
+        not(feature = "fast_prover"),
+        not(feature = "composite_prover"),
+        not(feature = "groth16_prover")
+    ))]
+    let prover_opts = ProverOpts::succinct(); // Succinct receipts, constant size.
 
     default_prover()
         .prove_with_ctx(env, &VerifierContext::default(), proving_key, &prover_opts)
