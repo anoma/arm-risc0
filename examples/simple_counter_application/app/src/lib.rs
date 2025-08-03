@@ -19,10 +19,10 @@ use lazy_static::lazy_static;
 use risc0_zkvm::Digest;
 use serde::{Deserialize, Serialize};
 
-pub const SIMPLE_COUNTER_ELF: &[u8] = include_bytes!("../elf/simple_counter.bin");
+pub const SIMPLE_COUNTER_ELF: &[u8] = include_bytes!("../elf/counter-guest.bin");
 lazy_static! {
     pub static ref SIMPLE_COUNTER_ID: Digest =
-        Digest::from_hex("be068dcc59a6d0bd2fc21a945864cee6bbb13d1a0f5741999c2e77e92ecc2766")
+        Digest::from_hex("1538c04e25b37af3f20ae9432c069db6f4c5c759a7c4e35756ce22a93242b866")
             .unwrap();
 }
 
