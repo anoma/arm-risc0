@@ -39,3 +39,22 @@ fn main() {
     let verify_duration = verify_start_timer.elapsed();
     println!("Trivial logic verify duration time: {:?}", verify_duration);
 }
+
+// This is for local testing only. It updates the elf binary and prints the ID
+// using the locally compiled circuit.
+#[test]
+fn print_trivial_logic_elf_id() {
+    // Write the elf binary to a file
+    std::fs::write(
+        "../../arm/elfs/trivial-logic-guest.bin",
+        TRIVIAL_LOGIC_GUEST_ELF,
+    )
+    .expect("Failed to write trivial logic guest ELF binary");
+
+    // Print the ID
+    use risc0_zkvm::sha::Digest;
+    println!(
+        "TRIVIAL_LOGIC_GUEST_ID: {:?}",
+        Digest::from(TRIVIAL_LOGIC_GUEST_ID)
+    );
+}

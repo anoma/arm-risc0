@@ -1527,23 +1527,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "kudo-logic-witness"
-version = "0.1.0"
-dependencies = [
- "arm",
- "rand 0.8.5",
- "risc0-zkvm",
- "serde",
-]
-
-[[package]]
 name = "kudo-main"
 version = "0.1.0"
 dependencies = [
- "kudo-logic-witness",
  "kudo-main-methods",
  "risc0-zkvm",
- "serde",
 ]
 
 [[package]]
@@ -2575,9 +2563,7 @@ dependencies = [
 name = "simple-kudo-denomination"
 version = "0.1.0"
 dependencies = [
- "kudo-logic-witness",
  "risc0-zkvm",
- "serde",
  "simple-kudo-denomination-methods",
 ]
 
@@ -2592,9 +2578,7 @@ dependencies = [
 name = "simple-kudo-receive"
 version = "0.1.0"
 dependencies = [
- "kudo-logic-witness",
  "risc0-zkvm",
- "serde",
  "simple-kudo-receive-methods",
 ]
 
