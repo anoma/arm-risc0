@@ -10,7 +10,7 @@ use lazy_static::lazy_static;
 use risc0_zkvm::Digest;
 use serde::{Deserialize, Serialize};
 
-pub const KUDO_LOGIC_ELF: &[u8] = include_bytes!("../../kudo_logic/elfs/kudo-logic.bin");
+pub const KUDO_LOGIC_ELF: &[u8] = include_bytes!("../elfs/kudo-logic.bin");
 lazy_static! {
     pub static ref KUDO_LOGIC_ID: Digest =
         Digest::from_hex("4de18c19415a162f16f31f6a42c2a5c75dabfbc675f260541b9f817bceb11dc7")

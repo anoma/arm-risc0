@@ -10,7 +10,7 @@ use lazy_static::lazy_static;
 use risc0_zkvm::Digest;
 use serde::{Deserialize, Serialize};
 
-pub const DENOMINATION_ELF: &[u8] = include_bytes!("../../kudo_logic/elfs/denomination.bin");
+pub const DENOMINATION_ELF: &[u8] = include_bytes!("../elfs/denomination.bin");
 lazy_static! {
     pub static ref DENOMINATION_ID: Digest =
         Digest::from_hex("c125b6466d3aff5f887da2f883a9ae0e6130800244ce1064356062e44986f543")
