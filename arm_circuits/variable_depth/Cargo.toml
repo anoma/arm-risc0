@@ -1,0 +1,9 @@
+[package]
+name = "variable-depth"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+variable-depth-methods = { path = "methods" }
+risc0-zkvm = "2.1.0"
+arm = { path = "../../arm", features = ["logic_circuit"], default-features = false }
