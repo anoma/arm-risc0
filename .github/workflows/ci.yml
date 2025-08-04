@@ -78,18 +78,19 @@ jobs:
             .
             arm_circuits
 
-      - name: Install RISC0 toolchain
-        run: |
-          curl -L https://risczero.com/install | bash
-          $HOME/.risc0/bin/rzup install cargo-risczero $RISC0_TOOLCHAIN_VERSION
-          $HOME/.risc0/bin/rzup install r0vm $RISC0_TOOLCHAIN_VERSION
+      # - name: Install RISC0 toolchain
+      #   run: |
+      #     curl -L https://risczero.com/install | bash
+      #     $HOME/.risc0/bin/rzup install cargo-risczero $RISC0_TOOLCHAIN_VERSION
+      #     $HOME/.risc0/bin/rzup install r0vm $RISC0_TOOLCHAIN_VERSION
 
       - name: Build main workspace
         run: cargo build --workspace --all-targets
 
-      - name: Build arm_circuits workspace
-        run: cargo build --workspace --all-targets
-        working-directory: arm_circuits
+      ## Skip building arm_circuits workspace for now due to limited risc0-toolchain download requests
+      # - name: Build arm_circuits workspace
+      #   run: cargo build --workspace --all-targets
+      #   working-directory: arm_circuits
 
   test:
     name: Test
