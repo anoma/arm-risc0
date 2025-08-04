@@ -46,7 +46,7 @@ impl MerkleTree {
     ///
     /// # Arguments
     ///
-    /// * `cur_leave` - The leaf value for which the Merkle path is to be generated.
+    /// * `cur_leaf` - The leaf value for which the Merkle path is to be generated.
     ///
     /// # Returns
     ///
@@ -56,12 +56,12 @@ impl MerkleTree {
     /// - A `bool` indicating whether the sibling is on the left (`true`) or right (`false`).
     ///
     /// Returns `None` if the leaf is not found in the tree.
-    pub fn generate_path(&self, cur_leave: &[u8]) -> Option<MerklePath<ACTION_TREE_DEPTH>> {
+    pub fn generate_path(&self, cur_leaf: &[u8]) -> Option<MerklePath<ACTION_TREE_DEPTH>> {
         let mut cur_layer = self.leaves.clone();
         cur_layer.resize(ACTION_TREE_MAX_NUM, Digest::blank().into());
         if let Some(position) = cur_layer
             .iter()
-            .position(|v| v == &cur_leave.to_vec().into())
+            .position(|v| v == &cur_leaf.to_vec().into())
         {
             let mut merkle_path = Vec::new();
             fn build_merkle_path_inner(
