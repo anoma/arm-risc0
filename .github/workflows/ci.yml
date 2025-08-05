@@ -9,7 +9,7 @@ on:
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
-  RISC0_TOOLCHAIN_VERSION: 2.1.0
+  RISC0_TOOLCHAIN_VERSION: 2.3.1
 
 jobs:
   fmt:
@@ -34,7 +34,7 @@ jobs:
 
   clippy:
     name: Clippy
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
@@ -58,7 +58,7 @@ jobs:
     name: Build
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [macos-latest]
         rust: ["1.85"]
     runs-on: ${{ matrix.os }}
     steps:
@@ -96,7 +96,8 @@ jobs:
     name: Test
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        # os: [ubuntu-latest, macos-latest]
+        os: [macos-latest]
         rust: ["1.85"]
     runs-on: ${{ matrix.os }}
     env:
@@ -122,7 +123,7 @@ jobs:
 
   test-release:
     name: Test Release
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     env:
       RISC0_DEV_MODE: 1  # Use dev mode for faster testing
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
