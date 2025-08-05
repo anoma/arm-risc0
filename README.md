@@ -70,7 +70,7 @@ export BONSAI_API_KEY=<YOUR_API_KEY>
 
 ### Benchmark
 
-* [Compliance circuit benchmark](./examples/compliance_circuit/README.md)
+* [Compliance circuit benchmark](./arm_circuits/compliance/README.md)
 * [Kudo example benchmark](./examples/kudo_application/README.md)
 
 ## Feature flags
@@ -114,7 +114,7 @@ You may generate different ELFs and ImageIDs on different machines and environme
 For example, build the compliance circuit in RM:
 
 ```bash
-cargo risczero build --manifest-path examples/compliance_circuit/methods/guest/Cargo.toml
+cargo risczero build --manifest-path arm_circuits/compliance/methods/guest/Cargo.toml
 ```
 
 will reproduce the output to:
@@ -124,7 +124,7 @@ View build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux
 
 ELFs ready at:
 ImageID: e9f77211dc64f622255312cbe02fb883b3cf89d9a0c325f8495636e63e4cbdcb - 
-arm-risc0/examples/compliance_circuit/methods/guest/target/riscv32im-risc0-zkvm-elf/docker/compliance-guest.bin
+arm-risc0/arm_circuits/compliance/methods/guest/target/riscv32im-risc0-zkvm-elf/docker/compliance-guest.bin
 ```
 
 Note: The `unstable` feature of `risc0-zkvm` currently causes issues in circuits. This can be temporarily fixed by manually updating the tool. The problem will be fully resolved in the next release of RISC Zero.

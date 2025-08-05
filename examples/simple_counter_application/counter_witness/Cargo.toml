@@ -1,10 +1,8 @@
 [package]
-name = "kudo-traits"
+name = "counter-witness"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+arm = { path = "../../../arm", features = ["logic_circuit"], default-features = false }
 serde = { version = "1.0.197", default-features = false }
-risc0-zkvm = "=2.1.0"
-rand = "0.8"
-arm = { path = "../../../arm" }

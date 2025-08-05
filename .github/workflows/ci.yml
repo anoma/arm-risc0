@@ -1,0 +1,141 @@
+name: arm-risc0 CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  RISC0_TOOLCHAIN_VERSION: 2.1.0
+
+jobs:
+  fmt:
+    name: Format
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.85"
+          components: rustfmt
+
+      - name: Check formatting (main workspace)
+        run: cargo fmt --all -- --check
+
+      - name: Check formatting (arm_circuits workspace)
+        run: cargo fmt --all -- --check
+        working-directory: arm_circuits
+
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.85"
+          components: clippy
+
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            .
+
+      - name: Run clippy (main workspace)
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+  build:
+    name: Build
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        rust: ["1.85"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
+          targets: wasm32-unknown-unknown
+
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            .
+            arm_circuits
+
+      # - name: Install RISC0 toolchain
+      #   run: |
+      #     curl -L https://risczero.com/install | bash
+      #     $HOME/.risc0/bin/rzup install cargo-risczero $RISC0_TOOLCHAIN_VERSION
+      #     $HOME/.risc0/bin/rzup install r0vm $RISC0_TOOLCHAIN_VERSION
+
+      - name: Build main workspace
+        run: cargo build --workspace --all-targets
+
+      ## Skip building arm_circuits workspace for now due to limited risc0-toolchain download requests
+      # - name: Build arm_circuits workspace
+      #   run: cargo build --workspace --all-targets
+      #   working-directory: arm_circuits
+
+  test:
+    name: Test
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        rust: ["1.85"]
+    runs-on: ${{ matrix.os }}
+    env:
+      RISC0_DEV_MODE: 1  # Use dev mode for faster testing
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
+          targets: wasm32-unknown-unknown
+
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            .
+
+      - name: Run tests (main workspace)
+        run: cargo test --workspace
+
+  test-release:
+    name: Test Release
+    runs-on: ubuntu-latest
+    env:
+      RISC0_DEV_MODE: 1  # Use dev mode for faster testing
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            .
+
+      - name: Run release tests (main workspace)
+        run: cargo test --workspace --release
+        timeout-minutes: 60
