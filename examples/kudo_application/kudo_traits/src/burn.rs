@@ -87,7 +87,6 @@ where
                         ephemeral_denomination_proof,
                         burned_denomination_proof,
                     ],
-                    vec![],
                 ),
                 DeltaWitness::from_bytes_vec(&[delta_witness_1, delta_witness_2]),
             )

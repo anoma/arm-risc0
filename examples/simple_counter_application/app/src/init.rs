@@ -70,7 +70,7 @@ pub fn create_init_counter_tx() -> (Transaction, Resource, NullifierKey) {
         counter_resource.clone(),
     );
 
-    let action = Action::new(vec![compliance_unit], logic_verifier_inputs, vec![]);
+    let action = Action::new(vec![compliance_unit], logic_verifier_inputs);
     let delta_witness = DeltaWitness::from_bytes(&rcv);
     let mut tx = Transaction::create(vec![action], Delta::Witness(delta_witness));
     tx.generate_delta_proof();

@@ -33,7 +33,7 @@ pub fn create_increment_tx(
     let logic_verifier_inputs =
         generate_logic_proofs(counter_resource, nf_key, new_counter.clone());
 
-    let action = Action::new(vec![compliance_unit], logic_verifier_inputs, vec![]);
+    let action = Action::new(vec![compliance_unit], logic_verifier_inputs);
     let delta_witness = DeltaWitness::from_bytes(&rcv);
     let mut tx = Transaction::create(vec![action], Delta::Witness(delta_witness));
     tx.generate_delta_proof();
