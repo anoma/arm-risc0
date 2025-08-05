@@ -113,7 +113,6 @@ where
                         ephemeral_denomination_proof,
                         padding_resource_proof,
                     ],
-                    vec![],
                 ),
                 DeltaWitness::from_bytes_vec(&[delta_witness_1, delta_witness_2, delta_witness_3]),
             )

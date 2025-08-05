@@ -24,53 +24,16 @@ use {
 pub struct Action {
     pub compliance_units: Vec<ComplianceUnit>,
     pub logic_verifier_inputs: Vec<LogicProof>,
-    pub resource_forwarder_calldata_pairs: Vec<(Resource, ForwarderCalldata)>,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct ForwarderCalldata {
-    pub untrusted_forwarder: [u8; 20],
-    pub input: Vec<u8>,
-    pub output: Vec<u8>,
-}
-
-#[cfg(feature = "nif")]
-impl Encoder for ForwarderCalldata {
-    fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
-        let map = map_new(env);
-        // store the name of the elixir struct
-        let map = map
-            .map_put(
-                Atom::from_str(env, "__struct__").unwrap(),
-                Atom::from_str(env, "Elixir.Anoma.Arm.ForwarderCalldata").unwrap(),
-            )
-            .unwrap();
-
-        map
-    }
-}
-
-#[cfg(feature = "nif")]
-impl<'a> Decoder<'a> for ForwarderCalldata {
-    fn decode(_term: Term<'a>) -> NifResult<Self> {
-        Ok(ForwarderCalldata {
-            untrusted_forwarder: [0u8; 20],
-            input: vec![],
-            output: vec![],
-        })
-    }
 }
 
 impl Action {
     pub fn new(
         compliance_units: Vec<ComplianceUnit>,
         logic_verifier_inputs: Vec<LogicProof>,
-        resource_forwarder_calldata_pairs: Vec<(Resource, ForwarderCalldata)>,
     ) -> Self {
         Action {
             compliance_units,
             logic_verifier_inputs,
-            resource_forwarder_calldata_pairs,
         }
     }
 
@@ -80,10 +43,6 @@ impl Action {
 
     pub fn get_logic_verifier_inputs(&self) -> &Vec<LogicProof> {
         &self.logic_verifier_inputs
-    }
-
-    pub fn get_resource_forwarder_calldata_pairs(&self) -> &Vec<(Resource, ForwarderCalldata)> {
-        &self.resource_forwarder_calldata_pairs
     }
 
     pub fn verify(&self) -> bool {
@@ -206,13 +165,8 @@ pub fn create_an_action(nonce: u8) -> (Action, DeltaWitness) {
 
     let compliance_units = vec![compliance_receipt];
     let logic_verifier_inputs = vec![consumed_logic_proof, created_logic_proof];
-    let resource_forwarder_calldata_pairs = vec![];
 
-    let action = Action::new(
-        compliance_units,
-        logic_verifier_inputs,
-        resource_forwarder_calldata_pairs,
-    );
+    let action = Action::new(compliance_units, logic_verifier_inputs);
     assert!(action.verify());
 
     let delta_witness = DeltaWitness::from_bytes_vec(&[compliance_witness.rcv]);
