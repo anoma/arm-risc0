@@ -664,27 +664,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "counter-app"
-version = "0.1.0"
-dependencies = [
- "arm",
- "counter-witness",
- "hex",
- "lazy_static",
- "rand 0.8.5",
- "risc0-zkvm",
- "serde",
-]
-
-[[package]]
-name = "counter-witness"
-version = "0.1.0"
-dependencies = [
- "arm",
- "serde",
-]
-
-[[package]]
 name = "cpp_demangle"
 version = "0.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1836,41 +1815,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ecc2af9a1119c51f12a14607e783cb977bde58bc069ff0c3da1095e635d70654"
 dependencies = [
  "cpufeatures",
-]
-
-[[package]]
-name = "kudo-app"
-version = "0.1.0"
-dependencies = [
- "arm",
- "hex",
- "k256",
- "kudo-logic-witness",
- "kudo-traits",
- "lazy_static",
- "rand 0.8.5",
- "risc0-zkvm",
- "serde",
-]
-
-[[package]]
-name = "kudo-logic-witness"
-version = "0.1.0"
-dependencies = [
- "arm",
- "rand 0.8.5",
- "risc0-zkvm",
- "serde",
-]
-
-[[package]]
-name = "kudo-traits"
-version = "0.1.0"
-dependencies = [
- "arm",
- "rand 0.8.5",
- "risc0-zkvm",
- "serde",
 ]
 
 [[package]]

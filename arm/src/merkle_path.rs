@@ -47,18 +47,18 @@ impl Hashable for Digest {
 #[cfg_attr(feature = "nif", derive(NifStruct))]
 #[cfg_attr(feature = "nif", module = "Anoma.Arm.MerklePath")]
 pub struct MerklePath<const TREE_DEPTH: usize> {
-    auth_path: Vec<(Leaf, bool)>,
+    auth_path: Vec<(Digest, bool)>,
 }
 
 impl<const TREE_DEPTH: usize> MerklePath<TREE_DEPTH> {
     /// Constructs a Merkle path directly from a path and position.
-    pub fn from_path(auth_path: [(Leaf, bool); TREE_DEPTH]) -> Self {
+    pub fn from_path(auth_path: [(Digest, bool); TREE_DEPTH]) -> Self {
         MerklePath {
             auth_path: auth_path.to_vec(),
         }
     }
     /// Returns the root of the tree corresponding to this path applied to `leaf`.
-    pub fn root(&self, leaf: &[u8]) -> Vec<u8> {
+    pub fn root(&self, leaf: &[u8]) -> Digest {
         if self.auth_path.len() != TREE_DEPTH {
             panic!("Merkle path length does not match TREE_DEPTH");
         }
@@ -72,56 +72,17 @@ impl<const TREE_DEPTH: usize> MerklePath<TREE_DEPTH> {
         };
         self.auth_path
             .iter()
-            .fold(leaf, |root, (p, leaf_is_on_right)| {
-                let p_digest: Digest = Digest::from(p.clone());
-                match leaf_is_on_right {
-                    false => Digest::combine(&root, &p_digest),
-                    true => Digest::combine(&p_digest, &root),
-                }
+            .fold(leaf, |root, (p, leaf_is_on_right)| match leaf_is_on_right {
+                false => Digest::combine(&root, p),
+                true => Digest::combine(p, &root),
             })
-            .as_bytes()
-            .to_vec()
     }
 }
 
 impl<const TREE_DEPTH: usize> Default for MerklePath<TREE_DEPTH> {
     fn default() -> Self {
         MerklePath {
-            auth_path: vec![(Leaf::default(), false); TREE_DEPTH],
+            auth_path: vec![(Digest::default(), false); TREE_DEPTH],
         }
-    }
-}
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "nif", derive(NifTuple))]
-pub struct Leaf(Vec<u8>);
-
-impl Leaf {
-    /// Returns the inner bytes of the leaf.
-    pub fn inner(&self) -> &[u8] {
-        &self.0
-    }
-}
-
-impl From<Vec<u8>> for Leaf {
-    fn from(value: Vec<u8>) -> Self {
-        Leaf(value)
-    }
-}
-
-impl From<Leaf> for Digest {
-    fn from(leaf: Leaf) -> Self {
-        Digest::from_bytes(leaf.0.try_into().unwrap())
-    }
-}
-
-impl From<Digest> for Leaf {
-    fn from(digest: Digest) -> Self {
-        Leaf(digest.as_bytes().to_vec())
-    }
-}
-
-impl Default for Leaf {
-    fn default() -> Self {
-        Leaf(vec![0u8; DIGEST_BYTES])
     }
 }

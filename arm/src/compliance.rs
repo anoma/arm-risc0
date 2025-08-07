@@ -21,13 +21,13 @@ lazy_static! {
 #[cfg_attr(feature = "nif", derive(NifStruct))]
 #[cfg_attr(feature = "nif", module = "Anoma.Arm.ComplianceInstance")]
 pub struct ComplianceInstance {
-    pub consumed_nullifier: Vec<u8>,
-    pub consumed_logic_ref: Vec<u8>,
-    pub consumed_commitment_tree_root: Vec<u8>,
-    pub created_commitment: Vec<u8>,
-    pub created_logic_ref: Vec<u8>,
-    pub delta_x: Vec<u8>,
-    pub delta_y: Vec<u8>,
+    pub consumed_nullifier: Digest,
+    pub consumed_logic_ref: Digest,
+    pub consumed_commitment_tree_root: Digest,
+    pub created_commitment: Digest,
+    pub created_logic_ref: Digest,
+    pub delta_x: Digest,
+    pub delta_y: Digest,
 }
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
@@ -39,7 +39,7 @@ pub struct ComplianceWitness<const COMMITMENT_TREE_DEPTH: usize> {
     /// The path from the consumed commitment to the root in the commitment tree
     pub merkle_path: MerklePath<COMMITMENT_TREE_DEPTH>,
     /// The existing root for the ephemeral resource
-    pub ephemeral_root: Vec<u8>,
+    pub ephemeral_root: Digest,
     /// Nullifier key of the consumed resource
     pub nf_key: NullifierKey,
     /// The created resource
@@ -64,7 +64,7 @@ impl<const COMMITMENT_TREE_DEPTH: usize> ComplianceWitness<COMMITMENT_TREE_DEPTH
             merkle_path: MerklePath::<COMMITMENT_TREE_DEPTH>::default(),
             rcv: Scalar::random(&mut rng).to_bytes().to_vec(),
             nf_key,
-            ephemeral_root: INITIAL_ROOT.as_bytes().to_vec(),
+            ephemeral_root: *INITIAL_ROOT,
         }
     }
 
@@ -81,7 +81,7 @@ impl<const COMMITMENT_TREE_DEPTH: usize> ComplianceWitness<COMMITMENT_TREE_DEPTH
             merkle_path,
             rcv: Scalar::random(&mut rng).to_bytes().to_vec(),
             nf_key,
-            ephemeral_root: vec![0; 32], // not used
+            ephemeral_root: *INITIAL_ROOT,
         }
     }
 
@@ -97,22 +97,24 @@ impl<const COMMITMENT_TREE_DEPTH: usize> ComplianceWitness<COMMITMENT_TREE_DEPTH
             merkle_path: MerklePath::<COMMITMENT_TREE_DEPTH>::default(),
             rcv: Scalar::ONE.to_bytes().to_vec(),
             nf_key,
-            ephemeral_root: INITIAL_ROOT.as_bytes().to_vec(),
+            ephemeral_root: *INITIAL_ROOT,
         }
     }
 
     pub fn constrain(&self) -> ComplianceInstance {
         let consumed_cm = self.consumed_commitment();
         let consumed_logic_ref = self.consumed_resource_logic();
-        let consumed_commitment_tree_root = self.consumed_commitment_tree_root(&consumed_cm);
+        let consumed_commitment_tree_root =
+            self.consumed_commitment_tree_root(consumed_cm.as_bytes());
 
-        let consumed_nullifier = self.consumed_nullifier(&consumed_cm);
+        let consumed_nullifier = self.consumed_nullifier(consumed_cm.as_bytes());
         let created_logic_ref = self.created_resource_logic();
         let created_commitment = self.created_commitment();
 
         // constrain created_resource.nonce and consumed_resource.nf
         assert_eq!(
-            self.created_resource.nonce, consumed_nullifier,
+            self.created_resource.nonce,
+            consumed_nullifier.as_bytes(),
             "Created resource nonce must match consumed nullifier"
         );
 
@@ -129,37 +131,37 @@ impl<const COMMITMENT_TREE_DEPTH: usize> ComplianceWitness<COMMITMENT_TREE_DEPTH
         }
     }
 
-    pub fn consumed_resource_logic(&self) -> Vec<u8> {
-        self.consumed_resource.logic_ref.clone()
+    pub fn consumed_resource_logic(&self) -> Digest {
+        Digest::from_bytes(self.consumed_resource.logic_ref.clone().try_into().unwrap())
     }
 
-    pub fn created_resource_logic(&self) -> Vec<u8> {
-        self.created_resource.logic_ref.clone()
+    pub fn created_resource_logic(&self) -> Digest {
+        Digest::from_bytes(self.created_resource.logic_ref.clone().try_into().unwrap())
     }
 
-    pub fn consumed_commitment(&self) -> Vec<u8> {
+    pub fn consumed_commitment(&self) -> Digest {
         self.consumed_resource.commitment()
     }
 
-    pub fn created_commitment(&self) -> Vec<u8> {
+    pub fn created_commitment(&self) -> Digest {
         self.created_resource.commitment()
     }
 
-    pub fn consumed_nullifier(&self, cm: &[u8]) -> Vec<u8> {
+    pub fn consumed_nullifier(&self, cm: &[u8]) -> Digest {
         self.consumed_resource
             .nullifier_from_commitment(&self.nf_key, cm)
             .unwrap()
     }
 
-    pub fn consumed_commitment_tree_root(&self, cm: &[u8]) -> Vec<u8> {
+    pub fn consumed_commitment_tree_root(&self, cm: &[u8]) -> Digest {
         if self.consumed_resource.is_ephemeral {
-            self.ephemeral_root.clone()
+            self.ephemeral_root
         } else {
             self.merkle_path.root(cm)
         }
     }
 
-    pub fn delta(&self) -> (Vec<u8>, Vec<u8>) {
+    pub fn delta(&self) -> (Digest, Digest) {
         // Compute delta and make delta commitment public
         let rcv_array: [u8; 32] = self
             .rcv
@@ -173,8 +175,8 @@ impl<const COMMITMENT_TREE_DEPTH: usize> ComplianceWitness<COMMITMENT_TREE_DEPTH
 
         let encoded_delta = delta.to_encoded_point(false);
         (
-            encoded_delta.x().unwrap().to_vec(),
-            encoded_delta.y().unwrap().to_vec(),
+            Digest::try_from(&encoded_delta.x().unwrap()[..]).unwrap(),
+            Digest::try_from(&encoded_delta.y().unwrap()[..]).unwrap(),
         )
     }
 }
@@ -202,7 +204,7 @@ impl<const COMMITMENT_TREE_DEPTH: usize> Default for ComplianceWitness<COMMITMEN
             quantity: 1u128,
             value_ref: vec![0; 32],
             is_ephemeral: false,
-            nonce: nf,
+            nonce: nf.as_bytes().to_vec(),
             nk_commitment: nf_key.commit(),
             rand_seed: vec![0; 32],
         };
@@ -214,7 +216,7 @@ impl<const COMMITMENT_TREE_DEPTH: usize> Default for ComplianceWitness<COMMITMEN
         ComplianceWitness {
             consumed_resource,
             created_resource,
-            ephemeral_root: vec![0; 32],
+            ephemeral_root: *INITIAL_ROOT,
             merkle_path,
             rcv,
             nf_key,
@@ -226,12 +228,12 @@ impl ComplianceInstance {
     pub fn delta_projective(&self) -> ProjectivePoint {
         let x: [u8; 32] = self
             .delta_x
-            .clone()
+            .as_bytes()
             .try_into()
             .expect("delta_x must be 32 bytes");
         let y: [u8; 32] = self
             .delta_y
-            .clone()
+            .as_bytes()
             .try_into()
             .expect("delta_y must be 32 bytes");
         let encoded_point = EncodedPoint::from_affine_coordinates(&x.into(), &y.into(), false);
@@ -240,8 +242,8 @@ impl ComplianceInstance {
 
     pub fn delta_msg(&self) -> Vec<u8> {
         let mut msg = Vec::new();
-        msg.extend_from_slice(&self.consumed_nullifier);
-        msg.extend_from_slice(&self.created_commitment);
+        msg.extend_from_slice(self.consumed_nullifier.as_bytes());
+        msg.extend_from_slice(self.created_commitment.as_bytes());
         msg
     }
 }

@@ -33,7 +33,7 @@ impl LogicCircuit for TrivialLogicWitness {
     fn constrain(&self) -> LogicInstance {
         // Load the self resource
         let tag = self.resource.tag(self.is_consumed, &self.nf_key);
-        let root = self.receive_existence_path.root(&tag);
+        let root = self.receive_existence_path.root(tag.as_bytes());
 
         // The trivial resource is ephemeral and has zero quantity
         assert_eq!(self.resource.quantity, 0);

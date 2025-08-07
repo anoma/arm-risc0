@@ -4,13 +4,13 @@ use crate::{
     compliance_unit::ComplianceUnit,
     delta_proof::DeltaWitness,
     logic_proof::{LogicProof, LogicProver},
-    merkle_path::Leaf,
     merkle_path::COMMITMENT_TREE_DEPTH,
     nullifier_key::NullifierKey,
     resource::Resource,
     resource_logic::TrivialLogicWitness,
 };
 use k256::ProjectivePoint;
+use risc0_zkvm::Digest;
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "nif")]
 use {
@@ -61,19 +61,14 @@ impl Action {
         // Construct the action tree
         let tags = compliance_intances
             .iter()
-            .flat_map(|instance| {
-                vec![
-                    instance.consumed_nullifier.clone().into(),
-                    instance.created_commitment.clone().into(),
-                ]
-            })
-            .collect::<Vec<Leaf>>();
+            .flat_map(|instance| vec![instance.consumed_nullifier, instance.created_commitment])
+            .collect::<Vec<Digest>>();
         let logics = compliance_intances
             .iter()
             .flat_map(|instance| {
                 vec![
-                    instance.consumed_logic_ref.clone(),
-                    instance.created_logic_ref.clone(),
+                    instance.consumed_logic_ref.as_bytes().to_vec(),
+                    instance.created_logic_ref.as_bytes().to_vec(),
                 ]
             })
             .collect::<Vec<_>>();
@@ -87,8 +82,7 @@ impl Action {
                 return false;
             }
 
-            let instance_tag: Leaf = instance.tag.clone().into();
-            if let Some(index) = tags.iter().position(|tag| tag == &instance_tag) {
+            if let Some(index) = tags.iter().position(|tag| *tag == instance.tag) {
                 if proof.verifying_key != logics[index] {
                     return false;
                 }
@@ -134,7 +128,7 @@ pub fn create_an_action(nonce: u8) -> (Action, DeltaWitness) {
     let consumed_resource_nf = consumed_resource.nullifier(&nf_key).unwrap();
 
     let mut created_resource = consumed_resource.clone();
-    created_resource.set_nonce(consumed_resource_nf.clone());
+    created_resource.set_nonce(consumed_resource_nf.as_bytes().to_vec());
 
     let compliance_witness = ComplianceWitness::<COMMITMENT_TREE_DEPTH>::with_fixed_rcv(
         consumed_resource.clone(),
@@ -144,10 +138,7 @@ pub fn create_an_action(nonce: u8) -> (Action, DeltaWitness) {
     let compliance_receipt = ComplianceUnit::create(&compliance_witness);
 
     let created_resource_cm = created_resource.commitment();
-    let action_tree = MerkleTree::new(vec![
-        consumed_resource_nf.clone().into(),
-        created_resource_cm.clone().into(),
-    ]);
+    let action_tree = MerkleTree::new(vec![consumed_resource_nf, created_resource_cm]);
     let consumed_resource_path = action_tree.generate_path(&consumed_resource_nf).unwrap();
     let created_resource_path = action_tree.generate_path(&created_resource_cm).unwrap();
 
