@@ -170,10 +170,10 @@ impl Resource {
     // Compute the nullifier of the resource
     pub fn nullifier(&self, nf_key: &NullifierKey) -> Option<Digest> {
         let cm = self.commitment();
-        self.nullifier_from_commitment(nf_key, cm.as_bytes())
+        self.nullifier_from_commitment(nf_key, &cm)
     }
 
-    pub fn nullifier_from_commitment(&self, nf_key: &NullifierKey, cm: &[u8]) -> Option<Digest> {
+    pub fn nullifier_from_commitment(&self, nf_key: &NullifierKey, cm: &Digest) -> Option<Digest> {
         // Make sure that the nullifier public key corresponds to the secret key
         if self.nk_commitment == nf_key.commit() {
             let mut bytes = [0u8; 4 * DIGEST_BYTES];
@@ -188,7 +188,7 @@ impl Resource {
             bytes[offset..offset + DIGEST_BYTES].clone_from_slice(self.psi().as_ref());
             offset += DIGEST_BYTES;
             // Write the resource commitment
-            bytes[offset..offset + DIGEST_BYTES].clone_from_slice(cm.as_ref());
+            bytes[offset..offset + DIGEST_BYTES].clone_from_slice(cm.as_bytes());
             offset += DIGEST_BYTES;
 
             assert_eq!(offset, 4 * DIGEST_BYTES);
@@ -233,8 +233,7 @@ impl Resource {
     pub fn tag(&self, is_consumed: bool, nf_key: &NullifierKey) -> Digest {
         let cm = self.commitment();
         if is_consumed {
-            self.nullifier_from_commitment(nf_key, cm.as_bytes())
-                .unwrap()
+            self.nullifier_from_commitment(nf_key, &cm).unwrap()
         } else {
             cm
         }

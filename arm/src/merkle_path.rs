@@ -58,24 +58,17 @@ impl<const TREE_DEPTH: usize> MerklePath<TREE_DEPTH> {
         }
     }
     /// Returns the root of the tree corresponding to this path applied to `leaf`.
-    pub fn root(&self, leaf: &[u8]) -> Digest {
+    pub fn root(&self, leaf: &Digest) -> Digest {
         if self.auth_path.len() != TREE_DEPTH {
             panic!("Merkle path length does not match TREE_DEPTH");
         }
-        let leaf: Digest = if leaf.len() == DIGEST_BYTES {
-            Digest::from_bytes(leaf.try_into().unwrap())
-        } else {
-            // If the leaf is not the correct size, we pad it to the correct size.
-            let mut padded_leaf = [0u8; DIGEST_BYTES];
-            padded_leaf[..leaf.len()].copy_from_slice(leaf);
-            Digest::from_bytes(padded_leaf)
-        };
-        self.auth_path
-            .iter()
-            .fold(leaf, |root, (p, leaf_is_on_right)| match leaf_is_on_right {
+        self.auth_path.iter().fold(
+            *leaf,
+            |root, (p, leaf_is_on_right)| match leaf_is_on_right {
                 false => Digest::combine(&root, p),
                 true => Digest::combine(p, &root),
-            })
+            },
+        )
     }
 }
 

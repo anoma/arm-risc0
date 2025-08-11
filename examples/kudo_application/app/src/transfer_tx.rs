@@ -55,7 +55,7 @@ pub fn build_transfer_tx(
     created_kudo_resource.set_value_ref(created_kudo_value);
     // Reset the randomness and nonce
     created_kudo_resource.reset_randomness();
-    created_kudo_resource.set_nonce(consumed_kudo_nf.clone());
+    created_kudo_resource.set_nonce(consumed_kudo_nf.as_bytes().to_vec());
     let created_kudo_cm = created_kudo_resource.commitment();
 
     // Construct the denomination resource corresponding to the consumed kudo resource
@@ -64,7 +64,7 @@ pub fn build_transfer_tx(
     let nonce: [u8; 32] = rng.gen(); // Random nonce for the ephemeral resource
     let consumed_denomination_resource = Resource::create(
         denomination_logic.clone(),
-        consumed_kudo_nf.clone(), // Use the consumed kudo nullifier as the label
+        consumed_kudo_nf.as_bytes().to_vec(), // Use the consumed kudo nullifier as the label
         0,
         [0u8; 32].into(),
         true,
@@ -78,11 +78,11 @@ pub fn build_transfer_tx(
     // Construct the denomination resource corresponding to the created kudo resource
     let created_denomination_resource = Resource::create(
         denomination_logic.clone(),
-        created_kudo_cm.clone(), // Use the created kudo commitment as the label
+        created_kudo_cm.as_bytes().to_vec(), // Use the created kudo commitment as the label
         0,
         [0u8; 32].into(),
         true,
-        consumed_denomination_resource_nf.clone(),
+        consumed_denomination_resource_nf.as_bytes().to_vec(),
         instant_nk_commitment.clone(),
     );
     let created_denomination_resource_cm = created_denomination_resource.commitment();
@@ -95,23 +95,23 @@ pub fn build_transfer_tx(
     // Construct the receive logic resource
     let receive_resource = Resource::create(
         SimpleReceiveInfo::verifying_key_as_bytes(),
-        created_kudo_cm.clone(),
+        created_kudo_cm.as_bytes().to_vec(),
         0,
         [0u8; 32].into(),
         true,
-        padding_resource_nf.clone(),
+        padding_resource_nf.as_bytes().to_vec(),
         instant_nk_commitment.clone(),
     );
     let receive_resource_cm = receive_resource.commitment();
 
     // Construct the action tree
     let action_tree = MerkleTree::new(vec![
-        consumed_kudo_nf.clone().into(),
-        created_kudo_cm.clone().into(),
-        consumed_denomination_resource_nf.clone().into(),
-        created_denomination_resource_cm.clone().into(),
-        padding_resource_nf.clone().into(),
-        receive_resource_cm.clone().into(),
+        consumed_kudo_nf,
+        created_kudo_cm,
+        consumed_denomination_resource_nf,
+        created_denomination_resource_cm,
+        padding_resource_nf,
+        receive_resource_cm,
     ]);
     let root = action_tree.root();
 
@@ -142,7 +142,7 @@ pub fn build_transfer_tx(
     let consumed_kudo = KudoMainInfo::new(consumed_kudo_logic_witness, Some(consumed_kudo_path));
 
     // Construct the denomination witness corresponding to the consumed kudo resource
-    let consumption_signature = owner_sk.sign(&root);
+    let consumption_signature = owner_sk.sign(root.as_bytes());
     let consumed_denomination_logic_witness =
         SimpleDenominationLogicWitness::generate_denomimation_witness(
             consumed_denomination_resource.clone(),

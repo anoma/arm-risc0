@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 pub const KUDO_LOGIC_ELF: &[u8] = include_bytes!("../elfs/kudo-main-guest.bin");
 lazy_static! {
     pub static ref KUDO_LOGIC_ID: Digest =
-        Digest::from_hex("1aaa5b40929dfafc79a39fe62ccacae10c71b484694668ebadc2a7b155eba195")
+        Digest::from_hex("00f48ae1ee42192702cb2fa7ec7f0cbacb31371a3aa08fcc4cb2c92278552e95")
             .unwrap();
 }
 

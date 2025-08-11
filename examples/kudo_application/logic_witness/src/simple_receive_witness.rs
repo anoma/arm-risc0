@@ -36,7 +36,7 @@ impl LogicCircuit for SimpleReceiveLogicWitness {
 
         // Check if receive_resource.label equals kudo_resource.cm to ensure the
         // target kudo is loaded.
-        assert_eq!(self.receive_resource.label_ref, kudo_cm);
+        assert_eq!(self.receive_resource.label_ref, kudo_cm.as_bytes());
 
         // TODO: add custom receive logic
 

@@ -22,7 +22,7 @@ use serde::{Deserialize, Serialize};
 pub const SIMPLE_COUNTER_ELF: &[u8] = include_bytes!("../elf/counter-guest.bin");
 lazy_static! {
     pub static ref SIMPLE_COUNTER_ID: Digest =
-        Digest::from_hex("09ce55f36b407aab2e27e6e8545d364a65fd0d325cd800ab4832c98590398b5f")
+        Digest::from_hex("fdd4a13470d63d6d8bf090648c452eb55a677defd162a8932fbc7a786c69b486")
             .unwrap();
 }
 
@@ -99,10 +99,7 @@ pub fn generate_logic_proofs(
     let consumed_counter_nf = consumed_counter.nullifier(&nf_key).unwrap();
     let created_counter_cm = created_counter.commitment();
 
-    let action_tree = MerkleTree::new(vec![
-        consumed_counter_nf.clone().into(),
-        created_counter_cm.clone().into(),
-    ]);
+    let action_tree = MerkleTree::new(vec![consumed_counter_nf, created_counter_cm]);
 
     let consumed_counter_path = action_tree.generate_path(&consumed_counter_nf).unwrap();
     let created_counter_path = action_tree.generate_path(&created_counter_cm).unwrap();

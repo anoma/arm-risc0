@@ -62,7 +62,7 @@ impl LogicCircuit for SimpleDenominationLogicWitness {
         assert_eq!(root, kudo_root);
 
         // Check denomination.label = kudo_resource.tag
-        assert_eq!(self.denomination_resource.label_ref, kudo_tag);
+        assert_eq!(self.denomination_resource.label_ref, kudo_tag.as_bytes());
 
         // Decode label of the kudo resource and check the correspondence between the
         // kudo resource and the domination resource
@@ -75,7 +75,10 @@ impl LogicCircuit for SimpleDenominationLogicWitness {
             // Both insurance and burn should verify the issuer's signature. It
             // implies that only the issuer can burn resouces in this example.
             // It makes more sense to let the owner burn resources in practice?
-            assert!(self.kudo_issuer.verify(&root, &self.signature).is_ok());
+            assert!(self
+                .kudo_issuer
+                .verify(root.as_bytes(), &self.signature)
+                .is_ok());
 
             // The issuer must be the owner when burning the resource.
             if !self.kudo_is_consumed {
@@ -84,7 +87,10 @@ impl LogicCircuit for SimpleDenominationLogicWitness {
         } else if self.kudo_is_consumed {
             // Constrain persistent kudo resource consumption
             // Verify the owner's signature
-            assert!(self.kudo_owner.verify(&root, &self.signature,).is_ok());
+            assert!(self
+                .kudo_owner
+                .verify(root.as_bytes(), &self.signature)
+                .is_ok());
         }
 
         LogicInstance {
