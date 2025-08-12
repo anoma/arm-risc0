@@ -2,7 +2,7 @@ use hex::FromHex;
 use lazy_static::lazy_static;
 use risc0_zkvm::sha::{Digest, Impl, Sha256, DIGEST_BYTES};
 use rustler::types::map::map_new;
-use rustler::{Decoder, NifResult};
+use rustler::{Atom, Decoder, ListIterator, NifResult};
 #[cfg(feature = "nif")]
 use rustler::{Env, Term};
 use serde::{Deserialize, Serialize};
@@ -53,20 +53,61 @@ pub struct MerklePath<const TREE_DEPTH: usize> {
     auth_path: Vec<(Digest, bool)>,
 }
 
-    #[cfg(feature = "nif")]
-    impl<const TREE_DEPTH: usize> rustler::Encoder for MerklePath<TREE_DEPTH> {
-        fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
-            let map = map_new(env);
-            map
-        }
-    }
+#[cfg(feature = "nif")]
+impl<const TREE_DEPTH: usize> rustler::Encoder for MerklePath<TREE_DEPTH> {
+    fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
+        let map = map_new(env);
 
-    #[cfg(feature = "nif")]
-    impl<'a, const TREE_DEPTH: usize> Decoder<'a> for MerklePath<TREE_DEPTH> {
-        fn decode(term: Term<'a>) -> NifResult<Self> {
-            Ok(MerklePath { auth_path: vec![] })
-        }
+        let map = map
+            .map_put(
+                Atom::from_str(env, "__struct__").unwrap(),
+                Atom::from_str(env, "Elixir.Anoma.Arm.MerklePath").unwrap(),
+            )
+            .unwrap();
+
+        // encode the digests
+        let bytes = self
+            .auth_path
+            .iter()
+            .map(|d| {
+                let digest = d.0.as_bytes().to_vec();
+                let bool = d.1;
+                let tuple = (digest, bool);
+                tuple
+            })
+            .collect::<Vec<_>>();
+
+        let term = bytes.encode(env);
+        let map = map
+            .map_put(Atom::from_str(env, "auth_path").unwrap(), term)
+            .unwrap();
+        map
     }
+}
+
+#[cfg(feature = "nif")]
+impl<'a, const TREE_DEPTH: usize> Decoder<'a> for MerklePath<TREE_DEPTH> {
+    fn decode(term: Term<'a>) -> NifResult<Self> {
+        let key = Atom::from_str(term.get_env(), "auth_path")?;
+        let value = term.map_get(key).expect("auth_path not found in struct");
+        let list_iterator: ListIterator = value.decode()?;
+
+        let result: Vec<(Digest, bool)> = list_iterator
+            // Produces an iterator of NifResult<i64>
+            .map(|x| {
+                let tuple = x.decode::<(Vec<u8>, bool)>().unwrap();
+                let digest_bytes = tuple.0;
+                let digest_arr: [u8; DIGEST_BYTES] = digest_bytes.try_into().unwrap();
+                let digest = Digest::from_bytes(digest_arr);
+                // let r: NifResult<Digest> = Ok(digest);
+                Ok((digest, tuple.1))
+                // r
+            })
+            .collect::<NifResult<Vec<(Digest, bool)>>>()?;
+
+        Ok(MerklePath { auth_path: result })
+    }
+}
 
 impl<const TREE_DEPTH: usize> MerklePath<TREE_DEPTH> {
     /// Constructs a Merkle path directly from a path and position.

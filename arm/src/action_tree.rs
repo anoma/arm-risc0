@@ -1,9 +1,7 @@
 use crate::merkle_path::{Hashable, MerklePath};
-use risc0_zkvm::sha::Digest;
+use risc0_zkvm::sha::{Digest, DIGEST_BYTES};
 use rustler::types::map::map_new;
-#[cfg(feature = "nif")]
-use rustler::NifStruct;
-use rustler::{Decoder, Env, NifResult, Term};
+use rustler::{Atom, Decoder, Env, ListIterator, NifResult, Term};
 
 pub const ACTION_TREE_MAX_NUM: usize = 1 << ACTION_TREE_DEPTH;
 pub const ACTION_TREE_DEPTH: usize = 4;
@@ -19,6 +17,20 @@ pub struct MerkleTree {
 impl rustler::Encoder for MerkleTree {
     fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
         let map = map_new(env);
+
+        let map = map
+            .map_put(
+                Atom::from_str(env, "__struct__").unwrap(),
+                Atom::from_str(env, "Elixir.Anoma.Arm.MerkleTree").unwrap(),
+            )
+            .unwrap();
+
+        // encode the digests
+        let bytes = self.leaves.iter().map(|d| d.as_bytes()).collect::<Vec<_>>();
+        let term = bytes.encode(env);
+        let map = map
+            .map_put(Atom::from_str(env, "leaves").unwrap(), term)
+            .unwrap();
         map
     }
 }
@@ -26,7 +38,22 @@ impl rustler::Encoder for MerkleTree {
 #[cfg(feature = "nif")]
 impl<'a> Decoder<'a> for MerkleTree {
     fn decode(term: Term<'a>) -> NifResult<Self> {
-        Ok(MerkleTree { leaves: vec![] })
+        let key = Atom::from_str(term.get_env(), "leaves")?;
+        let value = term.map_get(key).expect("leaves not found in struct");
+        let list_iterator: ListIterator = value.decode()?;
+
+        let result: Vec<Digest> = list_iterator
+            // Produces an iterator of NifResult<i64>
+            .map(|x| {
+                let digest_bytes: Vec<u8> = x.decode::<Vec<u8>>().unwrap();
+                let digest_arr: [u8; DIGEST_BYTES] = digest_bytes.try_into().unwrap();
+                let digest = Digest::from_bytes(digest_arr);
+                let r: NifResult<Digest> = Ok(digest);
+                r
+            })
+            .collect::<NifResult<Vec<Digest>>>()?;
+
+        Ok(MerkleTree { leaves: result })
     }
 }
 

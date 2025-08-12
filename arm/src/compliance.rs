@@ -8,9 +8,10 @@ use k256::{
     EncodedPoint, ProjectivePoint, Scalar,
 };
 use lazy_static::lazy_static;
+use risc0_zkvm::sha::DIGEST_BYTES;
 use risc0_zkvm::Digest;
 use rustler::types::map::map_new;
-use rustler::{Decoder, Env, NifResult, Term};
+use rustler::{Atom, Decoder, Env, NifResult, Term};
 
 lazy_static! {
     pub static ref INITIAL_ROOT: Digest =
@@ -31,10 +32,68 @@ pub struct ComplianceInstance {
     pub delta_y: Digest,
 }
 
+// impl rustler::Encoder for Digest {
+//     fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
+//         let map = map_new(env);
+//         map
+//     }
+// }
 #[cfg(feature = "nif")]
 impl rustler::Encoder for ComplianceInstance {
     fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
         let map = map_new(env);
+
+        // function to conver digest to array of bytes
+        let conversion = |x: Digest| -> Term {
+            let digest_bytes = x.as_bytes().to_vec();
+            digest_bytes.encode(env)
+        };
+
+        let map = map
+            .map_put(
+                Atom::from_str(env, "__struct__").unwrap(),
+                Atom::from_str(env, "Elixir.Anoma.Arm.ComplianceInstance").unwrap(),
+            )
+            .unwrap();
+
+        // encode the digests
+        let map = map
+            .map_put(
+                Atom::from_str(env, "consumed_nullifier").unwrap(),
+                conversion(self.consumed_nullifier),
+            )
+            .unwrap()
+            .map_put(
+                Atom::from_str(env, "consumed_logic_ref").unwrap(),
+                conversion(self.consumed_logic_ref),
+            )
+            .unwrap()
+            .map_put(
+                Atom::from_str(env, "consumed_commitment_tree_root").unwrap(),
+                conversion(self.consumed_commitment_tree_root),
+            )
+            .unwrap()
+            .map_put(
+                Atom::from_str(env, "created_commitment").unwrap(),
+                conversion(self.created_commitment),
+            )
+            .unwrap()
+            .map_put(
+                Atom::from_str(env, "created_logic_ref").unwrap(),
+                conversion(self.created_logic_ref),
+            )
+            .unwrap()
+            .map_put(
+                Atom::from_str(env, "delta_x").unwrap(),
+                conversion(self.delta_x),
+            )
+            .unwrap()
+            .map_put(
+                Atom::from_str(env, "delta_y").unwrap(),
+                conversion(self.delta_y),
+            )
+            .unwrap();
+
         map
     }
 }
@@ -42,14 +101,27 @@ impl rustler::Encoder for ComplianceInstance {
 #[cfg(feature = "nif")]
 impl<'a> Decoder<'a> for ComplianceInstance {
     fn decode(term: Term<'a>) -> NifResult<Self> {
+        // function to conver digest to array of bytes
+        let conversion = |x: Term| -> Digest {
+            let digest_bytes: Vec<u8> = x.decode::<Vec<u8>>().unwrap();
+            let digest_arr: [u8; DIGEST_BYTES] = digest_bytes.try_into().unwrap();
+            Digest::from_bytes(digest_arr)
+        };
+
+        let fetch_decode = |x: &str| -> Digest {
+            let key = Atom::from_str(term.get_env(), x).unwrap();
+            let value = term.map_get(key).expect("%s not found in struct");
+            conversion(value)
+        };
+
         Ok(ComplianceInstance {
-            consumed_nullifier: Default::default(),
-            consumed_logic_ref: Default::default(),
-            consumed_commitment_tree_root: Default::default(),
-            created_commitment: Default::default(),
-            created_logic_ref: Default::default(),
-            delta_x: Default::default(),
-            delta_y: Default::default(),
+            consumed_nullifier: fetch_decode("consumed_nullifier"),
+            consumed_logic_ref: fetch_decode("consumed_logic_ref"),
+            consumed_commitment_tree_root: fetch_decode("consumed_commitment_tree_root"),
+            created_commitment: fetch_decode("created_commitment"),
+            created_logic_ref: fetch_decode("created_logic_ref"),
+            delta_x: fetch_decode("delta_x"),
+            delta_y: fetch_decode("delta_y"),
         })
     }
 }
