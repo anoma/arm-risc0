@@ -1,9 +1,12 @@
 use hex::FromHex;
 use lazy_static::lazy_static;
 use risc0_zkvm::sha::{Digest, Impl, Sha256, DIGEST_BYTES};
+use rustler::types::map::map_new;
+use rustler::{Decoder, NifResult};
 #[cfg(feature = "nif")]
-use rustler::{NifStruct, NifTuple};
+use rustler::{Env, Term};
 use serde::{Deserialize, Serialize};
+
 lazy_static! {
     pub static ref PADDING_LEAVE: Digest =
         Digest::from_hex("cc1d2f838445db7aec431df9ee8a871f40e7aa5e064fc056633ef8c60fab7b06")
@@ -44,11 +47,26 @@ impl Hashable for Digest {
 
 /// A path from a position in a particular commitment tree to the root of that tree.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "nif", derive(NifStruct))]
-#[cfg_attr(feature = "nif", module = "Anoma.Arm.MerklePath")]
+// #[cfg_attr(feature = "nif", derive(NifStruct))]
+// #[cfg_attr(feature = "nif", module = "Anoma.Arm.MerklePath")]
 pub struct MerklePath<const TREE_DEPTH: usize> {
     auth_path: Vec<(Digest, bool)>,
 }
+
+    #[cfg(feature = "nif")]
+    impl<const TREE_DEPTH: usize> rustler::Encoder for MerklePath<TREE_DEPTH> {
+        fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
+            let map = map_new(env);
+            map
+        }
+    }
+
+    #[cfg(feature = "nif")]
+    impl<'a, const TREE_DEPTH: usize> Decoder<'a> for MerklePath<TREE_DEPTH> {
+        fn decode(term: Term<'a>) -> NifResult<Self> {
+            Ok(MerklePath { auth_path: vec![] })
+        }
+    }
 
 impl<const TREE_DEPTH: usize> MerklePath<TREE_DEPTH> {
     /// Constructs a Merkle path directly from a path and position.

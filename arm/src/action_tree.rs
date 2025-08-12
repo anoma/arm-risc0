@@ -1,17 +1,33 @@
 use crate::merkle_path::{Hashable, MerklePath};
 use risc0_zkvm::sha::Digest;
-
+use rustler::types::map::map_new;
 #[cfg(feature = "nif")]
 use rustler::NifStruct;
+use rustler::{Decoder, Env, NifResult, Term};
 
 pub const ACTION_TREE_MAX_NUM: usize = 1 << ACTION_TREE_DEPTH;
 pub const ACTION_TREE_DEPTH: usize = 4;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "nif", derive(NifStruct))]
-#[cfg_attr(feature = "nif", module = "Anoma.Arm.MerkleTree")]
+// #[cfg_attr(feature = "nif", derive(NifStruct))]
+// #[cfg_attr(feature = "nif", module = "Anoma.Arm.MerkleTree")]
 pub struct MerkleTree {
     leaves: Vec<Digest>,
+}
+
+#[cfg(feature = "nif")]
+impl rustler::Encoder for MerkleTree {
+    fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
+        let map = map_new(env);
+        map
+    }
+}
+
+#[cfg(feature = "nif")]
+impl<'a> Decoder<'a> for MerkleTree {
+    fn decode(term: Term<'a>) -> NifResult<Self> {
+        Ok(MerkleTree { leaves: vec![] })
+    }
 }
 
 impl MerkleTree {

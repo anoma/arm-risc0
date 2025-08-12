@@ -9,8 +9,9 @@ use k256::{
 };
 use lazy_static::lazy_static;
 use risc0_zkvm::Digest;
-#[cfg(feature = "nif")]
-use rustler::NifStruct;
+use rustler::types::map::map_new;
+use rustler::{Decoder, Env, NifResult, Term};
+
 lazy_static! {
     pub static ref INITIAL_ROOT: Digest =
         Digest::from_hex("7e70786b1d52fc0412d75203ef2ac22de13d9596ace8a5a1ed5324c3ed7f31c3")
@@ -18,8 +19,8 @@ lazy_static! {
 }
 
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
-#[cfg_attr(feature = "nif", derive(NifStruct))]
-#[cfg_attr(feature = "nif", module = "Anoma.Arm.ComplianceInstance")]
+// #[cfg_attr(feature = "nif", derive(NifStruct))]
+// #[cfg_attr(feature = "nif", module = "Anoma.Arm.ComplianceInstance")]
 pub struct ComplianceInstance {
     pub consumed_nullifier: Digest,
     pub consumed_logic_ref: Digest,
@@ -30,9 +31,32 @@ pub struct ComplianceInstance {
     pub delta_y: Digest,
 }
 
+#[cfg(feature = "nif")]
+impl rustler::Encoder for ComplianceInstance {
+    fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
+        let map = map_new(env);
+        map
+    }
+}
+
+#[cfg(feature = "nif")]
+impl<'a> Decoder<'a> for ComplianceInstance {
+    fn decode(term: Term<'a>) -> NifResult<Self> {
+        Ok(ComplianceInstance {
+            consumed_nullifier: Default::default(),
+            consumed_logic_ref: Default::default(),
+            consumed_commitment_tree_root: Default::default(),
+            created_commitment: Default::default(),
+            created_logic_ref: Default::default(),
+            delta_x: Default::default(),
+            delta_y: Default::default(),
+        })
+    }
+}
+
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
-#[cfg_attr(feature = "nif", derive(NifStruct))]
-#[cfg_attr(feature = "nif", module = "Anoma.Arm.ComplianceWitness")]
+// #[cfg_attr(feature = "nif", derive(NifStruct))]
+// #[cfg_attr(feature = "nif", module = "Anoma.Arm.ComplianceWitness")]
 pub struct ComplianceWitness<const COMMITMENT_TREE_DEPTH: usize> {
     /// The consumed resource
     pub consumed_resource: Resource,
@@ -49,6 +73,32 @@ pub struct ComplianceWitness<const COMMITMENT_TREE_DEPTH: usize> {
     // TODO: If we want to add function privacy, include:
     // pub input_resource_logic_cm_r: [u8; DATA_BYTES],
     // pub output_resource_logic_cm_r: [u8; DATA_BYTES],
+}
+
+#[cfg(feature = "nif")]
+impl<const COMMITMENT_TREE_DEPTH: usize> rustler::Encoder
+    for ComplianceWitness<COMMITMENT_TREE_DEPTH>
+{
+    fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
+        let map = map_new(env);
+        map
+    }
+}
+
+#[cfg(feature = "nif")]
+impl<'a, const COMMITMENT_TREE_DEPTH: usize> Decoder<'a>
+    for ComplianceWitness<COMMITMENT_TREE_DEPTH>
+{
+    fn decode(term: Term<'a>) -> NifResult<Self> {
+        Ok(ComplianceWitness {
+            consumed_resource: Default::default(),
+            merkle_path: Default::default(),
+            ephemeral_root: Default::default(),
+            nf_key: Default::default(),
+            created_resource: Default::default(),
+            rcv: vec![],
+        })
+    }
 }
 
 impl<const COMMITMENT_TREE_DEPTH: usize> ComplianceWitness<COMMITMENT_TREE_DEPTH> {
