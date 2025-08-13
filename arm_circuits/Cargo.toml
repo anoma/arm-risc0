@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
-members = [ "compliance", "trivial_logic", "counter", "kudo_main", "simple_kudo_denomination", "simple_kudo_receive", "variable_depth" ]
+# members = [ "compliance", "trivial_logic", "counter", "kudo_main", "simple_kudo_denomination", "simple_kudo_receive", "variable_depth" ]
+members = [ "variable_depth" ]
 
 # Always optimize; otherwise tests take excessively long.
 [profile.dev]

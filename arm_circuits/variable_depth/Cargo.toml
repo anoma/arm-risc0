@@ -7,3 +7,4 @@ edition = "2021"
 variable-depth-methods = { path = "methods" }
 risc0-zkvm = "2.1.0"
 arm = { path = "../../arm", features = ["logic_circuit"], default-features = false }
+k256 = { version = "0.13", features = ["serde"] }

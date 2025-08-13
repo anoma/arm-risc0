@@ -1,18 +1,30 @@
-use risc0_zkvm::sha::Digest;
+// use risc0_zkvm::sha::{Impl, Sha256};
 use risc0_zkvm::guest::env;
-use arm::merkle_path::Hashable;
+use k256::{
+    // elliptic_curve::hash2curve::{ExpandMsgXmd, GroupDigest},
+    ProjectivePoint, Scalar, Secp256k1,
+};
+
+// fn main() {
+//     let input = Vec::new();
+//     for _ in 0..1000 {
+//         let _ = *Impl::hash_bytes(input.as_ref());
+//     }
+
+//     env::commit(&input);
+// }
 
 fn main() {
-    let (path, leaf): (Vec<(Digest, bool)>, Digest) = env::read();
+    let mut pre = ProjectivePoint::GENERATOR;
 
-    let root = path.iter()
-            .fold(leaf, |root, (p, leaf_is_on_right)| {
-                let p_digest: Digest = Digest::from(p.clone());
-                match leaf_is_on_right {
-                    false => Digest::combine(&root, &p_digest),
-                    true => Digest::combine(&p_digest, &root),
-                }
-            });
+    let mut cur = ProjectivePoint::GENERATOR + pre;
 
-    env::commit(&(root, path.clone(), path.len() as u32));
+    let iter = 100;
+
+    for _ in 0..iter {
+        let next = pre + cur;
+        pre = cur;
+        cur = next;
+    }
+    env::commit(&iter);
 }
