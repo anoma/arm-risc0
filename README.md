@@ -82,8 +82,9 @@ We have the following feature flags in arm lib:
 | ------------------------ | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | `logic_circuit`            |                           | It provides logic-related traits and gadgets                                                            |
 | `compliance_circuit`       |                           | A specific feature for compliance circuit                                                                                       |
-| `transaction (default)`     | `logic_circuit`, `compliance_circuit`, `prove` | It provides full transaction processing capabilities and will be in the Anoma SDK and validator with a selected prover feature. Succinct prover is used by default. |
+| `transaction (default)`     | `logic_circuit`, `compliance_circuit`, `prove`, `bonsai` | It provides full transaction processing capabilities and will be in the Anoma SDK and validator with a selected prover feature. Succinct prover is used by default. |
 | `prove`                    |                           | Enables RISC0 proving capabilities (required for actual proof generation)                                                       |
+| `bonsai`                    |                           | Enables bonsai sdk                                                       |
 | `fast_prover`         |                           | Fastest option producing linear-size proofs, and does not support compression via recursion |
 | `composite_prover`         |                           | Fastest option producing linear-size proofs, and supports compression via recursion                                                                 |
 | `groth16_prover`           |                           | Generates groth16 proofs(requires x86_64 machines)                                                                              |
