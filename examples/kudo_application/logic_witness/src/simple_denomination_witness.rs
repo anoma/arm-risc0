@@ -8,6 +8,7 @@ use arm::{
     merkle_path::MerklePath,
     nullifier_key::NullifierKey,
     resource::Resource,
+    utils::words_to_bytes,
 };
 use serde::{Deserialize, Serialize};
 
@@ -60,9 +61,10 @@ impl LogicCircuit for SimpleDenominationLogicWitness {
         };
         let kudo_root = self.kudo_existence_path.root(&kudo_tag);
         assert_eq!(root, kudo_root);
+        let root_bytes = words_to_bytes(&root);
 
         // Check denomination.label = kudo_resource.tag
-        assert_eq!(self.denomination_resource.label_ref, kudo_tag);
+        assert_eq!(self.denomination_resource.label_ref, kudo_tag.as_bytes());
 
         // Decode label of the kudo resource and check the correspondence between the
         // kudo resource and the domination resource
@@ -75,7 +77,7 @@ impl LogicCircuit for SimpleDenominationLogicWitness {
             // Both insurance and burn should verify the issuer's signature. It
             // implies that only the issuer can burn resouces in this example.
             // It makes more sense to let the owner burn resources in practice?
-            assert!(self.kudo_issuer.verify(&root, &self.signature).is_ok());
+            assert!(self.kudo_issuer.verify(root_bytes, &self.signature).is_ok());
 
             // The issuer must be the owner when burning the resource.
             if !self.kudo_is_consumed {
@@ -84,11 +86,11 @@ impl LogicCircuit for SimpleDenominationLogicWitness {
         } else if self.kudo_is_consumed {
             // Constrain persistent kudo resource consumption
             // Verify the owner's signature
-            assert!(self.kudo_owner.verify(&root, &self.signature,).is_ok());
+            assert!(self.kudo_owner.verify(root_bytes, &self.signature).is_ok());
         }
 
         LogicInstance {
-            tag: denomination_tag,
+            tag: denomination_tag.as_words().to_vec(),
             is_consumed: self.denomination_is_consumed,
             root,
             cipher: Ciphertext::default().inner(), // no cipher needed

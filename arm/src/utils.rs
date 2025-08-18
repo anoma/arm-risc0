@@ -1,0 +1,38 @@
+use risc0_zkvm::sha::{Impl, Sha256, DIGEST_WORDS};
+
+pub fn bytes_to_words(bytes: &[u8]) -> Vec<u32> {
+    let mut words = Vec::new();
+    for chunk in bytes.chunks(4) {
+        let mut word = 0u32;
+        for &byte in chunk {
+            word = (word << 8) | (byte as u32);
+        }
+        words.push(u32::from_be(word));
+    }
+    words
+}
+
+pub fn words_to_bytes(words: &[u32]) -> &[u8] {
+    bytemuck::cast_slice(words)
+}
+
+pub fn hash_two(left: &[u32], right: &[u32]) -> Vec<u32> {
+    let mut words = Vec::with_capacity(2 * DIGEST_WORDS);
+    words.extend_from_slice(left);
+    words.extend_from_slice(right);
+    Impl::hash_words(&words).as_words().to_vec()
+}
+
+#[test]
+fn test_bytes_to_words() {
+    let bytes = [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08];
+    let words = bytes_to_words(&bytes);
+    assert_eq!(bytes, words_to_bytes(&words));
+}
+
+#[test]
+fn test_words_to_bytes() {
+    let words = vec![0x01020304, 0x05060708];
+    let bytes = words_to_bytes(&words);
+    assert_eq!(words, bytes_to_words(bytes));
+}
