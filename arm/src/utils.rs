@@ -2,7 +2,7 @@ use risc0_zkvm::sha::{Impl, Sha256, DIGEST_WORDS};
 
 pub fn bytes_to_words(bytes: &[u8]) -> Vec<u32> {
     let mut words = Vec::new();
-    for chunk in bytes.chunks(4) {
+    for chunk in bytes.chunks_exact(4) {
         let mut word = 0u32;
         for &byte in chunk {
             word = (word << 8) | (byte as u32);

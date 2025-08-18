@@ -1,7 +1,10 @@
 pub use arm::resource_logic::LogicCircuit;
 use arm::{
-    action_tree::ACTION_TREE_DEPTH, logic_instance::LogicInstance, merkle_path::MerklePath,
-    nullifier_key::NullifierKey, resource::Resource,
+    action_tree::ACTION_TREE_DEPTH,
+    logic_instance::{AppData, LogicInstance},
+    merkle_path::MerklePath,
+    nullifier_key::NullifierKey,
+    resource::Resource,
 };
 use serde::{Deserialize, Serialize};
 #[derive(Clone, Default, Serialize, Deserialize)]
@@ -47,8 +50,7 @@ impl LogicCircuit for CounterWitness {
             tag: tag.as_words().to_vec(),
             is_consumed: self.is_consumed,
             root: old_counter_root,
-            cipher: vec![],
-            app_data: vec![],
+            app_data: AppData::default(),
         }
     }
 }

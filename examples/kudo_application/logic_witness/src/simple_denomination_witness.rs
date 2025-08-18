@@ -3,8 +3,7 @@ pub use arm::resource_logic::LogicCircuit;
 use arm::{
     action_tree::ACTION_TREE_DEPTH,
     authorization::{AuthorizationSignature, AuthorizationVerifyingKey},
-    encryption::Ciphertext,
-    logic_instance::LogicInstance,
+    logic_instance::{AppData, LogicInstance},
     merkle_path::MerklePath,
     nullifier_key::NullifierKey,
     resource::Resource,
@@ -93,8 +92,7 @@ impl LogicCircuit for SimpleDenominationLogicWitness {
             tag: denomination_tag.as_words().to_vec(),
             is_consumed: self.denomination_is_consumed,
             root,
-            cipher: Ciphertext::default().inner(), // no cipher needed
-            app_data: Vec::new(),                  // no app data needed
+            app_data: AppData::default(), // no app data needed
         }
     }
 }
