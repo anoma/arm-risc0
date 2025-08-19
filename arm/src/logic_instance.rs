@@ -27,7 +27,7 @@ pub struct AppData {
 #[cfg_attr(feature = "nif", module = "Anoma.Arm.ExpirableBlob")]
 pub struct ExpirableBlob {
     pub blob: Vec<u32>,
-    pub deletion_criterion: u8,
+    pub deletion_criterion: u32,
 }
 
 impl AppData {

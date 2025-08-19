@@ -15,6 +15,6 @@ lazy_static! {
 
     // compliance verification key / compliance image id
     pub static ref PADDING_LOGIC_VK: Digest =
-        Digest::from_hex("b24f946a9da8eb0e96f8d357c0c5a73191dd54089ca1f1094d36ccc5041fd885")
+        Digest::from_hex("f8047dc2cf6cbe45137a588a3f019814218e7d7199b1b86a57b51c310e04fae9")
             .unwrap();
 }
