@@ -1,5 +1,4 @@
 use crate::{
-    action_tree::ACTION_TREE_DEPTH,
     encryption::{Ciphertext, SecretKey},
     evm::Resource as EvmResource,
     logic_instance::AppData,
@@ -22,7 +21,7 @@ use rustler::NifStruct;
 
 pub struct TestLogicWitness {
     pub resource: Resource,
-    pub receive_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+    pub receive_existence_path: MerklePath,
     pub is_consumed: bool,
     pub nf_key: NullifierKey,
 }
@@ -106,7 +105,7 @@ impl LogicCircuit for TestLogicWitness {
 impl TestLogicWitness {
     pub fn new(
         resource: Resource,
-        receive_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+        receive_existence_path: MerklePath,
         nf_key: NullifierKey,
         is_consumed: bool,
     ) -> Self {

@@ -1,7 +1,6 @@
 use crate::utils::compute_kudo_label;
 pub use arm::resource_logic::LogicCircuit;
 use arm::{
-    action_tree::ACTION_TREE_DEPTH,
     authorization::{AuthorizationSignature, AuthorizationVerifyingKey},
     logic_instance::{AppData, LogicInstance},
     merkle_path::MerklePath,
@@ -17,14 +16,14 @@ pub struct SimpleDenominationLogicWitness {
     pub denomination_resource: Resource,
     pub denomination_is_consumed: bool, // It can be either consumed or created
     pub denomination_nf_key: NullifierKey,
-    pub denomination_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+    pub denomination_existence_path: MerklePath,
     // There are three types of signatures: issuance, burn, and consumption.
     // Only one is enabled at a time.
     pub signature: AuthorizationSignature,
 
     // Kudo related fields
     pub kudo_resource: Resource,
-    pub kudo_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+    pub kudo_existence_path: MerklePath,
     pub kudo_is_consumed: bool,
     pub kudo_nf_key: NullifierKey,
     pub kudo_issuer: AuthorizationVerifyingKey,
@@ -102,11 +101,11 @@ impl SimpleDenominationLogicWitness {
     // Create a denomination witness corresponding to a created kudo resource
     pub fn generate_created_kudo_denomination_witness(
         denomination_resource: Resource,
-        denomination_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+        denomination_existence_path: MerklePath,
         denomination_is_consumed: bool,
         denomination_nf_key: NullifierKey,
         kudo_resource: Resource,
-        kudo_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+        kudo_existence_path: MerklePath,
         kudo_issuer: AuthorizationVerifyingKey,
     ) -> Self {
         Self {
@@ -127,10 +126,10 @@ impl SimpleDenominationLogicWitness {
     // Create a witness for the issuance of an ephemeral kudo resource
     pub fn generate_issued_ephemeral_witness(
         denomination_resource: Resource,
-        denomination_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+        denomination_existence_path: MerklePath,
         signature: AuthorizationSignature,
         kudo_resource: Resource,
-        kudo_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+        kudo_existence_path: MerklePath,
         kudo_nf_key: NullifierKey,
         kudo_issuer: AuthorizationVerifyingKey,
     ) -> Self {
@@ -152,12 +151,12 @@ impl SimpleDenominationLogicWitness {
     #[allow(clippy::too_many_arguments)]
     pub fn generate_denomimation_witness(
         denomination_resource: Resource,
-        denomination_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+        denomination_existence_path: MerklePath,
         denomination_is_consumed: bool,
         denomination_nf_key: NullifierKey,
         signature: AuthorizationSignature,
         kudo_resource: Resource,
-        kudo_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+        kudo_existence_path: MerklePath,
         kudo_is_consumed: bool,
         kudo_nf_key: NullifierKey,
         kudo_issuer: AuthorizationVerifyingKey,
@@ -182,11 +181,11 @@ impl SimpleDenominationLogicWitness {
     #[allow(clippy::too_many_arguments)]
     pub fn generate_burned_ephemeral_witness(
         denomination_resource: Resource,
-        denomination_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+        denomination_existence_path: MerklePath,
         denomination_nf_key: NullifierKey,
         signature: AuthorizationSignature,
         kudo_resource: Resource,
-        kudo_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+        kudo_existence_path: MerklePath,
         kudo_issuer: AuthorizationVerifyingKey,
         kudo_owner: AuthorizationVerifyingKey,
     ) -> Self {

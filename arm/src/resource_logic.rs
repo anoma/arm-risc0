@@ -1,6 +1,6 @@
 use crate::{
-    action_tree::ACTION_TREE_DEPTH, logic_instance::AppData, logic_instance::LogicInstance,
-    merkle_path::MerklePath, nullifier_key::NullifierKey, resource::Resource,
+    logic_instance::AppData, logic_instance::LogicInstance, merkle_path::MerklePath,
+    nullifier_key::NullifierKey, resource::Resource,
 };
 use serde::{Deserialize, Serialize};
 
@@ -24,7 +24,7 @@ pub trait LogicCircuit: Default + Clone + Serialize + for<'de> Deserialize<'de> 
 
 pub struct TrivialLogicWitness {
     pub resource: Resource,
-    pub receive_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+    pub receive_existence_path: MerklePath,
     pub is_consumed: bool,
     pub nf_key: NullifierKey,
 }
@@ -51,7 +51,7 @@ impl LogicCircuit for TrivialLogicWitness {
 impl TrivialLogicWitness {
     pub fn new(
         resource: Resource,
-        receive_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+        receive_existence_path: MerklePath,
         nf_key: NullifierKey,
         is_consumed: bool,
     ) -> Self {

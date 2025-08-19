@@ -4,11 +4,8 @@ use arm::{
     transaction::{Delta, Transaction},
 };
 use arm::{
-    delta_proof::DeltaWitness,
-    encryption::AffinePoint,
-    merkle_path::{MerklePath, COMMITMENT_TREE_DEPTH},
-    nullifier_key::NullifierKey,
-    resource::Resource,
+    delta_proof::DeltaWitness, encryption::AffinePoint, merkle_path::MerklePath,
+    nullifier_key::NullifierKey, resource::Resource,
 };
 
 // This function creates a counter resource based on the old counter resource.
@@ -24,7 +21,7 @@ pub fn increment_counter(old_counter: &Resource, old_counter_nf_key: &NullifierK
 
 pub fn create_increment_tx(
     counter_resource: Resource,
-    consumed_merkle_path: MerklePath<COMMITMENT_TREE_DEPTH>,
+    consumed_merkle_path: MerklePath,
     nf_key: NullifierKey,
     consumed_discovery_pk: AffinePoint,
     created_discovery_pk: AffinePoint,
