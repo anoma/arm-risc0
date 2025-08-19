@@ -1,7 +1,6 @@
 use crate::utils::compute_kudo_label;
 pub use arm::resource_logic::LogicCircuit;
 use arm::{
-    action_tree::ACTION_TREE_DEPTH,
     authorization::{AuthorizationSignature, AuthorizationVerifyingKey},
     encryption::{Ciphertext, SecretKey},
     logic_instance::{AppData, ExpirableBlob, LogicInstance},
@@ -17,7 +16,7 @@ use serde::{Deserialize, Serialize};
 pub struct KudoMainWitness {
     // Kudo related fields
     pub kudo_resource: Resource,
-    pub kudo_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+    pub kudo_existence_path: MerklePath,
     pub kudo_is_consumed: bool,
     pub kudo_nf_key: NullifierKey,
     pub issuer: AuthorizationVerifyingKey,
@@ -26,7 +25,7 @@ pub struct KudoMainWitness {
 
     // Denomination related fields
     pub denomination_resource: Resource,
-    pub denomination_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+    pub denomination_existence_path: MerklePath,
     pub denomination_is_consumed: bool,
     pub denomination_nf_key: NullifierKey,
 
@@ -36,7 +35,7 @@ pub struct KudoMainWitness {
     pub receive_is_consumed: bool,
     pub owner: AuthorizationVerifyingKey,
     pub receiver_signature: AuthorizationSignature,
-    pub receive_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+    pub receive_existence_path: MerklePath,
 }
 
 impl LogicCircuit for KudoMainWitness {
@@ -140,16 +139,16 @@ impl KudoMainWitness {
     #[allow(clippy::too_many_arguments)]
     pub fn generate_persistent_resource_creation_witness(
         kudo_resource: Resource,
-        kudo_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+        kudo_existence_path: MerklePath,
         issuer: AuthorizationVerifyingKey,
         denomination_resource: Resource,
-        denomination_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+        denomination_existence_path: MerklePath,
         denomination_nf_key: NullifierKey,
         denomination_is_consumed: bool,
         receive_resource: Resource,
         receive_nf_key: NullifierKey,
         receive_is_consumed: bool,
-        receive_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+        receive_existence_path: MerklePath,
         owner: AuthorizationVerifyingKey,
         receiver_signature: AuthorizationSignature,
     ) -> Self {
@@ -178,11 +177,11 @@ impl KudoMainWitness {
     #[allow(clippy::too_many_arguments)]
     pub fn generate_persistent_resource_consumption_witness(
         kudo_resource: Resource,
-        kudo_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+        kudo_existence_path: MerklePath,
         kudo_nf_key: NullifierKey,
         issuer: AuthorizationVerifyingKey,
         denomination_resource: Resource,
-        denomination_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+        denomination_existence_path: MerklePath,
         denomination_is_consumed: bool,
         denomination_nf_key: NullifierKey,
     ) -> Self {
@@ -209,11 +208,11 @@ impl KudoMainWitness {
 
     pub fn generate_consumed_ephemeral_witness(
         kudo_resource: Resource,
-        kudo_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+        kudo_existence_path: MerklePath,
         kudo_nf_key: NullifierKey,
         issuer: AuthorizationVerifyingKey,
         denomination_resource: Resource,
-        denomination_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+        denomination_existence_path: MerklePath,
     ) -> Self {
         Self {
             kudo_resource,
@@ -238,10 +237,10 @@ impl KudoMainWitness {
 
     pub fn generate_created_ephemeral_witness(
         kudo_resource: Resource,
-        kudo_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+        kudo_existence_path: MerklePath,
         issuer: AuthorizationVerifyingKey,
         denomination_resource: Resource,
-        denomination_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+        denomination_existence_path: MerklePath,
         denomination_nf_key: NullifierKey,
     ) -> Self {
         Self {

@@ -5,9 +5,7 @@ use arm::{
     logic_proof::{LogicProver, PaddingResourceLogic},
     transaction::{Delta, Transaction},
 };
-use arm::{
-    compliance::ComplianceWitness, delta_proof::DeltaWitness, merkle_path::COMMITMENT_TREE_DEPTH,
-};
+use arm::{compliance::ComplianceWitness, delta_proof::DeltaWitness};
 
 #[derive(Clone)]
 pub struct Issue<K, D, R>
@@ -38,12 +36,11 @@ where
 
             println!("Generating compliance unit 1");
             let (compliance_unit_1, delta_witness_1) = {
-                let compliance_witness: ComplianceWitness<COMMITMENT_TREE_DEPTH> =
-                    ComplianceWitness::from_resources(
-                        self.ephemeral_kudo.resource(),
-                        self.ephemeral_kudo.nf_key().unwrap(),
-                        self.issue_kudo.resource(),
-                    );
+                let compliance_witness: ComplianceWitness = ComplianceWitness::from_resources(
+                    self.ephemeral_kudo.resource(),
+                    self.ephemeral_kudo.nf_key().unwrap(),
+                    self.issue_kudo.resource(),
+                );
 
                 (
                     ComplianceUnit::create(&compliance_witness),
@@ -54,12 +51,11 @@ where
             // Compliance unit 2: the issued_receive_resource and the issued_denomination_resource
             println!("Generating compliance unit 2");
             let (compliance_unit_2, delta_witness_2) = {
-                let compliance_witness: ComplianceWitness<COMMITMENT_TREE_DEPTH> =
-                    ComplianceWitness::from_resources(
-                        self.issue_receive.resource(),
-                        self.issue_receive.nf_key().unwrap(),
-                        self.issue_denomination.resource(),
-                    );
+                let compliance_witness: ComplianceWitness = ComplianceWitness::from_resources(
+                    self.issue_receive.resource(),
+                    self.issue_receive.nf_key().unwrap(),
+                    self.issue_denomination.resource(),
+                );
 
                 (
                     ComplianceUnit::create(&compliance_witness),
@@ -70,12 +66,11 @@ where
             // Compliance unit 3: a padding resource and the ephemeral_denomination_resource
             println!("Generating compliance unit 3");
             let (compliance_unit_3, delta_witness_3) = {
-                let compliance_witness: ComplianceWitness<COMMITMENT_TREE_DEPTH> =
-                    ComplianceWitness::from_resources(
-                        self.padding_resource_logic.witness().resource.clone(),
-                        self.padding_resource_logic.witness().nf_key.clone(),
-                        self.ephemeral_denomination.resource(),
-                    );
+                let compliance_witness: ComplianceWitness = ComplianceWitness::from_resources(
+                    self.padding_resource_logic.witness().resource.clone(),
+                    self.padding_resource_logic.witness().nf_key.clone(),
+                    self.ephemeral_denomination.resource(),
+                );
 
                 (
                     ComplianceUnit::create(&compliance_witness),
