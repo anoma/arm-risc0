@@ -3,7 +3,7 @@ use crate::{
     compliance::{ComplianceInstance, ComplianceWitness},
     compliance_unit::ComplianceUnit,
     delta_proof::DeltaWitness,
-    logic_proof::{LogicProof, LogicProver},
+    logic_proof::{LogicProver, LogicVerifier, LogicVerifierInputs},
     merkle_path::COMMITMENT_TREE_DEPTH,
     nullifier_key::NullifierKey,
     resource::Resource,
@@ -19,17 +19,14 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "nif", module = "Anoma.Arm.Action")]
 pub struct Action {
     pub compliance_units: Vec<ComplianceUnit>,
-    pub logic_verifier_inputs: Vec<LogicProof>,
+    pub logic_verifier_inputs: Vec<LogicVerifierInputs>,
 }
 
 impl Action {
-    pub fn new(
-        compliance_units: Vec<ComplianceUnit>,
-        logic_verifier_inputs: Vec<LogicProof>,
-    ) -> Self {
+    pub fn new(compliance_units: Vec<ComplianceUnit>, logic_verifiers: Vec<LogicVerifier>) -> Self {
         Action {
             compliance_units,
-            logic_verifier_inputs,
+            logic_verifier_inputs: logic_verifiers.into_iter().map(|lv| lv.into()).collect(),
         }
     }
 
@@ -37,11 +34,11 @@ impl Action {
         &self.compliance_units
     }
 
-    pub fn get_logic_verifier_inputs(&self) -> &Vec<LogicProof> {
+    pub fn get_logic_verifier_inputs(&self) -> &Vec<LogicVerifierInputs> {
         &self.logic_verifier_inputs
     }
 
-    pub fn verify(&self) -> bool {
+    pub fn verify(self) -> bool {
         for unit in &self.compliance_units {
             if !unit.verify() {
                 return false;
@@ -76,22 +73,20 @@ impl Action {
         let action_tree = MerkleTree::from(tags.clone());
         let root = action_tree.root();
 
-        for proof in &self.logic_verifier_inputs {
-            let instance = proof.get_instance();
+        for input in self.logic_verifier_inputs {
+            if let Some(index) = tags.iter().position(|tag| *tag == input.tag) {
+                if input.verifying_key != logics[index] {
+                    // The verifying_key doesn't match the resource logic
+                    return false;
+                }
 
-            if root != instance.root {
-                return false;
-            }
-
-            if let Some(index) = tags.iter().position(|tag| *tag == instance.tag) {
-                if proof.verifying_key != logics[index] {
+                let is_comsumed = index % 2 == 0;
+                let verifier = input.to_logic_verifier(is_comsumed, root.clone());
+                if !verifier.verify() {
                     return false;
                 }
             } else {
-                return false;
-            }
-
-            if !proof.verify() {
+                // Tag not found
                 return false;
             }
         }
@@ -159,7 +154,7 @@ pub fn create_an_action(nonce: u8) -> (Action, DeltaWitness) {
     let logic_verifier_inputs = vec![consumed_logic_proof, created_logic_proof];
 
     let action = Action::new(compliance_units, logic_verifier_inputs);
-    assert!(action.verify());
+    assert!(action.clone().verify());
 
     let delta_witness = DeltaWitness::from_bytes_vec(&[compliance_witness.rcv]);
     (action, delta_witness)
