@@ -281,6 +281,7 @@ version = "0.2.0"
 dependencies = [
  "aes-gcm",
  "bincode",
+ "bytemuck",
  "hex",
  "k256",
  "lazy_static",

@@ -44,7 +44,7 @@ impl LogicCircuit for CounterWitness {
         let tag = if self.is_consumed { old_nf } else { new_cm };
 
         LogicInstance {
-            tag,
+            tag: tag.as_words().to_vec(),
             is_consumed: self.is_consumed,
             root: old_counter_root,
             cipher: vec![],

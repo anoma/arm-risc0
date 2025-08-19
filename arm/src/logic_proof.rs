@@ -9,7 +9,7 @@ use crate::{
     resource_logic::TrivialLogicWitness,
 };
 use rand::Rng;
-use risc0_zkvm::Digest;
+use risc0_zkvm::sha::{Digest, DIGEST_WORDS};
 #[cfg(feature = "nif")]
 use rustler::NifStruct;
 use serde::{Deserialize, Serialize};
@@ -33,7 +33,7 @@ pub trait LogicProver: Default + Clone + Serialize + for<'de> Deserialize<'de> {
             // TODO: handle the unwrap properly
             proof,
             instance,
-            verifying_key: Self::verifying_key_as_bytes(),
+            verifying_key: Self::verifying_key().as_words().to_vec(),
         }
     }
 }
@@ -44,13 +44,14 @@ pub trait LogicProver: Default + Clone + Serialize + for<'de> Deserialize<'de> {
 pub struct LogicProof {
     pub proof: Vec<u8>,
     pub instance: Vec<u8>,
-    pub verifying_key: Vec<u8>,
+    pub verifying_key: Vec<u32>,
 }
 
 impl LogicProof {
     pub fn verify(&self) -> bool {
-        let vk = if self.verifying_key.len() == 32 {
-            Digest::from_bytes(self.verifying_key.clone().try_into().unwrap())
+        let vk = if self.verifying_key.len() == DIGEST_WORDS {
+            let words: [u32; DIGEST_WORDS] = self.verifying_key.clone().try_into().unwrap();
+            Digest::from(words)
         } else {
             return false; // Invalid verifying key length
         };
