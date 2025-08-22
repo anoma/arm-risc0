@@ -7,7 +7,6 @@ use crate::{
     merkle_path::COMMITMENT_TREE_DEPTH,
     nullifier_key::NullifierKey,
     resource::Resource,
-    resource_logic::TrivialLogicWitness,
 };
 use k256::ProjectivePoint;
 #[cfg(feature = "nif")]
@@ -113,11 +112,14 @@ impl Action {
 }
 
 pub fn create_an_action(nonce: u8) -> (Action, DeltaWitness) {
+    use crate::logic_proof::TestLogic;
+
     let nf_key = NullifierKey::default();
     let nf_key_cm = nf_key.commit();
     let mut consumed_resource = Resource {
-        logic_ref: TrivialLogicWitness::verifying_key_as_bytes(),
+        logic_ref: TestLogic::verifying_key_as_bytes(),
         nk_commitment: nf_key_cm,
+        quantity: 1,
         ..Default::default()
     };
     consumed_resource.nonce[0] = nonce;
@@ -138,17 +140,16 @@ pub fn create_an_action(nonce: u8) -> (Action, DeltaWitness) {
     let consumed_resource_path = action_tree.generate_path(&consumed_resource_nf).unwrap();
     let created_resource_path = action_tree.generate_path(&created_resource_cm).unwrap();
 
-    let consumed_logic_witness = TrivialLogicWitness::new(
+    let consumed_logic = TestLogic::new(
         consumed_resource,
         consumed_resource_path,
         nf_key.clone(),
         true,
     );
-    let consumed_logic_proof = consumed_logic_witness.prove();
+    let consumed_logic_proof = consumed_logic.prove();
 
-    let created_logic_witness =
-        TrivialLogicWitness::new(created_resource, created_resource_path, nf_key, false);
-    let created_logic_proof = created_logic_witness.prove();
+    let created_logic = TestLogic::new(created_resource, created_resource_path, nf_key, false);
+    let created_logic_proof = created_logic.prove();
 
     let compliance_units = vec![compliance_receipt];
     let logic_verifier_inputs = vec![consumed_logic_proof, created_logic_proof];

@@ -44,7 +44,7 @@ impl LogicCircuit for TestLogicWitness {
                 deletion_criterion: 1,
             };
             let nk_expirable_blob = ExpirableBlob {
-                blob: bytes_to_words(&self.nf_key.inner()),
+                blob: bytes_to_words(self.nf_key.inner()),
                 deletion_criterion: 1,
             };
 
@@ -81,7 +81,7 @@ impl LogicCircuit for TestLogicWitness {
 
         let application_payload = {
             let application_blob = ExpirableBlob {
-                blob: bytes_to_words(&vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8, 6u8, 7u8]),
+                blob: bytes_to_words(&[0u8, 1u8, 2u8, 3u8, 4u8, 5u8, 6u8, 7u8]),
                 deletion_criterion: 1,
             };
             vec![application_blob]
@@ -121,10 +121,11 @@ impl TestLogicWitness {
 
 impl Default for TestLogicWitness {
     fn default() -> Self {
-        let mut resource = Resource::default();
-        resource.quantity = 1;
         Self {
-            resource,
+            resource: Resource {
+                quantity: 1,
+                ..Default::default()
+            },
             receive_existence_path: MerklePath::default(),
             is_consumed: false,
             nf_key: NullifierKey::default(),

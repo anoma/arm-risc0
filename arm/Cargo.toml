@@ -22,7 +22,7 @@ alloy-primitives = { version = "1.0.23", optional = true }
 alloy-sol-types = { version = "1.0.23", optional = true }
 
 [features]
-default = ["transaction"]
+default = ["transaction", "evm"]
 prove = ["risc0-zkvm/prove"]
 bonsai = ["risc0-zkvm/bonsai"]
 nif = ["dep:rustler"]

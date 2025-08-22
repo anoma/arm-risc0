@@ -6,6 +6,8 @@ use risc0_zkvm::Digest;
 pub const COMPLIANCE_PK: &[u8] = include_bytes!("../elfs/compliance-guest.bin");
 // Padding logic proving key / padding logic guest ELF binary
 pub const PADDING_LOGIC_PK: &[u8] = include_bytes!("../elfs/trivial-logic-guest.bin");
+// Test logic proving key / test logic guest ELF binary
+pub const TEST_LOGIC_PK: &[u8] = include_bytes!("../elfs/logic-test-guest.bin");
 
 lazy_static! {
     // compliance verification key / compliance image id
@@ -13,8 +15,13 @@ lazy_static! {
         Digest::from_hex("2c10d71e919b8b6359bfc167294c9994c1699e3eeb851d4b7775edb67b54a327")
             .unwrap();
 
-    // compliance verification key / compliance image id
+    // padding logic verification key / compliance image id
     pub static ref PADDING_LOGIC_VK: Digest =
         Digest::from_hex("f8047dc2cf6cbe45137a588a3f019814218e7d7199b1b86a57b51c310e04fae9")
+            .unwrap();
+
+    // test logic verification key / compliance image id
+    pub static ref TEST_LOGIC_VK: Digest =
+        Digest::from_hex("9bd7dcafff4476be3113708cace54cb5c36f7294f1a8abb6b5e6f8f7db3d1ee3")
             .unwrap();
 }
