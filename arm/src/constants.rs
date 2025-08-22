@@ -22,6 +22,6 @@ lazy_static! {
 
     // test logic verification key / compliance image id
     pub static ref TEST_LOGIC_VK: Digest =
-        Digest::from_hex("12f4c92a2662dfe094c9ebec2768524dafaa883b2a20585b4eb496c071401b36")
+        Digest::from_hex("14cd7fdc889b994f8bd729faa73e16d53338ed1716332b9995a5dac9e0237732")
             .unwrap();
 }

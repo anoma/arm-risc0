@@ -33,9 +33,9 @@ impl From<ArmResource> for Resource {
             quantity: r.quantity,
             valueRef: B256::from_slice(&r.value_ref),
             ephemeral: r.is_ephemeral,
-            nonce: U256::from_le_slice(r.nonce.as_slice()),
+            nonce: U256::from_be_slice(r.nonce.as_slice()),
             nullifierKeyCommitment: B256::from_slice(r.nk_commitment.inner()),
-            randSeed: U256::from_le_slice(r.rand_seed.as_slice()),
+            randSeed: U256::from_be_slice(r.rand_seed.as_slice()),
         }
     }
 }
