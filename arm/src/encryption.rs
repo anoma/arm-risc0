@@ -42,13 +42,7 @@ impl Ciphertext {
     }
 
     pub fn as_words(&self) -> Vec<u32> {
-        let mut padded = self.inner().to_vec();
-        let len = self.inner().len();
-        let rem = len % 4;
-        if rem != 0 {
-            padded.resize(len + (4 - rem), 0);
-        }
-        bytes_to_words(&padded)
+        bytes_to_words(self.inner())
     }
 
     pub fn encrypt(

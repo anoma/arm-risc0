@@ -24,6 +24,8 @@ pub mod proving_system;
 pub mod resource;
 #[cfg(feature = "logic_circuit")]
 pub mod resource_logic;
+#[cfg(all(feature = "logic_circuit", feature = "evm"))]
+pub mod test_logic;
 #[cfg(feature = "transaction")]
 pub mod transaction;
 pub mod utils;

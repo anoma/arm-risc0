@@ -855,22 +855,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "compliance"
-version = "0.1.0"
-dependencies = [
- "arm",
- "compliance-methods",
- "risc0-zkvm",
-]
-
-[[package]]
-name = "compliance-methods"
-version = "0.1.0"
-dependencies = [
- "risc0-build",
-]
-
-[[package]]
 name = "const-hex"
 version = "1.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -937,21 +921,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "counter"
-version = "0.1.0"
-dependencies = [
- "counter-methods",
- "risc0-zkvm",
-]
-
-[[package]]
-name = "counter-methods"
-version = "0.1.0"
-dependencies = [
- "risc0-build",
-]
-
-[[package]]
 name = "cpufeatures"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -968,11 +937,11 @@ checksum = "460fbee9c2c2f33933d720630a6a0bac33ba7053db5344fac858d4b8952d77d5"
 
 [[package]]
 name = "crypto-bigint"
-version = "0.5.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0dc92fb57ca44df6db8059111ab3af99a63d5d0f8375d9972e319a379c6bab76"
+version = "0.5.2"
+source = "git+https://github.com/risc0/RustCrypto-crypto-bigint?tag=v0.5.2-risczero.0#8b30304277cfe553b51a78a0e693f48bbb059eb3"
 dependencies = [
  "generic-array",
+ "getrandom 0.2.16",
  "rand_core 0.6.4",
  "subtle",
  "zeroize",
@@ -1901,6 +1870,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "itertools"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2b192c782037fadd9cfa75548310488aabdbf3d2da73885b31bd0abd03351285"
+dependencies = [
+ "either",
+]
+
+[[package]]
 name = "itoa"
 version = "1.0.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1919,13 +1897,14 @@ dependencies = [
 [[package]]
 name = "k256"
 version = "0.13.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "956ff9b67e26e1a6a866cb758f12c6f8746208489e3e4a4b5580802f2f0a587b"
+source = "git+https://github.com/risc0/RustCrypto-elliptic-curves?tag=k256%2Fv0.13.3-risczero.1#ff5d67b095cfcc2569b7789f2079ed87ef2c7756"
 dependencies = [
+ "bytemuck",
  "cfg-if",
  "ecdsa",
  "elliptic-curve",
  "once_cell",
+ "risc0-bigint2",
  "serdect",
  "sha2",
 ]
@@ -1947,21 +1926,6 @@ checksum = "505d1856a39b200489082f90d897c3f07c455563880bc5952e38eabf731c83b6"
 dependencies = [
  "digest 0.10.7",
  "sha3-asm",
-]
-
-[[package]]
-name = "kudo-main"
-version = "0.1.0"
-dependencies = [
- "kudo-main-methods",
- "risc0-zkvm",
-]
-
-[[package]]
-name = "kudo-main-methods"
-version = "0.1.0"
-dependencies = [
- "risc0-build",
 ]
 
 [[package]]
@@ -2037,19 +2001,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "13dc2df351e3202783a1fe0d44375f7295ffb4049267b0f3018346dc122a1d94"
 
 [[package]]
-name = "logic-test"
+name = "logic-test-guest"
 version = "0.1.0"
 dependencies = [
  "arm",
- "logic-test-methods",
  "risc0-zkvm",
-]
-
-[[package]]
-name = "logic-test-methods"
-version = "0.1.0"
-dependencies = [
- "risc0-build",
 ]
 
 [[package]]
@@ -2429,7 +2385,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8a56d757972c98b346a9b766e3f02746cde6dd1cd1d1d563472929fdd74bec4d"
 dependencies = [
  "anyhow",
- "itertools 0.10.5",
+ "itertools 0.14.0",
  "proc-macro2",
  "quote",
  "syn 2.0.106",
@@ -2691,6 +2647,16 @@ dependencies = [
  "libc",
  "untrusted",
  "windows-sys 0.52.0",
+]
+
+[[package]]
+name = "risc0-bigint2"
+version = "1.4.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "22e08e87f62298c1e4c614eb6e29206dce4f2a1c16a033efa407c24d67622177"
+dependencies = [
+ "include_bytes_aligned",
+ "stability",
 ]
 
 [[package]]
@@ -3232,36 +3198,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "simple-kudo-denomination"
-version = "0.1.0"
-dependencies = [
- "risc0-zkvm",
- "simple-kudo-denomination-methods",
-]
-
-[[package]]
-name = "simple-kudo-denomination-methods"
-version = "0.1.0"
-dependencies = [
- "risc0-build",
-]
-
-[[package]]
-name = "simple-kudo-receive"
-version = "0.1.0"
-dependencies = [
- "risc0-zkvm",
- "simple-kudo-receive-methods",
-]
-
-[[package]]
-name = "simple-kudo-receive-methods"
-version = "0.1.0"
-dependencies = [
- "risc0-build",
-]
-
-[[package]]
 name = "slab"
 version = "0.4.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3678,22 +3614,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0e0d2eaa99c3c2e41547cfa109e910a68ea03823cccad4a0525dcbc9b01e8c71"
 dependencies = [
  "tracing-core",
-]
-
-[[package]]
-name = "trivial-logic"
-version = "0.1.0"
-dependencies = [
- "arm",
- "risc0-zkvm",
- "trivial-logic-methods",
-]
-
-[[package]]
-name = "trivial-logic-methods"
-version = "0.1.0"
-dependencies = [
- "risc0-build",
 ]
 
 [[package]]
