@@ -1,5 +1,5 @@
 use crate::resource::Resource as ArmResource;
-use alloy_primitives::{B256, U256};
+use alloy_primitives::B256;
 use alloy_sol_types::sol;
 use alloy_sol_types::SolValue;
 sol! {
@@ -8,9 +8,9 @@ sol! {
         bytes32 labelRef;
         bytes32 valueRef;
         bytes32 nullifierKeyCommitment;
+        bytes32 nonce;
+        bytes32 randSeed;
         uint128 quantity;
-        uint256 nonce;
-        uint256 randSeed;
         bool ephemeral;
     }
 }
@@ -33,9 +33,9 @@ impl From<ArmResource> for Resource {
             quantity: r.quantity,
             valueRef: B256::from_slice(&r.value_ref),
             ephemeral: r.is_ephemeral,
-            nonce: U256::from_be_slice(r.nonce.as_slice()),
+            nonce: B256::from_slice(&r.nonce),
             nullifierKeyCommitment: B256::from_slice(r.nk_commitment.inner()),
-            randSeed: U256::from_be_slice(r.rand_seed.as_slice()),
+            randSeed: B256::from_slice(&r.rand_seed),
         }
     }
 }
@@ -107,13 +107,10 @@ fn evm_resource_test() {
     assert_eq!(arm_resource.logic_ref, decoded_resource.logicRef.as_slice());
     assert_eq!(arm_resource.label_ref, decoded_resource.labelRef.as_slice());
     assert_eq!(arm_resource.value_ref, decoded_resource.valueRef.as_slice());
-    assert_eq!(arm_resource.nonce, decoded_resource.nonce.as_le_slice());
-    assert_eq!(
-        arm_resource.rand_seed,
-        decoded_resource.randSeed.as_le_slice()
-    );
+    assert_eq!(arm_resource.nonce, decoded_resource.nonce.as_slice());
+    assert_eq!(arm_resource.rand_seed, decoded_resource.randSeed.as_slice());
     assert_eq!(arm_resource.is_ephemeral, decoded_resource.ephemeral);
-    assert_eq!(U256::from(arm_resource.quantity), decoded_resource.quantity);
+    assert_eq!(arm_resource.quantity, decoded_resource.quantity);
     assert_eq!(
         arm_resource.nk_commitment.inner(),
         decoded_resource.nullifierKeyCommitment.as_slice()
