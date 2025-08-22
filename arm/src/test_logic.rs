@@ -1,7 +1,7 @@
 use crate::{
     action_tree::ACTION_TREE_DEPTH,
     encryption::{Ciphertext, SecretKey},
-    evm::{ForwarderCalldata, Resource as EvmResource},
+    evm::Resource as EvmResource,
     logic_instance::AppData,
     logic_instance::{ExpirableBlob, LogicInstance},
     merkle_path::MerklePath,
@@ -65,19 +65,19 @@ impl LogicCircuit for TestLogicWitness {
             vec![cipher_expirable_blob]
         };
 
-        let external_payload = {
-            let call_data = ForwarderCalldata::from_hex(
-                "0x1111111111111111111111111111111111111111",
-                "1122",
-                "334455",
-            )
-            .encode();
-            let call_data_expirable_blob = ExpirableBlob {
-                blob: bytes_to_words(&call_data),
-                deletion_criterion: 1,
-            };
-            vec![call_data_expirable_blob]
-        };
+        // let external_payload = {
+        //     let call_data = ForwarderCalldata::from_hex(
+        //         "0x1111111111111111111111111111111111111111",
+        //         "1122",
+        //         "334455",
+        //     )
+        //     .encode();
+        //     let call_data_expirable_blob = ExpirableBlob {
+        //         blob: bytes_to_words(&call_data),
+        //         deletion_criterion: 1,
+        //     };
+        //     vec![call_data_expirable_blob]
+        // };
 
         let application_payload = {
             let application_blob = ExpirableBlob {
@@ -90,7 +90,7 @@ impl LogicCircuit for TestLogicWitness {
         let app_data = AppData {
             resource_payload,
             discovery_payload,
-            external_payload,
+            external_payload: vec![],
             application_payload,
         };
 
