@@ -8,7 +8,7 @@ sol! {
         bytes32 labelRef;
         bytes32 valueRef;
         bytes32 nullifierKeyCommitment;
-        uint256 quantity;
+        uint128 quantity;
         uint256 nonce;
         uint256 randSeed;
         bool ephemeral;
@@ -30,7 +30,7 @@ impl From<ArmResource> for Resource {
         Self {
             logicRef: B256::from_slice(&r.logic_ref),
             labelRef: B256::from_slice(&r.label_ref),
-            quantity: U256::from(r.quantity),
+            quantity: r.quantity,
             valueRef: B256::from_slice(&r.value_ref),
             ephemeral: r.is_ephemeral,
             nonce: U256::from_le_slice(r.nonce.as_slice()),
