@@ -2,9 +2,21 @@ use risc0_zkvm::sha::{Impl, Sha256, DIGEST_WORDS};
 
 pub fn bytes_to_words(bytes: &[u8]) -> Vec<u32> {
     let mut words = Vec::new();
-    for chunk in bytes.chunks_exact(4) {
+    let mut iter = bytes.chunks_exact(4);
+    for chunk in iter.by_ref() {
         let mut word = 0u32;
         for &byte in chunk {
+            word = (word << 8) | (byte as u32);
+        }
+        words.push(u32::from_be(word));
+    }
+
+    let rem = iter.remainder();
+    if !rem.is_empty() {
+        let mut arr = [0u8; 4];
+        arr[..rem.len()].copy_from_slice(rem);
+        let mut word = 0u32;
+        for byte in arr {
             word = (word << 8) | (byte as u32);
         }
         words.push(u32::from_be(word));
@@ -25,9 +37,10 @@ pub fn hash_two(left: &[u32], right: &[u32]) -> Vec<u32> {
 
 #[test]
 fn test_bytes_to_words() {
-    let bytes = [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08];
+    let bytes = [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07];
     let words = bytes_to_words(&bytes);
-    assert_eq!(bytes, words_to_bytes(&words));
+    let expected_bytes = [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x00];
+    assert_eq!(expected_bytes, words_to_bytes(&words));
 }
 
 #[test]
