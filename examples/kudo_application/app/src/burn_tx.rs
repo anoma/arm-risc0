@@ -40,7 +40,7 @@ pub fn build_burn_tx(
     let mut ephemeral_kudo_resource = burned_kudo_resource.clone();
     ephemeral_kudo_resource.is_ephemeral = true;
     ephemeral_kudo_resource.reset_randomness();
-    ephemeral_kudo_resource.set_nonce(burned_kudo_resource_nf.clone());
+    ephemeral_kudo_resource.set_nonce(burned_kudo_resource_nf.as_bytes().to_vec());
     let ephemeral_kudo_resource_cm = ephemeral_kudo_resource.commitment();
 
     // Construct the ephemeral denomination resource
@@ -49,7 +49,7 @@ pub fn build_burn_tx(
     let nonce: [u8; 32] = rng.gen(); // Random nonce for the ephemeral resource
     let ephemeral_denomination_resource = Resource::create(
         denomination_logic.clone(),
-        ephemeral_kudo_resource_cm.clone(), // Use the ephemeral kudo commitment as the label
+        ephemeral_kudo_resource_cm.as_bytes().to_vec(), // Use the ephemeral kudo commitment as the label
         0,
         [0u8; 32].into(),
         true,
@@ -63,21 +63,21 @@ pub fn build_burn_tx(
     // Construct the burned denomination resource
     let burned_denomination_resource = Resource::create(
         denomination_logic.clone(),
-        burned_kudo_resource_nf.clone(), // Use the burned kudo nullifier as the label
+        burned_kudo_resource_nf.as_bytes().to_vec(), // Use the burned kudo nullifier as the label
         0,
         [0u8; 32].into(),
         true,
-        ephemeral_denomination_resource_nf.clone(),
+        ephemeral_denomination_resource_nf.as_bytes().to_vec(),
         instant_nk_commitment.clone(),
     );
     let burned_denomination_resource_cm = burned_denomination_resource.commitment();
 
     // Construct the action tree
     let action_tree = MerkleTree::new(vec![
-        burned_kudo_resource_nf.clone().into(),
-        ephemeral_kudo_resource_cm.clone().into(),
-        ephemeral_denomination_resource_nf.clone().into(),
-        burned_denomination_resource_cm.clone().into(),
+        burned_kudo_resource_nf,
+        ephemeral_kudo_resource_cm,
+        ephemeral_denomination_resource_nf,
+        burned_denomination_resource_cm,
     ]);
     let root = action_tree.root();
 
@@ -108,7 +108,7 @@ pub fn build_burn_tx(
     let burned_kudo_info = KudoMainInfo::new(burned_kudo_logic_witness, Some(burned_kudo_path));
 
     // Construct the denomination witness corresponding to the consumed kudo resource
-    let consumption_signature = owner_sk.sign(&root);
+    let consumption_signature = owner_sk.sign(root.as_bytes());
     let burned_denomination_logic_witness =
         SimpleDenominationLogicWitness::generate_denomimation_witness(
             burned_denomination_resource,
@@ -138,7 +138,7 @@ pub fn build_burn_tx(
     let ephemeral_kudo_info = KudoMainInfo::new(ephemeral_kudo_logic_witness, None);
 
     // Construct the denomination witness, corresponding to the ephemeral kudo resource
-    let burn_signature = issuer_sk.sign(&root);
+    let burn_signature = issuer_sk.sign(root.as_bytes());
     let ephemeral_denomination_logic_witness =
         SimpleDenominationLogicWitness::generate_burned_ephemeral_witness(
             ephemeral_denomination_resource,

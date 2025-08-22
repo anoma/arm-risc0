@@ -1,6 +1,7 @@
 use crate::{convert_counter_to_value_ref, generate_compliance_proof, generate_logic_proofs};
 use arm::{
     action::Action,
+    merkle_path::COMMITMENT_TREE_DEPTH,
     transaction::{Delta, Transaction},
 };
 use arm::{
@@ -28,6 +29,28 @@ pub fn create_increment_tx(
         counter_resource.clone(),
         nf_key.clone(),
         MerklePath::default(),
+        new_counter.clone(),
+    );
+    let logic_verifier_inputs =
+        generate_logic_proofs(counter_resource, nf_key, new_counter.clone());
+
+    let action = Action::new(vec![compliance_unit], logic_verifier_inputs);
+    let delta_witness = DeltaWitness::from_bytes(&rcv);
+    let mut tx = Transaction::create(vec![action], Delta::Witness(delta_witness));
+    tx.generate_delta_proof();
+    (tx, new_counter)
+}
+
+pub fn create_increment_tx_2(
+    counter_resource: Resource,
+    nf_key: NullifierKey,
+    merkle_path: MerklePath<COMMITMENT_TREE_DEPTH>,
+) -> (Transaction, Resource) {
+    let new_counter = increment_counter(&counter_resource, &nf_key);
+    let (compliance_unit, rcv) = generate_compliance_proof(
+        counter_resource.clone(),
+        nf_key.clone(),
+        merkle_path,
         new_counter.clone(),
     );
     let logic_verifier_inputs =

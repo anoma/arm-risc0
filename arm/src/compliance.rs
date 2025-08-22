@@ -104,10 +104,9 @@ impl<const COMMITMENT_TREE_DEPTH: usize> ComplianceWitness<COMMITMENT_TREE_DEPTH
     pub fn constrain(&self) -> ComplianceInstance {
         let consumed_cm = self.consumed_commitment();
         let consumed_logic_ref = self.consumed_resource_logic();
-        let consumed_commitment_tree_root =
-            self.consumed_commitment_tree_root(consumed_cm.as_bytes());
+        let consumed_commitment_tree_root = self.consumed_commitment_tree_root(&consumed_cm);
 
-        let consumed_nullifier = self.consumed_nullifier(consumed_cm.as_bytes());
+        let consumed_nullifier = self.consumed_nullifier(&consumed_cm);
         let created_logic_ref = self.created_resource_logic();
         let created_commitment = self.created_commitment();
 
@@ -147,13 +146,13 @@ impl<const COMMITMENT_TREE_DEPTH: usize> ComplianceWitness<COMMITMENT_TREE_DEPTH
         self.created_resource.commitment()
     }
 
-    pub fn consumed_nullifier(&self, cm: &[u8]) -> Digest {
+    pub fn consumed_nullifier(&self, cm: &Digest) -> Digest {
         self.consumed_resource
             .nullifier_from_commitment(&self.nf_key, cm)
             .unwrap()
     }
 
-    pub fn consumed_commitment_tree_root(&self, cm: &[u8]) -> Digest {
+    pub fn consumed_commitment_tree_root(&self, cm: &Digest) -> Digest {
         if self.consumed_resource.is_ephemeral {
             self.ephemeral_root
         } else {

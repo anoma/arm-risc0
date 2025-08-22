@@ -55,7 +55,7 @@ pub fn build_issue_tx(
         quantity,
         kudo_value,
         false,
-        ephemeral_kudo_resource_nf.clone(),
+        ephemeral_kudo_resource_nf.as_bytes().to_vec(),
         receiver_nk_commitment.clone(),
     );
     let issued_kudo_resource_cm = issued_kudo_resource.commitment();
@@ -64,7 +64,7 @@ pub fn build_issue_tx(
     let nonce: [u8; 32] = rng.gen(); // Random nonce for the ephemeral resource
     let issued_receive_resource = Resource::create(
         SimpleReceiveInfo::verifying_key_as_bytes(),
-        issued_kudo_resource_cm.clone(),
+        issued_kudo_resource_cm.as_bytes().to_vec(),
         0,
         [0u8; 32].into(),
         true,
@@ -77,11 +77,11 @@ pub fn build_issue_tx(
     let denomination_logic = SimpleDenominationInfo::verifying_key_as_bytes();
     let issued_denomination_resource = Resource::create(
         denomination_logic.clone(),
-        issued_kudo_resource_cm.clone(), // Use the issued kudo commitment as the label
+        issued_kudo_resource_cm.as_bytes().to_vec(), // Use the issued kudo commitment as the label
         0,
         [0u8; 32].into(),
         true,
-        issued_receive_resource_nf.clone(),
+        issued_receive_resource_nf.as_bytes().to_vec(),
         instant_nk_commitment.clone(),
     );
     let issued_denomination_resource_cm = issued_denomination_resource.commitment();
@@ -94,23 +94,23 @@ pub fn build_issue_tx(
     // Construct the ephemeral denomination resource
     let ephemeral_denomination_resource = Resource::create(
         denomination_logic,
-        ephemeral_kudo_resource_nf.clone(), // Use the ephemeral kudo nullifier as the label
+        ephemeral_kudo_resource_nf.as_bytes().to_vec(), // Use the ephemeral kudo nullifier as the label
         0,
         [0u8; 32].into(),
         true,
-        padding_resource_nf.clone(),
+        padding_resource_nf.as_bytes().to_vec(),
         instant_nk_commitment.clone(),
     );
     let ephemeral_denomination_resource_cm = ephemeral_denomination_resource.commitment();
 
     // Construct the action tree
     let action_tree = MerkleTree::new(vec![
-        ephemeral_kudo_resource_nf.clone().into(),
-        issued_kudo_resource_cm.clone().into(),
-        issued_receive_resource_nf.clone().into(),
-        issued_denomination_resource_cm.clone().into(),
-        padding_resource_nf.clone().into(),
-        ephemeral_denomination_resource_cm.clone().into(),
+        ephemeral_kudo_resource_nf,
+        issued_kudo_resource_cm,
+        issued_receive_resource_nf,
+        issued_denomination_resource_cm,
+        padding_resource_nf,
+        ephemeral_denomination_resource_cm,
     ]);
     let root = action_tree.root();
 
@@ -184,7 +184,7 @@ pub fn build_issue_tx(
     let ephemeral_kudo = KudoMainInfo::new(ephemeral_kudo_logic_witness, None);
 
     // Construct the ephemeral denomination witness
-    let signature = issuer_sk.sign(&root);
+    let signature = issuer_sk.sign(root.as_bytes());
     let ephemeral_denomination_logic_witness =
         SimpleDenominationLogicWitness::generate_issued_ephemeral_witness(
             ephemeral_denomination_resource.clone(),

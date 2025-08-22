@@ -614,6 +614,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "counter"
+version = "0.1.0"
+dependencies = [
+ "counter-methods",
+ "risc0-zkvm",
+]
+
+[[package]]
+name = "counter-methods"
+version = "0.1.0"
+dependencies = [
+ "risc0-build",
+]
+
+[[package]]
 name = "cpufeatures"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1509,6 +1524,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ecc2af9a1119c51f12a14607e783cb977bde58bc069ff0c3da1095e635d70654"
 dependencies = [
  "cpufeatures",
+]
+
+[[package]]
+name = "kudo-main"
+version = "0.1.0"
+dependencies = [
+ "kudo-main-methods",
+ "risc0-zkvm",
+]
+
+[[package]]
+name = "kudo-main-methods"
+version = "0.1.0"
+dependencies = [
+ "risc0-build",
 ]
 
 [[package]]
@@ -2527,6 +2557,36 @@ checksum = "77549399552de45a898a580c1b41d445bf730df867cc44e6c0233bbc4b8329de"
 dependencies = [
  "digest",
  "rand_core 0.6.4",
+]
+
+[[package]]
+name = "simple-kudo-denomination"
+version = "0.1.0"
+dependencies = [
+ "risc0-zkvm",
+ "simple-kudo-denomination-methods",
+]
+
+[[package]]
+name = "simple-kudo-denomination-methods"
+version = "0.1.0"
+dependencies = [
+ "risc0-build",
+]
+
+[[package]]
+name = "simple-kudo-receive"
+version = "0.1.0"
+dependencies = [
+ "risc0-zkvm",
+ "simple-kudo-receive-methods",
+]
+
+[[package]]
+name = "simple-kudo-receive-methods"
+version = "0.1.0"
+dependencies = [
+ "risc0-build",
 ]
 
 [[package]]
