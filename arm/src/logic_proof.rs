@@ -1,15 +1,20 @@
 use crate::{
     action_tree::ACTION_TREE_DEPTH,
     constants::{PADDING_LOGIC_PK, PADDING_LOGIC_VK},
+    logic_instance::AppData,
     logic_instance::LogicInstance,
     merkle_path::MerklePath,
     nullifier_key::{NullifierKey, NullifierKeyCommitment},
     proving_system::{journal_to_instance, prove, verify as verify_proof},
     resource::Resource,
     resource_logic::TrivialLogicWitness,
+    utils::words_to_bytes,
 };
 use rand::Rng;
-use risc0_zkvm::sha::{Digest, DIGEST_WORDS};
+use risc0_zkvm::{
+    serde::to_vec,
+    sha::{Digest, DIGEST_WORDS},
+};
 #[cfg(feature = "nif")]
 use rustler::NifStruct;
 use serde::{Deserialize, Serialize};
@@ -27,9 +32,9 @@ pub trait LogicProver: Default + Clone + Serialize + for<'de> Deserialize<'de> {
 
     fn witness(&self) -> &Self::Witness;
 
-    fn prove(&self) -> LogicProof {
+    fn prove(&self) -> LogicVerifier {
         let (proof, instance) = prove(Self::proving_key(), self.witness());
-        LogicProof {
+        LogicVerifier {
             // TODO: handle the unwrap properly
             proof,
             instance,
@@ -40,14 +45,24 @@ pub trait LogicProver: Default + Clone + Serialize + for<'de> Deserialize<'de> {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[cfg_attr(feature = "nif", derive(NifStruct))]
-#[cfg_attr(feature = "nif", module = "Anoma.Arm.LogicProof")]
-pub struct LogicProof {
+#[cfg_attr(feature = "nif", module = "Anoma.Arm.LogicVerifier")]
+pub struct LogicVerifier {
     pub proof: Vec<u8>,
     pub instance: Vec<u8>,
     pub verifying_key: Vec<u32>,
 }
 
-impl LogicProof {
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[cfg_attr(feature = "nif", derive(NifStruct))]
+#[cfg_attr(feature = "nif", module = "Anoma.Arm.LogicVerifierInputs")]
+pub struct LogicVerifierInputs {
+    pub tag: Vec<u32>,
+    pub verifying_key: Vec<u32>,
+    pub app_data: AppData,
+    pub proof: Vec<u8>,
+}
+
+impl LogicVerifier {
     pub fn verify(&self) -> bool {
         let vk = if self.verifying_key.len() == DIGEST_WORDS {
             let words: [u32; DIGEST_WORDS] = self.verifying_key.clone().try_into().unwrap();
@@ -61,6 +76,39 @@ impl LogicProof {
 
     pub fn get_instance(&self) -> LogicInstance {
         journal_to_instance(&self.instance)
+    }
+}
+
+impl LogicVerifierInputs {
+    pub fn to_logic_verifier(self, is_consumed: bool, root: Vec<u32>) -> LogicVerifier {
+        let instance_words = to_vec(&self.to_instance(is_consumed, root))
+            .expect("Failed to serialize LogicInstance");
+        LogicVerifier {
+            proof: self.proof,
+            instance: words_to_bytes(&instance_words).to_vec(),
+            verifying_key: self.verifying_key,
+        }
+    }
+
+    fn to_instance(&self, is_consumed: bool, root: Vec<u32>) -> LogicInstance {
+        LogicInstance {
+            tag: self.tag.clone(),
+            is_consumed,
+            root,
+            app_data: self.app_data.clone(),
+        }
+    }
+}
+
+impl From<LogicVerifier> for LogicVerifierInputs {
+    fn from(logic_proof: LogicVerifier) -> Self {
+        let instance = logic_proof.get_instance();
+        LogicVerifierInputs {
+            tag: instance.tag,
+            verifying_key: logic_proof.verifying_key,
+            app_data: instance.app_data,
+            proof: logic_proof.proof,
+        }
     }
 }
 

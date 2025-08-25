@@ -11,7 +11,7 @@ use arm::{
 };
 use arm::{
     compliance_unit::ComplianceUnit,
-    logic_proof::{LogicProof, LogicProver},
+    logic_proof::{LogicProver, LogicVerifier},
 };
 use counter_witness::CounterWitness;
 use hex::FromHex;
@@ -95,7 +95,7 @@ pub fn generate_logic_proofs(
     consumed_counter: Resource,
     nf_key: NullifierKey,
     created_counter: Resource,
-) -> Vec<LogicProof> {
+) -> Vec<LogicVerifier> {
     let consumed_counter_nf = consumed_counter.nullifier(&nf_key).unwrap();
     let created_counter_cm = created_counter.commitment();
 
