@@ -4,6 +4,7 @@ pub mod init;
 use arm::{
     action_tree::{MerkleTree, ACTION_TREE_DEPTH},
     compliance::ComplianceWitness,
+    encryption::AffinePoint,
     merkle_path::MerklePath,
     merkle_path::COMMITMENT_TREE_DEPTH,
     nullifier_key::NullifierKey,
@@ -22,7 +23,7 @@ use serde::{Deserialize, Serialize};
 pub const SIMPLE_COUNTER_ELF: &[u8] = include_bytes!("../elf/counter-guest.bin");
 lazy_static! {
     pub static ref SIMPLE_COUNTER_ID: Digest =
-        Digest::from_hex("4c79afdb3d521c79de2d3db790b281db98494d269a5e104852927a2f48ec4e27")
+        Digest::from_hex("50220541675a8210ef72c5e80cd30d38a562d1cc787b1a2bdd946c340e321d85")
             .unwrap();
 }
 
@@ -39,16 +40,18 @@ impl CounterLogic {
         nf_key: NullifierKey,
         new_counter: Resource,
         new_counter_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+        discovery_pk: AffinePoint,
     ) -> Self {
         Self {
-            witness: CounterWitness {
+            witness: CounterWitness::new(
                 is_consumed,
                 old_counter,
                 old_counter_existence_path,
                 nf_key,
                 new_counter,
                 new_counter_existence_path,
-            },
+                discovery_pk,
+            ),
         }
     }
 }
@@ -94,7 +97,9 @@ pub fn generate_compliance_proof(
 pub fn generate_logic_proofs(
     consumed_counter: Resource,
     nf_key: NullifierKey,
+    consumed_discovery_pk: AffinePoint,
     created_counter: Resource,
+    created_discovery_pk: AffinePoint,
 ) -> Vec<LogicVerifier> {
     let consumed_counter_nf = consumed_counter.nullifier(&nf_key).unwrap();
     let created_counter_cm = created_counter.commitment();
@@ -111,6 +116,7 @@ pub fn generate_logic_proofs(
         nf_key.clone(),
         created_counter.clone(),
         created_counter_path.clone(),
+        consumed_discovery_pk,
     );
     let consumed_logic_proof = consumed_counter_logic.prove();
 
@@ -121,6 +127,7 @@ pub fn generate_logic_proofs(
         nf_key,
         created_counter,
         created_counter_path,
+        created_discovery_pk,
     );
     let created_logic_proof = created_counter_logic.prove();
 
