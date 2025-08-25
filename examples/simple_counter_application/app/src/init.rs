@@ -4,6 +4,7 @@ use crate::{
 use arm::{
     action::Action,
     delta_proof::DeltaWitness,
+    encryption::AffinePoint,
     logic_proof::LogicProver,
     merkle_path::MerklePath,
     nullifier_key::NullifierKey,
@@ -54,7 +55,7 @@ pub fn init_counter_resource(
 // resource. It generates a compliance proof and logic proofs, and constructs
 // the transaction. The transaction is then returned along with the counter
 // resource and nullifier key.
-pub fn create_init_counter_tx() -> (Transaction, Resource, NullifierKey) {
+pub fn create_init_counter_tx(discovery_pk: AffinePoint) -> (Transaction, Resource, NullifierKey) {
     let (ephemeral_counter, ephemeral_nf_key) = ephemeral_counter();
     let (counter_resource, counter_nf_key) =
         init_counter_resource(&ephemeral_counter, &ephemeral_nf_key);
@@ -67,7 +68,9 @@ pub fn create_init_counter_tx() -> (Transaction, Resource, NullifierKey) {
     let logic_verifier_inputs = generate_logic_proofs(
         ephemeral_counter,
         ephemeral_nf_key,
+        discovery_pk,
         counter_resource.clone(),
+        discovery_pk,
     );
 
     let action = Action::new(vec![compliance_unit], logic_verifier_inputs);
@@ -79,7 +82,20 @@ pub fn create_init_counter_tx() -> (Transaction, Resource, NullifierKey) {
 
 #[test]
 fn test_create_init_counter_tx() {
-    let (tx, counter_resource, _nf_key) = create_init_counter_tx();
+    use arm::encryption::{random_keypair, Ciphertext};
+
+    let (discovery_sk, discovery_pk) = random_keypair();
+    let (tx, counter_resource, _nf_key) = create_init_counter_tx(discovery_pk);
+
+    // check the discovery ciphertext
+    let discovery_ciphertext = Ciphertext::from_words(
+        &tx.actions[0].logic_verifier_inputs[0]
+            .app_data
+            .discovery_payload[0]
+            .blob,
+    );
+    discovery_ciphertext.decrypt(&discovery_sk).unwrap();
+
     assert!(tx.verify(), "Transaction verification failed");
     let expected_value_ref = convert_counter_to_value_ref(1u128);
     assert_eq!(

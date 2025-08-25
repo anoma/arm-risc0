@@ -1,8 +1,9 @@
 use crate::utils::{bytes_to_words, words_to_bytes};
 use aes_gcm::{aead::Aead, Aes256Gcm, Key, KeyInit};
+pub use k256::AffinePoint;
 use k256::{
     elliptic_curve::{group::GroupEncoding, Field},
-    AffinePoint, ProjectivePoint, Scalar,
+    ProjectivePoint, Scalar,
 };
 use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
