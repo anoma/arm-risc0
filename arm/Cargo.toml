@@ -18,9 +18,11 @@ hex = "0.4"
 lazy_static = "1.5.0"
 rustler = { version = "0.36.2", optional = true }
 bytemuck = { version = "1.12", features = ["derive"] }
+alloy-primitives = { version = "1.0.23", optional = true }
+alloy-sol-types = { version = "1.0.23", optional = true }
 
 [features]
-default = ["transaction"]
+default = ["transaction", "evm"]
 prove = ["risc0-zkvm/prove"]
 bonsai = ["risc0-zkvm/bonsai"]
 nif = ["dep:rustler"]
@@ -30,3 +32,4 @@ compliance_circuit = []
 fast_prover = []
 composite_prover = []
 groth16_prover = []
+evm = ["dep:alloy-primitives", "dep:alloy-sol-types"]

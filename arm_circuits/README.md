@@ -5,6 +5,8 @@ cargo risczero build --manifest-path arm_circuits/compliance/methods/guest/Cargo
 
 cargo risczero build --manifest-path arm_circuits/trivial_logic/methods/guest/Cargo.toml
 
+cargo risczero build --manifest-path arm_circuits/logic_test/methods/guest/Cargo.toml
+
 cargo risczero build --manifest-path arm_circuits/counter/methods/guest/Cargo.toml
 
 cargo risczero build --manifest-path arm_circuits/kudo_main/methods/guest/Cargo.toml

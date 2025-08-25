@@ -1,6 +1,6 @@
 use crate::{
     action_tree::ACTION_TREE_DEPTH,
-    constants::{PADDING_LOGIC_PK, PADDING_LOGIC_VK},
+    constants::{PADDING_LOGIC_PK, PADDING_LOGIC_VK, TEST_LOGIC_PK, TEST_LOGIC_VK},
     logic_instance::AppData,
     logic_instance::LogicInstance,
     merkle_path::MerklePath,
@@ -8,6 +8,7 @@ use crate::{
     proving_system::{journal_to_instance, prove, verify as verify_proof},
     resource::Resource,
     resource_logic::TrivialLogicWitness,
+    test_logic::TestLogicWitness,
     utils::words_to_bytes,
 };
 use rand::Rng;
@@ -195,9 +196,55 @@ impl LogicProver for TrivialLogicWitness {
     }
 }
 
+// TODO: consider moving it to a separate module
+#[derive(Clone, Default, Deserialize, Serialize)]
+pub struct TestLogic {
+    witness: TestLogicWitness,
+}
+
+impl TestLogic {
+    pub fn new(
+        resource: Resource,
+        receive_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+        nf_key: NullifierKey,
+        is_consumed: bool,
+    ) -> Self {
+        let witness = TestLogicWitness {
+            resource,
+            receive_existence_path,
+            is_consumed,
+            nf_key,
+        };
+        TestLogic { witness }
+    }
+}
+
+impl LogicProver for TestLogic {
+    type Witness = TestLogicWitness;
+
+    fn proving_key() -> &'static [u8] {
+        TEST_LOGIC_PK
+    }
+
+    fn verifying_key() -> Digest {
+        *TEST_LOGIC_VK
+    }
+
+    fn witness(&self) -> &Self::Witness {
+        &self.witness
+    }
+}
+
 #[test]
 fn test_trivial_logic_prover() {
     let trivial_logic = PaddingResourceLogic::default();
     let proof = trivial_logic.prove();
+    assert!(proof.verify());
+}
+
+#[test]
+fn test_logic_prover() {
+    let test_logic = TestLogic::default();
+    let proof = test_logic.prove();
     assert!(proof.verify());
 }

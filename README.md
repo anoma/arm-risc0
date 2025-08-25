@@ -89,6 +89,7 @@ We have the following feature flags in arm lib:
 | `composite_prover`         |                           | Fastest option producing linear-size proofs, and supports compression via recursion                                                                 |
 | `groth16_prover`           |                           | Generates groth16 proofs(requires x86_64 machines)                                                                              |
 | `nif`                      |                           | Enables Erlang/Elixir NIF (Native Implemented Function) bindings                                                                |
+| `evm`                      |                           | Wrapped EVM data structures, used in resource logic                                                                |
 
 
 ### Usage Examples
@@ -102,6 +103,9 @@ arm = { version = "0.2.0", default-features = false, features = ["groth16_prover
 
 # Logic-circuit-only usage
 arm = { version = "0.2.0", default-features = false, features = ["logic_circuit"] }
+
+# Logic-circuit-only, using evm data structures(e.g. ForwarderCalldata)
+arm = { version = "0.2.0", default-features = false, features = ["logic_circuit", "evm"] }
 
 # Elixir Anoma SDK
 arm = { version = "0.2.0", features = ["nif"] }
