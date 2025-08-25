@@ -25,6 +25,7 @@ alloy-sol-types = { version = "1.0.23", optional = true }
 default = ["transaction", "evm"]
 prove = ["risc0-zkvm/prove"]
 bonsai = ["risc0-zkvm/bonsai"]
+cuda = ["risc0-zkvm/cuda"]
 nif = ["dep:rustler"]
 transaction = ["logic_circuit", "compliance_circuit", "prove", "dep:sha3", "bonsai"]
 logic_circuit = []

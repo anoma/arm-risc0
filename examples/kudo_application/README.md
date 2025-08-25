@@ -39,3 +39,12 @@ TX verify duration time: 100.321959ms
 Tx build duration time: 88.474378292s
 
 TX verify duration time: 175.762875ms
+
+## Enable cuda feature and run locally
+```bash
+# Ensure your system has a compatible GPU and CUDA installed.
+cargo test --release --features "cuda" -- --nocapture generate_an_issue_tx
+cargo test --release --features "cuda" -- --nocapture generate_a_burn_tx
+cargo test --release --features "cuda" -- --nocapture generate_a_transfer_tx
+cargo test --release --features "cuda" -- --nocapture generate_a_swap_tx
+```
