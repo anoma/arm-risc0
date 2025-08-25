@@ -4,7 +4,7 @@ use arm::{
     action_tree::ACTION_TREE_DEPTH,
     authorization::{AuthorizationSignature, AuthorizationVerifyingKey},
     encryption::{Ciphertext, SecretKey},
-    logic_instance::LogicInstance,
+    logic_instance::{AppData, ExpirableBlob, LogicInstance},
     merkle_path::MerklePath,
     nullifier_key::NullifierKey,
     resource::Resource,
@@ -102,14 +102,23 @@ impl LogicCircuit for KudoMainWitness {
         }
 
         // Generate the ciphertext
-        let cipher = self.generate_ciphertext().inner();
+        let cipher = self.generate_ciphertext().as_words();
+        let cipher_expirable_blob = ExpirableBlob {
+            blob: cipher,
+            deletion_criterion: 1,
+        };
+        let app_data = AppData {
+            resource_payload: vec![cipher_expirable_blob],
+            discovery_payload: Vec::new(),
+            external_payload: Vec::new(),
+            application_payload: Vec::new(),
+        };
 
         LogicInstance {
             tag: tag.as_words().to_vec(),
             is_consumed: self.kudo_is_consumed,
             root,
-            cipher,
-            app_data: Vec::new(),
+            app_data,
         }
     }
 }
