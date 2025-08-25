@@ -4,8 +4,11 @@ use arm::{
     transaction::{Delta, Transaction},
 };
 use arm::{
-    delta_proof::DeltaWitness, encryption::AffinePoint, merkle_path::MerklePath,
-    nullifier_key::NullifierKey, resource::Resource,
+    delta_proof::DeltaWitness,
+    encryption::AffinePoint,
+    merkle_path::{MerklePath, COMMITMENT_TREE_DEPTH},
+    nullifier_key::NullifierKey,
+    resource::Resource,
 };
 
 // This function creates a counter resource based on the old counter resource.
@@ -21,6 +24,7 @@ pub fn increment_counter(old_counter: &Resource, old_counter_nf_key: &NullifierK
 
 pub fn create_increment_tx(
     counter_resource: Resource,
+    consumed_merkle_path: MerklePath<COMMITMENT_TREE_DEPTH>,
     nf_key: NullifierKey,
     consumed_discovery_pk: AffinePoint,
     created_discovery_pk: AffinePoint,
@@ -29,7 +33,7 @@ pub fn create_increment_tx(
     let (compliance_unit, rcv) = generate_compliance_proof(
         counter_resource.clone(),
         nf_key.clone(),
-        MerklePath::default(),
+        consumed_merkle_path,
         new_counter.clone(),
     );
     let logic_verifier_inputs = generate_logic_proofs(
@@ -55,8 +59,15 @@ fn test_create_increment_tx() {
     let (discovery_sk, discovery_pk) = random_keypair();
     let (init_tx, counter_resource, nf_key) = create_init_counter_tx(discovery_pk);
     assert!(init_tx.verify(), "Initial transaction verification failed");
-    let (increment_tx, new_counter) =
-        create_increment_tx(counter_resource, nf_key, discovery_pk, discovery_pk);
+
+    let consumed_merkle_path = MerklePath::default();
+    let (increment_tx, new_counter) = create_increment_tx(
+        counter_resource,
+        consumed_merkle_path,
+        nf_key,
+        discovery_pk,
+        discovery_pk,
+    );
 
     // check the discovery ciphertext
     let discovery_ciphertext = Ciphertext::from_words(
