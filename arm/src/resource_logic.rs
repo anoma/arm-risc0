@@ -1,6 +1,6 @@
 use crate::{
-    action_tree::ACTION_TREE_DEPTH, logic_instance::LogicInstance, merkle_path::MerklePath,
-    nullifier_key::NullifierKey, resource::Resource,
+    action_tree::ACTION_TREE_DEPTH, logic_instance::AppData, logic_instance::LogicInstance,
+    merkle_path::MerklePath, nullifier_key::NullifierKey, resource::Resource,
 };
 use serde::{Deserialize, Serialize};
 
@@ -40,11 +40,10 @@ impl LogicCircuit for TrivialLogicWitness {
         assert!(self.resource.is_ephemeral);
 
         LogicInstance {
-            tag,
+            tag: tag.as_words().to_vec(),
             is_consumed: self.is_consumed, // It can be either consumed or created to reduce padding resources
             root,
-            cipher: vec![],
-            app_data: vec![],
+            app_data: AppData::default(), // No app data for trivial logic
         }
     }
 }

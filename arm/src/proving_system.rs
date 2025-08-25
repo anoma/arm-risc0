@@ -27,6 +27,23 @@ pub fn journal_to_instance<T: DeserializeOwned>(journal: &[u8]) -> T {
     journal.decode().unwrap()
 }
 
+// Encode the seal of the given proof for use with EVM smart contract verifiers.
+pub fn encode_seal(proof: &[u8]) -> Vec<u8> {
+    let inner: InnerReceipt = bincode::deserialize(proof).unwrap();
+    let seal = match inner {
+        InnerReceipt::Groth16(receipt) => {
+            let selector = &receipt.verifier_parameters.as_bytes()[..4];
+            // Create a new vector with the capacity to hold both selector and seal
+            let mut selector_seal = Vec::with_capacity(selector.len() + receipt.seal.len());
+            selector_seal.extend_from_slice(selector);
+            selector_seal.extend_from_slice(receipt.seal.as_ref());
+            selector_seal
+        }
+        _ => panic!("Unsupported receipt type for encoding seal"),
+    };
+    seal
+}
+
 fn prove_inner<T: Serialize>(witness: &T, proving_key: &[u8]) -> Receipt {
     let env = ExecutorEnv::builder()
         .write(witness)

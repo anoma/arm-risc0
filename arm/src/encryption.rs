@@ -1,3 +1,4 @@
+use crate::utils::{bytes_to_words, words_to_bytes};
 use aes_gcm::{aead::Aead, Aes256Gcm, Key, KeyInit};
 use k256::{
     elliptic_curve::{group::GroupEncoding, Field},
@@ -28,12 +29,20 @@ impl SecretKey {
 pub struct Ciphertext(Vec<u8>);
 
 impl Ciphertext {
-    pub fn new(cipher: Vec<u8>) -> Self {
+    pub fn from_bytes(cipher: Vec<u8>) -> Self {
         Ciphertext(cipher)
     }
 
-    pub fn inner(&self) -> Vec<u8> {
-        self.0.clone()
+    pub fn from_words(words: &[u32]) -> Self {
+        Ciphertext(words_to_bytes(words).to_vec())
+    }
+
+    pub fn inner(&self) -> &[u8] {
+        &self.0
+    }
+
+    pub fn as_words(&self) -> Vec<u32> {
+        bytes_to_words(self.inner())
     }
 
     pub fn encrypt(
@@ -63,7 +72,7 @@ impl Ciphertext {
             return Err(aes_gcm::Error);
         }
         let cipher: InnerCiphert =
-            bincode::deserialize(&self.inner()).expect("deserialization failure");
+            bincode::deserialize(self.inner()).expect("deserialization failure");
         // Generate the secret key using Diffie-Hellman exchange
         let inner_secret_key = InnerSecretKey::from_dh_exchange(&cipher.pk, sk.inner());
 
@@ -131,6 +140,10 @@ fn test_encryption() {
 
     // Decryption
     let decryption = cipher.decrypt(&receiver_sk).unwrap();
-
     assert_eq!(message, decryption);
+
+    let cipher_words = cipher.as_words();
+    let cipher_from_words = Ciphertext::from_words(&cipher_words);
+    let decrypted_from_words = cipher_from_words.decrypt(&receiver_sk).unwrap();
+    assert_eq!(message, decrypted_from_words);
 }

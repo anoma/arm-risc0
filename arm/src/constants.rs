@@ -5,16 +5,23 @@ use risc0_zkvm::Digest;
 // Compliance proving key / compliance guest ELF binary
 pub const COMPLIANCE_PK: &[u8] = include_bytes!("../elfs/compliance-guest.bin");
 // Padding logic proving key / padding logic guest ELF binary
-pub const PADDING_LOGIC_PK: &[u8] = include_bytes!("../elfs/trivial-guest.bin");
+pub const PADDING_LOGIC_PK: &[u8] = include_bytes!("../elfs/trivial-logic-guest.bin");
+// Test logic proving key / test logic guest ELF binary
+pub const TEST_LOGIC_PK: &[u8] = include_bytes!("../elfs/logic-test-guest.bin");
 
 lazy_static! {
     // compliance verification key / compliance image id
     pub static ref COMPLIANCE_VK: Digest =
-        Digest::from_hex("efebd91b943d5b87eef3ec2f46b7a53fdb0b4d155b17404b20c9ec7b479e229b")
+        Digest::from_hex("2c10d71e919b8b6359bfc167294c9994c1699e3eeb851d4b7775edb67b54a327")
             .unwrap();
 
-    // compliance verification key / compliance image id
+    // padding logic verification key / compliance image id
     pub static ref PADDING_LOGIC_VK: Digest =
-        Digest::from_hex("89b7a43ef02c5038ba79bae8a8d61163c0437ec80c35400c65836d0a73d7798a")
+        Digest::from_hex("f8047dc2cf6cbe45137a588a3f019814218e7d7199b1b86a57b51c310e04fae9")
+            .unwrap();
+
+    // test logic verification key / compliance image id
+    pub static ref TEST_LOGIC_VK: Digest =
+        Digest::from_hex("2805a3008e096f4047b661c7cdcd662a580ea2dd9d93eedc3b686a5677af3c6f")
             .unwrap();
 }

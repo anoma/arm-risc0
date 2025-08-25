@@ -3,74 +3,29 @@ use crate::{
     compliance::{ComplianceInstance, ComplianceWitness},
     compliance_unit::ComplianceUnit,
     delta_proof::DeltaWitness,
-    logic_proof::{LogicProof, LogicProver},
-    merkle_path::Leaf,
+    logic_proof::{LogicProver, LogicVerifier, LogicVerifierInputs},
     merkle_path::COMMITMENT_TREE_DEPTH,
     nullifier_key::NullifierKey,
     resource::Resource,
-    resource_logic::TrivialLogicWitness,
 };
 use k256::ProjectivePoint;
-use serde::{Deserialize, Serialize};
 #[cfg(feature = "nif")]
-use {
-    rustler::types::map::map_new,
-    rustler::{Atom, Decoder, Encoder, Env, NifResult, NifStruct, Term},
-};
+use rustler::NifStruct;
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[cfg_attr(feature = "nif", derive(NifStruct))]
 #[cfg_attr(feature = "nif", module = "Anoma.Arm.Action")]
 pub struct Action {
     pub compliance_units: Vec<ComplianceUnit>,
-    pub logic_verifier_inputs: Vec<LogicProof>,
-    pub resource_forwarder_calldata_pairs: Vec<(Resource, ForwarderCalldata)>,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct ForwarderCalldata {
-    pub untrusted_forwarder: [u8; 20],
-    pub input: Vec<u8>,
-    pub output: Vec<u8>,
-}
-
-#[cfg(feature = "nif")]
-impl Encoder for ForwarderCalldata {
-    fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
-        let map = map_new(env);
-        // store the name of the elixir struct
-        let map = map
-            .map_put(
-                Atom::from_str(env, "__struct__").unwrap(),
-                Atom::from_str(env, "Elixir.Anoma.Arm.ForwarderCalldata").unwrap(),
-            )
-            .unwrap();
-
-        map
-    }
-}
-
-#[cfg(feature = "nif")]
-impl<'a> Decoder<'a> for ForwarderCalldata {
-    fn decode(_term: Term<'a>) -> NifResult<Self> {
-        Ok(ForwarderCalldata {
-            untrusted_forwarder: [0u8; 20],
-            input: vec![],
-            output: vec![],
-        })
-    }
+    pub logic_verifier_inputs: Vec<LogicVerifierInputs>,
 }
 
 impl Action {
-    pub fn new(
-        compliance_units: Vec<ComplianceUnit>,
-        logic_verifier_inputs: Vec<LogicProof>,
-        resource_forwarder_calldata_pairs: Vec<(Resource, ForwarderCalldata)>,
-    ) -> Self {
+    pub fn new(compliance_units: Vec<ComplianceUnit>, logic_verifiers: Vec<LogicVerifier>) -> Self {
         Action {
             compliance_units,
-            logic_verifier_inputs,
-            resource_forwarder_calldata_pairs,
+            logic_verifier_inputs: logic_verifiers.into_iter().map(|lv| lv.into()).collect(),
         }
     }
 
@@ -78,15 +33,11 @@ impl Action {
         &self.compliance_units
     }
 
-    pub fn get_logic_verifier_inputs(&self) -> &Vec<LogicProof> {
+    pub fn get_logic_verifier_inputs(&self) -> &Vec<LogicVerifierInputs> {
         &self.logic_verifier_inputs
     }
 
-    pub fn get_resource_forwarder_calldata_pairs(&self) -> &Vec<(Resource, ForwarderCalldata)> {
-        &self.resource_forwarder_calldata_pairs
-    }
-
-    pub fn verify(&self) -> bool {
+    pub fn verify(self) -> bool {
         for unit in &self.compliance_units {
             if !unit.verify() {
                 return false;
@@ -100,15 +51,15 @@ impl Action {
             .collect::<Vec<ComplianceInstance>>();
 
         // Construct the action tree
-        let tags = compliance_intances
+        let tags: Vec<Vec<u32>> = compliance_intances
             .iter()
             .flat_map(|instance| {
                 vec![
-                    instance.consumed_nullifier.clone().into(),
-                    instance.created_commitment.clone().into(),
+                    instance.consumed_nullifier.clone(),
+                    instance.created_commitment.clone(),
                 ]
             })
-            .collect::<Vec<Leaf>>();
+            .collect();
         let logics = compliance_intances
             .iter()
             .flat_map(|instance| {
@@ -118,26 +69,23 @@ impl Action {
                 ]
             })
             .collect::<Vec<_>>();
-        let action_tree = MerkleTree::new(tags.clone());
+        let action_tree = MerkleTree::from(tags.clone());
         let root = action_tree.root();
 
-        for proof in &self.logic_verifier_inputs {
-            let instance = proof.get_instance();
+        for input in self.logic_verifier_inputs {
+            if let Some(index) = tags.iter().position(|tag| *tag == input.tag) {
+                if input.verifying_key != logics[index] {
+                    // The verifying_key doesn't match the resource logic
+                    return false;
+                }
 
-            if root != instance.root {
-                return false;
-            }
-
-            let instance_tag: Leaf = instance.tag.clone().into();
-            if let Some(index) = tags.iter().position(|tag| tag == &instance_tag) {
-                if proof.verifying_key != logics[index] {
+                let is_comsumed = index % 2 == 0;
+                let verifier = input.to_logic_verifier(is_comsumed, root.clone());
+                if !verifier.verify() {
                     return false;
                 }
             } else {
-                return false;
-            }
-
-            if !proof.verify() {
+                // Tag not found
                 return false;
             }
         }
@@ -164,18 +112,21 @@ impl Action {
 }
 
 pub fn create_an_action(nonce: u8) -> (Action, DeltaWitness) {
+    use crate::logic_proof::TestLogic;
+
     let nf_key = NullifierKey::default();
     let nf_key_cm = nf_key.commit();
     let mut consumed_resource = Resource {
-        logic_ref: TrivialLogicWitness::verifying_key_as_bytes(),
+        logic_ref: TestLogic::verifying_key_as_bytes(),
         nk_commitment: nf_key_cm,
+        quantity: 1,
         ..Default::default()
     };
     consumed_resource.nonce[0] = nonce;
     let consumed_resource_nf = consumed_resource.nullifier(&nf_key).unwrap();
 
     let mut created_resource = consumed_resource.clone();
-    created_resource.set_nonce(consumed_resource_nf.clone());
+    created_resource.set_nonce(consumed_resource_nf.as_bytes().to_vec());
 
     let compliance_witness = ComplianceWitness::<COMMITMENT_TREE_DEPTH>::with_fixed_rcv(
         consumed_resource.clone(),
@@ -185,35 +136,26 @@ pub fn create_an_action(nonce: u8) -> (Action, DeltaWitness) {
     let compliance_receipt = ComplianceUnit::create(&compliance_witness);
 
     let created_resource_cm = created_resource.commitment();
-    let action_tree = MerkleTree::new(vec![
-        consumed_resource_nf.clone().into(),
-        created_resource_cm.clone().into(),
-    ]);
+    let action_tree = MerkleTree::new(vec![consumed_resource_nf, created_resource_cm]);
     let consumed_resource_path = action_tree.generate_path(&consumed_resource_nf).unwrap();
     let created_resource_path = action_tree.generate_path(&created_resource_cm).unwrap();
 
-    let consumed_logic_witness = TrivialLogicWitness::new(
+    let consumed_logic = TestLogic::new(
         consumed_resource,
         consumed_resource_path,
         nf_key.clone(),
         true,
     );
-    let consumed_logic_proof = consumed_logic_witness.prove();
+    let consumed_logic_proof = consumed_logic.prove();
 
-    let created_logic_witness =
-        TrivialLogicWitness::new(created_resource, created_resource_path, nf_key, false);
-    let created_logic_proof = created_logic_witness.prove();
+    let created_logic = TestLogic::new(created_resource, created_resource_path, nf_key, false);
+    let created_logic_proof = created_logic.prove();
 
     let compliance_units = vec![compliance_receipt];
     let logic_verifier_inputs = vec![consumed_logic_proof, created_logic_proof];
-    let resource_forwarder_calldata_pairs = vec![];
 
-    let action = Action::new(
-        compliance_units,
-        logic_verifier_inputs,
-        resource_forwarder_calldata_pairs,
-    );
-    assert!(action.verify());
+    let action = Action::new(compliance_units, logic_verifier_inputs);
+    assert!(action.clone().verify());
 
     let delta_witness = DeltaWitness::from_bytes_vec(&[compliance_witness.rcv]);
     (action, delta_witness)

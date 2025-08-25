@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 # If you want to try (experimental) std support, add `features = [ "std" ]` to risc0-zkvm
-risc0-zkvm = { version = "2.1.0", features = ["std", "unstable"], default-features = false }
+risc0-zkvm = { version = "2.3.1", features = ["std", "unstable"], default-features = false }
 serde = { version = "1.0.197", default-features = false }
 k256 = { version = "=0.13.3", features = ["arithmetic", "serde", "expose-field", "std", "ecdsa", "hash2curve"], default-features = false }
 sha3 = { version = "0.10", optional = true }
@@ -17,14 +17,19 @@ bincode = "1.3.3"
 hex = "0.4"
 lazy_static = "1.5.0"
 rustler = { version = "0.36.2", optional = true }
+bytemuck = { version = "1.12", features = ["derive"] }
+alloy-primitives = { version = "1.0.23", optional = true }
+alloy-sol-types = { version = "1.0.23", optional = true }
 
 [features]
-default = ["transaction"]
+default = ["transaction", "evm"]
 prove = ["risc0-zkvm/prove"]
+bonsai = ["risc0-zkvm/bonsai"]
 nif = ["dep:rustler"]
-transaction = ["logic_circuit", "compliance_circuit", "prove", "dep:sha3"]
+transaction = ["logic_circuit", "compliance_circuit", "prove", "dep:sha3", "bonsai"]
 logic_circuit = []
 compliance_circuit = []
 fast_prover = []
 composite_prover = []
 groth16_prover = []
+evm = ["dep:alloy-primitives", "dep:alloy-sol-types"]

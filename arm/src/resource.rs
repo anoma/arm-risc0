@@ -21,6 +21,7 @@ use k256::{
 };
 use rand::Rng;
 use risc0_zkvm::sha::{rust_crypto::Sha256 as Sha256Type, Impl, Sha256, DIGEST_BYTES};
+use risc0_zkvm::Digest;
 #[cfg(feature = "nif")]
 use rustler::NifStruct;
 use serde::{Deserialize, Serialize};
@@ -132,7 +133,7 @@ impl Resource {
     }
 
     // Compute the commitment to the resource
-    pub fn commitment(&self) -> Vec<u8> {
+    pub fn commitment(&self) -> Digest {
         // Concatenate all the components of this resource
         let mut bytes = [0u8; RESOURCE_BYTES];
         let mut offset: usize = 0;
@@ -163,16 +164,16 @@ impl Resource {
         offset += DEFAULT_BYTES;
         assert_eq!(offset, RESOURCE_BYTES);
         // Now produce the hash
-        Impl::hash_bytes(&bytes).as_bytes().to_vec()
+        *Impl::hash_bytes(&bytes)
     }
 
     // Compute the nullifier of the resource
-    pub fn nullifier(&self, nf_key: &NullifierKey) -> Option<Vec<u8>> {
+    pub fn nullifier(&self, nf_key: &NullifierKey) -> Option<Digest> {
         let cm = self.commitment();
         self.nullifier_from_commitment(nf_key, &cm)
     }
 
-    pub fn nullifier_from_commitment(&self, nf_key: &NullifierKey, cm: &[u8]) -> Option<Vec<u8>> {
+    pub fn nullifier_from_commitment(&self, nf_key: &NullifierKey, cm: &Digest) -> Option<Digest> {
         // Make sure that the nullifier public key corresponds to the secret key
         if self.nk_commitment == nf_key.commit() {
             let mut bytes = [0u8; 4 * DIGEST_BYTES];
@@ -187,12 +188,12 @@ impl Resource {
             bytes[offset..offset + DIGEST_BYTES].clone_from_slice(self.psi().as_ref());
             offset += DIGEST_BYTES;
             // Write the resource commitment
-            bytes[offset..offset + DIGEST_BYTES].clone_from_slice(cm.as_ref());
+            bytes[offset..offset + DIGEST_BYTES].clone_from_slice(cm.as_bytes());
             offset += DIGEST_BYTES;
 
             assert_eq!(offset, 4 * DIGEST_BYTES);
 
-            Some(Impl::hash_bytes(&bytes).as_bytes().to_vec())
+            Some(*Impl::hash_bytes(&bytes))
         } else {
             None
         }
@@ -226,10 +227,10 @@ impl Resource {
 
     pub fn set_nonce_from_nf(&mut self, resource: &Resource, nf_key: &NullifierKey) {
         let nf = resource.nullifier(nf_key).unwrap();
-        self.nonce = nf;
+        self.nonce = nf.as_bytes().to_vec();
     }
 
-    pub fn tag(&self, is_consumed: bool, nf_key: &NullifierKey) -> Vec<u8> {
+    pub fn tag(&self, is_consumed: bool, nf_key: &NullifierKey) -> Digest {
         let cm = self.commitment();
         if is_consumed {
             self.nullifier_from_commitment(nf_key, &cm).unwrap()

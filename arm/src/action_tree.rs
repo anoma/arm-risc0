@@ -1,4 +1,7 @@
-use crate::merkle_path::{Hashable, Leaf, MerklePath};
+use crate::{
+    merkle_path::{MerklePath, PADDING_LEAF},
+    utils::hash_two,
+};
 use risc0_zkvm::sha::Digest;
 
 #[cfg(feature = "nif")]
@@ -11,34 +14,36 @@ pub const ACTION_TREE_DEPTH: usize = 4;
 #[cfg_attr(feature = "nif", derive(NifStruct))]
 #[cfg_attr(feature = "nif", module = "Anoma.Arm.MerkleTree")]
 pub struct MerkleTree {
-    leaves: Vec<Leaf>,
+    leaves: Vec<Vec<u32>>,
 }
 
 impl MerkleTree {
-    pub fn new(leaves: Vec<Leaf>) -> Self {
+    pub fn new(leaves: Vec<Digest>) -> Self {
         assert!(
             leaves.len() <= ACTION_TREE_MAX_NUM,
             "The number of leaves exceeds the ACTION_TREE_MAX_NUM"
         );
+        let leaves = leaves
+            .into_iter()
+            .map(|digest| digest.as_words().to_vec())
+            .collect();
         MerkleTree { leaves }
     }
 
-    pub fn insert(&mut self, value: Leaf) {
-        self.leaves.push(value)
+    pub fn insert(&mut self, value: Digest) {
+        self.leaves.push(value.as_words().to_vec())
     }
 
-    pub fn root(&self) -> Vec<u8> {
+    pub fn root(&self) -> Vec<u32> {
         let mut cur_layer = self.leaves.clone();
-        cur_layer.resize(ACTION_TREE_MAX_NUM, Digest::blank().into());
+        cur_layer.resize(ACTION_TREE_MAX_NUM, PADDING_LEAF.as_words().to_vec());
         while cur_layer.len() > 1 {
             cur_layer = cur_layer
                 .chunks(2)
-                .map(|pair| {
-                    Digest::combine(&pair[0].clone().into(), &pair[1].clone().into()).into()
-                })
+                .map(|pair| hash_two(&pair[0], &pair[1]))
                 .collect();
         }
-        cur_layer[0].inner().to_vec()
+        cur_layer[0].clone()
     }
 
     // Generate the merkle path for the current leave
@@ -56,18 +61,15 @@ impl MerkleTree {
     /// - A `bool` indicating whether the sibling is on the left (`true`) or right (`false`).
     ///
     /// Returns `None` if the leaf is not found in the tree.
-    pub fn generate_path(&self, cur_leave: &[u8]) -> Option<MerklePath<ACTION_TREE_DEPTH>> {
+    pub fn generate_path(&self, cur_leave: &Digest) -> Option<MerklePath<ACTION_TREE_DEPTH>> {
         let mut cur_layer = self.leaves.clone();
-        cur_layer.resize(ACTION_TREE_MAX_NUM, Digest::blank().into());
-        if let Some(position) = cur_layer
-            .iter()
-            .position(|v| v == &cur_leave.to_vec().into())
-        {
+        cur_layer.resize(ACTION_TREE_MAX_NUM, PADDING_LEAF.as_words().to_vec());
+        if let Some(position) = cur_layer.iter().position(|v| v == cur_leave.as_words()) {
             let mut merkle_path = Vec::new();
             fn build_merkle_path_inner(
-                cur_layer: Vec<Leaf>,
+                cur_layer: Vec<Vec<u32>>,
                 position: usize,
-                path: &mut Vec<(Leaf, bool)>,
+                path: &mut Vec<(Vec<u32>, bool)>,
             ) {
                 if cur_layer.len() > 1 {
                     let sibling = {
@@ -83,9 +85,7 @@ impl MerkleTree {
 
                     let prev_layer = cur_layer
                         .chunks(2)
-                        .map(|pair| {
-                            Digest::combine(&pair[0].clone().into(), &pair[1].clone().into()).into()
-                        })
+                        .map(|pair| hash_two(&pair[0], &pair[1]))
                         .collect();
 
                     build_merkle_path_inner(prev_layer, position / 2, path);
@@ -101,5 +101,17 @@ impl MerkleTree {
         } else {
             None
         }
+    }
+}
+
+impl From<Vec<Digest>> for MerkleTree {
+    fn from(leaves: Vec<Digest>) -> Self {
+        MerkleTree::new(leaves)
+    }
+}
+
+impl From<Vec<Vec<u32>>> for MerkleTree {
+    fn from(leaves: Vec<Vec<u32>>) -> Self {
+        MerkleTree { leaves }
     }
 }

@@ -10,10 +10,10 @@ use lazy_static::lazy_static;
 use risc0_zkvm::Digest;
 use serde::{Deserialize, Serialize};
 
-pub const RECEIVE_ELF: &[u8] = include_bytes!("../../kudo_logic/elfs/receive.bin");
+pub const RECEIVE_ELF: &[u8] = include_bytes!("../elfs/simple-kudo-receive-guest.bin");
 lazy_static! {
     pub static ref RECEIVE_ID: Digest =
-        Digest::from_hex("12327e75f1641acb1afe5a3100f2e90d415672e79a2fb5ef7c5438e2dab30ff9")
+        Digest::from_hex("9801521c4cfcd46de698a6137fab70a14f88a4e95fd32e3e34fb7b80952d205a")
             .unwrap();
 }
 

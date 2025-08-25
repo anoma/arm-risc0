@@ -1,0 +1,12 @@
+[package]
+name = "compliance"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+# If you want to try (experimental) std support, add `features = [ "std" ]` to risc0-zkvm
+compliance-methods = { path = "methods" }
+risc0-zkvm = "2.3.1"
+arm = { path = "../../arm", features = ["compliance_circuit"], default-features = false }
