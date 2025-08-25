@@ -2,12 +2,8 @@ pub mod increment;
 pub mod init;
 
 use arm::{
-    action_tree::{MerkleTree, ACTION_TREE_DEPTH},
-    compliance::ComplianceWitness,
-    merkle_path::MerklePath,
-    merkle_path::COMMITMENT_TREE_DEPTH,
-    nullifier_key::NullifierKey,
-    resource::Resource,
+    action_tree::MerkleTree, compliance::ComplianceWitness, merkle_path::MerklePath,
+    nullifier_key::NullifierKey, resource::Resource,
 };
 use arm::{
     compliance_unit::ComplianceUnit,
@@ -22,7 +18,7 @@ use serde::{Deserialize, Serialize};
 pub const SIMPLE_COUNTER_ELF: &[u8] = include_bytes!("../elf/counter-guest.bin");
 lazy_static! {
     pub static ref SIMPLE_COUNTER_ID: Digest =
-        Digest::from_hex("7c6769ff60895aca5e1f45f5865137bac92afb76e63f75e92b4546f4a3a21499")
+        Digest::from_hex("fdacaaaec8cfa857cccd7750ecbbf541ae668358c44fa89c8c9f9942adc98c93")
             .unwrap();
 }
 
@@ -35,10 +31,10 @@ impl CounterLogic {
     pub fn new(
         is_consumed: bool,
         old_counter: Resource,
-        old_counter_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+        old_counter_existence_path: MerklePath,
         nf_key: NullifierKey,
         new_counter: Resource,
-        new_counter_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+        new_counter_existence_path: MerklePath,
     ) -> Self {
         Self {
             witness: CounterWitness {
@@ -78,10 +74,10 @@ pub fn convert_counter_to_value_ref(value: u128) -> Vec<u8> {
 pub fn generate_compliance_proof(
     consumed_counter: Resource,
     nf_key: NullifierKey,
-    merkle_path: MerklePath<COMMITMENT_TREE_DEPTH>,
+    merkle_path: MerklePath,
     created_counter: Resource,
 ) -> (ComplianceUnit, Vec<u8>) {
-    let compliance_witness = ComplianceWitness::<COMMITMENT_TREE_DEPTH>::from_resources_with_path(
+    let compliance_witness = ComplianceWitness::from_resources_with_path(
         consumed_counter,
         nf_key,
         merkle_path,

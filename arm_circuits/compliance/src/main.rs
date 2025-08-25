@@ -1,14 +1,10 @@
-use arm::{
-    compliance::{ComplianceInstance, ComplianceWitness},
-    merkle_path::COMMITMENT_TREE_DEPTH,
-};
+use arm::compliance::{ComplianceInstance, ComplianceWitness};
 use compliance_methods::{COMPLIANCE_GUEST_ELF, COMPLIANCE_GUEST_ID};
 use risc0_zkvm::{default_prover, ExecutorEnv};
 use std::time::Instant;
 
 pub fn main() {
-    let compliance_witness: ComplianceWitness<COMMITMENT_TREE_DEPTH> =
-        ComplianceWitness::<COMMITMENT_TREE_DEPTH>::default();
+    let compliance_witness = ComplianceWitness::default();
 
     let env = ExecutorEnv::builder()
         .write(&compliance_witness)

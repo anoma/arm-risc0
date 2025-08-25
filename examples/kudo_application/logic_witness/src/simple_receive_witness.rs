@@ -1,6 +1,5 @@
 pub use arm::resource_logic::LogicCircuit;
 use arm::{
-    action_tree::ACTION_TREE_DEPTH,
     logic_instance::{AppData, LogicInstance},
     merkle_path::MerklePath,
     nullifier_key::NullifierKey,
@@ -12,13 +11,13 @@ use serde::{Deserialize, Serialize};
 pub struct SimpleReceiveLogicWitness {
     // Receive related fields
     pub receive_resource: Resource,
-    pub receive_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+    pub receive_existence_path: MerklePath,
     pub is_consumed: bool,
     pub nf_key: NullifierKey,
 
     // Kudo related fields
     pub kudo_resource: Resource,
-    pub kudo_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+    pub kudo_existence_path: MerklePath,
 }
 
 impl LogicCircuit for SimpleReceiveLogicWitness {
@@ -55,11 +54,11 @@ impl LogicCircuit for SimpleReceiveLogicWitness {
 impl SimpleReceiveLogicWitness {
     pub fn generate_witness(
         receive_resource: Resource,
-        receive_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+        receive_existence_path: MerklePath,
         nf_key: NullifierKey,
         is_consumed: bool,
         kudo_resource: Resource,
-        kudo_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+        kudo_existence_path: MerklePath,
     ) -> Self {
         Self {
             receive_resource,

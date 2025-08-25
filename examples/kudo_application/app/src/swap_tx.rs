@@ -6,7 +6,6 @@ use arm::{
     action_tree::MerkleTree,
     authorization::{AuthorizationSigningKey, AuthorizationVerifyingKey},
     merkle_path::MerklePath,
-    merkle_path::COMMITMENT_TREE_DEPTH,
     nullifier_key::NullifierKey,
     resource::Resource,
     utils::words_to_bytes,
@@ -29,7 +28,7 @@ pub fn build_swap_tx(
     owner_sk: &AuthorizationSigningKey,
     consumed_kudo_resource: &Resource,
     nf_key: &NullifierKey,
-    consumed_kudo_path: MerklePath<COMMITMENT_TREE_DEPTH>,
+    consumed_kudo_path: MerklePath,
     created_issuer: &AuthorizationVerifyingKey,
     created_kudo_quantity: u128,
 ) -> Transaction {
@@ -267,7 +266,7 @@ fn generate_a_swap_tx() {
         &alice_sk,
         &alice_consumed_kudo_resource,
         &alice_kudo_nf_key,
-        MerklePath::<COMMITMENT_TREE_DEPTH>::default(), // It should be a real path
+        MerklePath::default(), // It should be a real path
         &alice_created_issuer,
         alice_created_kudo_quantity,
     );
@@ -296,7 +295,7 @@ fn generate_a_swap_tx() {
         &bob_sk,
         &bob_consumed_kudo_resource,
         &bob_kudo_nf_key,
-        MerklePath::<COMMITMENT_TREE_DEPTH>::default(), // It should be a real path
+        MerklePath::default(), // It should be a real path
         &bob_created_issuer,
         bob_created_kudo_quantity,
     );

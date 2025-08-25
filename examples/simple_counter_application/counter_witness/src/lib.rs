@@ -1,6 +1,5 @@
 pub use arm::resource_logic::LogicCircuit;
 use arm::{
-    action_tree::ACTION_TREE_DEPTH,
     logic_instance::{AppData, LogicInstance},
     merkle_path::MerklePath,
     nullifier_key::NullifierKey,
@@ -11,10 +10,10 @@ use serde::{Deserialize, Serialize};
 pub struct CounterWitness {
     pub is_consumed: bool,
     pub old_counter: Resource,
-    pub old_counter_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+    pub old_counter_existence_path: MerklePath,
     pub nf_key: NullifierKey,
     pub new_counter: Resource,
-    pub new_counter_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+    pub new_counter_existence_path: MerklePath,
 }
 
 impl LogicCircuit for CounterWitness {
