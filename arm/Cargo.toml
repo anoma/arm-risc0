@@ -22,7 +22,7 @@ alloy-primitives = { version = "1.0.23", optional = true }
 alloy-sol-types = { version = "1.0.23", optional = true }
 
 [features]
-default = ["transaction", "evm", "bonsai"]
+default = ["transaction", "evm", "bonsai", "prove"]
 prove = ["risc0-zkvm/prove"]
 bonsai = ["risc0-zkvm/bonsai"]
 client = ["risc0-zkvm/client"]
