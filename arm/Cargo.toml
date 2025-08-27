@@ -22,11 +22,12 @@ alloy-primitives = { version = "1.0.23", optional = true }
 alloy-sol-types = { version = "1.0.23", optional = true }
 
 [features]
-default = ["transaction", "evm"]
+default = ["transaction", "evm", "bonsai", "prove"]
 prove = ["risc0-zkvm/prove"]
 bonsai = ["risc0-zkvm/bonsai"]
+client = ["risc0-zkvm/client"]
 nif = ["dep:rustler"]
-transaction = ["logic_circuit", "compliance_circuit", "prove", "dep:sha3", "bonsai"]
+transaction = ["logic_circuit", "compliance_circuit", "dep:sha3", "client"]
 logic_circuit = []
 compliance_circuit = []
 fast_prover = []
