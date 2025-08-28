@@ -6,4 +6,10 @@ edition = "2021"
 [dependencies]
 logic-test-methods = { path = "methods" }
 risc0-zkvm = "2.3.1"
-arm = { path = "../../arm", features = ["logic_circuit", "evm"], default-features = false }
+arm = { path = "../../arm", default-features = false }
+
+[features]
+default = []
+cuda = ["risc0-zkvm/cuda"]
+prove = ["risc0-zkvm/prove"]
+bonsai = ["risc0-zkvm/bonsai"]

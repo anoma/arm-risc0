@@ -10,3 +10,9 @@ edition = "2021"
 compliance-methods = { path = "methods" }
 risc0-zkvm = "2.3.1"
 arm = { path = "../../arm", features = ["compliance_circuit"], default-features = false }
+
+[features]
+default = []
+cuda = ["risc0-zkvm/cuda"]
+prove = ["risc0-zkvm/prove"]
+bonsai = ["risc0-zkvm/bonsai"]
