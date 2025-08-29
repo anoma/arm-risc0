@@ -39,6 +39,10 @@ impl MerklePath {
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
+
+    pub fn empty() -> Self {
+        MerklePath(vec![])
+    }
 }
 
 impl Default for MerklePath {

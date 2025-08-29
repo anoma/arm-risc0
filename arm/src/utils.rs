@@ -35,6 +35,10 @@ pub fn hash_two(left: &[u32], right: &[u32]) -> Vec<u32> {
     Impl::hash_words(&words).as_words().to_vec()
 }
 
+pub fn hash_bytes(bytes: &[u8]) -> Vec<u8> {
+    Impl::hash_bytes(bytes).as_bytes().to_vec()
+}
+
 #[test]
 fn test_bytes_to_words() {
     let bytes = [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07];
