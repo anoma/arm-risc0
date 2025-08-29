@@ -21,6 +21,9 @@ bytemuck = { version = "1.12", features = ["derive"] }
 alloy-primitives = { version = "1.0.23", optional = true }
 alloy-sol-types = { version = "1.0.23", optional = true }
 
+[dev-dependencies]
+env_logger = "0.11.8"
+
 [features]
 default = ["transaction", "evm", "bonsai", "prove"]
 prove = ["risc0-zkvm/prove"]
@@ -34,3 +37,12 @@ fast_prover = []
 composite_prover = []
 groth16_prover = []
 evm = ["dep:alloy-primitives", "dep:alloy-sol-types"]
+aggregation = ["aggregation_circuit","transaction"]
+aggregation_circuit = []
+fast_aggregation = ["aggregation"]
+groth16_aggregation = ["aggregation"]
+
+[[bench]]
+name = "aggregation"
+harness = false
+required-features = ["aggregation"]
