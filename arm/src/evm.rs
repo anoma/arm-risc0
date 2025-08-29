@@ -67,6 +67,55 @@ impl ForwarderCalldata {
         }
     }
 
+    pub fn from_bytes(untrusted_forwarder: &[u8], input: Vec<u8>, output: Vec<u8>) -> Self {
+        ForwarderCalldata {
+            untrustedForwarder: untrusted_forwarder
+                .try_into()
+                .expect("Invalid address bytes"),
+            input: input.into(),
+            output: output.into(),
+        }
+    }
+
+    pub fn encode(&self) -> Vec<u8> {
+        self.abi_encode()
+    }
+
+    pub fn decode(encoded: &[u8]) -> Option<Self> {
+        Self::abi_decode(encoded).ok()
+    }
+}
+
+sol! {
+    struct ERC20Call {
+        uint256 amount;
+        address erc20Addr;
+        address userAddr;
+        bool minting;
+    }
+}
+
+impl ERC20Call {
+    pub fn new(amount: u128, erc20_addr: &str, user_addr: &str, minting: bool) -> Self {
+        let erc20_addr_parsed = erc20_addr.parse().expect("Invalid address string");
+        let user_addr_parsed = user_addr.parse().expect("Invalid address string");
+        ERC20Call {
+            amount: alloy_primitives::U256::from(amount),
+            erc20Addr: erc20_addr_parsed,
+            userAddr: user_addr_parsed,
+            minting,
+        }
+    }
+
+    pub fn from_bytes(amount: u128, erc20_addr: &[u8], user_addr: &[u8], minting: bool) -> Self {
+        ERC20Call {
+            amount: alloy_primitives::U256::from(amount),
+            erc20Addr: erc20_addr.try_into().expect("Invalid address bytes"),
+            userAddr: user_addr.try_into().expect("Invalid address bytes"),
+            minting,
+        }
+    }
+
     pub fn encode(&self) -> Vec<u8> {
         self.abi_encode()
     }
