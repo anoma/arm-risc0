@@ -6,4 +6,4 @@ edition = "2021"
 [dependencies]
 trivial-logic-methods = { path = "methods" }
 risc0-zkvm = "2.3.1"
-arm = { path = "../../arm", features = ["logic_circuit"], default-features = false }
+arm = { path = "../../arm", default-features = false }
