@@ -1,6 +1,5 @@
 pub use arm::resource_logic::LogicCircuit;
 use arm::{
-    action_tree::ACTION_TREE_DEPTH,
     encryption::{AffinePoint, Ciphertext, SecretKey},
     logic_instance::{AppData, ExpirableBlob, LogicInstance},
     merkle_path::MerklePath,
@@ -13,10 +12,10 @@ use serde::{Deserialize, Serialize};
 pub struct CounterWitness {
     pub is_consumed: bool,
     pub old_counter: Resource,
-    pub old_counter_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+    pub old_counter_existence_path: MerklePath,
     pub nf_key: NullifierKey,
     pub new_counter: Resource,
-    pub new_counter_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+    pub new_counter_existence_path: MerklePath,
     pub discovery_pk: AffinePoint, // From the receiver
     pub discovery_sk: SecretKey,   // randomly generated
     pub discovery_nonce: [u8; 12], // randomly generated
@@ -26,10 +25,10 @@ impl CounterWitness {
     pub fn new(
         is_consumed: bool,
         old_counter: Resource,
-        old_counter_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+        old_counter_existence_path: MerklePath,
         nf_key: NullifierKey,
         new_counter: Resource,
-        new_counter_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+        new_counter_existence_path: MerklePath,
         discovery_pk: AffinePoint,
     ) -> Self {
         Self {

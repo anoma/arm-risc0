@@ -4,7 +4,6 @@ use crate::{
     compliance_unit::ComplianceUnit,
     delta_proof::DeltaWitness,
     logic_proof::{LogicProver, LogicVerifier, LogicVerifierInputs},
-    merkle_path::COMMITMENT_TREE_DEPTH,
     nullifier_key::NullifierKey,
     resource::Resource,
 };
@@ -128,7 +127,7 @@ pub fn create_an_action(nonce: u8) -> (Action, DeltaWitness) {
     let mut created_resource = consumed_resource.clone();
     created_resource.set_nonce(consumed_resource_nf.as_bytes().to_vec());
 
-    let compliance_witness = ComplianceWitness::<COMMITMENT_TREE_DEPTH>::with_fixed_rcv(
+    let compliance_witness = ComplianceWitness::with_fixed_rcv(
         consumed_resource.clone(),
         nf_key.clone(),
         created_resource.clone(),

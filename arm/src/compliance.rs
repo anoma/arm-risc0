@@ -1,5 +1,5 @@
 use crate::{
-    merkle_path::MerklePath,
+    merkle_path::{MerklePath, COMMITMENT_TREE_DEPTH},
     nullifier_key::NullifierKey,
     resource::Resource,
     utils::{bytes_to_words, words_to_bytes},
@@ -38,11 +38,11 @@ pub struct ComplianceInstance {
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 #[cfg_attr(feature = "nif", derive(NifStruct))]
 #[cfg_attr(feature = "nif", module = "Anoma.Arm.ComplianceWitness")]
-pub struct ComplianceWitness<const COMMITMENT_TREE_DEPTH: usize> {
+pub struct ComplianceWitness {
     /// The consumed resource
     pub consumed_resource: Resource,
     /// The path from the consumed commitment to the root in the commitment tree
-    pub merkle_path: MerklePath<COMMITMENT_TREE_DEPTH>,
+    pub merkle_path: MerklePath,
     /// The existing root for the ephemeral resource
     pub ephemeral_root: Vec<u32>,
     /// Nullifier key of the consumed resource
@@ -56,7 +56,7 @@ pub struct ComplianceWitness<const COMMITMENT_TREE_DEPTH: usize> {
     // pub output_resource_logic_cm_r: [u8; DATA_BYTES],
 }
 
-impl<const COMMITMENT_TREE_DEPTH: usize> ComplianceWitness<COMMITMENT_TREE_DEPTH> {
+impl ComplianceWitness {
     pub fn from_resources(
         consumed_resource: Resource,
         nf_key: NullifierKey,
@@ -66,7 +66,7 @@ impl<const COMMITMENT_TREE_DEPTH: usize> ComplianceWitness<COMMITMENT_TREE_DEPTH
         ComplianceWitness {
             consumed_resource,
             created_resource,
-            merkle_path: MerklePath::<COMMITMENT_TREE_DEPTH>::default(),
+            merkle_path: MerklePath::default(),
             rcv: Scalar::random(&mut rng).to_bytes().to_vec(),
             nf_key,
             ephemeral_root: INITIAL_ROOT.as_words().to_vec(),
@@ -76,7 +76,7 @@ impl<const COMMITMENT_TREE_DEPTH: usize> ComplianceWitness<COMMITMENT_TREE_DEPTH
     pub fn from_resources_with_path(
         consumed_resource: Resource,
         nf_key: NullifierKey,
-        merkle_path: MerklePath<COMMITMENT_TREE_DEPTH>,
+        merkle_path: MerklePath,
         created_resource: Resource,
     ) -> Self {
         let mut rng = rand::thread_rng();
@@ -99,7 +99,7 @@ impl<const COMMITMENT_TREE_DEPTH: usize> ComplianceWitness<COMMITMENT_TREE_DEPTH
         ComplianceWitness {
             consumed_resource,
             created_resource,
-            merkle_path: MerklePath::<COMMITMENT_TREE_DEPTH>::default(),
+            merkle_path: MerklePath::default(),
             rcv: Scalar::ONE.to_bytes().to_vec(),
             nf_key,
             ephemeral_root: INITIAL_ROOT.as_words().to_vec(),
@@ -161,6 +161,7 @@ impl<const COMMITMENT_TREE_DEPTH: usize> ComplianceWitness<COMMITMENT_TREE_DEPTH
         if self.consumed_resource.is_ephemeral {
             self.ephemeral_root.clone()
         } else {
+            assert_eq!(self.merkle_path.len(), COMMITMENT_TREE_DEPTH);
             self.merkle_path.root(cm)
         }
     }
@@ -186,7 +187,7 @@ impl<const COMMITMENT_TREE_DEPTH: usize> ComplianceWitness<COMMITMENT_TREE_DEPTH
     }
 }
 
-impl<const COMMITMENT_TREE_DEPTH: usize> Default for ComplianceWitness<COMMITMENT_TREE_DEPTH> {
+impl Default for ComplianceWitness {
     fn default() -> Self {
         let nf_key = NullifierKey::default();
 
@@ -214,7 +215,7 @@ impl<const COMMITMENT_TREE_DEPTH: usize> Default for ComplianceWitness<COMMITMEN
             rand_seed: vec![0; 32],
         };
 
-        let merkle_path = MerklePath::<COMMITMENT_TREE_DEPTH>::default();
+        let merkle_path = MerklePath::default();
 
         let rcv = Scalar::ONE.to_bytes().to_vec();
 

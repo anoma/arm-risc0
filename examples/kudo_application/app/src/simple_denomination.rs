@@ -1,8 +1,5 @@
 use arm::logic_proof::LogicProver;
-use arm::{
-    merkle_path::MerklePath, merkle_path::COMMITMENT_TREE_DEPTH, nullifier_key::NullifierKey,
-    resource::Resource,
-};
+use arm::{merkle_path::MerklePath, nullifier_key::NullifierKey, resource::Resource};
 use hex::FromHex;
 use kudo_logic_witness::simple_denomination_witness::SimpleDenominationLogicWitness;
 use kudo_traits::{compliance_info::ComplianceWitnessInfo, resource_info::DenominationInfo};
@@ -13,14 +10,14 @@ use serde::{Deserialize, Serialize};
 pub const DENOMINATION_ELF: &[u8] = include_bytes!("../elfs/simple-kudo-denomination-guest.bin");
 lazy_static! {
     pub static ref DENOMINATION_ID: Digest =
-        Digest::from_hex("a923f5e478393d85d754617bb53756d8c54a2c60a83da0fc59475eebe8cab81a")
+        Digest::from_hex("a15c08f39bb3cceb865eb5441a38d842379baabf6cfc6a24493bbbd57b9770e5")
             .unwrap();
 }
 
 #[derive(Clone, Default, Deserialize, Serialize)]
 pub struct SimpleDenominationInfo {
     logic_witness: SimpleDenominationLogicWitness,
-    merkle_path: Option<MerklePath<COMMITMENT_TREE_DEPTH>>,
+    merkle_path: Option<MerklePath>,
 }
 
 impl LogicProver for SimpleDenominationInfo {
@@ -48,7 +45,7 @@ impl ComplianceWitnessInfo for SimpleDenominationInfo {
         Some(self.logic_witness.denomination_nf_key.clone())
     }
 
-    fn merkle_path(&self) -> Option<MerklePath<COMMITMENT_TREE_DEPTH>> {
+    fn merkle_path(&self) -> Option<MerklePath> {
         self.merkle_path.clone()
     }
 }
@@ -58,7 +55,7 @@ impl DenominationInfo for SimpleDenominationInfo {}
 impl SimpleDenominationInfo {
     pub fn new(
         logic_witness: SimpleDenominationLogicWitness,
-        merkle_path: Option<MerklePath<COMMITMENT_TREE_DEPTH>>,
+        merkle_path: Option<MerklePath>,
     ) -> Self {
         Self {
             logic_witness,

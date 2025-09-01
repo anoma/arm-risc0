@@ -6,7 +6,6 @@ use arm::{
     action_tree::MerkleTree,
     authorization::{AuthorizationSignature, AuthorizationSigningKey, AuthorizationVerifyingKey},
     merkle_path::MerklePath,
-    merkle_path::COMMITMENT_TREE_DEPTH,
     nullifier_key::{NullifierKey, NullifierKeyCommitment},
     resource::Resource,
     utils::words_to_bytes,
@@ -30,7 +29,7 @@ pub fn build_transfer_tx(
     owner_sk: &AuthorizationSigningKey,
     consumed_kudo_resource: &Resource,
     consumed_kudo_nf_key: &NullifierKey,
-    consumed_kudo_path: MerklePath<COMMITMENT_TREE_DEPTH>,
+    consumed_kudo_path: MerklePath,
     receiver_pk: &AuthorizationVerifyingKey,
     receiver_signature: &AuthorizationSignature,
     receiver_nk_commitment: &NullifierKeyCommitment,
@@ -259,7 +258,7 @@ fn generate_a_transfer_tx() {
         &owner_sk,
         &consumed_kudo_resource,
         &kudo_nf_key,
-        MerklePath::<COMMITMENT_TREE_DEPTH>::default(), // It should be a real path
+        MerklePath::default(), // It should be a real path
         &receiver_pk,
         &receiver_signature,
         &receiver_nk_commitment,

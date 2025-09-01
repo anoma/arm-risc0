@@ -4,9 +4,7 @@ use arm::{
     compliance_unit::ComplianceUnit,
     transaction::{Delta, Transaction},
 };
-use arm::{
-    compliance::ComplianceWitness, delta_proof::DeltaWitness, merkle_path::COMMITMENT_TREE_DEPTH,
-};
+use arm::{compliance::ComplianceWitness, delta_proof::DeltaWitness};
 
 #[derive(Clone)]
 pub struct Burn<K, D>
@@ -33,7 +31,7 @@ where
 
             println!("Generating compliance unit 1");
             let (compliance_unit_1, delta_witness_1) = {
-                let compliance_witness: ComplianceWitness<COMMITMENT_TREE_DEPTH> =
+                let compliance_witness: ComplianceWitness =
                     ComplianceWitness::from_resources_with_path(
                         self.burned_kudo.resource(),
                         self.burned_kudo.nf_key().unwrap(),
@@ -50,12 +48,11 @@ where
             // Compliance unit 2: the issued_receive_resource and the issued_denomination_resource
             println!("Generating compliance unit 2");
             let (compliance_unit_2, delta_witness_2) = {
-                let compliance_witness: ComplianceWitness<COMMITMENT_TREE_DEPTH> =
-                    ComplianceWitness::from_resources(
-                        self.ephemeral_denomination.resource(),
-                        self.ephemeral_denomination.nf_key().unwrap(),
-                        self.burned_denomination.resource(),
-                    );
+                let compliance_witness: ComplianceWitness = ComplianceWitness::from_resources(
+                    self.ephemeral_denomination.resource(),
+                    self.ephemeral_denomination.nf_key().unwrap(),
+                    self.burned_denomination.resource(),
+                );
 
                 (
                     ComplianceUnit::create(&compliance_witness),
