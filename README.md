@@ -85,16 +85,16 @@ We have the following feature flags in arm lib:
 
 | Feature                  | Implies                   | Description                                                                                                                     |
 | ------------------------ | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `logic_circuit`            |                           | It provides logic-related traits and gadgets                                                            |
 | `compliance_circuit`       |                           | A specific feature for compliance circuit                                                                                       |
-| `transaction (default)`     | `logic_circuit`, `compliance_circuit`, `prove`, `bonsai` | It provides full transaction processing capabilities and will be in the Anoma SDK and validator with a selected prover feature. Succinct prover is used by default. |
+| `transaction (default)`     | `compliance_circuit`, `client` | It provides full transaction processing capabilities and will be in the Anoma SDK and validator with a selected prover feature. Succinct prover is used by default. |
 | `prove`                    |                           | Enables RISC0 proving capabilities (required for actual proof generation)                                                       |
-| `bonsai`                    |                           | Enables bonsai sdk                                                       |
+| `bonsai`                    |                           | Enables RISC0 bonsai sdk                                                       |
+| `client`                    |                           | Enables RISC0 client sdk                                                       |
+| `cuda`                    |                           | Enables CUDA GPU acceleration for the prover. Requires CUDA toolkit to be installed.                                                       |
 | `fast_prover`         |                           | Fastest option producing linear-size proofs, and does not support compression via recursion |
 | `composite_prover`         |                           | Fastest option producing linear-size proofs, and supports compression via recursion                                                                 |
 | `groth16_prover`           |                           | Generates groth16 proofs(requires x86_64 machines)                                                                              |
 | `nif`                      |                           | Enables Erlang/Elixir NIF (Native Implemented Function) bindings                                                                |
-| `evm`                      |                           | Wrapped EVM data structures, used in resource logic                                                                |
 
 
 ### Usage Examples
@@ -107,10 +107,7 @@ arm = "0.2.0"
 arm = { version = "0.2.0", default-features = false, features = ["groth16_prover", "transaction"] }
 
 # Logic-circuit-only usage
-arm = { version = "0.2.0", default-features = false, features = ["logic_circuit"] }
-
-# Logic-circuit-only, using evm data structures(e.g. ForwarderCalldata)
-arm = { version = "0.2.0", default-features = false, features = ["logic_circuit", "evm"] }
+arm = { version = "0.2.0", default-features = false }
 
 # Elixir Anoma SDK
 arm = { version = "0.2.0", features = ["nif"] }
