@@ -822,6 +822,7 @@ name = "counter-witness"
 version = "0.1.0"
 dependencies = [
  "arm",
+ "rand 0.8.5",
  "serde",
 ]
 

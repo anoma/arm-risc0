@@ -4,7 +4,10 @@ use arm::{
     transaction::{Delta, Transaction},
 };
 use arm::{
-    delta_proof::DeltaWitness, merkle_path::MerklePath, nullifier_key::NullifierKey,
+    delta_proof::DeltaWitness,
+    encryption::AffinePoint,
+    merkle_path::{MerklePath, COMMITMENT_TREE_DEPTH},
+    nullifier_key::NullifierKey,
     resource::Resource,
 };
 
@@ -21,17 +24,25 @@ pub fn increment_counter(old_counter: &Resource, old_counter_nf_key: &NullifierK
 
 pub fn create_increment_tx(
     counter_resource: Resource,
+    consumed_merkle_path: MerklePath<COMMITMENT_TREE_DEPTH>,
     nf_key: NullifierKey,
+    consumed_discovery_pk: AffinePoint,
+    created_discovery_pk: AffinePoint,
 ) -> (Transaction, Resource) {
     let new_counter = increment_counter(&counter_resource, &nf_key);
     let (compliance_unit, rcv) = generate_compliance_proof(
         counter_resource.clone(),
         nf_key.clone(),
-        MerklePath::default(),
+        consumed_merkle_path,
         new_counter.clone(),
     );
-    let logic_verifier_inputs =
-        generate_logic_proofs(counter_resource, nf_key, new_counter.clone());
+    let logic_verifier_inputs = generate_logic_proofs(
+        counter_resource,
+        nf_key,
+        consumed_discovery_pk,
+        new_counter.clone(),
+        created_discovery_pk,
+    );
 
     let action = Action::new(vec![compliance_unit], logic_verifier_inputs);
     let delta_witness = DeltaWitness::from_bytes(&rcv);
@@ -43,10 +54,30 @@ pub fn create_increment_tx(
 #[test]
 fn test_create_increment_tx() {
     use crate::init::create_init_counter_tx;
+    use arm::encryption::{random_keypair, Ciphertext};
 
-    let (init_tx, counter_resource, nf_key) = create_init_counter_tx();
+    let (discovery_sk, discovery_pk) = random_keypair();
+    let (init_tx, counter_resource, nf_key) = create_init_counter_tx(discovery_pk);
     assert!(init_tx.verify(), "Initial transaction verification failed");
-    let (increment_tx, new_counter) = create_increment_tx(counter_resource, nf_key);
+
+    let consumed_merkle_path = MerklePath::default();
+    let (increment_tx, new_counter) = create_increment_tx(
+        counter_resource,
+        consumed_merkle_path,
+        nf_key,
+        discovery_pk,
+        discovery_pk,
+    );
+
+    // check the discovery ciphertext
+    let discovery_ciphertext = Ciphertext::from_words(
+        &increment_tx.actions[0].logic_verifier_inputs[0]
+            .app_data
+            .discovery_payload[0]
+            .blob,
+    );
+    discovery_ciphertext.decrypt(&discovery_sk).unwrap();
+
     assert!(
         increment_tx.verify(),
         "Increment transaction verification failed"
