@@ -18,7 +18,7 @@ use risc0_zkvm::Digest;
 use rustler::NifStruct;
 lazy_static! {
     pub static ref INITIAL_ROOT: Digest =
-        Digest::from_hex("7e70786b1d52fc0412d75203ef2ac22de13d9596ace8a5a1ed5324c3ed7f31c3")
+        Digest::from_hex("43e25748ccf2c1786241839fa7a21e3a48180bb84981607147773e91cdd87f0b")
             .unwrap();
 }
 
