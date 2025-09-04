@@ -12,7 +12,7 @@ pub const TEST_LOGIC_PK: &[u8] = include_bytes!("../elfs/logic-test-guest.bin");
 lazy_static! {
     // compliance verification key / compliance image id
     pub static ref COMPLIANCE_VK: Digest =
-        Digest::from_hex("4f6bc4bbdbf6fdc5f035630a359c4fdb5292847ff188dfd485ab5cdfdad5d7de")
+        Digest::from_hex("43e25748ccf2c1786241839fa7a21e3a48180bb84981607147773e91cdd87f0b")
             .unwrap();
 
     // padding logic verification key / compliance image id
