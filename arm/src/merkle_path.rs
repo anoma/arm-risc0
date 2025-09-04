@@ -10,7 +10,6 @@ lazy_static! {
         Digest::from_hex("cc1d2f838445db7aec431df9ee8a871f40e7aa5e064fc056633ef8c60fab7b06")
             .unwrap();
 }
-pub const COMMITMENT_TREE_DEPTH: usize = 32;
 
 /// A path from a position in a particular commitment tree to the root of that tree.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -49,7 +48,7 @@ impl Default for MerklePath {
     fn default() -> Self {
         MerklePath(vec![
             (vec![0u32; DIGEST_WORDS], false);
-            COMMITMENT_TREE_DEPTH
+           10 // COMMITMENT_TREE_DEPTH, only for testing
         ])
     }
 }
