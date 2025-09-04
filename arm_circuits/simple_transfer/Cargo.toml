@@ -1,0 +1,9 @@
+[package]
+name = "simple-transfer"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+simple-transfer-methods = { path = "methods" }
+risc0-zkvm = "2.3.1"
+arm = { path = "../../arm", default-features = false }
