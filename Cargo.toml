@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
-members = [ "arm", "examples/kudo_application/app", "examples/simple_counter_application/app", "examples/kudo_application/logic_witness", "examples/kudo_application/kudo_traits", "examples/simple_counter_application/counter_witness" ]
+# members = [ "arm", "examples/kudo_application/app", "examples/simple_counter_application/app", "examples/kudo_application/logic_witness", "examples/kudo_application/kudo_traits", "examples/simple_counter_application/counter_witness" ]
+members = [ "arm", "examples/simple_counter_application/app", "examples/simple_counter_application/counter_witness" ]
 
 [profile.bench]
 lto = true
