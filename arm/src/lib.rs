@@ -25,3 +25,5 @@ pub mod test_logic;
 #[cfg(feature = "transaction")]
 pub mod transaction;
 pub mod utils;
+
+pub use risc0_zkvm::Digest;
