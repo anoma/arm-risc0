@@ -18,7 +18,6 @@ use rustler::NifStruct;
 #[derive(Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "nif", derive(NifStruct))]
 #[cfg_attr(feature = "nif", module = "Anoma.Arm.TestLogicWitness")]
-
 pub struct TestLogicWitness {
     pub resource: Resource,
     pub receive_existence_path: MerklePath,
