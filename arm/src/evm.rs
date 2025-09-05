@@ -1,7 +1,6 @@
 use crate::resource::Resource as ArmResource;
 use alloy_primitives::B256;
-use alloy_sol_types::sol;
-use alloy_sol_types::SolValue;
+use alloy_sol_types::{sol, SolValue};
 sol! {
     struct Resource {
         bytes32 logicRef;
@@ -125,21 +124,66 @@ impl ERC20Call {
     }
 }
 
+sol! {
+    enum CallType {
+        Transfer, // burn
+        TransferFrom, // mint 1:
+        PermitWitnessTransferFrom // mint 2
+    }
+
+    /// @notice The token and amount details for a transfer signed in the permit transfer signature
+    struct TokenPermissions {
+        // ERC20 token address
+        address token;
+        // the maximum amount that can be spent
+        uint256 amount;
+    }
+
+    /// @notice The signed permit message for a single token transfer
+    struct PermitTransferFrom {
+        TokenPermissions permitted;
+        // a unique value for every token owner's signature to prevent signature replays
+        // In permit2, this is a uint256
+        bytes32 nonce;
+        // deadline on the permit signature
+        // In permit2, this is a uint256
+        bytes32 deadline;
+    }
+}
+
+pub fn encode_transfer(token: alloy_primitives::Address, to: alloy_primitives::Address, value: alloy_primitives::U256) -> Vec<u8> {
+    // Encode as (CallType, token, to, value)
+    (CallType::Transfer, token, to, value).abi_encode_params()
+}
+
+pub fn encode_transfer_from(token: alloy_primitives::Address, from: alloy_primitives::Address, value: alloy_primitives::U256) -> Vec<u8> {
+    // Encode as (CallType, token, from, value)
+    (CallType::TransferFrom, token, from, value).abi_encode_params()
+}
+
+pub fn encode_permit_witness_transfer_from(
+    from: alloy_primitives::Address,
+    permit: PermitTransferFrom,
+    witness: &[u8],
+    signature: Vec<u8>,
+) -> Vec<u8> {
+    (CallType::PermitWitnessTransferFrom, from, permit, B256::from_slice(witness), signature).abi_encode_params()
+}
+
 #[test]
 fn forward_call_data_test() {
     // Example data
-    let addr = "0x1111111111111111111111111111111111111111";
-    let input = hex::decode("1122").unwrap();
-    let output = hex::decode("aabbcc").unwrap();
+    let addr = hex::decode("ffffffffffffffffffffffffffffffffffffffff").unwrap();
+    let input = hex::decode("ab").unwrap();
+    let output = hex::decode("cd").unwrap();
 
     // Create instance
-    let data = ForwarderCalldata::new(addr, input, output);
-    let data_from_hex = ForwarderCalldata::from_hex(addr, "1122", "aabbcc");
-    assert_eq!(data.input, data_from_hex.input);
-    assert_eq!(data.output, data_from_hex.output);
+    let data = ForwarderCalldata::from_bytes(&addr, input, output);
 
     // abi encode
     let encoded_data = data.encode();
+    println!("encode: {:?}", hex::encode(&encoded_data));
+    println!("len: {}", encoded_data.len());
     let decoded_data = ForwarderCalldata::decode(&encoded_data).unwrap();
 
     assert_eq!(data.untrustedForwarder, decoded_data.untrustedForwarder);
@@ -164,4 +208,41 @@ fn evm_resource_test() {
         arm_resource.nk_commitment.inner(),
         decoded_resource.nullifierKeyCommitment.as_slice()
     );
+}
+
+#[test]
+fn erc20_call_test() {
+    use alloy_primitives::U256;
+
+    let token = "0x2222222222222222222222222222222222222222".parse().unwrap();
+    let to_addr = "0x3333333333333333333333333333333333333333".parse().unwrap();
+    let value = 1000u128;
+
+    let encoded = encode_transfer(token, to_addr, U256::from(value));
+    println!("encode: {:?}", hex::encode(&encoded));
+    println!("len: {}", encoded.len());
+}
+
+#[test]
+fn encode_permit_witness_transfer_from_test() {
+    use alloy_primitives::U256;
+
+    let token = "0x2222222222222222222222222222222222222222".parse().unwrap();
+    let from = "0x3333333333333333333333333333333333333333".parse().unwrap();
+    let value = 1000u128;
+    let permit = PermitTransferFrom {
+        permitted: TokenPermissions {
+            token,
+            amount: U256::from(value),
+        },
+        nonce: U256::from(1).into(),
+        deadline: U256::from(2).into(),
+    };
+    let witness: Vec<u8> = U256::from(3).to_be_bytes::<32>().to_vec();
+    let mut signature = vec![0u8; 65];
+    signature[64] = 4u8;
+
+    let encoded = encode_permit_witness_transfer_from(from, permit, &witness, signature);
+    println!("encode: {:?}", hex::encode(&encoded));
+    println!("len: {}", encoded.len());
 }
