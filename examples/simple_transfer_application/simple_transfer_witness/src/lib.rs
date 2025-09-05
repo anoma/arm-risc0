@@ -41,25 +41,27 @@ pub struct SimpleTransferWitness {
     pub forwarder_addr: Option<Vec<u8>>,
     // erc20 address in externalPayload used for erc20 call
     pub erc20_addr: Option<Vec<u8>>,
-    // user address in externalPayload used for erc20 call
+    // user(from or to) address in externalPayload used for erc20 call
     pub user_addr: Option<Vec<u8>>,
 }
 
 impl LogicCircuit for SimpleTransferWitness {
-    // label = sha2(forwarderAddress, erc20addr)
-    // userAddr is from witnesses
+    // label_ref = sha2(forwarderAddress, erc20addr)
+    // value_ref = sha2(call_type, to_or_from_address) for minting/burning
+    // value_ref = sha2(owner_pk)
+    // to_or_from is from witnesses
 
-    // IF r.isConsumed  AND r.isEphemeral
+    // IF r.isConsumed  AND r.isEphemeral // Minting
     //  self.quantity = externalPayload.lockedQuantity
     //  self.label.forwarderAddress = externalPayload.untrustedForwarder
     //  self.label.erc20addr = externalPayload.erc20Addr
-    //  externalPayload.userAddr is from witness
+    //  externalPayload.to_or_from is from witness
     //  verify(applicationPayload.S, abi.encodePacked(actionTreeRoot, externalPayload[0].blob), externalPayload.senderKey) = true
-    // IF r.isConsumed = false AND r.isEphemeral
+    // IF r.isConsumed = false AND r.isEphemeral // Burning
     //  r.label.forwarderAddress = externalPayload.untrustedForwarder
     //  r.quantity = externalPayload.amount
     //  self.label.erc20addr = externalPayload.erc20Addr
-    //  r.value = externalPayload.userAddr
+    //  r.value = externalPayload.to_or_from
     // IF r.isConsumed AND r.isEphemeral = false
     //  verify(applicationPayload.S, actionTreeRoot, r.value.owner) = true
     //  externalPayload.is_empty()

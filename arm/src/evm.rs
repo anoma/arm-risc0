@@ -1,7 +1,6 @@
 use crate::resource::Resource as ArmResource;
-use alloy_primitives::B256;
-use alloy_sol_types::sol;
-use alloy_sol_types::SolValue;
+use alloy_primitives::{B256, U256, Address, Bytes};
+use alloy_sol_types::{sol, SolValue};
 sol! {
     struct Resource {
         bytes32 logicRef;
@@ -86,43 +85,118 @@ impl ForwarderCalldata {
     }
 }
 
+// sol! {
+//     struct ERC20Call {
+//         uint256 amount;
+//         address erc20Addr;
+//         address userAddr;
+//         bool minting;
+//     }
+// }
+
+// impl ERC20Call {
+//     pub fn new(amount: u128, erc20_addr: &str, user_addr: &str, minting: bool) -> Self {
+//         let erc20_addr_parsed = erc20_addr.parse().expect("Invalid address string");
+//         let user_addr_parsed = user_addr.parse().expect("Invalid address string");
+//         ERC20Call {
+//             amount: alloy_primitives::U256::from(amount),
+//             erc20Addr: erc20_addr_parsed,
+//             userAddr: user_addr_parsed,
+//             minting,
+//         }
+//     }
+
+//     pub fn from_bytes(amount: u128, erc20_addr: &[u8], user_addr: &[u8], minting: bool) -> Self {
+//         ERC20Call {
+//             amount: alloy_primitives::U256::from(amount),
+//             erc20Addr: erc20_addr.try_into().expect("Invalid address bytes"),
+//             userAddr: user_addr.try_into().expect("Invalid address bytes"),
+//             minting,
+//         }
+//     }
+
+//     pub fn encode(&self) -> Vec<u8> {
+//         self.abi_encode()
+//     }
+
+//     pub fn decode(encoded: &[u8]) -> Option<Self> {
+//         Self::abi_decode(encoded).ok()
+//     }
+// }
+
 sol! {
-    struct ERC20Call {
+    enum CallType {
+        Transfer, // burn
+        TransferFrom, // mint 1: 
+        PermitWitnessTransferFrom // mint 2
+    }
+
+    /// @notice The token and amount details for a transfer signed in the permit transfer signature
+    struct TokenPermissions {
+        // ERC20 token address
+        address token;
+        // the maximum amount that can be spent
         uint256 amount;
-        address erc20Addr;
-        address userAddr;
-        bool minting;
+    }
+
+    /// @notice The signed permit message for a single token transfer
+    struct PermitTransferFrom {
+        TokenPermissions permitted;
+        // a unique value for every token owner's signature to prevent signature replays
+        // In permit2, this is a uint256
+        bytes32 nonce;
+        // deadline on the permit signature
+        // In permit2, this is a uint256
+        bytes32 deadline;
+    }
+
+    function encodePermitWitnessTransferFrom(
+        address from,
+        PermitTransferFrom memory permit,
+        bytes32 witness,
+        bytes memory signature
+    ) public pure returns (bytes memory input) {
+        input = abi.encode(CallType.PermitWitnessTransferFrom, from, permit, witness, signature);
     }
 }
 
-impl ERC20Call {
-    pub fn new(amount: u128, erc20_addr: &str, user_addr: &str, minting: bool) -> Self {
-        let erc20_addr_parsed = erc20_addr.parse().expect("Invalid address string");
-        let user_addr_parsed = user_addr.parse().expect("Invalid address string");
-        ERC20Call {
-            amount: alloy_primitives::U256::from(amount),
-            erc20Addr: erc20_addr_parsed,
-            userAddr: user_addr_parsed,
-            minting,
-        }
-    }
+pub fn encode_transfer(token: alloy_primitives::Address, to: alloy_primitives::Address, value: alloy_primitives::U256) -> Vec<u8> {
+    // Encode as (CallType, token, to, value)
+    (CallType::Transfer, token, to, value).abi_encode()
+}
 
-    pub fn from_bytes(amount: u128, erc20_addr: &[u8], user_addr: &[u8], minting: bool) -> Self {
-        ERC20Call {
-            amount: alloy_primitives::U256::from(amount),
-            erc20Addr: erc20_addr.try_into().expect("Invalid address bytes"),
-            userAddr: user_addr.try_into().expect("Invalid address bytes"),
-            minting,
-        }
-    }
+pub fn encode_transfer_from(token: alloy_primitives::Address, from: alloy_primitives::Address, value: alloy_primitives::U256) -> Vec<u8> {
+    // Encode as (CallType, token, from, value)
+    (CallType::TransferFrom, token, from, value).abi_encode()
+}
 
-    pub fn encode(&self) -> Vec<u8> {
-        self.abi_encode()
-    }
+pub fn encode_permit_witness_transfer_from(
+    from: alloy_primitives::Address,
+    permit: PermitTransferFrom,
+    witness: &[u8],
+    signature: Bytes,
+    // r: Vec<u8>,
+    // s: Vec<u8>,
+    // v: u8,
+) -> Vec<u8> {
+    // Encode as (CallType, token, from, value, permit, witness, signature)
+    // println!("encoded size: {}", (CallType::PermitWitnessTransferFrom, from, permit.clone(), B256::from_slice(witness), signature.clone()).abi_encoded_size());
 
-    pub fn decode(encoded: &[u8]) -> Option<Self> {
-        Self::abi_decode(encoded).ok()
-    }
+    (CallType::PermitWitnessTransferFrom, from, permit, B256::from_slice(witness), signature).abi_encode()
+    // Bytes::abi_encode(&signature.into())
+    // let sig = (r, s, v).abi_encode();
+    // vec![1u8].abi_encode_packed()
+    // signature.abi_encode()
+
+    // println!("sig_bytes len: {}", sig_bytes.len());
+    // println!("sig_bytes: {:?}", hex::encode(&sig_bytes));
+    // let r_32 = B256::from_slice(&r);
+    // let s_32 = B256::from_slice(&s);
+    // let signature = (r_32, s_32, v);
+    // let mut encoded = (CallType::PermitWitnessTransferFrom, from, permit, B256::from_slice(witness)).abi_encode();
+    // let sig_bytes = signature.abi_encode();
+    // encoded.extend(sig_bytes);
+    // encoded
 }
 
 #[test]
@@ -165,3 +239,44 @@ fn evm_resource_test() {
         decoded_resource.nullifierKeyCommitment.as_slice()
     );
 }
+
+#[test]
+fn erc20_call_test() {
+    let token = "0x2222222222222222222222222222222222222222".parse().unwrap();
+    let to_addr = "0x3333333333333333333333333333333333333333".parse().unwrap();
+    let value = 1000u128;
+
+    let encoded = encode_transfer(token, to_addr, U256::from(value));
+    println!("encode: {:?}", hex::encode(&encoded));
+    println!("len: {}", encoded.len());
+}
+
+#[test]
+fn encode_permit_witness_transfer_from_test() {
+    let token = "0x2222222222222222222222222222222222222222".parse().unwrap();
+    let from = "0x3333333333333333333333333333333333333333".parse().unwrap();
+    let value = 1000u128;
+    let permit = PermitTransferFrom {
+        permitted: TokenPermissions {
+            token,
+            amount: U256::from(value),
+        },
+        nonce: U256::from(1).into(),
+        deadline: U256::from(2).into(),
+    };
+    let witness: Vec<u8> = U256::from(3).to_be_bytes::<32>().to_vec();
+    let mut signature = vec![0u8; 65];
+    signature[64] = 4u8;
+    let sig = Bytes::from(signature.clone());
+
+    let encoded = encode_permit_witness_transfer_from(from, permit, &witness, sig);
+    println!("encode: {:?}", hex::encode(&encoded));
+    println!("len: {}", encoded.len());
+
+    encodePermitWitnessTransferFrom(from, permit, B256::from_slice(&witness), signature);
+}
+
+// 00000000000000000000000000000000000000000000000000000000000000020000000000000000000000003333333333333333333333333333333333333333000000000000000000000000222222222222222222222222222222222222222200000000000000000000000000000000000000000000000000000000000003e800000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000041000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000
+// 00000000000000000000000000000000000000000000000000000000000000020000000000000000000000003333333333333333333333333333333333333333000000000000000000000000222222222222222222222222222222222222222200000000000000000000000000000000000000000000000000000000000003e800000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000041000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000
+// 00000000000000000000000000000000000000000000000000000000000000020000000000000000000000003333333333333333333333333333333333333333000000000000000000000000222222222222222222222222222222222222222200000000000000000000000000000000000000000000000000000000000003e800000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000041000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000
+//
