@@ -9,7 +9,6 @@ use rand::rngs::OsRng;
 #[cfg(feature = "nif")]
 use rustler::{Decoder, Encoder, Env, Error, NifResult, OwnedBinary, Term};
 use serde::{Deserialize, Serialize};
-use std::io::Write;
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct SecretKey(Scalar);
@@ -31,7 +30,8 @@ impl SecretKey {
 
 #[cfg(feature = "nif")]
 fn do_encode<'a>(secret_key: &SecretKey, env: Env<'a>) -> Result<Term<'a>, Error> {
-    let bytes: Vec<u8> = secret_key.0.to_bytes().to_vec();
+    let bytes = bincode::serialize(&secret_key.0).unwrap();
+
     let mut erl_bin = OwnedBinary::new(bytes.len()).ok_or(Error::BadArg)?;
     let _ = erl_bin.as_mut_slice().write_all(&bytes);
 
@@ -50,7 +50,8 @@ impl Encoder for SecretKey {
 impl<'a> Decoder<'a> for SecretKey {
     fn decode(term: Term<'a>) -> NifResult<Self> {
         let binary = term.decode_as_binary()?.as_slice();
-        Ok(SecretKey(Scalar::from(binary)))
+        let scalar: Scalar = bincode::deserialize(binary).expect("failed to decode SecretKey");
+        Ok(SecretKey(scalar))
     }
 }
 
