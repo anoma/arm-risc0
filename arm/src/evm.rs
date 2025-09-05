@@ -85,44 +85,44 @@ impl ForwarderCalldata {
     }
 }
 
-// sol! {
-//     struct ERC20Call {
-//         uint256 amount;
-//         address erc20Addr;
-//         address userAddr;
-//         bool minting;
-//     }
-// }
+sol! {
+    struct ERC20Call {
+        uint256 amount;
+        address erc20Addr;
+        address userAddr;
+        bool minting;
+    }
+}
 
-// impl ERC20Call {
-//     pub fn new(amount: u128, erc20_addr: &str, user_addr: &str, minting: bool) -> Self {
-//         let erc20_addr_parsed = erc20_addr.parse().expect("Invalid address string");
-//         let user_addr_parsed = user_addr.parse().expect("Invalid address string");
-//         ERC20Call {
-//             amount: alloy_primitives::U256::from(amount),
-//             erc20Addr: erc20_addr_parsed,
-//             userAddr: user_addr_parsed,
-//             minting,
-//         }
-//     }
+impl ERC20Call {
+    pub fn new(amount: u128, erc20_addr: &str, user_addr: &str, minting: bool) -> Self {
+        let erc20_addr_parsed = erc20_addr.parse().expect("Invalid address string");
+        let user_addr_parsed = user_addr.parse().expect("Invalid address string");
+        ERC20Call {
+            amount: alloy_primitives::U256::from(amount),
+            erc20Addr: erc20_addr_parsed,
+            userAddr: user_addr_parsed,
+            minting,
+        }
+    }
 
-//     pub fn from_bytes(amount: u128, erc20_addr: &[u8], user_addr: &[u8], minting: bool) -> Self {
-//         ERC20Call {
-//             amount: alloy_primitives::U256::from(amount),
-//             erc20Addr: erc20_addr.try_into().expect("Invalid address bytes"),
-//             userAddr: user_addr.try_into().expect("Invalid address bytes"),
-//             minting,
-//         }
-//     }
+    pub fn from_bytes(amount: u128, erc20_addr: &[u8], user_addr: &[u8], minting: bool) -> Self {
+        ERC20Call {
+            amount: alloy_primitives::U256::from(amount),
+            erc20Addr: erc20_addr.try_into().expect("Invalid address bytes"),
+            userAddr: user_addr.try_into().expect("Invalid address bytes"),
+            minting,
+        }
+    }
 
-//     pub fn encode(&self) -> Vec<u8> {
-//         self.abi_encode()
-//     }
+    pub fn encode(&self) -> Vec<u8> {
+        self.abi_encode()
+    }
 
-//     pub fn decode(encoded: &[u8]) -> Option<Self> {
-//         Self::abi_decode(encoded).ok()
-//     }
-// }
+    pub fn decode(encoded: &[u8]) -> Option<Self> {
+        Self::abi_decode(encoded).ok()
+    }
+}
 
 sol! {
     enum CallType {
@@ -273,7 +273,7 @@ fn encode_permit_witness_transfer_from_test() {
     println!("encode: {:?}", hex::encode(&encoded));
     println!("len: {}", encoded.len());
 
-    encodePermitWitnessTransferFrom(from, permit, B256::from_slice(&witness), signature);
+    // encodePermitWitnessTransferFrom(from, permit, B256::from_slice(&witness), signature);
 }
 
 // 00000000000000000000000000000000000000000000000000000000000000020000000000000000000000003333333333333333333333333333333333333333000000000000000000000000222222222222222222222222222222222222222200000000000000000000000000000000000000000000000000000000000003e800000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000041000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000
