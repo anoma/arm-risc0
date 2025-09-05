@@ -1,10 +1,11 @@
-use std::vec;
-
 pub use arm::resource_logic::LogicCircuit;
 use arm::{
     authorization::{AuthorizationSignature, AuthorizationVerifyingKey},
     encryption::{AffinePoint, Ciphertext, SecretKey},
-    evm::{ERC20Call, ForwarderCalldata, Resource as EvmResource},
+    evm::{
+        encode_permit_witness_transfer_from, encode_transfer, encode_transfer_from, CallType,
+        ForwarderCalldata, PermitTransferFrom, Resource as EvmResource,
+    },
     logic_instance::{AppData, ExpirableBlob, LogicInstance},
     merkle_path::MerklePath,
     nullifier_key::NullifierKey,
@@ -41,31 +42,15 @@ pub struct SimpleTransferWitness {
     pub forwarder_addr: Option<Vec<u8>>,
     // erc20 address in externalPayload used for erc20 call
     pub erc20_addr: Option<Vec<u8>>,
-    // user address in externalPayload used for erc20 call
+    // user(from or to) address in externalPayload used for erc20 call
     pub user_addr: Option<Vec<u8>>,
+    // call type in externalPayload used for erc20 call
+    pub call_type: Option<CallType>,
+    pub permit_nonce: Option<Vec<u8>>,
+    pub permit_deadline: Option<Vec<u8>>,
 }
 
 impl LogicCircuit for SimpleTransferWitness {
-    // label = sha2(forwarderAddress, erc20addr)
-    // userAddr is from witnesses
-
-    // IF r.isConsumed  AND r.isEphemeral
-    //  self.quantity = externalPayload.lockedQuantity
-    //  self.label.forwarderAddress = externalPayload.untrustedForwarder
-    //  self.label.erc20addr = externalPayload.erc20Addr
-    //  externalPayload.userAddr is from witness
-    //  verify(applicationPayload.S, abi.encodePacked(actionTreeRoot, externalPayload[0].blob), externalPayload.senderKey) = true
-    // IF r.isConsumed = false AND r.isEphemeral
-    //  r.label.forwarderAddress = externalPayload.untrustedForwarder
-    //  r.quantity = externalPayload.amount
-    //  self.label.erc20addr = externalPayload.erc20Addr
-    //  r.value = externalPayload.userAddr
-    // IF r.isConsumed AND r.isEphemeral = false
-    //  verify(applicationPayload.S, actionTreeRoot, r.value.owner) = true
-    //  externalPayload.is_empty()
-    // IF r.isConsumed = false AND r.isEphemeral = false
-    //  externalPayload.is_empty()
-
     fn constrain(&self) -> LogicInstance {
         // Load resources
         let cm = self.resource.commitment();
@@ -79,6 +64,7 @@ impl LogicCircuit for SimpleTransferWitness {
 
         // Check the existence path
         let root = self.existence_path.root(&tag);
+        let root_bytes = words_to_bytes(&root);
 
         // Generate discovery_payload
         let discovery_payload = {
@@ -117,63 +103,64 @@ impl LogicCircuit for SimpleTransferWitness {
                 let forwarder_addr = self.forwarder_addr.as_ref().unwrap();
                 let erc20_addr = self.erc20_addr.as_ref().unwrap();
                 let user_addr = self.user_addr.as_ref().unwrap();
-                let mut label_data = vec![];
-                label_data.extend_from_slice(forwarder_addr);
-                label_data.extend_from_slice(erc20_addr);
-                assert_eq!(self.resource.label_ref, hash_bytes(&label_data));
+                let label_ref = calculate_label_ref(forwarder_addr, erc20_addr, user_addr);
+                assert_eq!(self.resource.label_ref, label_ref);
 
-                let (external_payload, application_payload) = if self.is_consumed {
+                // Check resource value_ref: value_ref = sha2(call_type, user_addr)
+                let call_type = self.call_type.as_ref().unwrap();
+                let value_ref = calculate_value_ref_calltype_user(*call_type, user_addr);
+                assert_eq!(self.resource.value_ref, value_ref);
+
+                if self.is_consumed {
                     // Minting
-                    let erc20_call_data =
-                        ERC20Call::from_bytes(self.resource.quantity, erc20_addr, user_addr, true);
-                    let forwarder_call_data = ForwarderCalldata::from_bytes(
-                        forwarder_addr,
-                        erc20_call_data.encode(),
-                        vec![0u8],
+                    assert!(
+                        *call_type == CallType::TransferFrom
+                            || *call_type == CallType::PermitWitnessTransferFrom
                     );
-                    let external_payload = {
-                        let call_data_expirable_blob = ExpirableBlob {
-                            blob: bytes_to_words(&forwarder_call_data.encode()),
-                            deletion_criterion: 1,
-                        };
-                        vec![call_data_expirable_blob]
-                    };
-
-                    let application_payload = {
-                        let sig_expirable_blob = ExpirableBlob {
-                            blob: bytes_to_words(self.forwarder_sig.as_ref().unwrap()),
-                            deletion_criterion: 1,
-                        };
-                        vec![sig_expirable_blob]
-                    };
-                    (external_payload, application_payload)
                 } else {
                     // Burning
-                    let erc20_call_data = ERC20Call::from_bytes(
-                        self.resource.quantity,
-                        erc20_addr,
-                        &self.resource.value_ref, // from resource value for burning
-                        false,
-                    );
-                    let forwarder_call_data = ForwarderCalldata::from_bytes(
-                        forwarder_addr,
-                        erc20_call_data.encode(),
-                        vec![0u8],
-                    );
-                    let external_payload = {
-                        let call_data_expirable_blob = ExpirableBlob {
-                            blob: bytes_to_words(&forwarder_call_data.encode()),
-                            deletion_criterion: 1,
-                        };
-                        vec![call_data_expirable_blob]
-                    };
-                    (external_payload, vec![])
+                    assert_eq!(*call_type, CallType::Transfer);
                 };
 
-                (resource_payload, external_payload, application_payload)
+                let input = match call_type {
+                    CallType::Transfer => {
+                        encode_transfer(erc20_addr, user_addr, self.resource.quantity)
+                    }
+                    CallType::TransferFrom => {
+                        encode_transfer_from(erc20_addr, user_addr, self.resource.quantity)
+                    }
+                    CallType::PermitWitnessTransferFrom => {
+                        let permit = PermitTransferFrom::from_bytes(
+                            erc20_addr,
+                            self.resource.quantity,
+                            self.permit_nonce.as_ref().unwrap(),
+                            self.permit_deadline.as_ref().unwrap(),
+                        );
+                        encode_permit_witness_transfer_from(
+                            user_addr,
+                            permit,
+                            root_bytes,
+                            self.forwarder_sig.as_ref().unwrap().to_vec(),
+                        )
+                    }
+                    _ => {
+                        panic!("Unsupported call type");
+                    }
+                };
+
+                let forwarder_call_data =
+                    ForwarderCalldata::from_bytes(forwarder_addr, input, vec![]);
+                let external_payload = {
+                    let call_data_expirable_blob = ExpirableBlob {
+                        blob: bytes_to_words(&forwarder_call_data.encode()),
+                        deletion_criterion: 1,
+                    };
+                    vec![call_data_expirable_blob]
+                };
+
+                (resource_payload, external_payload, vec![])
             } else {
                 // Generate resource ciphertext
-                // TODO: figure out where to place the ciphertext
                 let resource_ciphertext = {
                     let cipher = Ciphertext::encrypt(
                         &self.resource.to_bytes(),
@@ -190,18 +177,14 @@ impl LogicCircuit for SimpleTransferWitness {
 
                 // Consume a persistent resource
                 if self.is_consumed {
-                    // check value
+                    let auth_pk = self.auth_pk.as_ref().unwrap();
+                    // check value_ref
                     assert_eq!(
                         self.resource.value_ref,
-                        hash_bytes(&self.auth_pk.unwrap().to_bytes())
+                        calculate_value_ref_from_auth(auth_pk)
                     );
                     // Verify the authorization signature
-                    let root_bytes = words_to_bytes(&root);
-                    assert!(self
-                        .auth_pk
-                        .unwrap()
-                        .verify(root_bytes, &self.auth_sig.unwrap())
-                        .is_ok());
+                    assert!(auth_pk.verify(root_bytes, &self.auth_sig.unwrap()).is_ok());
                 }
 
                 // Do nothing when creating a persistent resource;
@@ -243,6 +226,9 @@ impl SimpleTransferWitness {
         forwarder_addr: Option<Vec<u8>>,
         erc20_addr: Option<Vec<u8>>,
         user_addr: Option<Vec<u8>>,
+        call_type: Option<CallType>,
+        permit_nonce: Option<Vec<u8>>,
+        permit_deadline: Option<Vec<u8>>,
     ) -> Self {
         Self {
             is_consumed,
@@ -261,6 +247,23 @@ impl SimpleTransferWitness {
             forwarder_addr,
             erc20_addr,
             user_addr,
+            call_type,
+            permit_nonce,
+            permit_deadline,
         }
     }
+}
+
+pub fn calculate_value_ref_from_auth(auth_pk: &AuthorizationVerifyingKey) -> Vec<u8> {
+    hash_bytes(&auth_pk.to_bytes())
+}
+
+pub fn calculate_value_ref_calltype_user(call_type: CallType, user_addr: &[u8]) -> Vec<u8> {
+    let mut data = vec![call_type as u8];
+    data.extend_from_slice(user_addr);
+    hash_bytes(&data)
+}
+
+pub fn calculate_label_ref(forwarder_add: &[u8], erc20_add: &[u8], user_add: &[u8]) -> Vec<u8> {
+    hash_bytes(&[forwarder_add, erc20_add, user_add].concat())
 }
