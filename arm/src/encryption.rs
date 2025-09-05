@@ -1,3 +1,4 @@
+use std::io::Write;
 use crate::utils::{bytes_to_words, words_to_bytes};
 use aes_gcm::{aead::Aead, Aes256Gcm, Key, KeyInit};
 pub use k256::AffinePoint;
