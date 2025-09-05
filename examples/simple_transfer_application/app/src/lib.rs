@@ -3,11 +3,11 @@ pub mod transfer;
 use arm::{
     authorization::{AuthorizationSignature, AuthorizationVerifyingKey},
     encryption::{AffinePoint, SecretKey},
+    evm::CallType,
     logic_proof::LogicProver,
     merkle_path::MerklePath,
     nullifier_key::NullifierKey,
     resource::Resource,
-    utils::hash_bytes,
     Digest,
 };
 use hex::FromHex;
@@ -44,6 +44,9 @@ impl TransferLogic {
         forwarder_addr: Option<Vec<u8>>,
         erc20_addr: Option<Vec<u8>>,
         user_addr: Option<Vec<u8>>,
+        call_type: Option<CallType>,
+        permit_nonce: Option<Vec<u8>>,
+        permit_deadline: Option<Vec<u8>>,
     ) -> Self {
         Self {
             witness: SimpleTransferWitness::new(
@@ -61,6 +64,9 @@ impl TransferLogic {
                 forwarder_addr,
                 erc20_addr,
                 user_addr,
+                call_type,
+                permit_nonce,
+                permit_deadline,
             ),
         }
     }
@@ -89,6 +95,9 @@ impl TransferLogic {
             None,
             None,
             None,
+            None,
+            None,
+            None,
         )
     }
 
@@ -113,64 +122,67 @@ impl TransferLogic {
             None,
             None,
             None,
+            None,
+            None,
+            None,
         )
     }
 
-    #[allow(clippy::too_many_arguments)]
-    pub fn mint_resource_logic(
-        resource: Resource,
-        existence_path: MerklePath,
-        nf_key: NullifierKey,
-        forwarder_sig: Vec<u8>,
-        discovery_pk: AffinePoint,
-        forwarder_addr: Vec<u8>,
-        erc20_addr: Vec<u8>,
-        user_addr: Vec<u8>,
-    ) -> Self {
-        Self::new(
-            true,
-            resource,
-            existence_path,
-            Some(nf_key),
-            None,
-            None,
-            Some(forwarder_sig),
-            discovery_pk,
-            None,
-            None,
-            None,
-            Some(forwarder_addr),
-            Some(erc20_addr),
-            Some(user_addr),
-        )
-    }
+    // #[allow(clippy::too_many_arguments)]
+    // pub fn mint_resource_logic(
+    //     resource: Resource,
+    //     existence_path: MerklePath,
+    //     nf_key: NullifierKey,
+    //     forwarder_sig: Vec<u8>,
+    //     discovery_pk: AffinePoint,
+    //     forwarder_addr: Vec<u8>,
+    //     erc20_addr: Vec<u8>,
+    //     user_addr: Vec<u8>,
+    // ) -> Self {
+    //     Self::new(
+    //         true,
+    //         resource,
+    //         existence_path,
+    //         Some(nf_key),
+    //         None,
+    //         None,
+    //         Some(forwarder_sig),
+    //         discovery_pk,
+    //         None,
+    //         None,
+    //         None,
+    //         Some(forwarder_addr),
+    //         Some(erc20_addr),
+    //         Some(user_addr),
+    //     )
+    // }
 
-    pub fn burn_resource_logic(
-        resource: Resource,
-        existence_path: MerklePath,
-        nf_key: NullifierKey,
-        discovery_pk: AffinePoint,
-        forwarder_addr: Vec<u8>,
-        erc20_addr: Vec<u8>,
-        user_addr: Vec<u8>,
-    ) -> Self {
-        Self::new(
-            false,
-            resource,
-            existence_path,
-            Some(nf_key),
-            None,
-            None,
-            None,
-            discovery_pk,
-            None,
-            None,
-            None,
-            Some(forwarder_addr),
-            Some(erc20_addr),
-            Some(user_addr),
-        )
-    }
+    // pub fn burn_resource_logic(
+    //     resource: Resource,
+    //     existence_path: MerklePath,
+    //     nf_key: NullifierKey,
+    //     discovery_pk: AffinePoint,
+    //     forwarder_addr: Vec<u8>,
+    //     erc20_addr: Vec<u8>,
+    //     user_addr: Vec<u8>,
+    // ) -> Self {
+    //     Self::new(
+    //         false,
+    //         resource,
+    //         existence_path,
+    //         Some(nf_key),
+    //         None,
+    //         None,
+    //         None,
+    //         discovery_pk,
+    //         None,
+    //         None,
+    //         None,
+    //         Some(forwarder_addr),
+    //         Some(erc20_addr),
+    //         Some(user_addr),
+    //     )
+    // }
 }
 
 impl LogicProver for TransferLogic {
@@ -186,12 +198,4 @@ impl LogicProver for TransferLogic {
     fn witness(&self) -> &Self::Witness {
         &self.witness
     }
-}
-
-pub fn calculate_value_ref(auth_pk: &AuthorizationVerifyingKey) -> Vec<u8> {
-    hash_bytes(&auth_pk.to_bytes())
-}
-
-pub fn calculate_label_ref(forwarder_add: &[u8], erc20_add: &[u8], user_add: &[u8]) -> Vec<u8> {
-    hash_bytes(&[forwarder_add, erc20_add, user_add].concat())
 }

@@ -1,6 +1,6 @@
 #[test]
 fn simple_transfer_test() {
-    use crate::{calculate_value_ref, TransferLogic};
+    use crate::TransferLogic;
     use arm::{
         action::Action,
         action_tree::MerkleTree,
@@ -16,6 +16,7 @@ fn simple_transfer_test() {
         transaction::{Delta, Transaction},
         utils::words_to_bytes,
     };
+    use simple_transfer_witness::calculate_value_ref_from_auth;
 
     let logic_ref = TransferLogic::verifying_key_as_bytes();
     let quantity = 100;
@@ -29,7 +30,7 @@ fn simple_transfer_test() {
         logic_ref: logic_ref.clone(),
         label_ref: vec![0; 32],
         quantity,
-        value_ref: calculate_value_ref(&consumed_auth_pk),
+        value_ref: calculate_value_ref_from_auth(&consumed_auth_pk),
         is_ephemeral: false,
         nonce: vec![0; 32],
         nk_commitment: consumed_nf_cm,
