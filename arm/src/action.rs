@@ -1,11 +1,13 @@
 use crate::{
     action_tree::MerkleTree,
-    compliance::{ComplianceInstance, ComplianceWitness},
+    compliance::ComplianceInstance,
     compliance_unit::ComplianceUnit,
-    delta_proof::DeltaWitness,
-    logic_proof::{LogicProver, LogicVerifier, LogicVerifierInputs},
-    nullifier_key::NullifierKey,
-    resource::Resource,
+    logic_proof::{LogicVerifier, LogicVerifierInputs},
+};
+#[cfg(feature = "prove")]
+use crate::{
+    compliance::ComplianceWitness, delta_proof::DeltaWitness, logic_proof::LogicProver,
+    nullifier_key::NullifierKey, resource::Resource,
 };
 use k256::ProjectivePoint;
 #[cfg(feature = "nif")]
@@ -110,6 +112,7 @@ impl Action {
     }
 }
 
+#[cfg(feature = "prove")]
 pub fn create_an_action(nonce: u8) -> (Action, DeltaWitness) {
     use crate::logic_proof::TestLogic;
 
@@ -160,6 +163,7 @@ pub fn create_an_action(nonce: u8) -> (Action, DeltaWitness) {
     (action, delta_witness)
 }
 
+#[cfg(feature = "prove")]
 pub fn create_multiple_actions(n: usize) -> (Vec<Action>, DeltaWitness) {
     let mut actions = Vec::new();
     let mut delta_witnesses = Vec::new();

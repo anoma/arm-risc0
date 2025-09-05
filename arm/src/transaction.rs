@@ -100,6 +100,7 @@ impl Transaction {
     }
 }
 
+#[cfg(feature = "prove")]
 pub fn generate_test_transaction(n_actions: usize) -> Transaction {
     use crate::action::create_multiple_actions;
     let (actions, delta_witness) = create_multiple_actions(n_actions);
