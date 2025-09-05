@@ -22,7 +22,7 @@ alloy-primitives = "1.0.23"
 alloy-sol-types = "1.0.23"
 
 [features]
-default = ["transaction", "prove", "client"]
+default = ["transaction", "prove"]
 transaction = ["compliance_circuit", "dep:sha3"]
 compliance_circuit = []
 fast_prover = []
@@ -31,5 +31,4 @@ groth16_prover = []
 nif = ["dep:rustler"]
 prove = ["risc0-zkvm/prove"]
 bonsai = ["risc0-zkvm/bonsai"]
-client = ["risc0-zkvm/client"]
 cuda = ["risc0-zkvm/cuda"]
