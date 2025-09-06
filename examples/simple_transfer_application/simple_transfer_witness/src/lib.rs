@@ -3,8 +3,8 @@ use arm::{
     authorization::{AuthorizationSignature, AuthorizationVerifyingKey},
     encryption::{AffinePoint, Ciphertext, SecretKey},
     evm::{
-        encode_permit_witness_transfer_from, encode_transfer, encode_transfer_from, CallType,
-        ForwarderCalldata, PermitTransferFrom, Resource as EvmResource,
+        encode_permit_witness_transfer_from, encode_transfer, CallType, ForwarderCalldata,
+        PermitTransferFrom, Resource as EvmResource,
     },
     logic_instance::{AppData, ExpirableBlob, LogicInstance},
     merkle_path::MerklePath,
@@ -138,10 +138,7 @@ impl LogicCircuit for SimpleTransferWitness {
 
                 if self.is_consumed {
                     // Minting
-                    assert!(
-                        call_type == CallType::TransferFrom
-                            || call_type == CallType::PermitWitnessTransferFrom
-                    );
+                    assert_eq!(call_type, CallType::PermitWitnessTransferFrom);
                 } else {
                     // Burning
                     assert_eq!(call_type, CallType::Transfer);
@@ -151,9 +148,9 @@ impl LogicCircuit for SimpleTransferWitness {
                     CallType::Transfer => {
                         encode_transfer(erc20_addr, user_addr, self.resource.quantity)
                     }
-                    CallType::TransferFrom => {
-                        encode_transfer_from(erc20_addr, user_addr, self.resource.quantity)
-                    }
+                    // CallType::TransferFrom => {
+                    //     encode_transfer_from(erc20_addr, user_addr, self.resource.quantity)
+                    // }
                     CallType::PermitWitnessTransferFrom => {
                         let permit = PermitTransferFrom::from_bytes(
                             erc20_addr,
