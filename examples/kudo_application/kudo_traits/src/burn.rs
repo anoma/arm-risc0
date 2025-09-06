@@ -23,7 +23,7 @@ where
     K: KudoInfo,
     D: DenominationInfo,
 {
-    pub fn create_tx(&self) -> Transaction {
+    pub fn create_tx(&self, latest_root: Vec<u32>) -> Transaction {
         // Create the action
         let (action, delta_witness) = {
             // Generate compliance units
@@ -50,6 +50,7 @@ where
             let (compliance_unit_2, delta_witness_2) = {
                 let compliance_witness: ComplianceWitness = ComplianceWitness::from_resources(
                     self.ephemeral_denomination.resource(),
+                    latest_root,
                     self.ephemeral_denomination.nf_key().unwrap(),
                     self.burned_denomination.resource(),
                 );

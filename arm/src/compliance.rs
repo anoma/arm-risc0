@@ -53,6 +53,7 @@ pub struct ComplianceWitness {
 impl ComplianceWitness {
     pub fn from_resources(
         consumed_resource: Resource,
+        latest_root: Vec<u32>,
         nf_key: NullifierKey,
         created_resource: Resource,
     ) -> Self {
@@ -60,10 +61,10 @@ impl ComplianceWitness {
         ComplianceWitness {
             consumed_resource,
             created_resource,
-            merkle_path: MerklePath::default(),
+            merkle_path: MerklePath::empty(),
             rcv: Scalar::random(&mut rng).to_bytes().to_vec(),
             nf_key,
-            ephemeral_root: INITIAL_ROOT.as_words().to_vec(),
+            ephemeral_root: latest_root,
         }
     }
 

@@ -23,6 +23,7 @@ use kudo_logic_witness::{
 use kudo_traits::swap::Swap;
 use rand::Rng;
 
+#[allow(clippy::too_many_arguments)]
 pub fn build_swap_tx(
     consumed_issuer: &AuthorizationVerifyingKey,
     owner_sk: &AuthorizationSigningKey,
@@ -31,6 +32,7 @@ pub fn build_swap_tx(
     consumed_kudo_path: MerklePath,
     created_issuer: &AuthorizationVerifyingKey,
     created_kudo_quantity: u128,
+    latest_root: Vec<u32>,
 ) -> Transaction {
     let (instant_nk, instant_nk_commitment) = NullifierKey::random_pair();
 
@@ -222,11 +224,12 @@ pub fn build_swap_tx(
         created_receive,
     };
 
-    swap.create_tx()
+    swap.create_tx(latest_root)
 }
 
 #[test]
 fn generate_a_swap_tx() {
+    use arm::compliance::INITIAL_ROOT;
     use arm::transaction::Transaction;
     use std::time::Instant;
 
@@ -269,6 +272,7 @@ fn generate_a_swap_tx() {
         MerklePath::default(), // It should be a real path
         &alice_created_issuer,
         alice_created_kudo_quantity,
+        INITIAL_ROOT.as_words().to_vec(),
     );
 
     let bob_sk = AuthorizationSigningKey::new();
@@ -298,6 +302,7 @@ fn generate_a_swap_tx() {
         MerklePath::default(), // It should be a real path
         &bob_created_issuer,
         bob_created_kudo_quantity,
+        INITIAL_ROOT.as_words().to_vec(),
     );
 
     let mut tx = Transaction::compose(alice_tx, bob_tx);
