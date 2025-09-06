@@ -99,7 +99,6 @@ sol! {
     #[derive(Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
     enum CallType {
         Transfer, // burn
-        TransferFrom, // mint
         PermitWitnessTransferFrom // mint with permit info
     }
 
@@ -145,13 +144,13 @@ pub fn encode_transfer(token: &[u8], to: &[u8], value: u128) -> Vec<u8> {
     (CallType::Transfer, token, to, value).abi_encode_params()
 }
 
-pub fn encode_transfer_from(token: &[u8], from: &[u8], value: u128) -> Vec<u8> {
-    // Encode as (CallType, token, from, value)
-    let token_addr: Address = token.try_into().expect("Invalid address bytes");
-    let from_addr: Address = from.try_into().expect("Invalid address bytes");
-    let value = U256::from(value);
-    (CallType::TransferFrom, token_addr, from_addr, value).abi_encode_params()
-}
+// pub fn encode_transfer_from(token: &[u8], from: &[u8], value: u128) -> Vec<u8> {
+//     // Encode as (CallType, token, from, value)
+//     let token_addr: Address = token.try_into().expect("Invalid address bytes");
+//     let from_addr: Address = from.try_into().expect("Invalid address bytes");
+//     let value = U256::from(value);
+//     (CallType::TransferFrom, token_addr, from_addr, value).abi_encode_params()
+// }
 
 pub fn encode_permit_witness_transfer_from(
     from: &[u8],
