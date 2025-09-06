@@ -211,20 +211,9 @@ fn evm_resource_test() {
 }
 
 #[test]
-fn erc20_call_test() {
-    let token = hex::decode("0x2222222222222222222222222222222222222222").unwrap();
-    let to_addr = hex::decode("0x3333333333333333333333333333333333333333").unwrap();
-    let value = 1000u128;
-
-    let encoded = encode_transfer(&token, &to_addr, value);
-    println!("encode: {:?}", hex::encode(&encoded));
-    println!("len: {}", encoded.len());
-}
-
-#[test]
 fn encode_permit_witness_transfer_from_test() {
-    let token = hex::decode("0x2222222222222222222222222222222222222222").unwrap();
-    let from = hex::decode("0x3333333333333333333333333333333333333333").unwrap();
+    let token = hex::decode("2222222222222222222222222222222222222222").unwrap();
+    let from = hex::decode("3333333333333333333333333333333333333333").unwrap();
     let value = 1000u128;
     let permit = PermitTransferFrom::from_bytes(&token, value, &vec![1u8; 32], &vec![2u8; 32]);
     let witness = vec![3u8; 32];
