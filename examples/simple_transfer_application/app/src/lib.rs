@@ -1,8 +1,8 @@
 pub mod burn;
+pub mod mint;
 pub mod resource;
 pub mod transfer;
 pub mod utils;
-// pub mod mint;
 
 use arm::{
     authorization::{AuthorizationSignature, AuthorizationVerifyingKey},
