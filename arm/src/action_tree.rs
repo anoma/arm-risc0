@@ -7,9 +7,6 @@ use risc0_zkvm::sha::Digest;
 #[cfg(feature = "nif")]
 use rustler::NifStruct;
 
-pub const ACTION_TREE_MAX_NUM: usize = 1 << ACTION_TREE_DEPTH;
-pub const ACTION_TREE_DEPTH: usize = 4;
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "nif", derive(NifStruct))]
 #[cfg_attr(feature = "nif", module = "Anoma.Arm.MerkleTree")]
@@ -19,10 +16,6 @@ pub struct MerkleTree {
 
 impl MerkleTree {
     pub fn new(leaves: Vec<Digest>) -> Self {
-        assert!(
-            leaves.len() <= ACTION_TREE_MAX_NUM,
-            "The number of leaves exceeds the ACTION_TREE_MAX_NUM"
-        );
         let leaves = leaves
             .into_iter()
             .map(|digest| digest.as_words().to_vec())
@@ -35,8 +28,9 @@ impl MerkleTree {
     }
 
     pub fn root(&self) -> Vec<u32> {
+        let len = self.leaves.len().next_power_of_two();
         let mut cur_layer = self.leaves.clone();
-        cur_layer.resize(ACTION_TREE_MAX_NUM, PADDING_LEAF.as_words().to_vec());
+        cur_layer.resize(len, PADDING_LEAF.as_words().to_vec());
         while cur_layer.len() > 1 {
             cur_layer = cur_layer
                 .chunks(2)
@@ -61,9 +55,10 @@ impl MerkleTree {
     /// - A `bool` indicating whether the sibling is on the left (`true`) or right (`false`).
     ///
     /// Returns `None` if the leaf is not found in the tree.
-    pub fn generate_path(&self, cur_leave: &Digest) -> Option<MerklePath<ACTION_TREE_DEPTH>> {
+    pub fn generate_path(&self, cur_leave: &Digest) -> Option<MerklePath> {
+        let len = self.leaves.len().next_power_of_two();
         let mut cur_layer = self.leaves.clone();
-        cur_layer.resize(ACTION_TREE_MAX_NUM, PADDING_LEAF.as_words().to_vec());
+        cur_layer.resize(len, PADDING_LEAF.as_words().to_vec());
         if let Some(position) = cur_layer.iter().position(|v| v == cur_leave.as_words()) {
             let mut merkle_path = Vec::new();
             fn build_merkle_path_inner(
@@ -92,12 +87,7 @@ impl MerkleTree {
                 }
             }
             build_merkle_path_inner(cur_layer, position, &mut merkle_path);
-            Some(MerklePath::<ACTION_TREE_DEPTH>::from_path(
-                match merkle_path.try_into() {
-                    Ok(path) => path,
-                    Err(_) => return None, // Return None if the conversion fails
-                },
-            ))
+            Some(MerklePath::from_path(merkle_path.as_slice()))
         } else {
             None
         }

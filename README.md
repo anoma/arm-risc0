@@ -12,11 +12,16 @@ This is a shielded resource machine implementation based on [Risc0-zkvm](https:/
 
 - **`arm/`**: The main Anoma Shielded Resource Machine implementation providing the core functionality for Anoma SDK and Validator.
 
-- **`examples/`**: Demonstration applications showcasing different use cases:
-  - **Compliance Circuit**: Basic compliance checking circuit
-  - **Trivial Logic**: Minimal logic circuit example, also used in padding resources
-  - **Simple Counter**: A simple counter increment example
-  - **Kudo Application**: A relatively complex example; more detailed descriptions can be found [here](https://research.anoma.net/t/shielded-kudos-revised-no-authorisation-abstraction/1522)
+- **`arm_circuits/`**: Demonstration circuits for arms and applications:
+  - **compliance**: Basic compliance checking circuit
+  - **trivial_logic**: Minimal logic circuit example, also used in padding resources
+  - **logic_test**: The logic circuit contains hardcoded data to cover all instance fields and is used only in tests
+  - **counter**: The simple counter logic circuit
+  - **kudo circuits(kudo_main, simple_kudo_denomination, simple_kudo_receive)**: kudo application circuits
+
+- **`examples/`**: Demonstration application examples:
+  - **kudo_application**: A simple counter increment example
+  - **simple_counter_application**: A relatively complex example; more detailed descriptions can be found [here](https://research.anoma.net/t/shielded-kudos-revised-no-authorisation-abstraction/1522)
 
 ## Getting Started
 
@@ -80,35 +85,32 @@ We have the following feature flags in arm lib:
 
 | Feature                  | Implies                   | Description                                                                                                                     |
 | ------------------------ | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `logic_circuit`            |                           | It provides logic-related traits and gadgets                                                            |
 | `compliance_circuit`       |                           | A specific feature for compliance circuit                                                                                       |
-| `transaction (default)`     | `logic_circuit`, `compliance_circuit`, `prove`, `bonsai` | It provides full transaction processing capabilities and will be in the Anoma SDK and validator with a selected prover feature. Succinct prover is used by default. |
+| `transaction (default)`     | `compliance_circuit`, `client` | It provides full transaction processing capabilities and will be in the Anoma SDK and validator with a selected prover feature. Succinct prover is used by default. |
 | `prove`                    |                           | Enables RISC0 proving capabilities (required for actual proof generation)                                                       |
-| `bonsai`                    |                           | Enables bonsai sdk                                                       |
+| `bonsai`                    |                           | Enables RISC0 bonsai sdk                                                       |
+| `client`                    |                           | Enables RISC0 client sdk                                                       |
+| `cuda`                    |                           | Enables CUDA GPU acceleration for the prover. Requires CUDA toolkit to be installed.                                                       |
 | `fast_prover`         |                           | Fastest option producing linear-size proofs, and does not support compression via recursion |
 | `composite_prover`         |                           | Fastest option producing linear-size proofs, and supports compression via recursion                                                                 |
 | `groth16_prover`           |                           | Generates groth16 proofs(requires x86_64 machines)                                                                              |
 | `nif`                      |                           | Enables Erlang/Elixir NIF (Native Implemented Function) bindings                                                                |
-| `evm`                      |                           | Wrapped EVM data structures, used in resource logic                                                                |
 
 
 ### Usage Examples
 
 ```toml
 # Default configuration (succinct proofs + transaction support)
-arm = "0.2.0"
+arm = "0.4.0"
 
 # Blockchain deployment with Groth16 proofs
-arm = { version = "0.2.0", default-features = false, features = ["groth16_prover", "transaction"] }
+arm = { version = "0.4.0", default-features = false, features = ["groth16_prover", "transaction"] }
 
 # Logic-circuit-only usage
-arm = { version = "0.2.0", default-features = false, features = ["logic_circuit"] }
-
-# Logic-circuit-only, using evm data structures(e.g. ForwarderCalldata)
-arm = { version = "0.2.0", default-features = false, features = ["logic_circuit", "evm"] }
+arm = { version = "0.4.0", default-features = false }
 
 # Elixir Anoma SDK
-arm = { version = "0.2.0", features = ["nif"] }
+arm = { version = "0.4.0", features = ["nif"] }
 ```
 
 

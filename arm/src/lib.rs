@@ -1,7 +1,6 @@
 #[cfg(feature = "transaction")]
 pub mod action;
 pub mod action_tree;
-#[cfg(feature = "logic_circuit")]
 pub mod authorization;
 #[cfg(feature = "compliance_circuit")]
 pub mod compliance;
@@ -12,7 +11,6 @@ pub mod constants;
 #[cfg(feature = "transaction")]
 pub mod delta_proof;
 pub mod encryption;
-#[cfg(feature = "evm")]
 pub mod evm;
 pub mod logic_instance;
 #[cfg(feature = "transaction")]
@@ -22,9 +20,7 @@ pub mod nullifier_key;
 #[cfg(feature = "transaction")]
 pub mod proving_system;
 pub mod resource;
-#[cfg(feature = "logic_circuit")]
 pub mod resource_logic;
-#[cfg(all(feature = "logic_circuit", feature = "evm"))]
 pub mod test_logic;
 #[cfg(feature = "transaction")]
 pub mod transaction;

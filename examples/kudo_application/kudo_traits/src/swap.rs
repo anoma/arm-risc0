@@ -5,9 +5,7 @@ use arm::{
     logic_proof::{LogicProver, PaddingResourceLogic},
     transaction::{Delta, Transaction},
 };
-use arm::{
-    compliance::ComplianceWitness, delta_proof::DeltaWitness, merkle_path::COMMITMENT_TREE_DEPTH,
-};
+use arm::{compliance::ComplianceWitness, delta_proof::DeltaWitness};
 
 // TODO: Swap seems simillar to TransferWitness, consider abstracting and
 // merging them
@@ -44,7 +42,7 @@ where
 
             println!("Generating compliance unit 1");
             let (compliance_unit_1, delta_witness_1) = {
-                let compliance_witness: ComplianceWitness<COMMITMENT_TREE_DEPTH> =
+                let compliance_witness: ComplianceWitness =
                     ComplianceWitness::from_resources_with_path(
                         self.consumed_kudo.resource(),
                         self.consumed_kudo.nf_key().unwrap(),
@@ -62,12 +60,11 @@ where
             // denomination resource
             println!("Generating compliance unit 2");
             let (compliance_unit_2, delta_witness_2) = {
-                let compliance_witness: ComplianceWitness<COMMITMENT_TREE_DEPTH> =
-                    ComplianceWitness::from_resources(
-                        self.consumed_denomination.resource(),
-                        self.consumed_denomination.nf_key().unwrap(),
-                        self.created_denomination.resource(),
-                    );
+                let compliance_witness: ComplianceWitness = ComplianceWitness::from_resources(
+                    self.consumed_denomination.resource(),
+                    self.consumed_denomination.nf_key().unwrap(),
+                    self.created_denomination.resource(),
+                );
 
                 (
                     ComplianceUnit::create(&compliance_witness),
@@ -79,12 +76,11 @@ where
             // resource
             println!("Generating compliance unit 3");
             let (compliance_unit_3, delta_witness_3) = {
-                let compliance_witness: ComplianceWitness<COMMITMENT_TREE_DEPTH> =
-                    ComplianceWitness::from_resources(
-                        self.padding_resource_logic.witness().resource.clone(),
-                        self.padding_resource_logic.witness().nf_key.clone(),
-                        self.created_receive.resource(),
-                    );
+                let compliance_witness: ComplianceWitness = ComplianceWitness::from_resources(
+                    self.padding_resource_logic.witness().resource.clone(),
+                    self.padding_resource_logic.witness().nf_key.clone(),
+                    self.created_receive.resource(),
+                );
 
                 (
                     ComplianceUnit::create(&compliance_witness),

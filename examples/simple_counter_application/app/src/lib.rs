@@ -2,12 +2,8 @@ pub mod increment;
 pub mod init;
 
 use arm::{
-    action_tree::{MerkleTree, ACTION_TREE_DEPTH},
-    compliance::ComplianceWitness,
-    merkle_path::MerklePath,
-    merkle_path::COMMITMENT_TREE_DEPTH,
-    nullifier_key::NullifierKey,
-    resource::Resource,
+    action_tree::MerkleTree, compliance::ComplianceWitness, encryption::AffinePoint,
+    merkle_path::MerklePath, nullifier_key::NullifierKey, resource::Resource,
 };
 use arm::{
     compliance_unit::ComplianceUnit,
@@ -22,7 +18,7 @@ use serde::{Deserialize, Serialize};
 pub const SIMPLE_COUNTER_ELF: &[u8] = include_bytes!("../elf/counter-guest.bin");
 lazy_static! {
     pub static ref SIMPLE_COUNTER_ID: Digest =
-        Digest::from_hex("7c6769ff60895aca5e1f45f5865137bac92afb76e63f75e92b4546f4a3a21499")
+        Digest::from_hex("bfae15239f0891f6080ea21c7d1f95ea557638a908ea0842d3a4925e9314bbab")
             .unwrap();
 }
 
@@ -35,20 +31,22 @@ impl CounterLogic {
     pub fn new(
         is_consumed: bool,
         old_counter: Resource,
-        old_counter_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+        old_counter_existence_path: MerklePath,
         nf_key: NullifierKey,
         new_counter: Resource,
-        new_counter_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+        new_counter_existence_path: MerklePath,
+        discovery_pk: AffinePoint,
     ) -> Self {
         Self {
-            witness: CounterWitness {
+            witness: CounterWitness::new(
                 is_consumed,
                 old_counter,
                 old_counter_existence_path,
                 nf_key,
                 new_counter,
                 new_counter_existence_path,
-            },
+                discovery_pk,
+            ),
         }
     }
 }
@@ -78,10 +76,10 @@ pub fn convert_counter_to_value_ref(value: u128) -> Vec<u8> {
 pub fn generate_compliance_proof(
     consumed_counter: Resource,
     nf_key: NullifierKey,
-    merkle_path: MerklePath<COMMITMENT_TREE_DEPTH>,
+    merkle_path: MerklePath,
     created_counter: Resource,
 ) -> (ComplianceUnit, Vec<u8>) {
-    let compliance_witness = ComplianceWitness::<COMMITMENT_TREE_DEPTH>::from_resources_with_path(
+    let compliance_witness = ComplianceWitness::from_resources_with_path(
         consumed_counter,
         nf_key,
         merkle_path,
@@ -94,7 +92,9 @@ pub fn generate_compliance_proof(
 pub fn generate_logic_proofs(
     consumed_counter: Resource,
     nf_key: NullifierKey,
+    consumed_discovery_pk: AffinePoint,
     created_counter: Resource,
+    created_discovery_pk: AffinePoint,
 ) -> Vec<LogicVerifier> {
     let consumed_counter_nf = consumed_counter.nullifier(&nf_key).unwrap();
     let created_counter_cm = created_counter.commitment();
@@ -111,6 +111,7 @@ pub fn generate_logic_proofs(
         nf_key.clone(),
         created_counter.clone(),
         created_counter_path.clone(),
+        consumed_discovery_pk,
     );
     let consumed_logic_proof = consumed_counter_logic.prove();
 
@@ -121,6 +122,7 @@ pub fn generate_logic_proofs(
         nf_key,
         created_counter,
         created_counter_path,
+        created_discovery_pk,
     );
     let created_logic_proof = created_counter_logic.prove();
 

@@ -1,8 +1,5 @@
 use arm::logic_proof::LogicProver;
-use arm::{
-    merkle_path::MerklePath, merkle_path::COMMITMENT_TREE_DEPTH, nullifier_key::NullifierKey,
-    resource::Resource,
-};
+use arm::{merkle_path::MerklePath, nullifier_key::NullifierKey, resource::Resource};
 use hex::FromHex;
 use kudo_logic_witness::kudo_main_witness::KudoMainWitness;
 use kudo_traits::{compliance_info::ComplianceWitnessInfo, resource_info::KudoInfo};
@@ -13,14 +10,14 @@ use serde::{Deserialize, Serialize};
 pub const KUDO_LOGIC_ELF: &[u8] = include_bytes!("../elfs/kudo-main-guest.bin");
 lazy_static! {
     pub static ref KUDO_LOGIC_ID: Digest =
-        Digest::from_hex("639d1ed04c420c224fe1f4d751b207fd6586ef36a673c220f62c23e47f95981e")
+        Digest::from_hex("9939ee8fcaa444908e4d525a576f0dc423b4b806e9dad30cd6e49c5aa7bf3684")
             .unwrap();
 }
 
 #[derive(Clone, Default, Deserialize, Serialize)]
 pub struct KudoMainInfo {
     logic_witness: KudoMainWitness,
-    merkle_path: Option<MerklePath<COMMITMENT_TREE_DEPTH>>,
+    merkle_path: Option<MerklePath>,
 }
 
 impl LogicProver for KudoMainInfo {
@@ -48,7 +45,7 @@ impl ComplianceWitnessInfo for KudoMainInfo {
         Some(self.logic_witness.kudo_nf_key.clone())
     }
 
-    fn merkle_path(&self) -> Option<MerklePath<COMMITMENT_TREE_DEPTH>> {
+    fn merkle_path(&self) -> Option<MerklePath> {
         self.merkle_path.clone()
     }
 }
@@ -56,10 +53,7 @@ impl ComplianceWitnessInfo for KudoMainInfo {
 impl KudoInfo for KudoMainInfo {}
 
 impl KudoMainInfo {
-    pub fn new(
-        logic_witness: KudoMainWitness,
-        merkle_path: Option<MerklePath<COMMITMENT_TREE_DEPTH>>,
-    ) -> Self {
+    pub fn new(logic_witness: KudoMainWitness, merkle_path: Option<MerklePath>) -> Self {
         Self {
             logic_witness,
             merkle_path,

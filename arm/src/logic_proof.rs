@@ -1,5 +1,4 @@
 use crate::{
-    action_tree::ACTION_TREE_DEPTH,
     constants::{PADDING_LOGIC_PK, PADDING_LOGIC_VK, TEST_LOGIC_PK, TEST_LOGIC_VK},
     logic_instance::AppData,
     logic_instance::LogicInstance,
@@ -137,7 +136,7 @@ impl LogicProver for PaddingResourceLogic {
 impl PaddingResourceLogic {
     pub fn new(
         resource: Resource,
-        receive_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+        receive_existence_path: MerklePath,
         nf_key: NullifierKey,
         is_consumed: bool,
     ) -> Self {
@@ -170,9 +169,11 @@ impl Default for PaddingResourceLogic {
     fn default() -> Self {
         let (nf_key, nk_commitment) = NullifierKey::random_pair();
         let resource = Self::create_padding_resource(nk_commitment);
+        let receive_existence_path =
+            MerklePath::from_path(vec![(vec![0u32; DIGEST_WORDS], false); 3].as_slice());
         let witness = TrivialLogicWitness {
             resource,
-            receive_existence_path: MerklePath::default(),
+            receive_existence_path,
             is_consumed: false,
             nf_key,
         };
@@ -205,7 +206,7 @@ pub struct TestLogic {
 impl TestLogic {
     pub fn new(
         resource: Resource,
-        receive_existence_path: MerklePath<ACTION_TREE_DEPTH>,
+        receive_existence_path: MerklePath,
         nf_key: NullifierKey,
         is_consumed: bool,
     ) -> Self {

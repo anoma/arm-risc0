@@ -3,7 +3,6 @@ use arm::{
     action_tree::MerkleTree,
     authorization::{AuthorizationSigningKey, AuthorizationVerifyingKey},
     merkle_path::MerklePath,
-    merkle_path::COMMITMENT_TREE_DEPTH,
     nullifier_key::NullifierKey,
     resource::Resource,
 };
@@ -21,7 +20,7 @@ pub fn build_burn_tx(
     owner_sk: &AuthorizationSigningKey,
     burned_kudo_resource: &Resource,
     burned_kudoresource_nf_key: &NullifierKey,
-    burned_kudo_path: MerklePath<COMMITMENT_TREE_DEPTH>,
+    burned_kudo_path: MerklePath,
 ) -> Transaction {
     let issuer = AuthorizationVerifyingKey::from_signing_key(issuer_sk);
     let (instant_nk, instant_nk_commitment) = NullifierKey::random_pair();
@@ -189,7 +188,7 @@ fn generate_a_burn_tx() {
         &owner_sk,
         &kudo_resource,
         &kudo_nf_key,
-        MerklePath::<COMMITMENT_TREE_DEPTH>::default(), // It should be a real path
+        MerklePath::default(), // It should be a real path
     );
 
     tx.generate_delta_proof();

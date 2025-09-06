@@ -1,8 +1,5 @@
 use arm::logic_proof::LogicProver;
-use arm::{
-    merkle_path::MerklePath, merkle_path::COMMITMENT_TREE_DEPTH, nullifier_key::NullifierKey,
-    resource::Resource,
-};
+use arm::{merkle_path::MerklePath, nullifier_key::NullifierKey, resource::Resource};
 use hex::FromHex;
 use kudo_logic_witness::simple_receive_witness::SimpleReceiveLogicWitness;
 use kudo_traits::{compliance_info::ComplianceWitnessInfo, resource_info::ReceiveInfo};
@@ -13,14 +10,14 @@ use serde::{Deserialize, Serialize};
 pub const RECEIVE_ELF: &[u8] = include_bytes!("../elfs/simple-kudo-receive-guest.bin");
 lazy_static! {
     pub static ref RECEIVE_ID: Digest =
-        Digest::from_hex("9801521c4cfcd46de698a6137fab70a14f88a4e95fd32e3e34fb7b80952d205a")
+        Digest::from_hex("8635f283cc902c95ecf1deba07d29480bd6a5654bb22b19e7103b3a561e4160d")
             .unwrap();
 }
 
 #[derive(Clone, Default, Deserialize, Serialize)]
 pub struct SimpleReceiveInfo {
     logic_witness: SimpleReceiveLogicWitness,
-    merkle_path: Option<MerklePath<COMMITMENT_TREE_DEPTH>>,
+    merkle_path: Option<MerklePath>,
 }
 
 impl LogicProver for SimpleReceiveInfo {
@@ -48,7 +45,7 @@ impl ComplianceWitnessInfo for SimpleReceiveInfo {
         Some(self.logic_witness.nf_key.clone())
     }
 
-    fn merkle_path(&self) -> Option<MerklePath<COMMITMENT_TREE_DEPTH>> {
+    fn merkle_path(&self) -> Option<MerklePath> {
         self.merkle_path.clone()
     }
 }
@@ -56,10 +53,7 @@ impl ComplianceWitnessInfo for SimpleReceiveInfo {
 impl ReceiveInfo for SimpleReceiveInfo {}
 
 impl SimpleReceiveInfo {
-    pub fn new(
-        logic_witness: SimpleReceiveLogicWitness,
-        merkle_path: Option<MerklePath<COMMITMENT_TREE_DEPTH>>,
-    ) -> Self {
+    pub fn new(logic_witness: SimpleReceiveLogicWitness, merkle_path: Option<MerklePath>) -> Self {
         Self {
             logic_witness,
             merkle_path,
