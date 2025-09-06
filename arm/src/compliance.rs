@@ -1,5 +1,5 @@
 use crate::{
-    merkle_path::{MerklePath, COMMITMENT_TREE_DEPTH},
+    merkle_path::MerklePath,
     nullifier_key::NullifierKey,
     resource::Resource,
     utils::{bytes_to_words, words_to_bytes},
@@ -18,7 +18,7 @@ use risc0_zkvm::Digest;
 use rustler::NifStruct;
 lazy_static! {
     pub static ref INITIAL_ROOT: Digest =
-        Digest::from_hex("7e70786b1d52fc0412d75203ef2ac22de13d9596ace8a5a1ed5324c3ed7f31c3")
+        Digest::from_hex("cc1d2f838445db7aec431df9ee8a871f40e7aa5e064fc056633ef8c60fab7b06")
             .unwrap();
 }
 
@@ -161,7 +161,6 @@ impl ComplianceWitness {
         if self.consumed_resource.is_ephemeral {
             self.ephemeral_root.clone()
         } else {
-            assert_eq!(self.merkle_path.len(), COMMITMENT_TREE_DEPTH);
             self.merkle_path.root(cm)
         }
     }
