@@ -24,7 +24,7 @@ use simple_transfer_witness::{
 pub const SIMPLE_TRANSFER_ELF: &[u8] = include_bytes!("../elf/simple-transfer-guest.bin");
 lazy_static! {
     pub static ref SIMPLE_TRANSFER_ID: Digest =
-        Digest::from_hex("4f1260a2c92757ad1baee289b2f44c5b80e8dd3675c6c0045207474d12ccae38")
+        Digest::from_hex("6164f9a847afd1dce1b19b5c7980b8774fbdaad8ed6f088e60464717f592bccd")
             .unwrap();
 }
 
@@ -111,35 +111,35 @@ impl TransferLogic {
         )
     }
 
-    #[allow(clippy::too_many_arguments)]
-    pub fn mint_resource_logic(
-        resource: Resource,
-        existence_path: MerklePath,
-        nf_key: NullifierKey,
-        discovery_pk: AffinePoint,
-        forwarder_addr: Vec<u8>,
-        token_addr: Vec<u8>,
-        user_addr: Vec<u8>,
-    ) -> Self {
-        let forwarder_info = ForwarderInfo {
-            call_type: CallType::TransferFrom,
-            forwarder_addr,
-            token_addr,
-            user_addr,
-            permit_info: None,
-        };
+    // #[allow(clippy::too_many_arguments)]
+    // pub fn mint_resource_logic(
+    //     resource: Resource,
+    //     existence_path: MerklePath,
+    //     nf_key: NullifierKey,
+    //     discovery_pk: AffinePoint,
+    //     forwarder_addr: Vec<u8>,
+    //     token_addr: Vec<u8>,
+    //     user_addr: Vec<u8>,
+    // ) -> Self {
+    //     let forwarder_info = ForwarderInfo {
+    //         call_type: CallType::TransferFrom,
+    //         forwarder_addr,
+    //         token_addr,
+    //         user_addr,
+    //         permit_info: None,
+    //     };
 
-        Self::new(
-            resource,
-            true,
-            existence_path,
-            Some(nf_key),
-            discovery_pk,
-            None,
-            None,
-            Some(forwarder_info),
-        )
-    }
+    //     Self::new(
+    //         resource,
+    //         true,
+    //         existence_path,
+    //         Some(nf_key),
+    //         discovery_pk,
+    //         None,
+    //         None,
+    //         Some(forwarder_info),
+    //     )
+    // }
 
     #[allow(clippy::too_many_arguments)]
     pub fn mint_resource_logic_with_permit(
