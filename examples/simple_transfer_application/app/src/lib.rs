@@ -1,4 +1,8 @@
+pub mod burn;
+pub mod resource;
 pub mod transfer;
+pub mod utils;
+// pub mod mint;
 
 use arm::{
     authorization::{AuthorizationSignature, AuthorizationVerifyingKey},
@@ -13,12 +17,14 @@ use arm::{
 use hex::FromHex;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
-use simple_transfer_witness::SimpleTransferWitness;
+use simple_transfer_witness::{
+    AuthorizationInfo, EncryptionInfo, ForwarderInfo, PermitInfo, SimpleTransferWitness,
+};
 
 pub const SIMPLE_TRANSFER_ELF: &[u8] = include_bytes!("../elf/simple-transfer-guest.bin");
 lazy_static! {
     pub static ref SIMPLE_TRANSFER_ID: Digest =
-        Digest::from_hex("1349ffc67e29f760efaa0a4e43e76fecc4cc6d54c5f3d346966e4d6de209e6f4")
+        Digest::from_hex("4f1260a2c92757ad1baee289b2f44c5b80e8dd3675c6c0045207474d12ccae38")
             .unwrap();
 }
 
@@ -30,43 +36,25 @@ pub struct TransferLogic {
 impl TransferLogic {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        is_consumed: bool,
         resource: Resource,
+        is_consumed: bool,
         existence_path: MerklePath,
         nf_key: Option<NullifierKey>,
-        auth_pk: Option<AuthorizationVerifyingKey>,
-        auth_sig: Option<AuthorizationSignature>,
-        forwarder_sig: Option<Vec<u8>>,
         discovery_pk: AffinePoint,
-        encryption_pk: Option<AffinePoint>,
-        encryption_sk: Option<SecretKey>,
-        encryption_nonce: Option<[u8; 12]>,
-        forwarder_addr: Option<Vec<u8>>,
-        erc20_addr: Option<Vec<u8>>,
-        user_addr: Option<Vec<u8>>,
-        call_type: Option<CallType>,
-        permit_nonce: Option<Vec<u8>>,
-        permit_deadline: Option<Vec<u8>>,
+        auth_info: Option<AuthorizationInfo>,
+        encryption_info: Option<EncryptionInfo>,
+        forwarder_info: Option<ForwarderInfo>,
     ) -> Self {
         Self {
             witness: SimpleTransferWitness::new(
-                is_consumed,
                 resource,
+                is_consumed,
                 existence_path,
                 nf_key,
-                auth_pk,
-                auth_sig,
-                forwarder_sig,
                 discovery_pk,
-                encryption_pk,
-                encryption_sk,
-                encryption_nonce,
-                forwarder_addr,
-                erc20_addr,
-                user_addr,
-                call_type,
-                permit_nonce,
-                permit_deadline,
+                auth_info,
+                encryption_info,
+                forwarder_info,
             ),
         }
     }
@@ -80,23 +68,21 @@ impl TransferLogic {
         discovery_pk: AffinePoint,
         encryption_pk: AffinePoint,
     ) -> Self {
+        let auth_info = AuthorizationInfo { auth_pk, auth_sig };
+        let nonce: [u8; 12] = rand::random();
+        let encryption_info = EncryptionInfo {
+            encryption_pk,
+            sender_sk: SecretKey::random(),
+            encryption_nonce: nonce.to_vec(),
+        };
         Self::new(
-            true,
             resource,
+            true,
             existence_path,
             Some(nf_key),
-            Some(auth_pk),
-            Some(auth_sig),
-            None,
             discovery_pk,
-            Some(encryption_pk),
-            Some(SecretKey::random()),
-            Some(rand::random()),
-            None,
-            None,
-            None,
-            None,
-            None,
+            Some(auth_info),
+            Some(encryption_info),
             None,
         )
     }
@@ -107,82 +93,119 @@ impl TransferLogic {
         discovery_pk: AffinePoint,
         encryption_pk: AffinePoint,
     ) -> Self {
+        let nonce: [u8; 12] = rand::random();
+        let encryption_info = EncryptionInfo {
+            encryption_pk,
+            sender_sk: SecretKey::random(),
+            encryption_nonce: nonce.to_vec(), // nonce is not used for resource creation
+        };
         Self::new(
-            false,
             resource,
+            false,
             existence_path,
             None,
-            None,
-            None,
-            None,
             discovery_pk,
-            Some(encryption_pk),
-            Some(SecretKey::random()),
-            Some(rand::random()),
             None,
-            None,
-            None,
-            None,
-            None,
+            Some(encryption_info),
             None,
         )
     }
 
-    // #[allow(clippy::too_many_arguments)]
-    // pub fn mint_resource_logic(
-    //     resource: Resource,
-    //     existence_path: MerklePath,
-    //     nf_key: NullifierKey,
-    //     forwarder_sig: Vec<u8>,
-    //     discovery_pk: AffinePoint,
-    //     forwarder_addr: Vec<u8>,
-    //     erc20_addr: Vec<u8>,
-    //     user_addr: Vec<u8>,
-    // ) -> Self {
-    //     Self::new(
-    //         true,
-    //         resource,
-    //         existence_path,
-    //         Some(nf_key),
-    //         None,
-    //         None,
-    //         Some(forwarder_sig),
-    //         discovery_pk,
-    //         None,
-    //         None,
-    //         None,
-    //         Some(forwarder_addr),
-    //         Some(erc20_addr),
-    //         Some(user_addr),
-    //     )
-    // }
+    #[allow(clippy::too_many_arguments)]
+    pub fn mint_resource_logic(
+        resource: Resource,
+        existence_path: MerklePath,
+        nf_key: NullifierKey,
+        discovery_pk: AffinePoint,
+        forwarder_addr: Vec<u8>,
+        token_addr: Vec<u8>,
+        user_addr: Vec<u8>,
+    ) -> Self {
+        let forwarder_info = ForwarderInfo {
+            call_type: CallType::TransferFrom,
+            forwarder_addr,
+            token_addr,
+            user_addr,
+            permit_info: None,
+        };
 
-    // pub fn burn_resource_logic(
-    //     resource: Resource,
-    //     existence_path: MerklePath,
-    //     nf_key: NullifierKey,
-    //     discovery_pk: AffinePoint,
-    //     forwarder_addr: Vec<u8>,
-    //     erc20_addr: Vec<u8>,
-    //     user_addr: Vec<u8>,
-    // ) -> Self {
-    //     Self::new(
-    //         false,
-    //         resource,
-    //         existence_path,
-    //         Some(nf_key),
-    //         None,
-    //         None,
-    //         None,
-    //         discovery_pk,
-    //         None,
-    //         None,
-    //         None,
-    //         Some(forwarder_addr),
-    //         Some(erc20_addr),
-    //         Some(user_addr),
-    //     )
-    // }
+        Self::new(
+            resource,
+            true,
+            existence_path,
+            Some(nf_key),
+            discovery_pk,
+            None,
+            None,
+            Some(forwarder_info),
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn mint_resource_logic_with_permit(
+        resource: Resource,
+        existence_path: MerklePath,
+        nf_key: NullifierKey,
+        discovery_pk: AffinePoint,
+        forwarder_addr: Vec<u8>,
+        token_addr: Vec<u8>,
+        user_addr: Vec<u8>,
+        permit_nonce: Vec<u8>,
+        permit_deadline: Vec<u8>,
+        permit_sig: Vec<u8>,
+    ) -> Self {
+        let permit_info = PermitInfo {
+            permit_nonce,
+            permit_deadline,
+            permit_sig,
+        };
+        let forwarder_info = ForwarderInfo {
+            call_type: CallType::PermitWitnessTransferFrom,
+            forwarder_addr,
+            token_addr,
+            user_addr,
+            permit_info: Some(permit_info),
+        };
+
+        Self::new(
+            resource,
+            true,
+            existence_path,
+            Some(nf_key),
+            discovery_pk,
+            None,
+            None,
+            Some(forwarder_info),
+        )
+    }
+
+    pub fn burn_resource_logic(
+        resource: Resource,
+        existence_path: MerklePath,
+        discovery_pk: AffinePoint,
+        forwarder_addr: Vec<u8>,
+        token_addr: Vec<u8>,
+        user_addr: Vec<u8>,
+    ) -> Self {
+        let forwarder_info = ForwarderInfo {
+            call_type: CallType::Transfer,
+            forwarder_addr,
+            token_addr,
+            user_addr,
+            permit_info: None,
+        };
+
+        Self::new(
+            resource,
+            false,
+            existence_path,
+            None,
+            discovery_pk,
+            None,
+            None,
+            Some(forwarder_info),
+        )
+    }
 }
 
 impl LogicProver for TransferLogic {
