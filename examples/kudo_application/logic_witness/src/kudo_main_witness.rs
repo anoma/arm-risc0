@@ -202,7 +202,7 @@ impl KudoMainWitness {
             receive_is_consumed: false,              // not used
             owner: AuthorizationVerifyingKey::default(), // not used
             receiver_signature: AuthorizationSignature::default(), // not used
-            receive_existence_path: MerklePath::default(), // not used
+            receive_existence_path: MerklePath::empty(), // not used
         }
     }
 
@@ -231,7 +231,7 @@ impl KudoMainWitness {
             receive_is_consumed: false,                   // not used
             owner: AuthorizationVerifyingKey::default(),  // not used
             receiver_signature: AuthorizationSignature::default(), // not used
-            receive_existence_path: MerklePath::default(), // not used
+            receive_existence_path: MerklePath::empty(),  // not used
         }
     }
 
@@ -260,7 +260,7 @@ impl KudoMainWitness {
             receive_is_consumed: false,              // not used
             owner: AuthorizationVerifyingKey::default(), // not used
             receiver_signature: AuthorizationSignature::default(), // not used
-            receive_existence_path: MerklePath::default(), // not used
+            receive_existence_path: MerklePath::empty(), // not used
         }
     }
 }

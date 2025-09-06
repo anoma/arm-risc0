@@ -28,7 +28,7 @@ where
     D: DenominationInfo,
     R: ReceiveInfo,
 {
-    pub fn create_tx(&self) -> Transaction {
+    pub fn create_tx(&self, latest_root: Vec<u32>) -> Transaction {
         // Create the action
         let (action, delta_witness) = {
             // Generate compliance units Compliance unit 1: the consumed kudo
@@ -56,6 +56,7 @@ where
             let (compliance_unit_2, delta_witness_2) = {
                 let compliance_witness: ComplianceWitness = ComplianceWitness::from_resources(
                     self.consumed_denomination.resource(),
+                    latest_root.clone(),
                     self.consumed_denomination.nf_key().unwrap(),
                     self.created_denomination.resource(),
                 );
@@ -72,6 +73,7 @@ where
             let (compliance_unit_3, delta_witness_3) = {
                 let compliance_witness: ComplianceWitness = ComplianceWitness::from_resources(
                     self.padding_resource_logic.witness().resource.clone(),
+                    latest_root,
                     self.padding_resource_logic.witness().nf_key.clone(),
                     self.created_receive.resource(),
                 );

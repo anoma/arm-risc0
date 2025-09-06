@@ -21,6 +21,7 @@ pub fn build_burn_tx(
     burned_kudo_resource: &Resource,
     burned_kudoresource_nf_key: &NullifierKey,
     burned_kudo_path: MerklePath,
+    latest_root: Vec<u32>,
 ) -> Transaction {
     let issuer = AuthorizationVerifyingKey::from_signing_key(issuer_sk);
     let (instant_nk, instant_nk_commitment) = NullifierKey::random_pair();
@@ -160,11 +161,12 @@ pub fn build_burn_tx(
         ephemeral_denomination: ephemeral_denomination_info,
     };
 
-    burn_info.create_tx()
+    burn_info.create_tx(latest_root)
 }
 
 #[test]
 fn generate_a_burn_tx() {
+    use arm::compliance::INITIAL_ROOT;
     use std::time::Instant;
 
     let issuer_sk = AuthorizationSigningKey::new();
@@ -189,6 +191,7 @@ fn generate_a_burn_tx() {
         &kudo_resource,
         &kudo_nf_key,
         MerklePath::default(), // It should be a real path
+        INITIAL_ROOT.as_words().to_vec(),
     );
 
     tx.generate_delta_proof();

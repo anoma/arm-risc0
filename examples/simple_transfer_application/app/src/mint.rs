@@ -16,7 +16,7 @@ use crate::TransferLogic;
 #[allow(clippy::too_many_arguments)]
 pub fn construct_mint_tx(
     consumed_resource: Resource,
-    _latest_cm_tree_root: &[u32],
+    latest_cm_tree_root: Vec<u32>,
     consumed_nf_key: NullifierKey,
     consumed_discovery_pk: AffinePoint,
     forwarder_addr: Vec<u8>,
@@ -37,6 +37,7 @@ pub fn construct_mint_tx(
     // Generate compliance units
     let compliance_witness = ComplianceWitness::from_resources(
         consumed_resource.clone(),
+        latest_cm_tree_root,
         consumed_nf_key.clone(),
         created_resource.clone(),
     );
@@ -110,7 +111,7 @@ fn simple_mint_test() {
     );
     let consumed_nf = consumed_resource.nullifier(&consumed_nf_key).unwrap();
     // Fetch the latest cm tree root from the chain
-    let latest_cm_tree_root = INITIAL_ROOT.as_words();
+    let latest_cm_tree_root = INITIAL_ROOT.as_words().to_vec();
 
     // Generate the created resource
     let (_created_nf_key, created_nf_cm) = NullifierKey::random_pair();

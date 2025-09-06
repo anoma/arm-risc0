@@ -33,6 +33,7 @@ pub fn build_transfer_tx(
     receiver_pk: &AuthorizationVerifyingKey,
     receiver_signature: &AuthorizationSignature,
     receiver_nk_commitment: &NullifierKeyCommitment,
+    latest_root: Vec<u32>,
 ) -> Transaction {
     let (instant_nk, instant_nk_commitment) = NullifierKey::random_pair();
 
@@ -221,11 +222,12 @@ pub fn build_transfer_tx(
         created_receive,
     };
 
-    transfer.create_tx()
+    transfer.create_tx(latest_root)
 }
 
 #[test]
 fn generate_a_transfer_tx() {
+    use arm::compliance::INITIAL_ROOT;
     use kudo_logic_witness::utils::generate_receive_signature;
     use std::time::Instant;
 
@@ -262,6 +264,7 @@ fn generate_a_transfer_tx() {
         &receiver_pk,
         &receiver_signature,
         &receiver_nk_commitment,
+        INITIAL_ROOT.as_words().to_vec(),
     );
 
     tx.generate_delta_proof();

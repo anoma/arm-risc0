@@ -28,6 +28,7 @@ pub fn build_issue_tx(
     receiver_pk: &AuthorizationVerifyingKey,
     receiver_signature: &AuthorizationSignature,
     receiver_nk_commitment: &NullifierKeyCommitment,
+    latest_root: Vec<u32>,
 ) -> Transaction {
     let issuer = AuthorizationVerifyingKey::from_signing_key(issuer_sk);
     let (instant_nk, instant_nk_commitment) = NullifierKey::random_pair();
@@ -217,11 +218,12 @@ pub fn build_issue_tx(
         padding_resource_logic,
     };
 
-    issue.create_tx()
+    issue.create_tx(latest_root)
 }
 
 #[test]
 fn generate_an_issue_tx() {
+    use arm::compliance::INITIAL_ROOT;
     use kudo_logic_witness::utils::generate_receive_signature;
     use std::time::Instant;
 
@@ -240,6 +242,7 @@ fn generate_an_issue_tx() {
         &receiver_pk,
         &receiver_signature,
         &NullifierKeyCommitment::default(),
+        INITIAL_ROOT.as_words().to_vec(),
     );
 
     tx.generate_delta_proof();
