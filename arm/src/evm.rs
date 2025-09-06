@@ -23,6 +23,15 @@ impl Resource {
     pub fn decode(encoded: &[u8]) -> Option<Self> {
         Self::abi_decode(encoded).ok()
     }
+
+    pub fn encode_with_nk(&self, nk: &[u8]) -> Vec<u8> {
+        (self.clone(), B256::from_slice(nk)).abi_encode()
+    }
+
+    pub fn decode_with_nk(encoded: &[u8]) -> Option<(Self, Vec<u8>)> {
+        let (resource, nk) = <(Resource, B256)>::abi_decode(encoded).ok()?;
+        Some((resource, nk.to_vec()))
+    }
 }
 
 impl From<ArmResource> for Resource {
@@ -87,50 +96,11 @@ impl ForwarderCalldata {
 }
 
 sol! {
-    struct ERC20Call {
-        uint256 amount;
-        address erc20Addr;
-        address userAddr;
-        bool minting;
-    }
-}
-
-impl ERC20Call {
-    pub fn new(amount: u128, erc20_addr: &str, user_addr: &str, minting: bool) -> Self {
-        let erc20_addr_parsed = erc20_addr.parse().expect("Invalid address string");
-        let user_addr_parsed = user_addr.parse().expect("Invalid address string");
-        ERC20Call {
-            amount: alloy_primitives::U256::from(amount),
-            erc20Addr: erc20_addr_parsed,
-            userAddr: user_addr_parsed,
-            minting,
-        }
-    }
-
-    pub fn from_bytes(amount: u128, erc20_addr: &[u8], user_addr: &[u8], minting: bool) -> Self {
-        ERC20Call {
-            amount: alloy_primitives::U256::from(amount),
-            erc20Addr: erc20_addr.try_into().expect("Invalid address bytes"),
-            userAddr: user_addr.try_into().expect("Invalid address bytes"),
-            minting,
-        }
-    }
-
-    pub fn encode(&self) -> Vec<u8> {
-        self.abi_encode()
-    }
-
-    pub fn decode(encoded: &[u8]) -> Option<Self> {
-        Self::abi_decode(encoded).ok()
-    }
-}
-
-sol! {
     #[derive(Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
     enum CallType {
         Transfer, // burn
-        TransferFrom, // mint 1:
-        PermitWitnessTransferFrom // mint 2
+        TransferFrom, // mint
+        PermitWitnessTransferFrom // mint with permit info
     }
 
     /// @notice The token and amount details for a transfer signed in the permit transfer signature
@@ -187,7 +157,7 @@ pub fn encode_permit_witness_transfer_from(
     from: &[u8],
     permit: PermitTransferFrom,
     witness: &[u8],
-    signature: Vec<u8>,
+    signature: &[u8],
 ) -> Vec<u8> {
     let from: Address = from.try_into().expect("Invalid address bytes");
     (
@@ -260,7 +230,7 @@ fn encode_permit_witness_transfer_from_test() {
     let witness = vec![3u8; 32];
     let signature = vec![4u8; 65];
 
-    let encoded = encode_permit_witness_transfer_from(&from, permit, &witness, signature);
+    let encoded = encode_permit_witness_transfer_from(&from, permit, &witness, &signature);
     println!("encode: {:?}", hex::encode(&encoded));
     println!("len: {}", encoded.len());
 }
