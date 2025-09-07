@@ -136,5 +136,5 @@ arm-risc0/arm_circuits/compliance/methods/guest/target/riscv32im-risc0-zkvm-elf/
 
 Note: The `unstable` feature of `risc0-zkvm` currently causes issues in circuits. This can be temporarily fixed by manually updating the tool. The problem will be fully resolved in the next release of RISC Zero.
 ```bash
-cargo install --force --git https://github.com/risc0/risc0 --tag v2.3.1 -Fexperimental cargo-risczero
+cargo install --force --git https://github.com/risc0/risc0 --tag v3.0.3 -Fexperimental cargo-risczero
 ```
