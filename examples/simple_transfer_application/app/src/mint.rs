@@ -129,12 +129,13 @@ fn simple_mint_test() {
         &created_auth_pk,
     );
 
-    // Fetch the permit signature from the somewhere
+    // Fetch the permit signature somewhere
     let permit_nonce = vec![7u8; 32];
     let permit_deadline = vec![8u8; 32];
     let permit_sig = vec![9u8; 65];
 
     // Construct the mint transaction
+    let tx_start_timer = std::time::Instant::now();
     let tx = construct_mint_tx(
         consumed_resource,
         latest_cm_tree_root,
@@ -150,6 +151,7 @@ fn simple_mint_test() {
         created_discovery_pk,
         created_encryption_pk,
     );
+    println!("Tx build duration time: {:?}", tx_start_timer.elapsed());
 
     // Verify the transaction
     assert!(tx.verify(), "Transaction verification failed");

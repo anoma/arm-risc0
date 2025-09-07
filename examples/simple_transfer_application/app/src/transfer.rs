@@ -131,6 +131,8 @@ fn simple_transfer_test() {
 
     // Construct the transfer transaction
     let merkle_path = MerklePath::default(); // mock a path
+
+    let tx_start_timer = std::time::Instant::now();
     let tx = construct_transfer_tx(
         consumed_resource.clone(),
         merkle_path.clone(),
@@ -143,6 +145,7 @@ fn simple_transfer_test() {
         created_discovery_pk,
         created_encryption_pk,
     );
+    println!("Tx build duration time: {:?}", tx_start_timer.elapsed());
 
     // check the discovery ciphertexts
     let discovery_ciphertext = Ciphertext::from_words(

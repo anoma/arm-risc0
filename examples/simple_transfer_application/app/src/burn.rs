@@ -139,6 +139,7 @@ fn simple_burn_test() {
 
     // Construct the burn transaction
     let merkle_path = MerklePath::default(); // mock a path
+    let tx_start_timer = std::time::Instant::now();
     let tx = construct_burn_tx(
         consumed_resource.clone(),
         merkle_path,
@@ -153,6 +154,7 @@ fn simple_burn_test() {
         token_addr,
         user_addr,
     );
+    println!("Tx build duration time: {:?}", tx_start_timer.elapsed());
 
     // check the discovery ciphertexts
     let discovery_ciphertext = Ciphertext::from_words(
