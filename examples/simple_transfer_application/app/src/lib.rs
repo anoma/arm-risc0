@@ -24,7 +24,7 @@ use simple_transfer_witness::{
 pub const SIMPLE_TRANSFER_ELF: &[u8] = include_bytes!("../elf/simple-transfer-guest.bin");
 lazy_static! {
     pub static ref SIMPLE_TRANSFER_ID: Digest =
-        Digest::from_hex("7b636b8673aebf2f4284727811507eafbb5909a0f687456b95aae722cd3b066f")
+        Digest::from_hex("5501e1b05aaed2066bb390dfc00ac3da8d899e2938d4ebc730cc5d3511514f08")
             .unwrap();
 }
 
@@ -160,7 +160,7 @@ impl TransferLogic {
             permit_sig,
         };
         let forwarder_info = ForwarderInfo {
-            call_type: CallType::PermitWitnessTransferFrom,
+            call_type: CallType::Wrap,
             forwarder_addr,
             token_addr,
             user_addr,
@@ -188,7 +188,7 @@ impl TransferLogic {
         user_addr: Vec<u8>,
     ) -> Self {
         let forwarder_info = ForwarderInfo {
-            call_type: CallType::Transfer,
+            call_type: CallType::Unwrap,
             forwarder_addr,
             token_addr,
             user_addr,

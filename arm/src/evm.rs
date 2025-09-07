@@ -98,8 +98,8 @@ impl ForwarderCalldata {
 sol! {
     #[derive(Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
     enum CallType {
-        Transfer, // burn
-        PermitWitnessTransferFrom // mint with permit info
+        Unwrap, // burn
+        Wrap // mint with permit info
     }
 
     /// @notice The token and amount details for a transfer signed in the permit transfer signature
@@ -141,7 +141,7 @@ pub fn encode_transfer(token: &[u8], to: &[u8], value: u128) -> Vec<u8> {
     let token: Address = token.try_into().expect("Invalid address bytes");
     let to: Address = to.try_into().expect("Invalid address bytes");
     let value = U256::from(value);
-    (CallType::Transfer, token, to, value).abi_encode_params()
+    (CallType::Unwrap, token, to, value).abi_encode_params()
 }
 
 // pub fn encode_transfer_from(token: &[u8], from: &[u8], value: u128) -> Vec<u8> {
@@ -160,7 +160,7 @@ pub fn encode_permit_witness_transfer_from(
 ) -> Vec<u8> {
     let from: Address = from.try_into().expect("Invalid address bytes");
     (
-        CallType::PermitWitnessTransferFrom,
+        CallType::Wrap,
         from,
         permit,
         B256::from_slice(witness),

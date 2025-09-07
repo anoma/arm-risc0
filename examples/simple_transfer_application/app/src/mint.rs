@@ -106,7 +106,7 @@ fn simple_mint_test() {
         vec![4u8; 32], // nonce
         consumed_nf_cm,
         vec![5u8; 32], // rand_seed
-        CallType::PermitWitnessTransferFrom,
+        CallType::Wrap,
         &user_addr,
     );
     let consumed_nf = consumed_resource.nullifier(&consumed_nf_key).unwrap();

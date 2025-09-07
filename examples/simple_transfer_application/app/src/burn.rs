@@ -128,7 +128,7 @@ fn simple_burn_test() {
         consumed_nf.as_bytes().to_vec(), // nonce
         created_nf_cm,
         vec![6u8; 32], // rand_seed
-        CallType::Transfer,
+        CallType::Unwrap,
         &user_addr, // user_addr
     );
     let created_cm = created_resource.commitment();
