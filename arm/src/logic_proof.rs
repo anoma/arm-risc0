@@ -36,7 +36,7 @@ pub trait LogicProver: Default + Clone + Serialize + for<'de> Deserialize<'de> {
         let (proof, instance) = prove(Self::proving_key(), self.witness());
         LogicVerifier {
             // TODO: handle the unwrap properly
-            proof,
+            proof: Some(proof),
             instance,
             verifying_key: Self::verifying_key().as_words().to_vec(),
         }
@@ -47,7 +47,7 @@ pub trait LogicProver: Default + Clone + Serialize + for<'de> Deserialize<'de> {
 #[cfg_attr(feature = "nif", derive(NifStruct))]
 #[cfg_attr(feature = "nif", module = "Anoma.Arm.LogicVerifier")]
 pub struct LogicVerifier {
-    pub proof: Vec<u8>,
+    pub proof: Option<Vec<u8>>,
     pub instance: Vec<u8>,
     pub verifying_key: Vec<u32>,
 }
@@ -59,7 +59,7 @@ pub struct LogicVerifierInputs {
     pub tag: Vec<u32>,
     pub verifying_key: Vec<u32>,
     pub app_data: AppData,
-    pub proof: Vec<u8>,
+    pub proof: Option<Vec<u8>>,
 }
 
 impl LogicVerifier {
@@ -71,7 +71,11 @@ impl LogicVerifier {
             return false; // Invalid verifying key length
         };
 
-        verify_proof(&vk, &self.instance, &self.proof)
+        if self.proof.is_none() {
+            return false; // Empty proof
+        }
+
+        verify_proof(&vk, &self.instance, &self.proof.clone().unwrap())
     }
 
     pub fn get_instance(&self) -> LogicInstance {

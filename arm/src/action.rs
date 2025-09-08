@@ -43,7 +43,45 @@ impl Action {
             }
         }
 
-        let compliance_intances = self
+        let logic_verifiers_res: Result<Vec<LogicVerifier>, _> = self.try_into();
+        if let Ok(logic_verifiers) = logic_verifiers_res {
+            for verifier in logic_verifiers.iter() {
+                if !verifier.verify() {
+                    return false;
+                }
+            }
+        } else {
+            return false;
+        }
+
+        true
+    }
+
+    // This function computes the delta of the action by summing up the deltas
+    // of each compliance unit.
+    pub fn delta(&self) -> ProjectivePoint {
+        self.compliance_units
+            .iter()
+            .fold(ProjectivePoint::IDENTITY, |acc, unit| acc + unit.delta())
+    }
+
+    pub fn get_delta_msg(&self) -> Vec<u8> {
+        let mut msg = Vec::new();
+        for unit in &self.compliance_units {
+            let instance = unit.get_instance();
+            msg.extend_from_slice(&instance.delta_msg());
+        }
+        msg
+    }
+}
+
+impl TryFrom<Action> for Vec<LogicVerifier> {
+    type Error = &'static str;
+
+    fn try_from(value: Action) -> Result<Self, Self::Error> {
+        let mut logic_verifiers = Vec::new();
+
+        let compliance_intances = value
             .compliance_units
             .iter()
             .map(|unit| unit.get_instance())
@@ -71,42 +109,21 @@ impl Action {
         let action_tree = MerkleTree::from(tags.clone());
         let root = action_tree.root();
 
-        for input in self.logic_verifier_inputs {
+        for input in value.logic_verifier_inputs {
             if let Some(index) = tags.iter().position(|tag| *tag == input.tag) {
                 if input.verifying_key != logics[index] {
                     // The verifying_key doesn't match the resource logic
-                    return false;
+                    return Err("the verifying_key doesn't match the resource logic");
                 }
 
                 let is_comsumed = index % 2 == 0;
-                let verifier = input.to_logic_verifier(is_comsumed, root.clone());
-                if !verifier.verify() {
-                    return false;
-                }
+                logic_verifiers.push(input.to_logic_verifier(is_comsumed, root.clone()));
             } else {
                 // Tag not found
-                return false;
+                return Err("tag not found");
             }
         }
-
-        true
-    }
-
-    // This function computes the delta of the action by summing up the deltas
-    // of each compliance unit.
-    pub fn delta(&self) -> ProjectivePoint {
-        self.compliance_units
-            .iter()
-            .fold(ProjectivePoint::IDENTITY, |acc, unit| acc + unit.delta())
-    }
-
-    pub fn get_delta_msg(&self) -> Vec<u8> {
-        let mut msg = Vec::new();
-        for unit in &self.compliance_units {
-            let instance = unit.get_instance();
-            msg.extend_from_slice(&instance.delta_msg());
-        }
-        msg
+        Ok(logic_verifiers)
     }
 }
 
