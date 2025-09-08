@@ -15,8 +15,6 @@ use risc0_zkvm::{
     serde::to_vec,
     sha::{Digest, DIGEST_WORDS},
 };
-#[cfg(feature = "nif")]
-use rustler::NifStruct;
 use serde::{Deserialize, Serialize};
 
 pub trait LogicProver: Default + Clone + Serialize + for<'de> Deserialize<'de> {
@@ -44,8 +42,6 @@ pub trait LogicProver: Default + Clone + Serialize + for<'de> Deserialize<'de> {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-#[cfg_attr(feature = "nif", derive(NifStruct))]
-#[cfg_attr(feature = "nif", module = "Anoma.Arm.LogicVerifier")]
 pub struct LogicVerifier {
     pub proof: Vec<u8>,
     pub instance: Vec<u8>,
@@ -53,8 +49,6 @@ pub struct LogicVerifier {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-#[cfg_attr(feature = "nif", derive(NifStruct))]
-#[cfg_attr(feature = "nif", module = "Anoma.Arm.LogicVerifierInputs")]
 pub struct LogicVerifierInputs {
     pub tag: Vec<u32>,
     pub verifying_key: Vec<u32>,

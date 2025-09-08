@@ -8,13 +8,9 @@ use crate::{
     resource::Resource,
 };
 use k256::ProjectivePoint;
-#[cfg(feature = "nif")]
-use rustler::NifStruct;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-#[cfg_attr(feature = "nif", derive(NifStruct))]
-#[cfg_attr(feature = "nif", module = "Anoma.Arm.Action")]
 pub struct Action {
     pub compliance_units: Vec<ComplianceUnit>,
     pub logic_verifier_inputs: Vec<LogicVerifierInputs>,
