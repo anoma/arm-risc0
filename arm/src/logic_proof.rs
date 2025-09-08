@@ -1,10 +1,13 @@
+#[cfg(feature = "prove")]
+use crate::proving_system::prove;
+
 use crate::{
     constants::{PADDING_LOGIC_PK, PADDING_LOGIC_VK, TEST_LOGIC_PK, TEST_LOGIC_VK},
     logic_instance::AppData,
     logic_instance::LogicInstance,
     merkle_path::MerklePath,
     nullifier_key::{NullifierKey, NullifierKeyCommitment},
-    proving_system::{journal_to_instance, prove, verify as verify_proof},
+    proving_system::{journal_to_instance, verify as verify_proof},
     resource::Resource,
     resource_logic::TrivialLogicWitness,
     test_logic::TestLogicWitness,
@@ -30,6 +33,7 @@ pub trait LogicProver: Default + Clone + Serialize + for<'de> Deserialize<'de> {
 
     fn witness(&self) -> &Self::Witness;
 
+    #[cfg(feature = "prove")]
     fn prove(&self) -> LogicVerifier {
         let (proof, instance) = prove(Self::proving_key(), self.witness());
         LogicVerifier {

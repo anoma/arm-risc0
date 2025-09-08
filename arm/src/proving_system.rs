@@ -1,9 +1,13 @@
-use risc0_zkvm::{
-    default_prover, sha::Digest, ExecutorEnv, InnerReceipt, ProverOpts, Receipt, VerifierContext,
-};
-use serde::{de::DeserializeOwned, Serialize};
+#[cfg(feature = "prove")]
+use risc0_zkvm::{default_prover, ExecutorEnv, ProverOpts, VerifierContext};
+use risc0_zkvm::{sha::Digest, InnerReceipt, Receipt};
 
+#[cfg(feature = "prove")]
+use serde::Serialize;
+
+use serde::de::DeserializeOwned;
 // It takes a proving key and a witness, and returns the proof and the instance
+#[cfg(feature = "prove")]
 pub fn prove<T: Serialize>(proving_key: &[u8], witness: &T) -> (Vec<u8>, Vec<u8>) {
     let receipt = prove_inner(witness, proving_key);
 
@@ -43,7 +47,7 @@ pub fn encode_seal(proof: &[u8]) -> Vec<u8> {
     };
     seal
 }
-
+#[cfg(feature = "prove")]
 fn prove_inner<T: Serialize>(witness: &T, proving_key: &[u8]) -> Receipt {
     let env = ExecutorEnv::builder()
         .write(witness)
