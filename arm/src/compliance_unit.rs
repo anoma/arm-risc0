@@ -4,13 +4,9 @@ use crate::{
     proving_system::{journal_to_instance, prove, verify as verify_proof},
 };
 use k256::ProjectivePoint;
-#[cfg(feature = "nif")]
-use rustler::NifStruct;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-#[cfg_attr(feature = "nif", derive(NifStruct))]
-#[cfg_attr(feature = "nif", module = "Anoma.Arm.ComplianceUnit")]
 pub struct ComplianceUnit {
     // vk is a constant in the compliance unit, so we don't place it here.
     pub proof: Vec<u8>,

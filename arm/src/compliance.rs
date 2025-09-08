@@ -14,8 +14,6 @@ use k256::{
 };
 use lazy_static::lazy_static;
 use risc0_zkvm::Digest;
-#[cfg(feature = "nif")]
-use rustler::NifStruct;
 lazy_static! {
     pub static ref INITIAL_ROOT: Digest =
         Digest::from_hex("cc1d2f838445db7aec431df9ee8a871f40e7aa5e064fc056633ef8c60fab7b06")
@@ -23,8 +21,6 @@ lazy_static! {
 }
 
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
-#[cfg_attr(feature = "nif", derive(NifStruct))]
-#[cfg_attr(feature = "nif", module = "Anoma.Arm.ComplianceInstance")]
 pub struct ComplianceInstance {
     pub consumed_nullifier: Vec<u32>,
     pub consumed_logic_ref: Vec<u32>,
@@ -36,8 +32,6 @@ pub struct ComplianceInstance {
 }
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
-#[cfg_attr(feature = "nif", derive(NifStruct))]
-#[cfg_attr(feature = "nif", module = "Anoma.Arm.ComplianceWitness")]
 pub struct ComplianceWitness {
     /// The consumed resource
     pub consumed_resource: Resource,
