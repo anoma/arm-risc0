@@ -4,14 +4,9 @@ use crate::{
 };
 use risc0_zkvm::sha::Digest;
 
-#[cfg(feature = "nif")]
-use rustler::NifStruct;
-
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "nif", derive(NifStruct))]
-#[cfg_attr(feature = "nif", module = "Anoma.Arm.MerkleTree")]
 pub struct MerkleTree {
-    leaves: Vec<Vec<u32>>,
+    pub leaves: Vec<Vec<u32>>,
 }
 
 impl MerkleTree {

@@ -1,12 +1,9 @@
 use rand::Rng;
 use risc0_zkvm::sha::{Impl, Sha256, DIGEST_BYTES};
-#[cfg(feature = "nif")]
-use rustler::NifTuple;
 use serde::{Deserialize, Serialize};
 
 /// Nullifier key
 #[derive(Clone, Debug, Serialize, Deserialize)]
-#[cfg_attr(feature = "nif", derive(NifTuple))]
 pub struct NullifierKey(Vec<u8>);
 
 impl NullifierKey {
@@ -43,7 +40,6 @@ impl Default for NullifierKey {
 
 /// Commitment to nullifier key
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(feature = "nif", derive(NifTuple))]
 pub struct NullifierKeyCommitment(Vec<u8>);
 
 impl NullifierKeyCommitment {
