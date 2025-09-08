@@ -13,8 +13,6 @@ pub struct LogicInstance {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
-#[cfg_attr(feature = "nif", derive(NifStruct))]
-#[cfg_attr(feature = "nif", module = "Anoma.Arm.AppData")]
 pub struct AppData {
     pub resource_payload: Vec<ExpirableBlob>,
     pub discovery_payload: Vec<ExpirableBlob>,
@@ -23,8 +21,6 @@ pub struct AppData {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
-#[cfg_attr(feature = "nif", derive(NifStruct))]
-#[cfg_attr(feature = "nif", module = "Anoma.Arm.ExpirableBlob")]
 pub struct ExpirableBlob {
     pub blob: Vec<u32>,
     pub deletion_criterion: u32,

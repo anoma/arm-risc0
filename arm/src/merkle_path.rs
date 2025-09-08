@@ -2,8 +2,6 @@ use crate::utils::hash_two;
 use hex::FromHex;
 use lazy_static::lazy_static;
 use risc0_zkvm::sha::{Digest, DIGEST_WORDS};
-#[cfg(feature = "nif")]
-use rustler::NifTuple;
 use serde::{Deserialize, Serialize};
 lazy_static! {
     pub static ref PADDING_LEAF: Digest =
@@ -13,8 +11,7 @@ lazy_static! {
 
 /// A path from a position in a particular commitment tree to the root of that tree.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "nif", derive(NifTuple))]
-pub struct MerklePath(Vec<(Vec<u32>, bool)>);
+pub struct MerklePath(pub Vec<(Vec<u32>, bool)>);
 
 impl MerklePath {
     /// Constructs a Merkle path directly from a path and position.
