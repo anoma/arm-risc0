@@ -188,9 +188,20 @@ impl LogicCircuit for SimpleTransferWitness {
 
             (resource_payload, external_payload, vec![])
         } else {
-            // Generate resource ciphertext
-            // todo: move the resource_ciphertext to created resource payload
-            let resource_ciphertext = {
+            // Consume a persistent resource
+            let resource_ciphertext = if self.is_consumed {
+                let auth_pk = self.auth_info.as_ref().unwrap().auth_pk;
+                // check value_ref
+                assert_eq!(
+                    self.resource.value_ref,
+                    calculate_value_ref_from_auth(&auth_pk)
+                );
+                // Verify the authorization signature
+                assert!(auth_pk
+                    .verify(root_bytes, &self.auth_info.as_ref().unwrap().auth_sig)
+                    .is_ok());
+
+                // Generate resource ciphertext
                 let cipher = Ciphertext::encrypt(
                     &self.resource.to_bytes(),
                     &self.encryption_info.as_ref().unwrap().encryption_pk,
@@ -208,23 +219,10 @@ impl LogicCircuit for SimpleTransferWitness {
                     deletion_criterion: 1,
                 };
                 vec![cipher_expirable_blob]
+            } else {
+                // Do nothing when creating a persistent resource;
+                vec![]
             };
-
-            // Consume a persistent resource
-            if self.is_consumed {
-                let auth_pk = self.auth_info.as_ref().unwrap().auth_pk;
-                // check value_ref
-                assert_eq!(
-                    self.resource.value_ref,
-                    calculate_value_ref_from_auth(&auth_pk)
-                );
-                // Verify the authorization signature
-                assert!(auth_pk
-                    .verify(root_bytes, &self.auth_info.as_ref().unwrap().auth_sig)
-                    .is_ok());
-            }
-
-            // Do nothing when creating a persistent resource;
 
             // return empty external_payload and application_payload
             (resource_ciphertext, vec![], vec![])
