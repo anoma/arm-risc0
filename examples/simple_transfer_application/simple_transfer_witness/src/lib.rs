@@ -19,12 +19,7 @@ pub struct SimpleTransferWitness {
     pub is_consumed: bool,
     pub existence_path: MerklePath,
     pub nf_key: Option<NullifierKey>,
-    // Obtain from the receiver for discovery_payload
-    pub discovery_pk: AffinePoint,
-    // randomly generated for discovery_payload
-    pub discovery_sk: SecretKey,
-    // randomly generated for discovery_payload
-    pub discovery_nonce: Vec<u8>,
+    pub discovery_cipher: Vec<u32>,
     pub auth_info: Option<AuthorizationInfo>,
     pub encryption_info: Option<EncryptionInfo>,
     pub forwarder_info: Option<ForwarderInfo>,
@@ -82,17 +77,8 @@ impl LogicCircuit for SimpleTransferWitness {
 
         // Generate discovery_payload
         let discovery_payload = {
-            let cipher = Ciphertext::encrypt(
-                &vec![0u8],
-                &self.discovery_pk,
-                &self.discovery_sk,
-                self.discovery_nonce
-                    .as_slice()
-                    .try_into()
-                    .expect("Failed to convert discovery_nonce"),
-            );
             let cipher_expirable_blob = ExpirableBlob {
-                blob: cipher.as_words(),
+                blob: self.discovery_cipher.clone(),
                 deletion_criterion: 1,
             };
             vec![cipher_expirable_blob]
@@ -115,7 +101,7 @@ impl LogicCircuit for SimpleTransferWitness {
                 };
                 let encoded_resource_expirable_blob = ExpirableBlob {
                     blob: bytes_to_words(&encoded_resource),
-                    deletion_criterion: 1,
+                    deletion_criterion: 0,
                 };
 
                 vec![encoded_resource_expirable_blob]
@@ -195,7 +181,7 @@ impl LogicCircuit for SimpleTransferWitness {
             let external_payload = {
                 let call_data_expirable_blob = ExpirableBlob {
                     blob: bytes_to_words(&forwarder_call_data.encode()),
-                    deletion_criterion: 1,
+                    deletion_criterion: 0,
                 };
                 vec![call_data_expirable_blob]
             };
@@ -203,6 +189,7 @@ impl LogicCircuit for SimpleTransferWitness {
             (resource_payload, external_payload, vec![])
         } else {
             // Generate resource ciphertext
+            // todo: move the resource_ciphertext to created resource payload
             let resource_ciphertext = {
                 let cipher = Ciphertext::encrypt(
                     &self.resource.to_bytes(),
@@ -266,20 +253,17 @@ impl SimpleTransferWitness {
         is_consumed: bool,
         existence_path: MerklePath,
         nf_key: Option<NullifierKey>,
-        discovery_pk: AffinePoint,
+        discovery_cipher: Vec<u32>,
         auth_info: Option<AuthorizationInfo>,
         encryption_info: Option<EncryptionInfo>,
         forwarder_info: Option<ForwarderInfo>,
     ) -> Self {
-        let nonce: [u8; 12] = rand::random();
         Self {
             is_consumed,
             resource,
             existence_path,
             nf_key,
-            discovery_pk,
-            discovery_sk: SecretKey::random(),
-            discovery_nonce: nonce.to_vec(),
+            discovery_cipher,
             auth_info,
             encryption_info,
             forwarder_info,

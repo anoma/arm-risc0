@@ -6,6 +6,7 @@ pub mod utils;
 
 use arm::{
     authorization::{AuthorizationSignature, AuthorizationVerifyingKey},
+    encryption::Ciphertext,
     encryption::{AffinePoint, SecretKey},
     evm::CallType,
     logic_proof::LogicProver,
@@ -40,18 +41,30 @@ impl TransferLogic {
         is_consumed: bool,
         existence_path: MerklePath,
         nf_key: Option<NullifierKey>,
-        discovery_pk: AffinePoint,
+        discovery_pk: &AffinePoint,
         auth_info: Option<AuthorizationInfo>,
         encryption_info: Option<EncryptionInfo>,
         forwarder_info: Option<ForwarderInfo>,
     ) -> Self {
+        let discovery_nonce: [u8; 12] = rand::random();
+        let discovery_sk = SecretKey::random();
+        let discovery_cipher = Ciphertext::encrypt(
+            &vec![0u8],
+            discovery_pk,
+            &discovery_sk,
+            discovery_nonce
+                .as_slice()
+                .try_into()
+                .expect("Failed to convert discovery_nonce"),
+        )
+        .as_words();
         Self {
             witness: SimpleTransferWitness::new(
                 resource,
                 is_consumed,
                 existence_path,
                 nf_key,
-                discovery_pk,
+                discovery_cipher,
                 auth_info,
                 encryption_info,
                 forwarder_info,
@@ -80,7 +93,7 @@ impl TransferLogic {
             true,
             existence_path,
             Some(nf_key),
-            discovery_pk,
+            &discovery_pk,
             Some(auth_info),
             Some(encryption_info),
             None,
@@ -104,42 +117,12 @@ impl TransferLogic {
             false,
             existence_path,
             None,
-            discovery_pk,
+            &discovery_pk,
             None,
             Some(encryption_info),
             None,
         )
     }
-
-    // #[allow(clippy::too_many_arguments)]
-    // pub fn mint_resource_logic(
-    //     resource: Resource,
-    //     existence_path: MerklePath,
-    //     nf_key: NullifierKey,
-    //     discovery_pk: AffinePoint,
-    //     forwarder_addr: Vec<u8>,
-    //     token_addr: Vec<u8>,
-    //     user_addr: Vec<u8>,
-    // ) -> Self {
-    //     let forwarder_info = ForwarderInfo {
-    //         call_type: CallType::TransferFrom,
-    //         forwarder_addr,
-    //         token_addr,
-    //         user_addr,
-    //         permit_info: None,
-    //     };
-
-    //     Self::new(
-    //         resource,
-    //         true,
-    //         existence_path,
-    //         Some(nf_key),
-    //         discovery_pk,
-    //         None,
-    //         None,
-    //         Some(forwarder_info),
-    //     )
-    // }
 
     #[allow(clippy::too_many_arguments)]
     pub fn mint_resource_logic_with_permit(
@@ -172,7 +155,7 @@ impl TransferLogic {
             true,
             existence_path,
             Some(nf_key),
-            discovery_pk,
+            &discovery_pk,
             None,
             None,
             Some(forwarder_info),
@@ -200,7 +183,7 @@ impl TransferLogic {
             false,
             existence_path,
             None,
-            discovery_pk,
+            &discovery_pk,
             None,
             None,
             Some(forwarder_info),
