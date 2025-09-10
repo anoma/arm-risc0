@@ -17,19 +17,19 @@ sol! {
 
 impl Resource {
     pub fn encode(&self) -> Vec<u8> {
-        self.abi_encode()
+        self.abi_encode_params()
     }
 
     pub fn decode(encoded: &[u8]) -> Option<Self> {
-        Self::abi_decode(encoded).ok()
+        Self::abi_decode_params(encoded).ok()
     }
 
     pub fn encode_with_nk(&self, nk: &[u8]) -> Vec<u8> {
-        (self.clone(), B256::from_slice(nk)).abi_encode()
+        (self.clone(), B256::from_slice(nk)).abi_encode_params()
     }
 
     pub fn decode_with_nk(encoded: &[u8]) -> Option<(Self, Vec<u8>)> {
-        let (resource, nk) = <(Resource, B256)>::abi_decode(encoded).ok()?;
+        let (resource, nk) = <(Resource, B256)>::abi_decode_params(encoded).ok()?;
         Some((resource, nk.to_vec()))
     }
 }
@@ -87,11 +87,11 @@ impl ForwarderCalldata {
     }
 
     pub fn encode(&self) -> Vec<u8> {
-        self.abi_encode()
+        self.abi_encode_params()
     }
 
     pub fn decode(encoded: &[u8]) -> Option<Self> {
-        Self::abi_decode(encoded).ok()
+        Self::abi_decode_params(encoded).ok()
     }
 }
 
