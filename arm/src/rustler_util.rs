@@ -8,6 +8,7 @@ use crate::action_tree::MerkleTree;
 use crate::compliance::{ComplianceInstance, ComplianceWitness};
 use crate::compliance_unit::ComplianceUnit;
 use crate::delta_proof::{DeltaProof, DeltaWitness};
+use crate::encryption::{Ciphertext, SecretKey};
 use crate::logic_instance::{AppData, ExpirableBlob};
 use crate::logic_proof::{LogicVerifier, LogicVerifierInputs};
 use crate::merkle_path::MerklePath;
@@ -17,7 +18,8 @@ use crate::transaction::{Delta, Transaction};
 use crate::utils::{bytes_to_words, words_to_bytes};
 use bincode;
 use k256::ecdsa::{RecoveryId, Signature, SigningKey};
-use k256::AffinePoint;
+use k256::elliptic_curve::PrimeField;
+use k256::{AffinePoint, Scalar};
 use rustler::types::map::map_new;
 use rustler::{atoms, Binary, Decoder, Encoder, NifResult};
 use rustler::{Env, Error, OwnedBinary, Term};
@@ -176,6 +178,72 @@ impl<'a> RustlerDecoder<'a> for RecoveryId {
         Ok(RecoveryId::from_byte(byte).expect("invalid RecoveryId"))
     }
 }
+
+//--------------------------------------------------------------------------------------------------
+// CipherText
+
+impl RustlerEncoder for Ciphertext {
+    fn rustler_encode<'a>(&self, env: Env<'a>) -> Result<Term<'a>, Error> {
+        let bytes = self.as_words();
+        Ok(bytes.rustler_encode(env)?)
+    }
+}
+
+impl<'a> RustlerDecoder<'a> for Ciphertext {
+    fn rustler_decode(term: Term<'a>) -> NifResult<Self> {
+        let words: Vec<u32> = RustlerDecoder::rustler_decode(term)?;
+        let cipher_text: Ciphertext = Ciphertext::from_words(words.as_slice());
+        Ok(cipher_text)
+    }
+}
+
+impl Encoder for Ciphertext {
+    fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
+        self.rustler_encode(env)
+            .expect("failed to encode SecretKey")
+    }
+}
+
+impl<'a> Decoder<'a> for Ciphertext {
+    fn decode(term: Term<'a>) -> NifResult<Self> {
+        Ciphertext::rustler_decode(term)
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
+// SecretKey
+
+impl RustlerEncoder for SecretKey {
+    fn rustler_encode<'a>(&self, env: Env<'a>) -> Result<Term<'a>, Error> {
+        let bytes = self.inner().to_bytes().as_slice().to_vec();
+        Ok(bytes.rustler_encode(env)?)
+    }
+}
+
+impl<'a> RustlerDecoder<'a> for SecretKey {
+    fn rustler_decode(term: Term<'a>) -> NifResult<Self> {
+        let secret_key_vec: Vec<u8> = RustlerDecoder::rustler_decode(term)?;
+        let secret_key_slice: [u8; 32] = secret_key_vec.try_into().unwrap();
+        let sk = SecretKey::new(Scalar::from_repr(secret_key_slice.into()).unwrap());
+        Ok(sk)
+    }
+}
+
+impl Encoder for SecretKey {
+    fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
+        self.rustler_encode(env)
+            .expect("failed to encode SecretKey")
+    }
+}
+
+impl<'a> Decoder<'a> for SecretKey {
+    fn decode(term: Term<'a>) -> NifResult<Self> {
+        SecretKey::rustler_decode(term)
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
+// SigningKey
 
 impl RustlerEncoder for SigningKey {
     fn rustler_encode<'a>(&self, env: Env<'a>) -> Result<Term<'a>, Error> {
