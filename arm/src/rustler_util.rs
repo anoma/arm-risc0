@@ -26,6 +26,7 @@ use rustler::{Env, Error, OwnedBinary, Term};
 use std::io::Write;
 
 atoms! {
+    at_nil = "nil",
     at_true = "true",
     at_false = "false",
     at_value = "value",
@@ -1067,6 +1068,12 @@ impl<'a> Decoder<'a> for LogicVerifier {
 
 impl RustlerEncoder for Transaction {
     fn rustler_encode<'a>(&self, env: Env<'a>) -> Result<Term<'a>, Error> {
+        let balance_term: Term;
+        match &self.expected_balance {
+            None => balance_term = at_nil().encode(env),
+            Some(vec) => balance_term = RustlerEncoder::rustler_encode(vec, env)?,
+        };
+
         let map = map_new(env)
             .map_put(at_struct().encode(env), at_transaction().encode(env))?
             .map_put(at_actions().encode(env), self.actions.encode(env))?
@@ -1074,13 +1081,7 @@ impl RustlerEncoder for Transaction {
                 at_delta_proof_field().encode(env),
                 self.delta_proof.encode(env),
             )?
-            .map_put(
-                at_expected_balance().encode(env),
-                match &self.expected_balance {
-                    Some(balance) => balance.rustler_encode(env)?,
-                    None => ().encode(env),
-                },
-            )?;
+            .map_put(at_expected_balance().encode(env), balance_term)?;
 
         Ok(map)
     }
@@ -1095,10 +1096,15 @@ impl<'a> RustlerDecoder<'a> for Transaction {
         let delta_proof: Delta = delta_proof_term.decode()?;
 
         let expected_balance_term = term.map_get(at_expected_balance().encode(term.get_env()))?;
-        let expected_balance: Option<Vec<u8>> = match expected_balance_term.decode::<()>() {
-            Ok(_) => None,
-            Err(_) => Some(RustlerDecoder::rustler_decode(expected_balance_term)?),
-        };
+        let expected_balance: Option<Vec<u8>>;
+
+        if expected_balance_term.is_binary() {
+            let expected_balance_vec: Vec<u8> =
+                RustlerDecoder::rustler_decode(expected_balance_term)?;
+            expected_balance = Some(expected_balance_vec);
+        } else {
+            expected_balance = None;
+        }
 
         Ok(Transaction {
             actions,
