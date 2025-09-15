@@ -157,7 +157,7 @@ impl LogicCircuit for SimpleTransferWitness {
             let external_payload = {
                 let call_data_expirable_blob = ExpirableBlob {
                     blob: bytes_to_words(&forwarder_call_data.encode()),
-                    deletion_criterion: 0,
+                    deletion_criterion: 1,
                 };
                 vec![call_data_expirable_blob]
             };
