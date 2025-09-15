@@ -8,7 +8,6 @@ use crate::action_tree::MerkleTree;
 use crate::compliance::{ComplianceInstance, ComplianceWitness};
 use crate::compliance_unit::ComplianceUnit;
 use crate::delta_proof::{DeltaProof, DeltaWitness};
-use crate::encryption::{Ciphertext, SecretKey};
 use crate::logic_instance::{AppData, ExpirableBlob};
 use crate::logic_proof::{LogicVerifier, LogicVerifierInputs};
 use crate::merkle_path::MerklePath;
@@ -18,15 +17,13 @@ use crate::transaction::{Delta, Transaction};
 use crate::utils::{bytes_to_words, words_to_bytes};
 use bincode;
 use k256::ecdsa::{RecoveryId, Signature, SigningKey};
-use k256::elliptic_curve::PrimeField;
-use k256::{AffinePoint, Scalar};
+use k256::AffinePoint;
 use rustler::types::map::map_new;
 use rustler::{atoms, Binary, Decoder, Encoder, NifResult};
 use rustler::{Env, Error, OwnedBinary, Term};
 use std::io::Write;
 
 atoms! {
-    at_nil = "nil",
     at_true = "true",
     at_false = "false",
     at_value = "value",
@@ -179,72 +176,6 @@ impl<'a> RustlerDecoder<'a> for RecoveryId {
         Ok(RecoveryId::from_byte(byte).expect("invalid RecoveryId"))
     }
 }
-
-//--------------------------------------------------------------------------------------------------
-// CipherText
-
-impl RustlerEncoder for Ciphertext {
-    fn rustler_encode<'a>(&self, env: Env<'a>) -> Result<Term<'a>, Error> {
-        let bytes = self.as_words();
-        Ok(bytes.rustler_encode(env)?)
-    }
-}
-
-impl<'a> RustlerDecoder<'a> for Ciphertext {
-    fn rustler_decode(term: Term<'a>) -> NifResult<Self> {
-        let words: Vec<u32> = RustlerDecoder::rustler_decode(term)?;
-        let cipher_text: Ciphertext = Ciphertext::from_words(words.as_slice());
-        Ok(cipher_text)
-    }
-}
-
-impl Encoder for Ciphertext {
-    fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
-        self.rustler_encode(env)
-            .expect("failed to encode SecretKey")
-    }
-}
-
-impl<'a> Decoder<'a> for Ciphertext {
-    fn decode(term: Term<'a>) -> NifResult<Self> {
-        Ciphertext::rustler_decode(term)
-    }
-}
-
-//--------------------------------------------------------------------------------------------------
-// SecretKey
-
-impl RustlerEncoder for SecretKey {
-    fn rustler_encode<'a>(&self, env: Env<'a>) -> Result<Term<'a>, Error> {
-        let bytes = self.inner().to_bytes().as_slice().to_vec();
-        Ok(bytes.rustler_encode(env)?)
-    }
-}
-
-impl<'a> RustlerDecoder<'a> for SecretKey {
-    fn rustler_decode(term: Term<'a>) -> NifResult<Self> {
-        let secret_key_vec: Vec<u8> = RustlerDecoder::rustler_decode(term)?;
-        let secret_key_slice: [u8; 32] = secret_key_vec.try_into().unwrap();
-        let sk = SecretKey::new(Scalar::from_repr(secret_key_slice.into()).unwrap());
-        Ok(sk)
-    }
-}
-
-impl Encoder for SecretKey {
-    fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
-        self.rustler_encode(env)
-            .expect("failed to encode SecretKey")
-    }
-}
-
-impl<'a> Decoder<'a> for SecretKey {
-    fn decode(term: Term<'a>) -> NifResult<Self> {
-        SecretKey::rustler_decode(term)
-    }
-}
-
-//--------------------------------------------------------------------------------------------------
-// SigningKey
 
 impl RustlerEncoder for SigningKey {
     fn rustler_encode<'a>(&self, env: Env<'a>) -> Result<Term<'a>, Error> {
@@ -1068,12 +999,6 @@ impl<'a> Decoder<'a> for LogicVerifier {
 
 impl RustlerEncoder for Transaction {
     fn rustler_encode<'a>(&self, env: Env<'a>) -> Result<Term<'a>, Error> {
-        let balance_term: Term;
-        match &self.expected_balance {
-            None => balance_term = at_nil().encode(env),
-            Some(vec) => balance_term = RustlerEncoder::rustler_encode(vec, env)?,
-        };
-
         let map = map_new(env)
             .map_put(at_struct().encode(env), at_transaction().encode(env))?
             .map_put(at_actions().encode(env), self.actions.encode(env))?
@@ -1081,7 +1006,13 @@ impl RustlerEncoder for Transaction {
                 at_delta_proof_field().encode(env),
                 self.delta_proof.encode(env),
             )?
-            .map_put(at_expected_balance().encode(env), balance_term)?;
+            .map_put(
+                at_expected_balance().encode(env),
+                match &self.expected_balance {
+                    Some(balance) => balance.rustler_encode(env)?,
+                    None => ().encode(env),
+                },
+            )?;
 
         Ok(map)
     }
@@ -1096,18 +1027,10 @@ impl<'a> RustlerDecoder<'a> for Transaction {
         let delta_proof: Delta = delta_proof_term.decode()?;
 
         let expected_balance_term = term.map_get(at_expected_balance().encode(term.get_env()))?;
-        let mut expected_balance: Option<Vec<u8>> = None;
-
-        if expected_balance_term.is_atom() {
-            println!("expected balance is an atom");
+        let expected_balance: Option<Vec<u8>> = match expected_balance_term.decode::<()>() {
+            Ok(_) => None,
+            Err(_) => Some(RustlerDecoder::rustler_decode(expected_balance_term)?),
         };
-
-        if expected_balance_term.is_binary() {
-            println!("expected balance is a binary");
-            let expected_balance_vec: Vec<u8> =
-                RustlerDecoder::rustler_decode(expected_balance_term)?;
-            expected_balance = Some(expected_balance_vec);
-        }
 
         Ok(Transaction {
             actions,
