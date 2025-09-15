@@ -4,7 +4,7 @@ use crate::{
     logic_instance::LogicInstance,
     merkle_path::MerklePath,
     nullifier_key::{NullifierKey, NullifierKeyCommitment},
-    proving_system::{journal_to_instance, prove, verify as verify_proof},
+    proving_system::{journal_to_instance, verify as verify_proof},
     resource::Resource,
     resource_logic::TrivialLogicWitness,
     test_logic::TestLogicWitness,
@@ -16,6 +16,9 @@ use risc0_zkvm::{
     sha::{Digest, DIGEST_WORDS},
 };
 use serde::{Deserialize, Serialize};
+
+#[cfg(feature = "prove")]
+use crate::proving_system::prove;
 
 pub trait LogicProver: Default + Clone + Serialize + for<'de> Deserialize<'de> {
     type Witness: Default + Clone + Serialize + for<'de> Deserialize<'de>;
@@ -30,6 +33,7 @@ pub trait LogicProver: Default + Clone + Serialize + for<'de> Deserialize<'de> {
 
     fn witness(&self) -> &Self::Witness;
 
+    #[cfg(feature = "prove")]
     fn prove(&self) -> LogicVerifier {
         let (proof, instance) = prove(Self::proving_key(), self.witness());
         LogicVerifier {
