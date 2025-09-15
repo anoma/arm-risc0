@@ -214,7 +214,7 @@ fn encode_permit_witness_transfer_from_test() {
     let token = hex::decode("2222222222222222222222222222222222222222").unwrap();
     let from = hex::decode("3333333333333333333333333333333333333333").unwrap();
     let value = 1000u128;
-    let permit = PermitTransferFrom::from_bytes(&token, value, &vec![1u8; 32], &vec![2u8; 32]);
+    let permit = PermitTransferFrom::from_bytes(&token, value, &[1u8; 32], &[2u8; 32]);
     let witness = vec![3u8; 32];
     let signature = vec![4u8; 65];
 

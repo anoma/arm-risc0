@@ -201,6 +201,9 @@ impl LogicCircuit for SimpleTransferWitness {
                     .verify(root_bytes, &self.auth_info.as_ref().unwrap().auth_sig)
                     .is_ok());
 
+                // resource_ciphertext is empty
+                vec![]
+            } else {
                 // Generate resource ciphertext
                 let cipher = Ciphertext::encrypt(
                     &self.resource.to_bytes(),
@@ -219,9 +222,6 @@ impl LogicCircuit for SimpleTransferWitness {
                     deletion_criterion: 1,
                 };
                 vec![cipher_expirable_blob]
-            } else {
-                // Do nothing when creating a persistent resource;
-                vec![]
             };
 
             // return empty external_payload and application_payload

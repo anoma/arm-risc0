@@ -79,15 +79,8 @@ impl TransferLogic {
         auth_pk: AuthorizationVerifyingKey,
         auth_sig: AuthorizationSignature,
         discovery_pk: AffinePoint,
-        encryption_pk: AffinePoint,
     ) -> Self {
         let auth_info = AuthorizationInfo { auth_pk, auth_sig };
-        let nonce: [u8; 12] = rand::random();
-        let encryption_info = EncryptionInfo {
-            encryption_pk,
-            sender_sk: SecretKey::random(),
-            encryption_nonce: nonce.to_vec(),
-        };
         Self::new(
             resource,
             true,
@@ -95,7 +88,7 @@ impl TransferLogic {
             Some(nf_key),
             &discovery_pk,
             Some(auth_info),
-            Some(encryption_info),
+            None,
             None,
         )
     }

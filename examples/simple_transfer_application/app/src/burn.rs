@@ -23,7 +23,6 @@ pub fn construct_burn_tx(
     consumed_auth_pk: AuthorizationVerifyingKey,
     consumed_auth_sig: AuthorizationSignature,
     consumed_discovery_pk: AffinePoint,
-    consumed_encryption_pk: AffinePoint,
     created_resource: Resource,
     created_discovery_pk: AffinePoint,
     forwarder_addr: Vec<u8>,
@@ -53,7 +52,6 @@ pub fn construct_burn_tx(
         consumed_auth_pk,
         consumed_auth_sig,
         consumed_discovery_pk,
-        consumed_encryption_pk,
     );
     let consumed_logic_proof = consumed_resource_logic.prove();
 
@@ -106,7 +104,6 @@ fn simple_burn_test() {
     let consumed_auth_pk = AuthorizationVerifyingKey::from_signing_key(&consumed_auth_sk);
     let (consumed_nf_key, consumed_nf_cm) = NullifierKey::random_pair();
     let (consumed_discovery_sk, consumed_discovery_pk) = random_keypair();
-    let (consumed_encryption_sk, consumed_encryption_pk) = random_keypair();
     let consumed_resource = construct_persistent_resource(
         &forwarder_addr, // forwarder_addr
         &token_addr,     // token_addr
@@ -147,7 +144,6 @@ fn simple_burn_test() {
         consumed_auth_pk,
         auth_sig,
         consumed_discovery_pk,
-        consumed_encryption_pk,
         created_resource,
         created_discovery_pk,
         forwarder_addr,
@@ -166,18 +162,6 @@ fn simple_burn_test() {
     discovery_ciphertext
         .decrypt(&consumed_discovery_sk)
         .unwrap();
-
-    // check the encryption ciphertexts
-    let encryption_ciphertext = Ciphertext::from_words(
-        &tx.actions[0].logic_verifier_inputs[0]
-            .app_data
-            .resource_payload[0]
-            .blob,
-    );
-    let decrypted_resource = encryption_ciphertext
-        .decrypt(&consumed_encryption_sk)
-        .unwrap();
-    assert_eq!(decrypted_resource, consumed_resource.to_bytes());
 
     // Verify the transaction
     assert!(tx.verify(), "Transaction verification failed");
