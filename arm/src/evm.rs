@@ -23,15 +23,6 @@ impl Resource {
     pub fn decode(encoded: &[u8]) -> Option<Self> {
         Self::abi_decode_params(encoded).ok()
     }
-
-    pub fn encode_with_nk(&self, nk: &[u8]) -> Vec<u8> {
-        (self.clone(), B256::from_slice(nk)).abi_encode_params()
-    }
-
-    pub fn decode_with_nk(encoded: &[u8]) -> Option<(Self, Vec<u8>)> {
-        let (resource, nk) = <(Resource, B256)>::abi_decode_params(encoded).ok()?;
-        Some((resource, nk.to_vec()))
-    }
 }
 
 impl From<ArmResource> for Resource {
@@ -143,14 +134,6 @@ pub fn encode_transfer(token: &[u8], to: &[u8], value: u128) -> Vec<u8> {
     let value = U256::from(value);
     (CallType::Unwrap, token, to, value).abi_encode_params()
 }
-
-// pub fn encode_transfer_from(token: &[u8], from: &[u8], value: u128) -> Vec<u8> {
-//     // Encode as (CallType, token, from, value)
-//     let token_addr: Address = token.try_into().expect("Invalid address bytes");
-//     let from_addr: Address = from.try_into().expect("Invalid address bytes");
-//     let value = U256::from(value);
-//     (CallType::TransferFrom, token_addr, from_addr, value).abi_encode_params()
-// }
 
 pub fn encode_permit_witness_transfer_from(
     from: &[u8],
