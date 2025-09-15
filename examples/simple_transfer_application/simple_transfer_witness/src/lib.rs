@@ -4,7 +4,7 @@ use arm::{
     encryption::{AffinePoint, Ciphertext, SecretKey},
     evm::{
         encode_permit_witness_transfer_from, encode_transfer, CallType, ForwarderCalldata,
-        PermitTransferFrom, Resource as EvmResource,
+        PermitTransferFrom,
     },
     logic_instance::{AppData, ExpirableBlob, LogicInstance},
     merkle_path::MerklePath,
@@ -84,29 +84,8 @@ impl LogicCircuit for SimpleTransferWitness {
             vec![cipher_expirable_blob]
         };
 
-        // Generate external_payload and application_payload
-        let (resource_payload, external_payload, application_payload) = if self
-            .resource
-            .is_ephemeral
-        {
-            // Generate resource_payload
-            let resource_payload = {
-                let encoded_resource = if self.is_consumed {
-                    // Consuming an ephemeral resource, include the nullifier key
-                    let nk = self.nf_key.as_ref().unwrap().inner();
-                    EvmResource::from(self.resource.clone()).encode_with_nk(nk)
-                } else {
-                    // Creating an ephemeral resource, do not include the nullifier key
-                    EvmResource::from(self.resource.clone()).encode()
-                };
-                let encoded_resource_expirable_blob = ExpirableBlob {
-                    blob: bytes_to_words(&encoded_resource),
-                    deletion_criterion: 0,
-                };
-
-                vec![encoded_resource_expirable_blob]
-            };
-
+        // Generate resource_payload and external_payload
+        let (resource_payload, external_payload) = if self.resource.is_ephemeral {
             // Check resource label: label = sha2(forwarder_addr, erc20_addr)
             let forwarder_addr = self
                 .forwarder_info
@@ -134,9 +113,6 @@ impl LogicCircuit for SimpleTransferWitness {
 
             let input = match call_type {
                 CallType::Unwrap => encode_transfer(erc20_addr, user_addr, self.resource.quantity),
-                // CallType::TransferFrom => {
-                //     encode_transfer_from(erc20_addr, user_addr, self.resource.quantity)
-                // }
                 CallType::Wrap => {
                     let permit = PermitTransferFrom::from_bytes(
                         erc20_addr,
@@ -186,7 +162,9 @@ impl LogicCircuit for SimpleTransferWitness {
                 vec![call_data_expirable_blob]
             };
 
-            (resource_payload, external_payload, vec![])
+            // Return empty resource_payload and external_payload for forwarder
+            // calls
+            (vec![], external_payload)
         } else {
             // Consume a persistent resource
             let resource_ciphertext = if self.is_consumed {
@@ -224,15 +202,16 @@ impl LogicCircuit for SimpleTransferWitness {
                 vec![cipher_expirable_blob]
             };
 
-            // return empty external_payload and application_payload
-            (resource_ciphertext, vec![], vec![])
+            // return resource_payload(ciphertext for the created resource) and
+            // empty external_payload
+            (resource_ciphertext, vec![])
         };
 
         let app_data = AppData {
             resource_payload,
             discovery_payload,
             external_payload,
-            application_payload,
+            application_payload: vec![], // Empty application payload
         };
 
         LogicInstance {
