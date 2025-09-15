@@ -27,7 +27,7 @@ This is a shielded resource machine implementation based on [Risc0-zkvm](https:/
 
 ### Dependencies
 
-* Rust: [intall rust instructions](https://www.rust-lang.org/tools/install)
+* Rust: [install rust instructions](https://www.rust-lang.org/tools/install)
 * Risc0 toolchain: [install risc0 instructions](https://dev.risczero.com/api/zkvm/install)
 
 Note: The installation of the Risc0 toolchain is required only if you intend to develop resource logics(circuits).
