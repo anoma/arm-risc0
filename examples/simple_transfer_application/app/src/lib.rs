@@ -6,8 +6,7 @@ pub mod utils;
 
 use arm::{
     authorization::{AuthorizationSignature, AuthorizationVerifyingKey},
-    encryption::Ciphertext,
-    encryption::{AffinePoint, SecretKey},
+    encryption::AffinePoint,
     evm::CallType,
     logic_proof::LogicProver,
     merkle_path::MerklePath,
@@ -25,7 +24,7 @@ use simple_transfer_witness::{
 pub const SIMPLE_TRANSFER_ELF: &[u8] = include_bytes!("../elf/simple-transfer-guest.bin");
 lazy_static! {
     pub static ref SIMPLE_TRANSFER_ID: Digest =
-        Digest::from_hex("4fe19bb98aaba6a7b060290945108e10a6ab1d4fac23f8606e88312c2923e9f8")
+        Digest::from_hex("9859e84a361004def602871e3092bba3b66a833e2a3c23028ad56efe16ce1bd8")
             .unwrap();
 }
 
@@ -41,30 +40,16 @@ impl TransferLogic {
         is_consumed: bool,
         existence_path: MerklePath,
         nf_key: Option<NullifierKey>,
-        discovery_pk: &AffinePoint,
         auth_info: Option<AuthorizationInfo>,
         encryption_info: Option<EncryptionInfo>,
         forwarder_info: Option<ForwarderInfo>,
     ) -> Self {
-        let discovery_nonce: [u8; 12] = rand::random();
-        let discovery_sk = SecretKey::random();
-        let discovery_cipher = Ciphertext::encrypt(
-            &vec![0u8],
-            discovery_pk,
-            &discovery_sk,
-            discovery_nonce
-                .as_slice()
-                .try_into()
-                .expect("Failed to convert discovery_nonce"),
-        )
-        .as_words();
         Self {
             witness: SimpleTransferWitness::new(
                 resource,
                 is_consumed,
                 existence_path,
                 nf_key,
-                discovery_cipher,
                 auth_info,
                 encryption_info,
                 forwarder_info,
@@ -78,7 +63,6 @@ impl TransferLogic {
         nf_key: NullifierKey,
         auth_pk: AuthorizationVerifyingKey,
         auth_sig: AuthorizationSignature,
-        discovery_pk: AffinePoint,
     ) -> Self {
         let auth_info = AuthorizationInfo { auth_pk, auth_sig };
         Self::new(
@@ -86,7 +70,6 @@ impl TransferLogic {
             true,
             existence_path,
             Some(nf_key),
-            &discovery_pk,
             Some(auth_info),
             None,
             None,
@@ -96,21 +79,15 @@ impl TransferLogic {
     pub fn create_persistent_resource_logic(
         resource: Resource,
         existence_path: MerklePath,
-        discovery_pk: AffinePoint,
+        discovery_pk: &AffinePoint,
         encryption_pk: AffinePoint,
     ) -> Self {
-        let nonce: [u8; 12] = rand::random();
-        let encryption_info = EncryptionInfo {
-            encryption_pk,
-            sender_sk: SecretKey::random(),
-            encryption_nonce: nonce.to_vec(),
-        };
+        let encryption_info = EncryptionInfo::new(encryption_pk, discovery_pk);
         Self::new(
             resource,
             false,
             existence_path,
             None,
-            &discovery_pk,
             None,
             Some(encryption_info),
             None,
@@ -122,7 +99,6 @@ impl TransferLogic {
         resource: Resource,
         existence_path: MerklePath,
         nf_key: NullifierKey,
-        discovery_pk: AffinePoint,
         forwarder_addr: Vec<u8>,
         token_addr: Vec<u8>,
         user_addr: Vec<u8>,
@@ -148,7 +124,6 @@ impl TransferLogic {
             true,
             existence_path,
             Some(nf_key),
-            &discovery_pk,
             None,
             None,
             Some(forwarder_info),
@@ -158,7 +133,6 @@ impl TransferLogic {
     pub fn burn_resource_logic(
         resource: Resource,
         existence_path: MerklePath,
-        discovery_pk: AffinePoint,
         forwarder_addr: Vec<u8>,
         token_addr: Vec<u8>,
         user_addr: Vec<u8>,
@@ -176,7 +150,6 @@ impl TransferLogic {
             false,
             existence_path,
             None,
-            &discovery_pk,
             None,
             None,
             Some(forwarder_info),

@@ -18,7 +18,6 @@ pub fn construct_mint_tx(
     consumed_resource: Resource,
     latest_cm_tree_root: Vec<u32>,
     consumed_nf_key: NullifierKey,
-    consumed_discovery_pk: AffinePoint,
     forwarder_addr: Vec<u8>,
     token_addr: Vec<u8>,
     user_addr: Vec<u8>,
@@ -49,7 +48,6 @@ pub fn construct_mint_tx(
         consumed_resource,
         consumed_resource_path,
         consumed_nf_key,
-        consumed_discovery_pk,
         forwarder_addr.clone(),
         token_addr.clone(),
         user_addr.clone(),
@@ -63,7 +61,7 @@ pub fn construct_mint_tx(
     let created_resource_logic = TransferLogic::create_persistent_resource_logic(
         created_resource,
         created_resource_path,
-        created_discovery_pk,
+        &created_discovery_pk,
         created_encryption_pk,
     );
     let created_logic_proof = created_resource_logic.prove();
@@ -140,7 +138,6 @@ fn simple_mint_test() {
         consumed_resource,
         latest_cm_tree_root,
         consumed_nf_key,
-        created_discovery_pk,
         forwarder_addr,
         token_addr,
         user_addr,

@@ -21,7 +21,6 @@ pub fn construct_transfer_tx(
     consumed_nf_key: NullifierKey,
     consumed_auth_pk: AuthorizationVerifyingKey,
     consumed_auth_sig: AuthorizationSignature,
-    consumed_discovery_pk: AffinePoint,
     created_resource: Resource,
     created_discovery_pk: AffinePoint,
     created_encryption_pk: AffinePoint,
@@ -48,7 +47,6 @@ pub fn construct_transfer_tx(
         consumed_nf_key,
         consumed_auth_pk,
         consumed_auth_sig,
-        consumed_discovery_pk,
     );
     let consumed_logic_proof = consumed_resource_logic.prove();
 
@@ -56,7 +54,7 @@ pub fn construct_transfer_tx(
     let created_resource_logic = TransferLogic::create_persistent_resource_logic(
         created_resource,
         created_resource_path,
-        created_discovery_pk,
+        &created_discovery_pk,
         created_encryption_pk,
     );
     let created_logic_proof = created_resource_logic.prove();
@@ -93,7 +91,6 @@ fn simple_transfer_test() {
     let consumed_auth_sk = AuthorizationSigningKey::new();
     let consumed_auth_pk = AuthorizationVerifyingKey::from_signing_key(&consumed_auth_sk);
     let (consumed_nf_key, consumed_nf_cm) = NullifierKey::random_pair();
-    let (consumed_discovery_sk, consumed_discovery_pk) = random_keypair();
     let consumed_resource = construct_persistent_resource(
         &forwarder_addr, // forwarder_addr
         &token_addr,     // token_addr
@@ -109,7 +106,7 @@ fn simple_transfer_test() {
     let created_auth_sk = AuthorizationSigningKey::new();
     let created_auth_pk = AuthorizationVerifyingKey::from_signing_key(&created_auth_sk);
     let (_created_nf_key, created_nf_cm) = NullifierKey::random_pair();
-    let (_created_discovery_sk, created_discovery_pk) = random_keypair();
+    let (created_discovery_sk, created_discovery_pk) = random_keypair();
     let (created_encryption_sk, created_encryption_pk) = random_keypair();
     let created_resource = construct_persistent_resource(
         &forwarder_addr, // forwarder_addr
@@ -136,7 +133,6 @@ fn simple_transfer_test() {
         consumed_nf_key.clone(),
         consumed_auth_pk,
         auth_sig,
-        consumed_discovery_pk,
         created_resource.clone(),
         created_discovery_pk,
         created_encryption_pk,
@@ -145,14 +141,12 @@ fn simple_transfer_test() {
 
     // check the discovery ciphertexts
     let discovery_ciphertext = Ciphertext::from_words(
-        &tx.actions[0].logic_verifier_inputs[0]
+        &tx.actions[0].logic_verifier_inputs[1]
             .app_data
             .discovery_payload[0]
             .blob,
     );
-    discovery_ciphertext
-        .decrypt(&consumed_discovery_sk)
-        .unwrap();
+    discovery_ciphertext.decrypt(&created_discovery_sk).unwrap();
 
     // check the encryption ciphertexts
     let encryption_ciphertext = Ciphertext::from_words(
