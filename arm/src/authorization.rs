@@ -14,7 +14,7 @@ pub struct AuthorizationSigningKey(SigningKey);
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct AuthorizationVerifyingKey(AffinePoint);
 
-#[derive(Clone, Copy, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct AuthorizationSignature(Signature);
 
 impl AuthorizationSigningKey {
