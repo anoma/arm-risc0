@@ -22,12 +22,13 @@ This is a shielded resource machine implementation based on [Risc0-zkvm](https:/
 - **`examples/`**: Demonstration application examples:
   - **kudo_application**: A simple counter increment example
   - **simple_counter_application**: A relatively complex example; more detailed descriptions can be found [here](https://research.anoma.net/t/shielded-kudos-revised-no-authorisation-abstraction/1522)
+  - **simple_transfer_application**: A simplified transfer application for use in the Protocol Adapter; more detailed descriptions can be found [here](https://forum.anoma.net/t/simple-transfer-application-for-ethereum/2193)
 
 ## Getting Started
 
 ### Dependencies
 
-* Rust: [intall rust instructions](https://www.rust-lang.org/tools/install)
+* Rust: [install rust instructions](https://www.rust-lang.org/tools/install)
 * Risc0 toolchain: [install risc0 instructions](https://dev.risczero.com/api/zkvm/install)
 
 Note: The installation of the Risc0 toolchain is required only if you intend to develop resource logics(circuits).
@@ -101,16 +102,16 @@ We have the following feature flags in arm lib:
 
 ```toml
 # Default configuration (succinct proofs + transaction support)
-arm = "0.5.0"
+arm = "0.6.0"
 
 # Blockchain deployment with Groth16 proofs
-arm = { version = "0.5.0", default-features = false, features = ["groth16_prover", "transaction"] }
+arm = { version = "0.6.0", default-features = false, features = ["groth16_prover", "transaction"] }
 
 # Logic-circuit-only usage
-arm = { version = "0.5.0", default-features = false }
+arm = { version = "0.6.0", default-features = false }
 
 # Elixir Anoma SDK
-arm = { version = "0.5.0", features = ["nif"] }
+arm = { version = "0.6.0", features = ["nif"] }
 ```
 
 

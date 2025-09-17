@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 pub const SIMPLE_COUNTER_ELF: &[u8] = include_bytes!("../elf/counter-guest.bin");
 lazy_static! {
     pub static ref SIMPLE_COUNTER_ID: Digest =
-        Digest::from_hex("bfae15239f0891f6080ea21c7d1f95ea557638a908ea0842d3a4925e9314bbab")
+        Digest::from_hex("c0d335880288ffc2da7b381aa3b65337bad0d1e51ce4af1acdd651fb7f52e082")
             .unwrap();
 }
 
