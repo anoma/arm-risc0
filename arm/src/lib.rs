@@ -21,7 +21,9 @@ pub mod nullifier_key;
 pub mod proving_system;
 pub mod resource;
 pub mod resource_logic;
-mod rustler_util;
+#[cfg(feature = "nif")]
+pub mod rustler_util;
+#[cfg(feature = "transaction")]
 pub mod test_logic;
 #[cfg(feature = "transaction")]
 pub mod transaction;
