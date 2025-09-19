@@ -102,16 +102,16 @@ We have the following feature flags in arm lib:
 
 ```toml
 # Default configuration (succinct proofs + transaction support)
-arm = "0.6.0"
+arm = "0.6.1"
 
 # Blockchain deployment with Groth16 proofs
-arm = { version = "0.6.0", default-features = false, features = ["groth16_prover", "transaction"] }
+arm = { version = "0.6.1", default-features = false, features = ["groth16_prover", "transaction"] }
 
 # Logic-circuit-only usage
-arm = { version = "0.6.0", default-features = false }
+arm = { version = "0.6.1", default-features = false }
 
 # Elixir Anoma SDK
-arm = { version = "0.6.0", features = ["nif"] }
+arm = { version = "0.6.1", features = ["nif"] }
 ```
 
 
