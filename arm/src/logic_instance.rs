@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "nif", derive(NifStruct))]
-#[cfg_attr(feature = "nif", module = "Anoma.Arm.LogicInstance")]
+#[cfg_attr(feature = "nif", module = "AnomaSDK.Arm.LogicInstance")]
 pub struct LogicInstance {
     pub tag: Vec<u32>,
     pub is_consumed: bool,
