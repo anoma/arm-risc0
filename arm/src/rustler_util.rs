@@ -1129,7 +1129,7 @@ impl<'a> Decoder<'a> for Transaction {
         Transaction::rustler_decode(term)
     }
 }
-oh
+
 //--------------------------------------------------------------------------------------------------
 // Delta
 
