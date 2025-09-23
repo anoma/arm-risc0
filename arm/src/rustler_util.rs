@@ -8,6 +8,7 @@ use crate::action_tree::MerkleTree;
 use crate::compliance::{ComplianceInstance, ComplianceWitness};
 use crate::compliance_unit::ComplianceUnit;
 use crate::delta_proof::{DeltaProof, DeltaWitness};
+use crate::encryption::{Ciphertext, SecretKey};
 use crate::logic_instance::{AppData, ExpirableBlob};
 use crate::logic_proof::{LogicVerifier, LogicVerifierInputs};
 use crate::merkle_path::MerklePath;
@@ -17,13 +18,15 @@ use crate::transaction::{Delta, Transaction};
 use crate::utils::{bytes_to_words, words_to_bytes};
 use bincode;
 use k256::ecdsa::{RecoveryId, Signature, SigningKey};
-use k256::AffinePoint;
+use k256::elliptic_curve::PrimeField;
+use k256::{AffinePoint, Scalar};
 use rustler::types::map::map_new;
 use rustler::{atoms, Binary, Decoder, Encoder, NifResult};
 use rustler::{Env, Error, OwnedBinary, Term};
 use std::io::Write;
 
 atoms! {
+    at_nil = "nil",
     at_true = "true",
     at_false = "false",
     at_value = "value",
@@ -33,23 +36,23 @@ atoms! {
     at_struct = "__struct__",
     at_deletion_criteria = "deletion_criteria",
     at_blob = "blob",
-    at_compliance_unit = "Elixir.Anoma.Arm.ComplianceUnit",
-    at_expirable_blob = "Elixir.Anoma.Arm.ExpirableBlob",
-    at_app_data = "Elixir.Anoma.Arm.AppData",
+    at_compliance_unit = "Elixir.AnomaSDK.Arm.ComplianceUnit",
+    at_expirable_blob = "Elixir.AnomaSDK.Arm.ExpirableBlob",
+    at_app_data = "Elixir.AnomaSDK.Arm.AppData",
     at_resource_payload = "resource_payload",
     at_discovery_payload = "discovery_payload",
     at_external_payload = "external_payload",
     at_application_payload = "application_payload",
-    at_logic_verifier_inputs = "Elixir.Anoma.Arm.LogicVerifierInputs",
+    at_logic_verifier_inputs = "Elixir.AnomaSDK.Arm.LogicVerifierInputs",
     at_tag = "tag",
     at_verifying_key = "verifying_key",
     at_app_data_key = "app_data",
-    at_action = "Elixir.Anoma.Arm.Action",
+    at_action = "Elixir.AnomaSDK.Arm.Action",
     at_compliance_units = "compliance_units",
     at_logic_verifier_inputs_key = "logic_verifier_inputs",
-    at_merkle_tree = "Elixir.Anoma.Arm.MerkleTree",
+    at_merkle_tree = "Elixir.AnomaSDK.Arm.MerkleTree",
     at_leaves = "leaves",
-    at_compliance_instance = "Elixir.Anoma.Arm.ComplianceInstance",
+    at_compliance_instance = "Elixir.AnomaSDK.Arm.ComplianceInstance",
     at_consumed_nullifier = "consumed_nullifier",
     at_consumed_logic_ref = "consumed_logic_ref",
     at_consumed_commitment_tree_root = "consumed_commitment_tree_root",
@@ -57,14 +60,14 @@ atoms! {
     at_created_logic_ref = "created_logic_ref",
     at_delta_x = "delta_x",
     at_delta_y = "delta_y",
-    at_compliance_witness = "Elixir.Anoma.Arm.ComplianceWitness",
+    at_compliance_witness = "Elixir.AnomaSDK.Arm.ComplianceWitness",
     at_consumed_resource = "consumed_resource",
     at_merkle_path = "merkle_path",
     at_ephemeral_root = "ephemeral_root",
     at_nf_key = "nf_key",
     at_created_resource = "created_resource",
     at_rcv = "rcv",
-    at_resource = "Elixir.Anoma.Arm.Resource",
+    at_resource = "Elixir.AnomaSDK.Arm.Resource",
     at_logic_ref = "logic_ref",
     at_label_ref = "label_ref",
     at_quantity = "quantity",
@@ -73,13 +76,13 @@ atoms! {
     at_nonce = "nonce",
     at_nk_commitment = "nk_commitment",
     at_rand_seed = "rand_seed",
-    at_delta_proof = "Elixir.Anoma.Arm.DeltaProof",
+    at_delta_proof = "Elixir.AnomaSDK.Arm.DeltaProof",
     at_signature = "signature",
     at_recid = "recid",
-    at_delta_witness = "Elixir.Anoma.Arm.DeltaWitness",
+    at_delta_witness = "Elixir.AnomaSDK.Arm.DeltaWitness",
     at_signing_key = "signing_key",
-    at_logic_verifier = "Elixir.Anoma.Arm.LogicVerifier",
-    at_transaction = "Elixir.Anoma.Arm.Transaction",
+    at_logic_verifier = "Elixir.AnomaSDK.Arm.LogicVerifier",
+    at_transaction = "Elixir.AnomaSDK.Arm.Transaction",
     at_actions = "actions",
     at_delta_proof_field = "delta_proof",
     at_expected_balance = "expected_balance",
@@ -176,6 +179,72 @@ impl<'a> RustlerDecoder<'a> for RecoveryId {
         Ok(RecoveryId::from_byte(byte).expect("invalid RecoveryId"))
     }
 }
+
+//--------------------------------------------------------------------------------------------------
+// CipherText
+
+impl RustlerEncoder for Ciphertext {
+    fn rustler_encode<'a>(&self, env: Env<'a>) -> Result<Term<'a>, Error> {
+        let bytes = self.as_words();
+        Ok(bytes.rustler_encode(env)?)
+    }
+}
+
+impl<'a> RustlerDecoder<'a> for Ciphertext {
+    fn rustler_decode(term: Term<'a>) -> NifResult<Self> {
+        let words: Vec<u32> = RustlerDecoder::rustler_decode(term)?;
+        let cipher_text: Ciphertext = Ciphertext::from_words(words.as_slice());
+        Ok(cipher_text)
+    }
+}
+
+impl Encoder for Ciphertext {
+    fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
+        self.rustler_encode(env)
+            .expect("failed to encode SecretKey")
+    }
+}
+
+impl<'a> Decoder<'a> for Ciphertext {
+    fn decode(term: Term<'a>) -> NifResult<Self> {
+        Ciphertext::rustler_decode(term)
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
+// SecretKey
+
+impl RustlerEncoder for SecretKey {
+    fn rustler_encode<'a>(&self, env: Env<'a>) -> Result<Term<'a>, Error> {
+        let bytes = self.inner().to_bytes().as_slice().to_vec();
+        Ok(bytes.rustler_encode(env)?)
+    }
+}
+
+impl<'a> RustlerDecoder<'a> for SecretKey {
+    fn rustler_decode(term: Term<'a>) -> NifResult<Self> {
+        let secret_key_vec: Vec<u8> = RustlerDecoder::rustler_decode(term)?;
+        let secret_key_slice: [u8; 32] = secret_key_vec.try_into().unwrap();
+        let sk = SecretKey::new(Scalar::from_repr(secret_key_slice.into()).unwrap());
+        Ok(sk)
+    }
+}
+
+impl Encoder for SecretKey {
+    fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
+        self.rustler_encode(env)
+            .expect("failed to encode SecretKey")
+    }
+}
+
+impl<'a> Decoder<'a> for SecretKey {
+    fn decode(term: Term<'a>) -> NifResult<Self> {
+        SecretKey::rustler_decode(term)
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
+// SigningKey
 
 impl RustlerEncoder for SigningKey {
     fn rustler_encode<'a>(&self, env: Env<'a>) -> Result<Term<'a>, Error> {
@@ -999,6 +1068,12 @@ impl<'a> Decoder<'a> for LogicVerifier {
 
 impl RustlerEncoder for Transaction {
     fn rustler_encode<'a>(&self, env: Env<'a>) -> Result<Term<'a>, Error> {
+        let balance_term: Term;
+        match &self.expected_balance {
+            None => balance_term = at_nil().encode(env),
+            Some(vec) => balance_term = RustlerEncoder::rustler_encode(vec, env)?,
+        };
+
         let map = map_new(env)
             .map_put(at_struct().encode(env), at_transaction().encode(env))?
             .map_put(at_actions().encode(env), self.actions.encode(env))?
@@ -1006,13 +1081,7 @@ impl RustlerEncoder for Transaction {
                 at_delta_proof_field().encode(env),
                 self.delta_proof.encode(env),
             )?
-            .map_put(
-                at_expected_balance().encode(env),
-                match &self.expected_balance {
-                    Some(balance) => balance.rustler_encode(env)?,
-                    None => ().encode(env),
-                },
-            )?;
+            .map_put(at_expected_balance().encode(env), balance_term)?;
 
         Ok(map)
     }
@@ -1027,10 +1096,13 @@ impl<'a> RustlerDecoder<'a> for Transaction {
         let delta_proof: Delta = delta_proof_term.decode()?;
 
         let expected_balance_term = term.map_get(at_expected_balance().encode(term.get_env()))?;
-        let expected_balance: Option<Vec<u8>> = match expected_balance_term.decode::<()>() {
-            Ok(_) => None,
-            Err(_) => Some(RustlerDecoder::rustler_decode(expected_balance_term)?),
-        };
+        let mut expected_balance: Option<Vec<u8>> = None;
+
+        if expected_balance_term.is_binary() {
+            let expected_balance_vec: Vec<u8> =
+                RustlerDecoder::rustler_decode(expected_balance_term)?;
+            expected_balance = Some(expected_balance_vec);
+        }
 
         Ok(Transaction {
             actions,
