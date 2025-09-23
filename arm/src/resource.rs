@@ -14,7 +14,11 @@ const RESOURCE_BYTES: usize = DIGEST_BYTES
     + DIGEST_BYTES
     + DEFAULT_BYTES;
 
-use crate::nullifier_key::{NullifierKey, NullifierKeyCommitment};
+use crate::{
+    error::ArmError,
+    nullifier_key::{NullifierKey, NullifierKeyCommitment},
+};
+
 use k256::{
     elliptic_curve::hash2curve::{ExpandMsgXmd, GroupDigest},
     ProjectivePoint, Scalar, Secp256k1,
@@ -75,13 +79,14 @@ impl Resource {
     }
 
     // Compute the kind of the resource
-    pub fn kind(&self) -> ProjectivePoint {
+    pub fn kind(&self) -> Result<ProjectivePoint, ArmError> {
         // Concatenate the logic_ref and label_ref
         let mut bytes = [0u8; DIGEST_BYTES * 2];
         bytes[0..DIGEST_BYTES].clone_from_slice(self.logic_ref.as_ref());
         bytes[DIGEST_BYTES..DIGEST_BYTES * 2].clone_from_slice(self.label_ref.as_ref());
         // Hash to a curve point
-        Secp256k1::hash_from_bytes::<ExpandMsgXmd<Sha256Type>>(&[&bytes], &[DST]).unwrap()
+        Secp256k1::hash_from_bytes::<ExpandMsgXmd<Sha256Type>>(&[&bytes], &[DST])
+            .map_err(|_| ArmError::InvalidResourceKind)
     }
 
     fn psi(&self) -> Vec<u8> {
@@ -164,12 +169,16 @@ impl Resource {
     }
 
     // Compute the nullifier of the resource
-    pub fn nullifier(&self, nf_key: &NullifierKey) -> Option<Digest> {
+    pub fn nullifier(&self, nf_key: &NullifierKey) -> Result<Digest, ArmError> {
         let cm = self.commitment();
         self.nullifier_from_commitment(nf_key, &cm)
     }
 
-    pub fn nullifier_from_commitment(&self, nf_key: &NullifierKey, cm: &Digest) -> Option<Digest> {
+    pub fn nullifier_from_commitment(
+        &self,
+        nf_key: &NullifierKey,
+        cm: &Digest,
+    ) -> Result<Digest, ArmError> {
         // Make sure that the nullifier public key corresponds to the secret key
         if self.nk_commitment == nf_key.commit() {
             let mut bytes = [0u8; 4 * DIGEST_BYTES];
@@ -189,18 +198,18 @@ impl Resource {
 
             assert_eq!(offset, 4 * DIGEST_BYTES);
 
-            Some(*Impl::hash_bytes(&bytes))
+            Ok(*Impl::hash_bytes(&bytes))
         } else {
-            None
+            Err(ArmError::InvalidNullifierKey)
         }
     }
 
-    pub fn to_bytes(&self) -> Vec<u8> {
-        bincode::serialize(self).unwrap()
+    pub fn to_bytes(&self) -> Result<Vec<u8>, ArmError> {
+        bincode::serialize(self).map_err(|_| ArmError::InvalidResourceSerialization)
     }
 
-    pub fn from_bytes(bytes: &[u8]) -> Self {
-        bincode::deserialize(bytes).unwrap()
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, ArmError> {
+        bincode::deserialize(bytes).map_err(|_| ArmError::InvalidResourceDeserialization)
     }
 
     pub fn set_value_ref(&mut self, value_ref: Vec<u8>) {
@@ -221,17 +230,22 @@ impl Resource {
         self.nonce = nonce;
     }
 
-    pub fn set_nonce_from_nf(&mut self, resource: &Resource, nf_key: &NullifierKey) {
-        let nf = resource.nullifier(nf_key).unwrap();
+    pub fn set_nonce_from_nf(
+        &mut self,
+        resource: &Resource,
+        nf_key: &NullifierKey,
+    ) -> Result<(), ArmError> {
+        let nf = resource.nullifier(nf_key)?;
         self.nonce = nf.as_bytes().to_vec();
+        Ok(())
     }
 
-    pub fn tag(&self, is_consumed: bool, nf_key: &NullifierKey) -> Digest {
+    pub fn tag(&self, is_consumed: bool, nf_key: &NullifierKey) -> Result<Digest, ArmError> {
         let cm = self.commitment();
         if is_consumed {
-            self.nullifier_from_commitment(nf_key, &cm).unwrap()
+            self.nullifier_from_commitment(nf_key, &cm)
         } else {
-            cm
+            Ok(cm)
         }
     }
 }

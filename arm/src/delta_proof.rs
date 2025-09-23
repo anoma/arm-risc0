@@ -1,9 +1,10 @@
-use k256::ecdsa::{Error, RecoveryId, Signature, SigningKey, VerifyingKey};
+use k256::ecdsa::{RecoveryId, Signature, SigningKey, VerifyingKey};
 use k256::{
     elliptic_curve::PublicKey, elliptic_curve::ScalarPrimitive, ProjectivePoint, Scalar, SecretKey,
 };
 use serde::{Deserialize, Serialize};
 
+use crate::error::ArmError;
 use sha3::{Digest, Keccak256};
 
 #[derive(Clone, Debug)]
@@ -40,14 +41,18 @@ impl DeltaProof {
         message: &[u8],
         proof: &DeltaProof,
         instance: DeltaInstance,
-    ) -> Result<bool, Error> {
+    ) -> Result<(), ArmError> {
         // Hash the message using Keccak256
         let mut digest = Keccak256::new();
         digest.update(message);
 
         // Verify the signature
-        let vk = VerifyingKey::recover_from_digest(digest, &proof.signature, proof.recid)?;
-        Ok(vk == instance.verifying_key)
+        let vk = VerifyingKey::recover_from_digest(digest, &proof.signature, proof.recid)
+            .map_err(|_| ArmError::DeltaProofVerificationFailed)?;
+        if vk != instance.verifying_key {
+            return Err(ArmError::DeltaProofVerificationFailed);
+        }
+        Ok(())
     }
 
     pub fn to_bytes(&self) -> [u8; 65] {
@@ -57,11 +62,12 @@ impl DeltaProof {
         bytes
     }
 
-    pub fn from_bytes(bytes: &[u8]) -> DeltaProof {
-        DeltaProof {
-            signature: Signature::from_bytes((&bytes[0..64]).into()).unwrap(),
-            recid: RecoveryId::from_byte(bytes[64] - 27).unwrap(),
-        }
+    pub fn from_bytes(bytes: &[u8]) -> Result<DeltaProof, ArmError> {
+        Ok(DeltaProof {
+            signature: Signature::from_bytes((&bytes[0..64]).into())
+                .map_err(|_| ArmError::InvalidSignature)?,
+            recid: RecoveryId::from_byte(bytes[64] - 27).ok_or(ArmError::InvalidSignature)?,
+        })
     }
 }
 
@@ -76,18 +82,19 @@ impl DeltaWitness {
         DeltaWitness { signing_key }
     }
 
-    pub fn from_bytes_vec(keys: &[Vec<u8>]) -> DeltaWitness {
-        let witnesses: Vec<DeltaWitness> = keys
+    pub fn from_bytes_vec(keys: &[Vec<u8>]) -> Result<DeltaWitness, ArmError> {
+        let witnesses: Result<Vec<DeltaWitness>, ArmError> = keys
             .iter()
             .map(|key| DeltaWitness::from_bytes(key))
             .collect();
-        DeltaWitness::compress(&witnesses)
+        Ok(DeltaWitness::compress(&witnesses?))
     }
 
-    pub fn from_bytes(bytes: &[u8]) -> DeltaWitness {
-        DeltaWitness {
-            signing_key: SigningKey::from_bytes(bytes.into()).unwrap(),
-        }
+    pub fn from_bytes(bytes: &[u8]) -> Result<DeltaWitness, ArmError> {
+        Ok(DeltaWitness {
+            signing_key: SigningKey::from_bytes(bytes.into())
+                .map_err(|_| ArmError::InvalidSigningKey)?,
+        })
     }
 
     pub fn to_bytes(&self) -> [u8; 32] {
@@ -113,11 +120,11 @@ impl DeltaWitness {
 }
 
 impl DeltaInstance {
-    pub fn from_deltas(deltas: &[ProjectivePoint]) -> Result<DeltaInstance, Error> {
+    pub fn from_deltas(deltas: &[ProjectivePoint]) -> Result<DeltaInstance, ArmError> {
         let sum = deltas
             .iter()
             .fold(ProjectivePoint::IDENTITY, |acc, x| acc + x);
-        let pk = PublicKey::from_affine(sum.to_affine()).unwrap();
+        let pk = PublicKey::from_affine(sum.to_affine()).map_err(|_| ArmError::InvalidPublicKey)?;
         let vk = VerifyingKey::from(&pk);
         Ok(DeltaInstance { verifying_key: vk })
     }
@@ -143,7 +150,9 @@ impl<'de> Deserialize<'de> for DeltaProof {
                 "Invalid byte length for DeltaProof",
             ));
         }
-        Ok(DeltaProof::from_bytes(&bytes))
+        DeltaProof::from_bytes(&bytes).map_err(|e| {
+            serde::de::Error::custom(format!("Failed to deserialize DeltaProof: {:?}", e))
+        })
     }
 }
 
@@ -162,7 +171,9 @@ impl<'de> Deserialize<'de> for DeltaWitness {
         D: serde::Deserializer<'de>,
     {
         let bytes = <[u8; 32]>::deserialize(deserializer)?;
-        Ok(DeltaWitness::from_bytes(&bytes))
+        DeltaWitness::from_bytes(&bytes).map_err(|e| {
+            serde::de::Error::custom(format!("Failed to deserialize DeltaWitness: {:?}", e))
+        })
     }
 }
 
@@ -179,5 +190,5 @@ fn test_delta_proof() {
     let proof = DeltaProof::prove(message, &witness);
     let instance = DeltaInstance { verifying_key };
 
-    assert!(DeltaProof::verify(message, &proof, instance).unwrap());
+    DeltaProof::verify(message, &proof, instance).unwrap();
 }

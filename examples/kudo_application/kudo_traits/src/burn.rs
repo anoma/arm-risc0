@@ -2,6 +2,7 @@ use crate::resource_info::{DenominationInfo, KudoInfo};
 use arm::{
     action::Action,
     compliance_unit::ComplianceUnit,
+    error::ArmError,
     transaction::{Delta, Transaction},
 };
 use arm::{compliance::ComplianceWitness, delta_proof::DeltaWitness};
@@ -23,7 +24,7 @@ where
     K: KudoInfo,
     D: DenominationInfo,
 {
-    pub fn create_tx(&self, latest_root: Vec<u32>) -> Transaction {
+    pub fn create_tx(&self, latest_root: Vec<u32>) -> Result<Transaction, ArmError> {
         // Create the action
         let (action, delta_witness) = {
             // Generate compliance units
@@ -34,13 +35,17 @@ where
                 let compliance_witness: ComplianceWitness =
                     ComplianceWitness::from_resources_with_path(
                         self.burned_kudo.resource(),
-                        self.burned_kudo.nf_key().unwrap(),
-                        self.burned_kudo.merkle_path().unwrap(),
+                        self.burned_kudo
+                            .nf_key()
+                            .expect("Burned kudo must have a nullifier key"),
+                        self.burned_kudo
+                            .merkle_path()
+                            .expect("Burned kudo must have a merkle path"),
                         self.ephemeral_kudo.resource(),
                     );
 
                 (
-                    ComplianceUnit::create(&compliance_witness),
+                    ComplianceUnit::create(&compliance_witness)?,
                     compliance_witness.rcv,
                 )
             };
@@ -51,30 +56,32 @@ where
                 let compliance_witness: ComplianceWitness = ComplianceWitness::from_resources(
                     self.ephemeral_denomination.resource(),
                     latest_root,
-                    self.ephemeral_denomination.nf_key().unwrap(),
+                    self.ephemeral_denomination
+                        .nf_key()
+                        .expect("Ephemeral denomination must have a nullifier key"),
                     self.burned_denomination.resource(),
                 );
 
                 (
-                    ComplianceUnit::create(&compliance_witness),
+                    ComplianceUnit::create(&compliance_witness)?,
                     compliance_witness.rcv,
                 )
             };
 
             // Generate logic proofs
             println!("Generating the burned kudo logic proof");
-            let burned_kudo_proof = self.burned_kudo.prove();
+            let burned_kudo_proof = self.burned_kudo.prove()?;
 
             println!(
                 "Generating the denomination logic proof corresponding to the burned kudo resource"
             );
-            let burned_denomination_proof = self.burned_denomination.prove();
+            let burned_denomination_proof = self.burned_denomination.prove()?;
 
             println!("Generating the ephemeral kudo logic proof");
-            let ephemeral_kudo_proof = self.ephemeral_kudo.prove();
+            let ephemeral_kudo_proof = self.ephemeral_kudo.prove()?;
 
             println!("Generating the denomination logic proof corresponding to the ephemeral kudo resource");
-            let ephemeral_denomination_proof = self.ephemeral_denomination.prove();
+            let ephemeral_denomination_proof = self.ephemeral_denomination.prove()?;
 
             (
                 Action::new(
@@ -86,11 +93,14 @@ where
                         burned_denomination_proof,
                     ],
                 ),
-                DeltaWitness::from_bytes_vec(&[delta_witness_1, delta_witness_2]),
+                DeltaWitness::from_bytes_vec(&[delta_witness_1, delta_witness_2])?,
             )
         };
 
         // Create the transaction
-        Transaction::create(vec![action], Delta::Witness(delta_witness))
+        Ok(Transaction::create(
+            vec![action],
+            Delta::Witness(delta_witness),
+        ))
     }
 }

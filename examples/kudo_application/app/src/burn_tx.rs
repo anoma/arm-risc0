@@ -2,6 +2,7 @@ use crate::{kudo_main::KudoMainInfo, simple_denomination::SimpleDenominationInfo
 use arm::{
     action_tree::MerkleTree,
     authorization::{AuthorizationSigningKey, AuthorizationVerifyingKey},
+    error::ArmError,
     merkle_path::MerklePath,
     nullifier_key::NullifierKey,
     resource::Resource,
@@ -22,7 +23,7 @@ pub fn build_burn_tx(
     burned_kudoresource_nf_key: &NullifierKey,
     burned_kudo_path: MerklePath,
     latest_root: Vec<u32>,
-) -> Transaction {
+) -> Result<Transaction, ArmError> {
     let issuer = AuthorizationVerifyingKey::from_signing_key(issuer_sk);
     let (instant_nk, instant_nk_commitment) = NullifierKey::random_pair();
 
@@ -32,9 +33,7 @@ pub fn build_burn_tx(
     let owner = AuthorizationVerifyingKey::from_signing_key(owner_sk);
     let kudo_value = compute_kudo_value(&owner);
     assert_eq!(kudo_value, burned_kudo_resource.value_ref);
-    let burned_kudo_resource_nf = burned_kudo_resource
-        .nullifier(burned_kudoresource_nf_key)
-        .unwrap();
+    let burned_kudo_resource_nf = burned_kudo_resource.nullifier(burned_kudoresource_nf_key)?;
 
     // Construct the ephemeral kudo resource
     let mut ephemeral_kudo_resource = burned_kudo_resource.clone();
@@ -56,9 +55,8 @@ pub fn build_burn_tx(
         nonce.to_vec(),
         instant_nk_commitment.clone(),
     );
-    let ephemeral_denomination_resource_nf = ephemeral_denomination_resource
-        .nullifier(&instant_nk)
-        .unwrap();
+    let ephemeral_denomination_resource_nf =
+        ephemeral_denomination_resource.nullifier(&instant_nk)?;
 
     // Construct the burned denomination resource
     let burned_denomination_resource = Resource::create(
@@ -83,16 +81,12 @@ pub fn build_burn_tx(
     let root_bytes = words_to_bytes(&root);
 
     // Generate paths
-    let burned_kudo_existence_path = action_tree.generate_path(&burned_kudo_resource_nf).unwrap();
-    let burned_denomination_existence_path = action_tree
-        .generate_path(&burned_denomination_resource_cm)
-        .unwrap();
-    let ephemeral_denomination_existence_path = action_tree
-        .generate_path(&ephemeral_denomination_resource_nf)
-        .unwrap();
-    let ephemeral_kudo_existence_path = action_tree
-        .generate_path(&ephemeral_kudo_resource_cm)
-        .unwrap();
+    let burned_kudo_existence_path = action_tree.generate_path(&burned_kudo_resource_nf)?;
+    let burned_denomination_existence_path =
+        action_tree.generate_path(&burned_denomination_resource_cm)?;
+    let ephemeral_denomination_existence_path =
+        action_tree.generate_path(&ephemeral_denomination_resource_nf)?;
+    let ephemeral_kudo_existence_path = action_tree.generate_path(&ephemeral_kudo_resource_cm)?;
 
     // Construct the burned kudo witness: consume the kudo resource
     let burned_kudo_logic_witness =
@@ -192,13 +186,14 @@ fn generate_a_burn_tx() {
         &kudo_nf_key,
         MerklePath::default(), // It should be a real path
         INITIAL_ROOT.as_words().to_vec(),
-    );
+    )
+    .unwrap();
 
     tx.generate_delta_proof();
     println!("Tx build duration time: {:?}", tx_start_timer.elapsed());
 
     let tx_verify_start_timer = Instant::now();
-    assert!(tx.verify());
+    tx.verify().unwrap();
     println!(
         "TX verify duration time: {:?}",
         tx_verify_start_timer.elapsed()

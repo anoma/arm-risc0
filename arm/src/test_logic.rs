@@ -1,5 +1,6 @@
 use crate::{
     encryption::{Ciphertext, SecretKey},
+    error::ArmError,
     evm::Resource as EvmResource,
     logic_instance::AppData,
     logic_instance::{ExpirableBlob, LogicInstance},
@@ -26,9 +27,9 @@ pub struct TestLogicWitness {
 }
 
 impl LogicCircuit for TestLogicWitness {
-    fn constrain(&self) -> LogicInstance {
+    fn constrain(&self) -> Result<LogicInstance, ArmError> {
         // Load the self resource
-        let tag = self.resource.tag(self.is_consumed, &self.nf_key);
+        let tag = self.resource.tag(self.is_consumed, &self.nf_key)?;
         let root = self.receive_existence_path.root(&tag);
 
         // The test resource is ephemeral and has one quantity
@@ -63,20 +64,6 @@ impl LogicCircuit for TestLogicWitness {
             vec![cipher_expirable_blob]
         };
 
-        // let external_payload = {
-        //     let call_data = ForwarderCalldata::from_hex(
-        //         "0x1111111111111111111111111111111111111111",
-        //         "1122",
-        //         "334455",
-        //     )
-        //     .encode();
-        //     let call_data_expirable_blob = ExpirableBlob {
-        //         blob: bytes_to_words(&call_data),
-        //         deletion_criterion: 1,
-        //     };
-        //     vec![call_data_expirable_blob]
-        // };
-
         let application_payload = {
             let application_blob = ExpirableBlob {
                 blob: bytes_to_words(&[0u8, 1u8, 2u8, 3u8, 4u8, 5u8, 6u8, 7u8]),
@@ -92,12 +79,12 @@ impl LogicCircuit for TestLogicWitness {
             application_payload,
         };
 
-        LogicInstance {
+        Ok(LogicInstance {
             tag: tag.as_words().to_vec(),
             is_consumed: self.is_consumed, // It can be either consumed or created to reduce padding resources
             root,
             app_data,
-        }
+        })
     }
 }
 

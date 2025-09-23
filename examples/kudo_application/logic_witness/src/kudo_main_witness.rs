@@ -3,6 +3,7 @@ pub use arm::resource_logic::LogicCircuit;
 use arm::{
     authorization::{AuthorizationSignature, AuthorizationVerifyingKey},
     encryption::{Ciphertext, SecretKey},
+    error::ArmError,
     logic_instance::{AppData, ExpirableBlob, LogicInstance},
     merkle_path::MerklePath,
     nullifier_key::NullifierKey,
@@ -39,19 +40,18 @@ pub struct KudoMainWitness {
 }
 
 impl LogicCircuit for KudoMainWitness {
-    fn constrain(&self) -> LogicInstance {
+    fn constrain(&self) -> Result<LogicInstance, ArmError> {
         // Load the kudo resource
         let tag = self
             .kudo_resource
-            .tag(self.kudo_is_consumed, &self.kudo_nf_key);
+            .tag(self.kudo_is_consumed, &self.kudo_nf_key)?;
         let root = self.kudo_existence_path.root(&tag);
 
         // Load the denomination resource
         let dr_cm = self.denomination_resource.commitment();
         let dr_tag = if self.denomination_is_consumed {
             self.denomination_resource
-                .nullifier_from_commitment(&self.denomination_nf_key, &dr_cm)
-                .unwrap()
+                .nullifier_from_commitment(&self.denomination_nf_key, &dr_cm)?
         } else {
             dr_cm
         };
@@ -73,8 +73,7 @@ impl LogicCircuit for KudoMainWitness {
             let rr_cm = self.receive_resource.commitment();
             let rr_tag = if self.receive_is_consumed {
                 self.receive_resource
-                    .nullifier_from_commitment(&self.receive_nf_key, &rr_cm)
-                    .unwrap()
+                    .nullifier_from_commitment(&self.receive_nf_key, &rr_cm)?
             } else {
                 rr_cm
             };
@@ -101,7 +100,7 @@ impl LogicCircuit for KudoMainWitness {
         }
 
         // Generate the ciphertext
-        let cipher = self.generate_ciphertext().as_words();
+        let cipher = self.generate_ciphertext()?.as_words();
         let cipher_expirable_blob = ExpirableBlob {
             blob: cipher,
             deletion_criterion: 1,
@@ -113,26 +112,26 @@ impl LogicCircuit for KudoMainWitness {
             application_payload: Vec::new(),
         };
 
-        LogicInstance {
+        Ok(LogicInstance {
             tag: tag.as_words().to_vec(),
             is_consumed: self.kudo_is_consumed,
             root,
             app_data,
-        }
+        })
     }
 }
 
 impl KudoMainWitness {
-    fn generate_ciphertext(&self) -> Ciphertext {
+    fn generate_ciphertext(&self) -> Result<Ciphertext, ArmError> {
         if self.kudo_resource.is_ephemeral || self.kudo_is_consumed {
-            Ciphertext::default()
+            Ok(Ciphertext::default())
         } else {
-            Ciphertext::encrypt(
-                &self.kudo_resource.to_bytes(),
+            Ok(Ciphertext::encrypt(
+                &self.kudo_resource.to_bytes()?,
                 self.owner.as_affine(),
                 &self.encryption_sk,
                 self.encryption_nonce,
-            )
+            ))
         }
     }
 

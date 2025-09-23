@@ -11,6 +11,7 @@ pub mod constants;
 #[cfg(feature = "transaction")]
 pub mod delta_proof;
 pub mod encryption;
+pub mod error;
 pub mod evm;
 pub mod logic_instance;
 #[cfg(feature = "transaction")]

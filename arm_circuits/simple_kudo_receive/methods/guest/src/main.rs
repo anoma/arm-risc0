@@ -6,7 +6,7 @@ fn main() {
     let witness: SimpleReceiveLogicWitness = env::read();
 
     // process constraints
-    let instance = witness.constrain();
+    let instance = witness.constrain().unwrap();
 
     // write public output to the journal
     env::commit(&instance);

@@ -1,11 +1,13 @@
 use crate::resource_info::{DenominationInfo, KudoInfo, ReceiveInfo};
 use arm::{
     action::Action,
+    compliance::ComplianceWitness,
     compliance_unit::ComplianceUnit,
+    delta_proof::DeltaWitness,
+    error::ArmError,
     logic_proof::{LogicProver, PaddingResourceLogic},
     transaction::{Delta, Transaction},
 };
-use arm::{compliance::ComplianceWitness, delta_proof::DeltaWitness};
 
 #[derive(Clone)]
 pub struct Issue<K, D, R>
@@ -28,7 +30,7 @@ where
     D: DenominationInfo,
     R: ReceiveInfo,
 {
-    pub fn create_tx(&self, latest_root: Vec<u32>) -> Transaction {
+    pub fn create_tx(&self, latest_root: Vec<u32>) -> Result<Transaction, ArmError> {
         // Create the action
         let (action, delta_witness) = {
             // Generate compliance units
@@ -39,12 +41,14 @@ where
                 let compliance_witness: ComplianceWitness = ComplianceWitness::from_resources(
                     self.ephemeral_kudo.resource(),
                     latest_root.clone(),
-                    self.ephemeral_kudo.nf_key().unwrap(),
+                    self.ephemeral_kudo
+                        .nf_key()
+                        .expect("Ephemeral kudo must have a nullifier key"),
                     self.issue_kudo.resource(),
                 );
 
                 (
-                    ComplianceUnit::create(&compliance_witness),
+                    ComplianceUnit::create(&compliance_witness)?,
                     compliance_witness.rcv,
                 )
             };
@@ -55,12 +59,14 @@ where
                 let compliance_witness: ComplianceWitness = ComplianceWitness::from_resources(
                     self.issue_receive.resource(),
                     latest_root.clone(),
-                    self.issue_receive.nf_key().unwrap(),
+                    self.issue_receive
+                        .nf_key()
+                        .expect("Issued receive must have a nullifier key"),
                     self.issue_denomination.resource(),
                 );
 
                 (
-                    ComplianceUnit::create(&compliance_witness),
+                    ComplianceUnit::create(&compliance_witness)?,
                     compliance_witness.rcv,
                 )
             };
@@ -76,29 +82,29 @@ where
                 );
 
                 (
-                    ComplianceUnit::create(&compliance_witness),
+                    ComplianceUnit::create(&compliance_witness)?,
                     compliance_witness.rcv,
                 )
             };
 
             // Generate logic proofs
             println!("Generating the issued kudo logic proof");
-            let issued_kudo_proof = self.issue_kudo.prove();
+            let issued_kudo_proof = self.issue_kudo.prove()?;
 
             println!("Generating the issued denomination logic proof");
-            let issue_denomination_proof = self.issue_denomination.prove();
+            let issue_denomination_proof = self.issue_denomination.prove()?;
 
             println!("Generating the issued receive logic proof");
-            let issued_receive_logic_proof = self.issue_receive.prove();
+            let issued_receive_logic_proof = self.issue_receive.prove()?;
 
             println!("Generating the ephemeral kudo logic proof");
-            let ephemeral_kudo_proof = self.ephemeral_kudo.prove();
+            let ephemeral_kudo_proof = self.ephemeral_kudo.prove()?;
 
             println!("Generating the ephemeral denomination logic proof");
-            let ephemeral_denomination_proof = self.ephemeral_denomination.prove();
+            let ephemeral_denomination_proof = self.ephemeral_denomination.prove()?;
 
             println!("Generating the padding resource logic proof");
-            let padding_resource_proof = self.padding_resource_logic.prove();
+            let padding_resource_proof = self.padding_resource_logic.prove()?;
 
             (
                 Action::new(
@@ -112,11 +118,14 @@ where
                         padding_resource_proof,
                     ],
                 ),
-                DeltaWitness::from_bytes_vec(&[delta_witness_1, delta_witness_2, delta_witness_3]),
+                DeltaWitness::from_bytes_vec(&[delta_witness_1, delta_witness_2, delta_witness_3])?,
             )
         };
 
         // Create the transaction
-        Transaction::create(vec![action], Delta::Witness(delta_witness))
+        Ok(Transaction::create(
+            vec![action],
+            Delta::Witness(delta_witness),
+        ))
     }
 }

@@ -572,6 +572,7 @@ dependencies = [
  "rand 0.8.5",
  "risc0-zkvm",
  "serde",
+ "thiserror",
 ]
 
 [[package]]

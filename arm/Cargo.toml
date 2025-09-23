@@ -20,6 +20,7 @@ rustler = { version = "0.36.2", optional = true }
 bytemuck = { version = "1.12", features = ["derive"] }
 alloy-primitives = "1.0.23"
 alloy-sol-types = "1.0.23"
+thiserror = "2.0.6"
 
 [features]
 default = ["transaction", "prove"]

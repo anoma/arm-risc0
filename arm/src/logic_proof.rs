@@ -1,5 +1,6 @@
 use crate::{
     constants::{PADDING_LOGIC_PK, PADDING_LOGIC_VK, TEST_LOGIC_PK, TEST_LOGIC_VK},
+    error::ArmError,
     logic_instance::AppData,
     logic_instance::LogicInstance,
     merkle_path::MerklePath,
@@ -30,14 +31,13 @@ pub trait LogicProver: Default + Clone + Serialize + for<'de> Deserialize<'de> {
 
     fn witness(&self) -> &Self::Witness;
 
-    fn prove(&self) -> LogicVerifier {
-        let (proof, instance) = prove(Self::proving_key(), self.witness());
-        LogicVerifier {
-            // TODO: handle the unwrap properly
+    fn prove(&self) -> Result<LogicVerifier, ArmError> {
+        let (proof, instance) = prove(Self::proving_key(), self.witness())?;
+        Ok(LogicVerifier {
             proof,
             instance,
             verifying_key: Self::verifying_key().as_words().to_vec(),
-        }
+        })
     }
 }
 
@@ -57,18 +57,22 @@ pub struct LogicVerifierInputs {
 }
 
 impl LogicVerifier {
-    pub fn verify(&self) -> bool {
+    pub fn verify(&self) -> Result<(), ArmError> {
         let vk = if self.verifying_key.len() == DIGEST_WORDS {
+            // TODO: the error handling can be fixed in a separate PR when reverting back to using Digest
             let words: [u32; DIGEST_WORDS] = self.verifying_key.clone().try_into().unwrap();
             Digest::from(words)
         } else {
-            return false; // Invalid verifying key length
+            return Err(ArmError::ProofVerificationFailed(
+                "Invalid verifying key length".into(),
+            ));
         };
 
         verify_proof(&vk, &self.instance, &self.proof)
+            .map_err(|err| ArmError::ProofVerificationFailed(err.to_string()))
     }
 
-    pub fn get_instance(&self) -> LogicInstance {
+    pub fn get_instance(&self) -> Result<LogicInstance, ArmError> {
         journal_to_instance(&self.instance)
     }
 }
@@ -96,7 +100,9 @@ impl LogicVerifierInputs {
 
 impl From<LogicVerifier> for LogicVerifierInputs {
     fn from(logic_proof: LogicVerifier) -> Self {
-        let instance = logic_proof.get_instance();
+        let instance = logic_proof
+            .get_instance()
+            .expect("Failed to get LogicInstance from LogicVerifier");
         LogicVerifierInputs {
             tag: instance.tag,
             verifying_key: logic_proof.verifying_key,
@@ -233,13 +239,13 @@ impl LogicProver for TestLogic {
 #[test]
 fn test_trivial_logic_prover() {
     let trivial_logic = PaddingResourceLogic::default();
-    let proof = trivial_logic.prove();
-    assert!(proof.verify());
+    let proof = trivial_logic.prove().unwrap();
+    proof.verify().unwrap();
 }
 
 #[test]
 fn test_logic_prover() {
     let test_logic = TestLogic::default();
-    let proof = test_logic.prove();
-    assert!(proof.verify());
+    let proof = test_logic.prove().unwrap();
+    proof.verify().unwrap();
 }

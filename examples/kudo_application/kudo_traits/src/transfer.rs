@@ -1,11 +1,13 @@
 use crate::resource_info::{DenominationInfo, KudoInfo, ReceiveInfo};
 use arm::{
     action::Action,
+    compliance::ComplianceWitness,
     compliance_unit::ComplianceUnit,
+    delta_proof::DeltaWitness,
+    error::ArmError,
     logic_proof::{LogicProver, PaddingResourceLogic},
     transaction::{Delta, Transaction},
 };
-use arm::{compliance::ComplianceWitness, delta_proof::DeltaWitness};
 
 #[derive(Clone)]
 pub struct Transfer<K, D, R>
@@ -28,7 +30,7 @@ where
     D: DenominationInfo,
     R: ReceiveInfo,
 {
-    pub fn create_tx(&self, latest_root: Vec<u32>) -> Transaction {
+    pub fn create_tx(&self, latest_root: Vec<u32>) -> Result<Transaction, ArmError> {
         // Create the action
         let (action, delta_witness) = {
             // Generate compliance units Compliance unit 1: the consumed kudo
@@ -39,13 +41,17 @@ where
                 let compliance_witness: ComplianceWitness =
                     ComplianceWitness::from_resources_with_path(
                         self.consumed_kudo.resource(),
-                        self.consumed_kudo.nf_key().unwrap(),
-                        self.consumed_kudo.merkle_path().unwrap(),
+                        self.consumed_kudo
+                            .nf_key()
+                            .expect("Consumed kudo must have a nullifier key"),
+                        self.consumed_kudo
+                            .merkle_path()
+                            .expect("Consumed kudo must have a merkle path"),
                         self.created_kudo.resource(),
                     );
 
                 (
-                    ComplianceUnit::create(&compliance_witness),
+                    ComplianceUnit::create(&compliance_witness)?,
                     compliance_witness.rcv,
                 )
             };
@@ -57,12 +63,14 @@ where
                 let compliance_witness: ComplianceWitness = ComplianceWitness::from_resources(
                     self.consumed_denomination.resource(),
                     latest_root.clone(),
-                    self.consumed_denomination.nf_key().unwrap(),
+                    self.consumed_denomination
+                        .nf_key()
+                        .expect("Consumed denomination must have a nullifier key"),
                     self.created_denomination.resource(),
                 );
 
                 (
-                    ComplianceUnit::create(&compliance_witness),
+                    ComplianceUnit::create(&compliance_witness)?,
                     compliance_witness.rcv,
                 )
             };
@@ -79,31 +87,31 @@ where
                 );
 
                 (
-                    ComplianceUnit::create(&compliance_witness),
+                    ComplianceUnit::create(&compliance_witness)?,
                     compliance_witness.rcv,
                 )
             };
 
             // Generate logic proofs
             println!("Generating the consumed kudo logic proof");
-            let consumed_kudo_proof = self.consumed_kudo.prove();
+            let consumed_kudo_proof = self.consumed_kudo.prove()?;
 
             println!(
                 "Generating the denomination logic proof corresponding to the consumed kudo resource"
             );
-            let consumed_denomination_proof = self.consumed_denomination.prove();
+            let consumed_denomination_proof = self.consumed_denomination.prove()?;
 
             println!("Generating the created kudo logic proof");
-            let created_kudo_proof = self.created_kudo.prove();
+            let created_kudo_proof = self.created_kudo.prove()?;
 
             println!("Generating the denomination logic proof corresponding to the created kudo resource");
-            let created_denomination_proof = self.created_denomination.prove();
+            let created_denomination_proof = self.created_denomination.prove()?;
 
             println!("Generating the padding resource logic proof");
-            let padding_resource_proof = self.padding_resource_logic.prove();
+            let padding_resource_proof = self.padding_resource_logic.prove()?;
 
             println!("Generating the receive logic proof");
-            let receive_logic_proof = self.created_receive.prove();
+            let receive_logic_proof = self.created_receive.prove()?;
 
             (
                 Action::new(
@@ -117,11 +125,14 @@ where
                         receive_logic_proof,
                     ],
                 ),
-                DeltaWitness::from_bytes_vec(&[delta_witness_1, delta_witness_2, delta_witness_3]),
+                DeltaWitness::from_bytes_vec(&[delta_witness_1, delta_witness_2, delta_witness_3])?,
             )
         };
 
         // Create the transaction
-        Transaction::create(vec![action], Delta::Witness(delta_witness))
+        Ok(Transaction::create(
+            vec![action],
+            Delta::Witness(delta_witness),
+        ))
     }
 }
