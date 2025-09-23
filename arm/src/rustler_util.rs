@@ -1098,12 +1098,7 @@ impl<'a> RustlerDecoder<'a> for Transaction {
         let expected_balance_term = term.map_get(at_expected_balance().encode(term.get_env()))?;
         let mut expected_balance: Option<Vec<u8>> = None;
 
-        if expected_balance_term.is_atom() {
-            println!("expected balance is an atom");
-        };
-
         if expected_balance_term.is_binary() {
-            println!("expected balance is a binary");
             let expected_balance_vec: Vec<u8> =
                 RustlerDecoder::rustler_decode(expected_balance_term)?;
             expected_balance = Some(expected_balance_vec);
