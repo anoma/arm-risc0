@@ -77,7 +77,6 @@ impl Action {
                 let verifier = input.to_logic_verifier(is_comsumed, root.clone());
                 verifier.verify()?;
             } else {
-                // Tag not found
                 return Err(ArmError::TagNotFound);
             }
         }
@@ -106,7 +105,7 @@ impl Action {
     }
 }
 
-// Only for testing, todo: move to tests module
+// Only for testing, todo: move to tests module (Issue 120)
 pub fn create_an_action(nonce: u8) -> (Action, DeltaWitness) {
     use crate::logic_proof::TestLogic;
 
@@ -157,7 +156,7 @@ pub fn create_an_action(nonce: u8) -> (Action, DeltaWitness) {
     (action, delta_witness)
 }
 
-// Only for testing
+// Only for testing, todo: move to tests module (Issue 120)
 pub fn create_multiple_actions(n: usize) -> (Vec<Action>, DeltaWitness) {
     let mut actions = Vec::new();
     let mut delta_witnesses = Vec::new();
