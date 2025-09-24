@@ -75,9 +75,9 @@ pub fn construct_mint_tx(
 
     // Construct the transaction
     let delta_witness = DeltaWitness::from_bytes(&compliance_witness.rcv)?;
-    let mut tx = Transaction::create(vec![action], Delta::Witness(delta_witness));
-    tx.generate_delta_proof();
-    Ok(tx)
+    let tx = Transaction::create(vec![action], Delta::Witness(delta_witness));
+    let balanced_tx = tx.generate_delta_proof().unwrap();
+    Ok(balanced_tx)
 }
 
 #[test]

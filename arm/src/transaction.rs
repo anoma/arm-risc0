@@ -33,21 +33,26 @@ impl Transaction {
         }
     }
 
-    pub fn generate_delta_proof(&mut self) {
+    pub fn generate_delta_proof(self) -> Result<Transaction, ArmError> {
         match self.delta_proof {
             Delta::Witness(ref witness) => {
-                let msg = self.get_delta_msg();
-                let proof = DeltaProof::prove(&msg, witness);
-                self.delta_proof = Delta::Proof(proof);
+                let msg = self.get_delta_msg()?;
+                let proof = DeltaProof::prove(&msg, witness)?;
+                let delta_proof = Delta::Proof(proof);
+                Ok(Transaction {
+                    actions: self.actions,
+                    delta_proof,
+                    expected_balance: self.expected_balance,
+                })
             }
-            Delta::Proof(_) => {}
+            Delta::Proof(_) => Ok(self),
         }
     }
 
     pub fn verify(self) -> Result<(), ArmError> {
         match &self.delta_proof {
             Delta::Proof(ref proof) => {
-                let msg = self.get_delta_msg();
+                let msg = self.get_delta_msg()?;
                 let instance = self.delta()?;
                 DeltaProof::verify(&msg, proof, instance)?;
                 for action in self.actions {
@@ -69,12 +74,12 @@ impl Transaction {
         DeltaInstance::from_deltas(&points)
     }
 
-    pub fn get_delta_msg(&self) -> Vec<u8> {
+    pub fn get_delta_msg(&self) -> Result<Vec<u8>, ArmError> {
         let mut msg = Vec::new();
         for action in &self.actions {
-            msg.extend(action.get_delta_msg());
+            msg.extend(action.get_delta_msg()?);
         }
-        msg
+        Ok(msg)
     }
 
     pub fn compose(tx1: Transaction, tx2: Transaction) -> Transaction {
@@ -94,10 +99,10 @@ impl Transaction {
 pub fn generate_test_transaction(n_actions: usize) -> Transaction {
     use crate::action::create_multiple_actions;
     let (actions, delta_witness) = create_multiple_actions(n_actions);
-    let mut tx = Transaction::create(actions, Delta::Witness(delta_witness));
-    tx.generate_delta_proof();
-    tx.clone().verify().unwrap();
-    tx
+    let tx = Transaction::create(actions, Delta::Witness(delta_witness));
+    let balanced_tx = tx.generate_delta_proof().unwrap();
+    balanced_tx.clone().verify().unwrap();
+    balanced_tx
 }
 
 #[cfg(test)]

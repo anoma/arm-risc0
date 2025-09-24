@@ -94,14 +94,16 @@ impl Action {
             })
     }
 
-    pub fn get_delta_msg(&self) -> Vec<u8> {
+    pub fn get_delta_msg(&self) -> Result<Vec<u8>, ArmError> {
         let mut msg = Vec::new();
         for unit in &self.compliance_units {
             if let Ok(instance) = unit.get_instance() {
                 msg.extend_from_slice(&instance.delta_msg());
+            } else {
+                return Err(ArmError::InvalidComplianceInstance);
             }
         }
-        msg
+        Ok(msg)
     }
 }
 

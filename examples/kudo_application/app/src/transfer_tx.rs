@@ -249,7 +249,7 @@ fn generate_a_transfer_tx() {
     );
 
     let tx_start_timer = Instant::now();
-    let mut tx = build_transfer_tx(
+    let tx = build_transfer_tx(
         &issuer,
         &owner_sk,
         &consumed_kudo_resource,
@@ -262,11 +262,11 @@ fn generate_a_transfer_tx() {
     )
     .unwrap();
 
-    tx.generate_delta_proof();
+    let balanced_tx = tx.generate_delta_proof().unwrap();
     println!("Tx build duration time: {:?}", tx_start_timer.elapsed());
 
     let tx_verify_start_timer = Instant::now();
-    tx.verify().unwrap();
+    balanced_tx.verify().unwrap();
     println!(
         "TX verify duration time: {:?}",
         tx_verify_start_timer.elapsed()

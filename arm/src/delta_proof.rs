@@ -23,7 +23,7 @@ pub struct DeltaInstance {
 }
 
 impl DeltaProof {
-    pub fn prove(message: &[u8], witness: &DeltaWitness) -> DeltaProof {
+    pub fn prove(message: &[u8], witness: &DeltaWitness) -> Result<DeltaProof, ArmError> {
         // Hash the message using Keccak256
         let mut digest = Keccak256::new();
         digest.update(message);
@@ -32,9 +32,9 @@ impl DeltaProof {
         let (signature, recid) = witness
             .signing_key
             .sign_digest_recoverable(digest)
-            .expect("Failed to sign message");
+            .map_err(|_| ArmError::DeltaProofGenerationFailed)?;
 
-        DeltaProof { signature, recid }
+        Ok(DeltaProof { signature, recid })
     }
 
     pub fn verify(
@@ -187,7 +187,7 @@ fn test_delta_proof() {
 
     let message = b"Hello, world!";
     let witness = DeltaWitness { signing_key };
-    let proof = DeltaProof::prove(message, &witness);
+    let proof = DeltaProof::prove(message, &witness).unwrap();
     let instance = DeltaInstance { verifying_key };
 
     DeltaProof::verify(message, &proof, instance).unwrap();

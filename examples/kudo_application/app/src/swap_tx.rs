@@ -303,12 +303,12 @@ fn generate_a_swap_tx() {
     )
     .unwrap();
 
-    let mut tx = Transaction::compose(alice_tx, bob_tx);
-    tx.generate_delta_proof();
+    let tx = Transaction::compose(alice_tx, bob_tx);
+    let balanced_tx = tx.generate_delta_proof().unwrap();
     println!("Tx build duration time: {:?}", tx_start_timer.elapsed());
 
     let tx_verify_start_timer = Instant::now();
-    tx.verify().unwrap();
+    balanced_tx.verify().unwrap();
     println!(
         "TX verify duration time: {:?}",
         tx_verify_start_timer.elapsed()

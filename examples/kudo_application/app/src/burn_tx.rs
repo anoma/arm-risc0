@@ -179,7 +179,7 @@ fn generate_a_burn_tx() {
     );
 
     let tx_start_timer = Instant::now();
-    let mut tx = build_burn_tx(
+    let tx = build_burn_tx(
         &issuer_sk,
         &owner_sk,
         &kudo_resource,
@@ -189,11 +189,11 @@ fn generate_a_burn_tx() {
     )
     .unwrap();
 
-    tx.generate_delta_proof();
+    let balanced_tx = tx.generate_delta_proof().unwrap();
     println!("Tx build duration time: {:?}", tx_start_timer.elapsed());
 
     let tx_verify_start_timer = Instant::now();
-    tx.verify().unwrap();
+    balanced_tx.verify().unwrap();
     println!(
         "TX verify duration time: {:?}",
         tx_verify_start_timer.elapsed()
