@@ -56,7 +56,7 @@ impl LogicCircuit for TestLogicWitness {
                 &AffinePoint::GENERATOR,
                 &SecretKey::default(),
                 [0u8; 12],
-            );
+            )?;
             let cipher_expirable_blob = ExpirableBlob {
                 blob: cipher.as_words(),
                 deletion_criterion: 1,

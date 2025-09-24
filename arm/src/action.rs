@@ -18,11 +18,18 @@ pub struct Action {
 }
 
 impl Action {
-    pub fn new(compliance_units: Vec<ComplianceUnit>, logic_verifiers: Vec<LogicVerifier>) -> Self {
-        Action {
+    pub fn new(
+        compliance_units: Vec<ComplianceUnit>,
+        logic_verifiers: Vec<LogicVerifier>,
+    ) -> Result<Self, ArmError> {
+        let logic_verifier_inputs: Vec<LogicVerifierInputs> = logic_verifiers
+            .into_iter()
+            .map(|lv| lv.try_into())
+            .collect::<Result<_, _>>()?;
+        Ok(Action {
             compliance_units,
-            logic_verifier_inputs: logic_verifiers.into_iter().map(|lv| lv.into()).collect(),
-        }
+            logic_verifier_inputs,
+        })
     }
 
     pub fn get_compliance_units(&self) -> &Vec<ComplianceUnit> {
@@ -74,7 +81,7 @@ impl Action {
                 }
 
                 let is_comsumed = index % 2 == 0;
-                let verifier = input.to_logic_verifier(is_comsumed, root.clone());
+                let verifier = input.to_logic_verifier(is_comsumed, root.clone())?;
                 verifier.verify()?;
             } else {
                 return Err(ArmError::TagNotFound);
@@ -151,7 +158,7 @@ pub fn create_an_action(nonce: u8) -> (Action, DeltaWitness) {
     let compliance_units = vec![compliance_receipt];
     let logic_verifier_inputs = vec![consumed_logic_proof, created_logic_proof];
 
-    let action = Action::new(compliance_units, logic_verifier_inputs);
+    let action = Action::new(compliance_units, logic_verifier_inputs).unwrap();
     action.clone().verify().unwrap();
 
     let delta_witness = DeltaWitness::from_bytes_vec(&[compliance_witness.rcv]).unwrap();

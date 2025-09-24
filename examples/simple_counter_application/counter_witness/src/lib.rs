@@ -87,7 +87,7 @@ impl LogicCircuit for CounterWitness {
                 &self.discovery_pk,
                 &self.discovery_sk,
                 self.discovery_nonce,
-            );
+            )?;
             let cipher_expirable_blob = ExpirableBlob {
                 blob: cipher.as_words(),
                 deletion_criterion: 1,

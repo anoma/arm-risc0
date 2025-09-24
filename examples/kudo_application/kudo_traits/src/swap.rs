@@ -49,10 +49,10 @@ where
                         self.consumed_kudo.resource(),
                         self.consumed_kudo
                             .nf_key()
-                            .expect("Consumed kudo must have a nullifier key"),
+                            .ok_or(ArmError::MissingField("Consumed kudo nullifier key"))?,
                         self.consumed_kudo
                             .merkle_path()
-                            .expect("Consumed kudo must have a merkle path"),
+                            .ok_or(ArmError::MissingField("Consumed kudo merkle path"))?,
                         self.created_kudo.resource(),
                     );
 
@@ -71,7 +71,9 @@ where
                     latest_root.clone(),
                     self.consumed_denomination
                         .nf_key()
-                        .expect("Consumed denomination must have a nullifier key"),
+                        .ok_or(ArmError::MissingField(
+                            "Consumed denomination nullifier key",
+                        ))?,
                     self.created_denomination.resource(),
                 );
 
@@ -130,7 +132,7 @@ where
                         padding_resource_proof,
                         receive_logic_proof,
                     ],
-                ),
+                )?,
                 DeltaWitness::from_bytes_vec(&[delta_witness_1, delta_witness_2, delta_witness_3])?,
             )
         };

@@ -1,4 +1,7 @@
-use crate::utils::{bytes_to_words, words_to_bytes};
+use crate::{
+    error::ArmError,
+    utils::{bytes_to_words, words_to_bytes},
+};
 use aes_gcm::{aead::Aead, Aes256Gcm, Key, KeyInit};
 pub use k256::AffinePoint;
 use k256::{
@@ -82,7 +85,7 @@ impl Ciphertext {
         receiver_pk: &AffinePoint,
         sender_sk: &SecretKey,
         nonce: [u8; 12],
-    ) -> Self {
+    ) -> Result<Self, ArmError> {
         // Generate the secret key using Diffie-Hellman exchange
         let inner_secret_key = InnerSecretKey::from_dh_exchange(receiver_pk, sender_sk.inner());
 
@@ -92,19 +95,21 @@ impl Ciphertext {
         // Encrypt with AES-256-GCM
         let cipher = aes_gcm
             .encrypt(&nonce.into(), message.as_ref())
-            .expect("encryption failure");
+            .map_err(|_| ArmError::EncryptionFailed)?;
 
         let pk = generate_public_key(sender_sk.inner());
         let cipher = InnerCiphert { cipher, nonce, pk };
-        Self(bincode::serialize(&cipher).expect("serialization failure"))
+        Ok(Self(
+            bincode::serialize(&cipher).map_err(|_| ArmError::SerializationError)?,
+        ))
     }
 
-    pub fn decrypt(&self, sk: &SecretKey) -> Result<Vec<u8>, aes_gcm::Error> {
+    pub fn decrypt(&self, sk: &SecretKey) -> Result<Vec<u8>, ArmError> {
         if self.inner().is_empty() {
-            return Err(aes_gcm::Error);
+            return Err(ArmError::DecryptionFailed);
         }
         let cipher: InnerCiphert =
-            bincode::deserialize(self.inner()).expect("deserialization failure");
+            bincode::deserialize(self.inner()).map_err(|_| ArmError::DeserializationError)?;
         // Generate the secret key using Diffie-Hellman exchange
         let inner_secret_key = InnerSecretKey::from_dh_exchange(&cipher.pk, sk.inner());
 
@@ -112,7 +117,9 @@ impl Ciphertext {
         let aes_gcm = Aes256Gcm::new(&inner_secret_key.inner());
 
         // Decrypt with AES-256-GCM
-        aes_gcm.decrypt(&cipher.nonce.into(), cipher.cipher.as_ref())
+        aes_gcm
+            .decrypt(&cipher.nonce.into(), cipher.cipher.as_ref())
+            .map_err(|_| ArmError::DecryptionFailed)
     }
 }
 
@@ -168,7 +175,7 @@ fn test_encryption() {
     let nonce: [u8; 12] = rand::random();
 
     // Encryption
-    let cipher = Ciphertext::encrypt(&message, &receiver_pk, &sender_sk, nonce);
+    let cipher = Ciphertext::encrypt(&message, &receiver_pk, &sender_sk, nonce).unwrap();
 
     // Decryption
     let decryption = cipher.decrypt(&receiver_sk).unwrap();

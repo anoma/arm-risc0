@@ -43,7 +43,7 @@ where
                     latest_root.clone(),
                     self.ephemeral_kudo
                         .nf_key()
-                        .expect("Ephemeral kudo must have a nullifier key"),
+                        .ok_or(ArmError::MissingField("Ephemeral kudo nullifier key"))?,
                     self.issue_kudo.resource(),
                 );
 
@@ -61,7 +61,7 @@ where
                     latest_root.clone(),
                     self.issue_receive
                         .nf_key()
-                        .expect("Issued receive must have a nullifier key"),
+                        .ok_or(ArmError::MissingField("Issued receive nullifier key"))?,
                     self.issue_denomination.resource(),
                 );
 
@@ -117,7 +117,7 @@ where
                         ephemeral_denomination_proof,
                         padding_resource_proof,
                     ],
-                ),
+                )?,
                 DeltaWitness::from_bytes_vec(&[delta_witness_1, delta_witness_2, delta_witness_3])?,
             )
         };

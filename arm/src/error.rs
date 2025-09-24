@@ -52,4 +52,16 @@ pub enum ArmError {
     InvalidComplianceInstance,
     #[error("Delta proof generation failed")]
     DeltaProofGenerationFailed,
+    #[error("Invalid Random Commitment Value")]
+    InvalidRcv,
+    #[error("Encryption failed")]
+    EncryptionFailed,
+    #[error("Decryption failed")]
+    DecryptionFailed,
+    #[error("Instance serialization failed")]
+    InstanceSerializationFailed,
+    #[error("Missing field: {0}")]
+    MissingField(&'static str),
+    #[error("Invalid encryption nonce")]
+    InvalidEncryptionNonce,
 }

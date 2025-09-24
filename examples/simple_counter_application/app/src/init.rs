@@ -76,7 +76,7 @@ pub fn create_init_counter_tx(
         discovery_pk,
     )?;
 
-    let action = Action::new(vec![compliance_unit], logic_verifier_inputs);
+    let action = Action::new(vec![compliance_unit], logic_verifier_inputs)?;
     let delta_witness = DeltaWitness::from_bytes(&rcv)?;
     let tx = Transaction::create(vec![action], Delta::Witness(delta_witness));
     let balanced_tx = tx.generate_delta_proof().unwrap();

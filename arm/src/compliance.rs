@@ -168,8 +168,10 @@ impl ComplianceWitness {
             .rcv
             .as_slice()
             .try_into()
-            .expect("rcv must be 32 bytes");
-        let rcv_scalar = Scalar::from_repr(rcv_array.into()).expect("rcv must be a valid scalar");
+            .map_err(|_| ArmError::InvalidRcv)?;
+        let rcv_scalar = Scalar::from_repr(rcv_array.into())
+            .into_option()
+            .ok_or(ArmError::InvalidRcv)?;
         let consumed_kind = self.consumed_resource.kind()?;
         let created_kind = self.created_resource.kind()?;
         let delta = consumed_kind * self.consumed_resource.quantity_scalar()
@@ -233,10 +235,10 @@ impl ComplianceInstance {
     pub fn delta_projective(&self) -> Result<ProjectivePoint, ArmError> {
         let x: [u8; 32] = words_to_bytes(&self.delta_x)
             .try_into()
-            .expect("delta_x must be 32 bytes");
+            .map_err(|_| ArmError::InvalidDelta)?;
         let y: [u8; 32] = words_to_bytes(&self.delta_y)
             .try_into()
-            .expect("delta_y must be 32 bytes");
+            .map_err(|_| ArmError::InvalidDelta)?;
         let encoded_point = EncodedPoint::from_affine_coordinates(&x.into(), &y.into(), false);
         ProjectivePoint::from_encoded_point(&encoded_point)
             .into_option()

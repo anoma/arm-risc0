@@ -71,7 +71,7 @@ pub fn construct_mint_tx(
     let action = Action::new(
         vec![compliance_unit],
         vec![consumed_logic_proof, created_logic_proof],
-    );
+    )?;
 
     // Construct the transaction
     let delta_witness = DeltaWitness::from_bytes(&compliance_witness.rcv)?;

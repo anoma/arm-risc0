@@ -37,10 +37,10 @@ where
                         self.burned_kudo.resource(),
                         self.burned_kudo
                             .nf_key()
-                            .expect("Burned kudo must have a nullifier key"),
+                            .ok_or(ArmError::MissingField("Burned kudo nullifier key"))?,
                         self.burned_kudo
                             .merkle_path()
-                            .expect("Burned kudo must have a merkle path"),
+                            .ok_or(ArmError::MissingField("Burned kudo merkle path"))?,
                         self.ephemeral_kudo.resource(),
                     );
 
@@ -58,7 +58,9 @@ where
                     latest_root,
                     self.ephemeral_denomination
                         .nf_key()
-                        .expect("Ephemeral denomination must have a nullifier key"),
+                        .ok_or(ArmError::MissingField(
+                            "Ephemeral denomination nullifier key",
+                        ))?,
                     self.burned_denomination.resource(),
                 );
 
@@ -92,7 +94,7 @@ where
                         ephemeral_denomination_proof,
                         burned_denomination_proof,
                     ],
-                ),
+                )?,
                 DeltaWitness::from_bytes_vec(&[delta_witness_1, delta_witness_2])?,
             )
         };

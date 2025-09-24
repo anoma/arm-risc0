@@ -66,7 +66,10 @@ impl LogicCircuit for SimpleTransferWitness {
         // Load resources
         let cm = self.resource.commitment();
         let tag = if self.is_consumed {
-            let nf_key = self.nf_key.as_ref().expect("Missing nullifier key");
+            let nf_key = self
+                .nf_key
+                .as_ref()
+                .ok_or(ArmError::MissingField("Nullifier key"))?;
             self.resource.nullifier_from_commitment(nf_key, &cm)?
         } else {
             cm
@@ -82,7 +85,7 @@ impl LogicCircuit for SimpleTransferWitness {
             let forwarder_info = self
                 .forwarder_info
                 .as_ref()
-                .expect("Missing forwarder info");
+                .ok_or(ArmError::MissingField("Forwarder info"))?;
             // Check resource label: label = sha2(forwarder_addr, erc20_addr)
             let forwarder_addr = forwarder_info.forwarder_addr.as_ref();
             let erc20_addr = forwarder_info.token_addr.as_ref();
@@ -109,7 +112,7 @@ impl LogicCircuit for SimpleTransferWitness {
                     let permit_info = forwarder_info
                         .permit_info
                         .as_ref()
-                        .expect("Missing permit info for Wrap");
+                        .ok_or(ArmError::MissingField("Permit info"))?;
                     let permit = PermitTransferFrom::from_bytes(
                         erc20_addr,
                         self.resource.quantity,
@@ -142,7 +145,10 @@ impl LogicCircuit for SimpleTransferWitness {
         } else {
             // Consume a persistent resource
             if self.is_consumed {
-                let auth_info = self.auth_info.as_ref().expect("Missing auth info");
+                let auth_info = self
+                    .auth_info
+                    .as_ref()
+                    .ok_or(ArmError::MissingField("Auth info"))?;
                 let auth_pk = auth_info.auth_pk;
                 // check value_ref
                 assert_eq!(
@@ -159,7 +165,7 @@ impl LogicCircuit for SimpleTransferWitness {
                 let encryption_info = self
                     .encryption_info
                     .as_ref()
-                    .expect("Missing encryption info");
+                    .ok_or(ArmError::MissingField("Encryption info"))?;
                 let cipher = Ciphertext::encrypt(
                     &self.resource.to_bytes()?,
                     &encryption_info.encryption_pk,
@@ -168,8 +174,8 @@ impl LogicCircuit for SimpleTransferWitness {
                         .encryption_nonce
                         .clone()
                         .try_into()
-                        .expect("Failed to convert encryption_nonce"),
-                );
+                        .map_err(|_| ArmError::InvalidEncryptionNonce)?,
+                )?;
                 let cipher_expirable_blob = ExpirableBlob {
                     blob: cipher.as_words(),
                     deletion_criterion: 1,
@@ -254,8 +260,9 @@ impl EncryptionInfo {
             discovery_nonce
                 .as_slice()
                 .try_into()
-                .expect("Failed to convert discovery_nonce"),
+                .expect("Failed to convert discovery nonce, it cannot fail"),
         )
+        .unwrap()
         .as_words();
         let sender_sk = SecretKey::random();
         let encryption_nonce: [u8; 12] = rand::random();

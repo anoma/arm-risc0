@@ -50,6 +50,7 @@ sol! {
 
 impl ForwarderCalldata {
     pub fn new(untrusted_forwarder: &str, input: Vec<u8>, output: Vec<u8>) -> Self {
+        // This is only used in circuits, just let it panic if the address is invalid
         let untrusted_forwarder_addr = untrusted_forwarder.parse().expect("Invalid address string");
         ForwarderCalldata {
             untrustedForwarder: untrusted_forwarder_addr,
@@ -59,6 +60,7 @@ impl ForwarderCalldata {
     }
 
     pub fn from_hex(untrusted_forwarder: &str, input: &str, output: &str) -> Self {
+        // This is only used in circuits, just let it panic if the address is invalid
         let untrusted_forwarder_addr = untrusted_forwarder.parse().expect("Invalid address string");
         ForwarderCalldata {
             untrustedForwarder: untrusted_forwarder_addr,
@@ -69,6 +71,7 @@ impl ForwarderCalldata {
 
     pub fn from_bytes(untrusted_forwarder: &[u8], input: Vec<u8>, output: Vec<u8>) -> Self {
         ForwarderCalldata {
+            // This is only used in circuits, just let it panic if the address is invalid
             untrustedForwarder: untrusted_forwarder
                 .try_into()
                 .expect("Invalid address bytes"),
@@ -128,6 +131,7 @@ impl PermitTransferFrom {
 }
 
 pub fn encode_transfer(token: &[u8], to: &[u8], value: u128) -> Vec<u8> {
+    // This is only used in circuits, just let it panic if the address is invalid
     // Encode as (CallType, token, to, value)
     let token: Address = token.try_into().expect("Invalid address bytes");
     let to: Address = to.try_into().expect("Invalid address bytes");
@@ -141,6 +145,7 @@ pub fn encode_permit_witness_transfer_from(
     witness: &[u8],
     signature: &[u8],
 ) -> Vec<u8> {
+    // This is only used in circuits, just let it panic if the address is invalid
     let from: Address = from.try_into().expect("Invalid address bytes");
     (
         CallType::Wrap,

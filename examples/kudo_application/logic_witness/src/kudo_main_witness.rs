@@ -126,12 +126,12 @@ impl KudoMainWitness {
         if self.kudo_resource.is_ephemeral || self.kudo_is_consumed {
             Ok(Ciphertext::default())
         } else {
-            Ok(Ciphertext::encrypt(
+            Ciphertext::encrypt(
                 &self.kudo_resource.to_bytes()?,
                 self.owner.as_affine(),
                 &self.encryption_sk,
                 self.encryption_nonce,
-            ))
+            )
         }
     }
 

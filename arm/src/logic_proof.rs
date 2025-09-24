@@ -78,14 +78,18 @@ impl LogicVerifier {
 }
 
 impl LogicVerifierInputs {
-    pub fn to_logic_verifier(self, is_consumed: bool, root: Vec<u32>) -> LogicVerifier {
+    pub fn to_logic_verifier(
+        self,
+        is_consumed: bool,
+        root: Vec<u32>,
+    ) -> Result<LogicVerifier, ArmError> {
         let instance_words = to_vec(&self.to_instance(is_consumed, root))
-            .expect("Failed to serialize LogicInstance");
-        LogicVerifier {
+            .map_err(|_| ArmError::InstanceSerializationFailed)?;
+        Ok(LogicVerifier {
             proof: self.proof,
             instance: words_to_bytes(&instance_words).to_vec(),
             verifying_key: self.verifying_key,
-        }
+        })
     }
 
     fn to_instance(&self, is_consumed: bool, root: Vec<u32>) -> LogicInstance {
@@ -98,17 +102,17 @@ impl LogicVerifierInputs {
     }
 }
 
-impl From<LogicVerifier> for LogicVerifierInputs {
-    fn from(logic_proof: LogicVerifier) -> Self {
-        let instance = logic_proof
-            .get_instance()
-            .expect("Failed to get LogicInstance from LogicVerifier");
-        LogicVerifierInputs {
+impl TryFrom<LogicVerifier> for LogicVerifierInputs {
+    type Error = ArmError;
+
+    fn try_from(logic_proof: LogicVerifier) -> Result<LogicVerifierInputs, Self::Error> {
+        let instance = logic_proof.get_instance()?;
+        Ok(LogicVerifierInputs {
             tag: instance.tag,
             verifying_key: logic_proof.verifying_key,
             app_data: instance.app_data,
             proof: logic_proof.proof,
-        }
+        })
     }
 }
 
