@@ -132,12 +132,12 @@ impl ComplianceWitness {
     }
 
     pub fn consumed_resource_logic(&self) -> Digest {
-        // TODO: the error handling can be fixed in a separate PR when reverting back to using Digest
+        // TODO(issue 119): the error handling can be fixed in a separate PR when reverting back to using Digest
         Digest::from_bytes(self.consumed_resource.logic_ref.clone().try_into().unwrap())
     }
 
     pub fn created_resource_logic(&self) -> Digest {
-        // TODO: the error handling can be fixed in a separate PR when reverting back to using Digest
+        // TODO(issue 119): the error handling can be fixed in a separate PR when reverting back to using Digest
         Digest::from_bytes(self.created_resource.logic_ref.clone().try_into().unwrap())
     }
 

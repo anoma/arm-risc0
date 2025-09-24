@@ -59,7 +59,7 @@ pub struct LogicVerifierInputs {
 impl LogicVerifier {
     pub fn verify(&self) -> Result<(), ArmError> {
         let vk = if self.verifying_key.len() == DIGEST_WORDS {
-            // TODO: the error handling can be fixed in a separate PR when reverting back to using Digest
+            // TODO(issue 119): the error handling can be fixed in a separate PR when reverting back to using Digest
             let words: [u32; DIGEST_WORDS] = self.verifying_key.clone().try_into().unwrap();
             Digest::from(words)
         } else {
