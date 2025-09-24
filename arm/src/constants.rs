@@ -12,16 +12,16 @@ pub const TEST_LOGIC_PK: &[u8] = include_bytes!("../elfs/logic-test-guest.bin");
 lazy_static! {
     // compliance verification key / compliance image id
     pub static ref COMPLIANCE_VK: Digest =
-        Digest::from_hex("d93ccb46d31ce839ae75ac2e1c500d7ff0f084eb4b644cf819cd85ceb7f92af4")
+        Digest::from_hex("d84edd3dba59f23b0b8e59e898a0cd634cb0443f010d7fea8583a020996a1783")
             .unwrap();
 
     // padding logic verification key / compliance image id
     pub static ref PADDING_LOGIC_VK: Digest =
-        Digest::from_hex("caab0963547ee75105d14c4a46b2e56c40c2e0aa9e95dcf254d514289570b8c0")
+        Digest::from_hex("6df4b78205756a59e10b658075c2163a8a16c5c443930d281ea90177e6e93021")
             .unwrap();
 
     // test logic verification key / compliance image id
     pub static ref TEST_LOGIC_VK: Digest =
-        Digest::from_hex("e97ff992ff771b03827f310b3e442d1aa6072465561c9ca54a34635ca67e83f0")
+        Digest::from_hex("ceae056a0ea40994961213e88a8bf1e85d0b1ed12434c9161b63792a1ebf862f")
             .unwrap();
 }

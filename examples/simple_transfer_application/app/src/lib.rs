@@ -24,7 +24,7 @@ use simple_transfer_witness::{
 pub const SIMPLE_TRANSFER_ELF: &[u8] = include_bytes!("../elf/simple-transfer-guest.bin");
 lazy_static! {
     pub static ref SIMPLE_TRANSFER_ID: Digest =
-        Digest::from_hex("4eec7c1ef4a07aad6c6f7d8e1fd492acc6218e52c311b5303e07034b9d2676f4")
+        Digest::from_hex("905edd4df27d92392e6a480619b8f58882911cb48016b83e71a663f5da4c07c4")
             .unwrap();
 }
 
