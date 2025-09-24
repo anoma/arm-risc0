@@ -31,7 +31,7 @@ pub fn journal_to_instance<T: DeserializeOwned>(journal: &[u8]) -> Result<T, Arm
     let journal = risc0_zkvm::Journal {
         bytes: journal.to_vec(),
     };
-    journal.decode().map_err(|_| ArmError::JournalDecodenError)
+    journal.decode().map_err(|_| ArmError::JournalDecodingError)
 }
 
 // Encode the seal of the given proof for use with EVM smart contract verifiers.

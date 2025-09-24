@@ -11,7 +11,7 @@ pub enum ArmError {
     #[error("Invalid nullifier key")]
     InvalidNullifierKey,
     #[error("Invalid delta")]
-    InvalidDeltaDelta,
+    InvalidDelta,
     #[error("Invalid signature")]
     InvalidSignature,
     #[error("Invalid signing key")]
@@ -23,7 +23,7 @@ pub enum ArmError {
     #[error("Deserialization error")]
     DeserializationError,
     #[error("Journal decode error")]
-    JournalDecodenError,
+    JournalDecodingError,
     #[error("Inner receipt deserialization error")]
     InnerReceiptDeserializationError,
     #[error("Unsupported proof type")]

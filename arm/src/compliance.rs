@@ -179,8 +179,8 @@ impl ComplianceWitness {
         let encoded_delta = delta.to_encoded_point(false);
 
         Ok((
-            bytes_to_words(encoded_delta.x().ok_or(ArmError::InvalidDeltaDelta)?),
-            bytes_to_words(encoded_delta.y().ok_or(ArmError::InvalidDeltaDelta)?),
+            bytes_to_words(encoded_delta.x().ok_or(ArmError::InvalidDelta)?),
+            bytes_to_words(encoded_delta.y().ok_or(ArmError::InvalidDelta)?),
         ))
     }
 }
@@ -240,7 +240,7 @@ impl ComplianceInstance {
         let encoded_point = EncodedPoint::from_affine_coordinates(&x.into(), &y.into(), false);
         ProjectivePoint::from_encoded_point(&encoded_point)
             .into_option()
-            .ok_or(ArmError::InvalidDeltaDelta)
+            .ok_or(ArmError::InvalidDelta)
     }
 
     pub fn delta_msg(&self) -> Vec<u8> {
