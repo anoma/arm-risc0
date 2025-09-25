@@ -9,7 +9,7 @@ edition = "2021"
 # If you want to try (experimental) std support, add `features = [ "std" ]` to risc0-zkvm
 compliance-methods = { path = "methods" }
 risc0-zkvm = "3.0.3"
-arm = { path = "../../arm", features = ["compliance_circuit"], default-features = false }
+arm = { path = "../../arm", features = ["compliance_circuit", "test_circuit"], default-features = false }
 
 [features]
 default = []
