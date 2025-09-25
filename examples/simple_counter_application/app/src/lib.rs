@@ -7,6 +7,7 @@ use arm::{
 };
 use arm::{
     compliance_unit::ComplianceUnit,
+    error::ArmError,
     logic_proof::{LogicProver, LogicVerifier},
 };
 use counter_witness::CounterWitness;
@@ -18,7 +19,7 @@ use serde::{Deserialize, Serialize};
 pub const SIMPLE_COUNTER_ELF: &[u8] = include_bytes!("../elf/counter-guest.bin");
 lazy_static! {
     pub static ref SIMPLE_COUNTER_ID: Digest =
-        Digest::from_hex("c0d335880288ffc2da7b381aa3b65337bad0d1e51ce4af1acdd651fb7f52e082")
+        Digest::from_hex("5e8e3e0716789acc39593a9af10c38febbc90226a4639dc2ceb318d4e7abe691")
             .unwrap();
 }
 
@@ -78,15 +79,15 @@ pub fn generate_compliance_proof(
     nf_key: NullifierKey,
     merkle_path: MerklePath,
     created_counter: Resource,
-) -> (ComplianceUnit, Vec<u8>) {
+) -> Result<(ComplianceUnit, Vec<u8>), ArmError> {
     let compliance_witness = ComplianceWitness::from_resources_with_path(
         consumed_counter,
         nf_key,
         merkle_path,
         created_counter,
     );
-    let compliance_unit = ComplianceUnit::create(&compliance_witness);
-    (compliance_unit, compliance_witness.rcv)
+    let compliance_unit = ComplianceUnit::create(&compliance_witness)?;
+    Ok((compliance_unit, compliance_witness.rcv))
 }
 
 pub fn generate_logic_proofs(
@@ -95,14 +96,14 @@ pub fn generate_logic_proofs(
     consumed_discovery_pk: AffinePoint,
     created_counter: Resource,
     created_discovery_pk: AffinePoint,
-) -> Vec<LogicVerifier> {
-    let consumed_counter_nf = consumed_counter.nullifier(&nf_key).unwrap();
+) -> Result<Vec<LogicVerifier>, ArmError> {
+    let consumed_counter_nf = consumed_counter.nullifier(&nf_key)?;
     let created_counter_cm = created_counter.commitment();
 
     let action_tree = MerkleTree::new(vec![consumed_counter_nf, created_counter_cm]);
 
-    let consumed_counter_path = action_tree.generate_path(&consumed_counter_nf).unwrap();
-    let created_counter_path = action_tree.generate_path(&created_counter_cm).unwrap();
+    let consumed_counter_path = action_tree.generate_path(&consumed_counter_nf)?;
+    let created_counter_path = action_tree.generate_path(&created_counter_cm)?;
 
     let consumed_counter_logic = CounterLogic::new(
         true,
@@ -113,7 +114,7 @@ pub fn generate_logic_proofs(
         created_counter_path.clone(),
         consumed_discovery_pk,
     );
-    let consumed_logic_proof = consumed_counter_logic.prove();
+    let consumed_logic_proof = consumed_counter_logic.prove()?;
 
     let created_counter_logic = CounterLogic::new(
         false,
@@ -124,7 +125,7 @@ pub fn generate_logic_proofs(
         created_counter_path,
         created_discovery_pk,
     );
-    let created_logic_proof = created_counter_logic.prove();
+    let created_logic_proof = created_counter_logic.prove()?;
 
-    vec![consumed_logic_proof, created_logic_proof]
+    Ok(vec![consumed_logic_proof, created_logic_proof])
 }

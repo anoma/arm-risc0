@@ -1,22 +1,31 @@
 use crate::{convert_counter_to_value_ref, generate_compliance_proof, generate_logic_proofs};
 use arm::{
     action::Action,
+    delta_proof::DeltaWitness,
+    encryption::AffinePoint,
+    error::ArmError,
+    merkle_path::MerklePath,
+    nullifier_key::NullifierKey,
+    resource::Resource,
     transaction::{Delta, Transaction},
-};
-use arm::{
-    delta_proof::DeltaWitness, encryption::AffinePoint, merkle_path::MerklePath,
-    nullifier_key::NullifierKey, resource::Resource,
 };
 
 // This function creates a counter resource based on the old counter resource.
 // It increments the counter value by 1 and returns the new counter resource.
-pub fn increment_counter(old_counter: &Resource, old_counter_nf_key: &NullifierKey) -> Resource {
+pub fn increment_counter(
+    old_counter: &Resource,
+    old_counter_nf_key: &NullifierKey,
+) -> Result<Resource, ArmError> {
     let mut new_counter = old_counter.clone();
-    let current_value = u128::from_le_bytes(new_counter.value_ref[0..16].try_into().unwrap());
+    let current_value = u128::from_le_bytes(
+        new_counter.value_ref[0..16]
+            .try_into()
+            .map_err(|_| ArmError::InvalidResourceValueRef)?,
+    );
     new_counter.set_value_ref(convert_counter_to_value_ref(current_value + 1));
     new_counter.reset_randomness();
-    new_counter.set_nonce_from_nf(old_counter, old_counter_nf_key);
-    new_counter
+    new_counter.set_nonce_from_nf(old_counter, old_counter_nf_key)?;
+    Ok(new_counter)
 }
 
 pub fn create_increment_tx(
@@ -25,27 +34,27 @@ pub fn create_increment_tx(
     nf_key: NullifierKey,
     consumed_discovery_pk: AffinePoint,
     created_discovery_pk: AffinePoint,
-) -> (Transaction, Resource) {
-    let new_counter = increment_counter(&counter_resource, &nf_key);
+) -> Result<(Transaction, Resource), ArmError> {
+    let new_counter = increment_counter(&counter_resource, &nf_key)?;
     let (compliance_unit, rcv) = generate_compliance_proof(
         counter_resource.clone(),
         nf_key.clone(),
         consumed_merkle_path,
         new_counter.clone(),
-    );
+    )?;
     let logic_verifier_inputs = generate_logic_proofs(
         counter_resource,
         nf_key,
         consumed_discovery_pk,
         new_counter.clone(),
         created_discovery_pk,
-    );
+    )?;
 
-    let action = Action::new(vec![compliance_unit], logic_verifier_inputs);
-    let delta_witness = DeltaWitness::from_bytes(&rcv);
-    let mut tx = Transaction::create(vec![action], Delta::Witness(delta_witness));
-    tx.generate_delta_proof();
-    (tx, new_counter)
+    let action = Action::new(vec![compliance_unit], logic_verifier_inputs)?;
+    let delta_witness = DeltaWitness::from_bytes(&rcv)?;
+    let tx = Transaction::create(vec![action], Delta::Witness(delta_witness));
+    let balanced_tx = tx.generate_delta_proof().unwrap();
+    Ok((balanced_tx, new_counter))
 }
 
 #[test]
@@ -54,8 +63,8 @@ fn test_create_increment_tx() {
     use arm::encryption::{random_keypair, Ciphertext};
 
     let (discovery_sk, discovery_pk) = random_keypair();
-    let (init_tx, counter_resource, nf_key) = create_init_counter_tx(discovery_pk);
-    assert!(init_tx.verify(), "Initial transaction verification failed");
+    let (init_tx, counter_resource, nf_key) = create_init_counter_tx(discovery_pk).unwrap();
+    init_tx.verify().unwrap();
 
     let consumed_merkle_path = MerklePath::default();
     let (increment_tx, new_counter) = create_increment_tx(
@@ -64,7 +73,8 @@ fn test_create_increment_tx() {
         nf_key,
         discovery_pk,
         discovery_pk,
-    );
+    )
+    .unwrap();
 
     // check the discovery ciphertext
     let discovery_ciphertext = Ciphertext::from_words(
@@ -75,10 +85,8 @@ fn test_create_increment_tx() {
     );
     discovery_ciphertext.decrypt(&discovery_sk).unwrap();
 
-    assert!(
-        increment_tx.verify(),
-        "Increment transaction verification failed"
-    );
+    increment_tx.verify().unwrap();
+
     let expected_value_ref = convert_counter_to_value_ref(2u128);
     assert_eq!(
         new_counter.value_ref, expected_value_ref,

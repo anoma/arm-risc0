@@ -2,6 +2,7 @@ use crate::utils::compute_kudo_label;
 pub use arm::resource_logic::LogicCircuit;
 use arm::{
     authorization::{AuthorizationSignature, AuthorizationVerifyingKey},
+    error::ArmError,
     logic_instance::{AppData, LogicInstance},
     merkle_path::MerklePath,
     nullifier_key::NullifierKey,
@@ -31,14 +32,13 @@ pub struct SimpleDenominationLogicWitness {
 }
 
 impl LogicCircuit for SimpleDenominationLogicWitness {
-    fn constrain(&self) -> LogicInstance {
+    fn constrain(&self) -> Result<LogicInstance, ArmError> {
         // Load self resource, the denomination resource is always a created
         // resource
         let denomination_cm = self.denomination_resource.commitment();
         let denomination_tag = if self.denomination_is_consumed {
             self.denomination_resource
-                .nullifier_from_commitment(&self.denomination_nf_key, &denomination_cm)
-                .unwrap()
+                .nullifier_from_commitment(&self.denomination_nf_key, &denomination_cm)?
         } else {
             denomination_cm
         };
@@ -52,8 +52,7 @@ impl LogicCircuit for SimpleDenominationLogicWitness {
         let kudo_cm = self.kudo_resource.commitment();
         let kudo_tag = if self.kudo_is_consumed {
             self.kudo_resource
-                .nullifier_from_commitment(&self.kudo_nf_key, &kudo_cm)
-                .unwrap()
+                .nullifier_from_commitment(&self.kudo_nf_key, &kudo_cm)?
         } else {
             kudo_cm
         };
@@ -87,12 +86,12 @@ impl LogicCircuit for SimpleDenominationLogicWitness {
             assert!(self.kudo_owner.verify(root_bytes, &self.signature).is_ok());
         }
 
-        LogicInstance {
+        Ok(LogicInstance {
             tag: denomination_tag.as_words().to_vec(),
             is_consumed: self.denomination_is_consumed,
             root,
             app_data: AppData::default(), // no app data needed
-        }
+        })
     }
 }
 

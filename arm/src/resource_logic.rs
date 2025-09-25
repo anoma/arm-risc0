@@ -1,6 +1,6 @@
 use crate::{
-    logic_instance::AppData, logic_instance::LogicInstance, merkle_path::MerklePath,
-    nullifier_key::NullifierKey, resource::Resource,
+    error::ArmError, logic_instance::AppData, logic_instance::LogicInstance,
+    merkle_path::MerklePath, nullifier_key::NullifierKey, resource::Resource,
 };
 use serde::{Deserialize, Serialize};
 
@@ -15,7 +15,7 @@ pub trait LogicCircuit: Default + Clone + Serialize + for<'de> Deserialize<'de> 
     }
 
     // Logic constraints implementation
-    fn constrain(&self) -> LogicInstance;
+    fn constrain(&self) -> Result<LogicInstance, ArmError>;
 }
 
 #[derive(Clone, Default, Serialize, Deserialize)]
@@ -29,21 +29,21 @@ pub struct TrivialLogicWitness {
 }
 
 impl LogicCircuit for TrivialLogicWitness {
-    fn constrain(&self) -> LogicInstance {
+    fn constrain(&self) -> Result<LogicInstance, ArmError> {
         // Load the self resource
-        let tag = self.resource.tag(self.is_consumed, &self.nf_key);
+        let tag = self.resource.tag(self.is_consumed, &self.nf_key)?;
         let root = self.receive_existence_path.root(&tag);
 
         // The trivial resource is ephemeral and has zero quantity
         assert_eq!(self.resource.quantity, 0);
         assert!(self.resource.is_ephemeral);
 
-        LogicInstance {
+        Ok(LogicInstance {
             tag: tag.as_words().to_vec(),
             is_consumed: self.is_consumed, // It can be either consumed or created to reduce padding resources
             root,
             app_data: AppData::default(), // No app data for trivial logic
-        }
+        })
     }
 }
 

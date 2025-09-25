@@ -3,6 +3,7 @@ use crate::{
     compliance::{ComplianceInstance, ComplianceWitness},
     compliance_unit::ComplianceUnit,
     delta_proof::DeltaWitness,
+    error::ArmError,
     logic_proof::{LogicProver, LogicVerifier, LogicVerifierInputs},
     nullifier_key::NullifierKey,
     resource::Resource,
@@ -17,11 +18,18 @@ pub struct Action {
 }
 
 impl Action {
-    pub fn new(compliance_units: Vec<ComplianceUnit>, logic_verifiers: Vec<LogicVerifier>) -> Self {
-        Action {
+    pub fn new(
+        compliance_units: Vec<ComplianceUnit>,
+        logic_verifiers: Vec<LogicVerifier>,
+    ) -> Result<Self, ArmError> {
+        let logic_verifier_inputs: Vec<LogicVerifierInputs> = logic_verifiers
+            .into_iter()
+            .map(|lv| lv.try_into())
+            .collect::<Result<_, _>>()?;
+        Ok(Action {
             compliance_units,
-            logic_verifier_inputs: logic_verifiers.into_iter().map(|lv| lv.into()).collect(),
-        }
+            logic_verifier_inputs,
+        })
     }
 
     pub fn get_compliance_units(&self) -> &Vec<ComplianceUnit> {
@@ -32,18 +40,16 @@ impl Action {
         &self.logic_verifier_inputs
     }
 
-    pub fn verify(self) -> bool {
+    pub fn verify(self) -> Result<(), ArmError> {
         for unit in &self.compliance_units {
-            if !unit.verify() {
-                return false;
-            }
+            unit.verify()?;
         }
 
         let compliance_intances = self
             .compliance_units
             .iter()
             .map(|unit| unit.get_instance())
-            .collect::<Vec<ComplianceInstance>>();
+            .collect::<Result<Vec<ComplianceInstance>, ArmError>>()?;
 
         // Construct the action tree
         let tags: Vec<Vec<u32>> = compliance_intances
@@ -71,41 +77,44 @@ impl Action {
             if let Some(index) = tags.iter().position(|tag| *tag == input.tag) {
                 if input.verifying_key != logics[index] {
                     // The verifying_key doesn't match the resource logic
-                    return false;
+                    return Err(ArmError::VerifyingKeyMismatch);
                 }
 
                 let is_comsumed = index % 2 == 0;
-                let verifier = input.to_logic_verifier(is_comsumed, root.clone());
-                if !verifier.verify() {
-                    return false;
-                }
+                let verifier = input.to_logic_verifier(is_comsumed, root.clone())?;
+                verifier.verify()?;
             } else {
-                // Tag not found
-                return false;
+                return Err(ArmError::TagNotFound);
             }
         }
 
-        true
+        Ok(())
     }
 
     // This function computes the delta of the action by summing up the deltas
     // of each compliance unit.
-    pub fn delta(&self) -> ProjectivePoint {
+    pub fn delta(&self) -> Result<ProjectivePoint, ArmError> {
         self.compliance_units
             .iter()
-            .fold(ProjectivePoint::IDENTITY, |acc, unit| acc + unit.delta())
+            .try_fold(ProjectivePoint::IDENTITY, |acc, unit| {
+                Ok(acc + unit.delta()?)
+            })
     }
 
-    pub fn get_delta_msg(&self) -> Vec<u8> {
+    pub fn get_delta_msg(&self) -> Result<Vec<u8>, ArmError> {
         let mut msg = Vec::new();
         for unit in &self.compliance_units {
-            let instance = unit.get_instance();
-            msg.extend_from_slice(&instance.delta_msg());
+            if let Ok(instance) = unit.get_instance() {
+                msg.extend_from_slice(&instance.delta_msg());
+            } else {
+                return Err(ArmError::InvalidComplianceInstance);
+            }
         }
-        msg
+        Ok(msg)
     }
 }
 
+// Only for testing, todo: move to tests module (Issue 120)
 pub fn create_an_action(nonce: u8) -> (Action, DeltaWitness) {
     use crate::logic_proof::TestLogic;
 
@@ -128,7 +137,7 @@ pub fn create_an_action(nonce: u8) -> (Action, DeltaWitness) {
         nf_key.clone(),
         created_resource.clone(),
     );
-    let compliance_receipt = ComplianceUnit::create(&compliance_witness);
+    let compliance_receipt = ComplianceUnit::create(&compliance_witness).unwrap();
 
     let created_resource_cm = created_resource.commitment();
     let action_tree = MerkleTree::new(vec![consumed_resource_nf, created_resource_cm]);
@@ -141,21 +150,22 @@ pub fn create_an_action(nonce: u8) -> (Action, DeltaWitness) {
         nf_key.clone(),
         true,
     );
-    let consumed_logic_proof = consumed_logic.prove();
+    let consumed_logic_proof = consumed_logic.prove().unwrap();
 
     let created_logic = TestLogic::new(created_resource, created_resource_path, nf_key, false);
-    let created_logic_proof = created_logic.prove();
+    let created_logic_proof = created_logic.prove().unwrap();
 
     let compliance_units = vec![compliance_receipt];
     let logic_verifier_inputs = vec![consumed_logic_proof, created_logic_proof];
 
-    let action = Action::new(compliance_units, logic_verifier_inputs);
-    assert!(action.clone().verify());
+    let action = Action::new(compliance_units, logic_verifier_inputs).unwrap();
+    action.clone().verify().unwrap();
 
-    let delta_witness = DeltaWitness::from_bytes_vec(&[compliance_witness.rcv]);
+    let delta_witness = DeltaWitness::from_bytes_vec(&[compliance_witness.rcv]).unwrap();
     (action, delta_witness)
 }
 
+// Only for testing, todo: move to tests module (Issue 120)
 pub fn create_multiple_actions(n: usize) -> (Vec<Action>, DeltaWitness) {
     let mut actions = Vec::new();
     let mut delta_witnesses = Vec::new();

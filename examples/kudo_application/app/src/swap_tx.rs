@@ -5,14 +5,13 @@ use crate::{
 use arm::{
     action_tree::MerkleTree,
     authorization::{AuthorizationSigningKey, AuthorizationVerifyingKey},
+    error::ArmError,
+    logic_proof::{LogicProver, PaddingResourceLogic},
     merkle_path::MerklePath,
     nullifier_key::NullifierKey,
     resource::Resource,
-    utils::words_to_bytes,
-};
-use arm::{
-    logic_proof::{LogicProver, PaddingResourceLogic},
     transaction::Transaction,
+    utils::words_to_bytes,
 };
 use kudo_logic_witness::{
     kudo_main_witness::KudoMainWitness,
@@ -33,7 +32,7 @@ pub fn build_swap_tx(
     created_issuer: &AuthorizationVerifyingKey,
     created_kudo_quantity: u128,
     latest_root: Vec<u32>,
-) -> Transaction {
+) -> Result<Transaction, ArmError> {
     let (instant_nk, instant_nk_commitment) = NullifierKey::random_pair();
 
     // Construct the consumed kudo resource
@@ -43,7 +42,7 @@ pub fn build_swap_tx(
     let owner = AuthorizationVerifyingKey::from_signing_key(owner_sk);
     let kudo_value = compute_kudo_value(&owner);
     assert_eq!(kudo_value, consumed_kudo_resource.value_ref);
-    let consumed_kudo_nf = consumed_kudo_resource.nullifier(nf_key).unwrap();
+    let consumed_kudo_nf = consumed_kudo_resource.nullifier(nf_key)?;
 
     // Construct the created kudo resource: same ownership(kudo_value and
     // nk_commitment) as the consumed kudo resource
@@ -72,9 +71,8 @@ pub fn build_swap_tx(
         nonce.to_vec(),
         instant_nk_commitment.clone(),
     );
-    let consumed_denomination_resource_nf = consumed_denomination_resource
-        .nullifier(&instant_nk)
-        .unwrap();
+    let consumed_denomination_resource_nf =
+        consumed_denomination_resource.nullifier(&instant_nk)?;
 
     // Construct the denomination resource corresponding to the created kudo resource
     let created_denomination_resource = Resource::create(
@@ -91,7 +89,7 @@ pub fn build_swap_tx(
     // Construct the padding resource
     let padding_resource =
         PaddingResourceLogic::create_padding_resource(instant_nk_commitment.clone());
-    let padding_resource_nf = padding_resource.nullifier(&instant_nk).unwrap();
+    let padding_resource_nf = padding_resource.nullifier(&instant_nk)?;
 
     // Construct the receive logic resource
     let receive_resource = Resource::create(
@@ -118,16 +116,14 @@ pub fn build_swap_tx(
     let root_bytes = words_to_bytes(&root);
 
     // Generate paths
-    let consumed_kudo_existence_path = action_tree.generate_path(&consumed_kudo_nf).unwrap();
-    let consumed_denomination_existence_path = action_tree
-        .generate_path(&consumed_denomination_resource_nf)
-        .unwrap();
-    let created_denomination_existence_path = action_tree
-        .generate_path(&created_denomination_resource_cm)
-        .unwrap();
-    let created_kudo_existence_path = action_tree.generate_path(&created_kudo_value_cm).unwrap();
-    let padding_resource_existence_path = action_tree.generate_path(&padding_resource_nf).unwrap();
-    let receive_existence_path = action_tree.generate_path(&receive_resource_cm).unwrap();
+    let consumed_kudo_existence_path = action_tree.generate_path(&consumed_kudo_nf)?;
+    let consumed_denomination_existence_path =
+        action_tree.generate_path(&consumed_denomination_resource_nf)?;
+    let created_denomination_existence_path =
+        action_tree.generate_path(&created_denomination_resource_cm)?;
+    let created_kudo_existence_path = action_tree.generate_path(&created_kudo_value_cm)?;
+    let padding_resource_existence_path = action_tree.generate_path(&padding_resource_nf)?;
+    let receive_existence_path = action_tree.generate_path(&receive_resource_cm)?;
 
     // Construct the consumed kudo witness
     let consumed_kudo_logic_witness =
@@ -273,7 +269,8 @@ fn generate_a_swap_tx() {
         &alice_created_issuer,
         alice_created_kudo_quantity,
         INITIAL_ROOT.as_words().to_vec(),
-    );
+    )
+    .unwrap();
 
     let bob_sk = AuthorizationSigningKey::new();
     let bob_pk = AuthorizationVerifyingKey::from_signing_key(&bob_sk);
@@ -303,14 +300,15 @@ fn generate_a_swap_tx() {
         &bob_created_issuer,
         bob_created_kudo_quantity,
         INITIAL_ROOT.as_words().to_vec(),
-    );
+    )
+    .unwrap();
 
-    let mut tx = Transaction::compose(alice_tx, bob_tx);
-    tx.generate_delta_proof();
+    let tx = Transaction::compose(alice_tx, bob_tx);
+    let balanced_tx = tx.generate_delta_proof().unwrap();
     println!("Tx build duration time: {:?}", tx_start_timer.elapsed());
 
     let tx_verify_start_timer = Instant::now();
-    assert!(tx.verify());
+    balanced_tx.verify().unwrap();
     println!(
         "TX verify duration time: {:?}",
         tx_verify_start_timer.elapsed()

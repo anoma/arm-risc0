@@ -5,6 +5,7 @@ use arm::{
     compliance::ComplianceWitness,
     compliance_unit::ComplianceUnit,
     delta_proof::DeltaWitness,
+    error::ArmError,
     logic_proof::LogicProver,
     merkle_path::MerklePath,
     nullifier_key::NullifierKey,
@@ -25,9 +26,9 @@ pub fn construct_burn_tx(
     forwarder_addr: Vec<u8>,
     token_addr: Vec<u8>,
     user_addr: Vec<u8>,
-) -> Transaction {
+) -> Result<Transaction, ArmError> {
     // Action tree
-    let consumed_nf = consumed_resource.nullifier(&consumed_nf_key).unwrap();
+    let consumed_nf = consumed_resource.nullifier(&consumed_nf_key)?;
     let created_cm = created_resource.commitment();
     let action_tree = MerkleTree::new(vec![consumed_nf, created_cm]);
 
@@ -38,10 +39,10 @@ pub fn construct_burn_tx(
         consumed_resource_path,
         created_resource.clone(),
     );
-    let compliance_unit = ComplianceUnit::create(&compliance_witness);
+    let compliance_unit = ComplianceUnit::create(&compliance_witness)?;
 
     // Generate logic proofs
-    let consumed_resource_path = action_tree.generate_path(&consumed_nf).unwrap();
+    let consumed_resource_path = action_tree.generate_path(&consumed_nf)?;
     let consumed_resource_logic = TransferLogic::consume_persistent_resource_logic(
         consumed_resource.clone(),
         consumed_resource_path,
@@ -49,9 +50,9 @@ pub fn construct_burn_tx(
         consumed_auth_pk,
         consumed_auth_sig,
     );
-    let consumed_logic_proof = consumed_resource_logic.prove();
+    let consumed_logic_proof = consumed_resource_logic.prove()?;
 
-    let created_resource_path = action_tree.generate_path(&created_cm).unwrap();
+    let created_resource_path = action_tree.generate_path(&created_cm)?;
     let created_resource_logic = TransferLogic::burn_resource_logic(
         created_resource,
         created_resource_path,
@@ -59,19 +60,19 @@ pub fn construct_burn_tx(
         token_addr,
         user_addr,
     );
-    let created_logic_proof = created_resource_logic.prove();
+    let created_logic_proof = created_resource_logic.prove()?;
 
     // Construct the action
     let action = Action::new(
         vec![compliance_unit],
         vec![consumed_logic_proof, created_logic_proof],
-    );
+    )?;
 
     // Construct the transaction
-    let delta_witness = DeltaWitness::from_bytes(&compliance_witness.rcv);
-    let mut tx = Transaction::create(vec![action], Delta::Witness(delta_witness));
-    tx.generate_delta_proof();
-    tx
+    let delta_witness = DeltaWitness::from_bytes(&compliance_witness.rcv)?;
+    let tx = Transaction::create(vec![action], Delta::Witness(delta_witness));
+    let balanced_tx = tx.generate_delta_proof().unwrap();
+    Ok(balanced_tx)
 }
 
 #[test]
@@ -139,9 +140,10 @@ fn simple_burn_test() {
         forwarder_addr,
         token_addr,
         user_addr,
-    );
+    )
+    .unwrap();
     println!("Tx build duration time: {:?}", tx_start_timer.elapsed());
 
     // Verify the transaction
-    assert!(tx.verify(), "Transaction verification failed");
+    tx.verify().unwrap();
 }

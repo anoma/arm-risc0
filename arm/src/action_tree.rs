@@ -1,4 +1,5 @@
 use crate::{
+    error::ArmError,
     merkle_path::{MerklePath, PADDING_LEAF},
     utils::hash_two,
 };
@@ -50,7 +51,7 @@ impl MerkleTree {
     /// - A `bool` indicating whether the sibling is on the left (`true`) or right (`false`).
     ///
     /// Returns `None` if the leaf is not found in the tree.
-    pub fn generate_path(&self, cur_leave: &Digest) -> Option<MerklePath> {
+    pub fn generate_path(&self, cur_leave: &Digest) -> Result<MerklePath, ArmError> {
         let len = self.leaves.len().next_power_of_two();
         let mut cur_layer = self.leaves.clone();
         cur_layer.resize(len, PADDING_LEAF.as_words().to_vec());
@@ -82,9 +83,9 @@ impl MerkleTree {
                 }
             }
             build_merkle_path_inner(cur_layer, position, &mut merkle_path);
-            Some(MerklePath::from_path(merkle_path.as_slice()))
+            Ok(MerklePath::from_path(merkle_path.as_slice()))
         } else {
-            None
+            Err(ArmError::InvalidLeaf)
         }
     }
 }

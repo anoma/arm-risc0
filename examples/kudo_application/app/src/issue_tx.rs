@@ -5,13 +5,12 @@ use crate::{
 use arm::{
     action_tree::MerkleTree,
     authorization::{AuthorizationSignature, AuthorizationSigningKey, AuthorizationVerifyingKey},
+    error::ArmError,
+    logic_proof::{LogicProver, PaddingResourceLogic},
     nullifier_key::{NullifierKey, NullifierKeyCommitment},
     resource::Resource,
-    utils::words_to_bytes,
-};
-use arm::{
-    logic_proof::{LogicProver, PaddingResourceLogic},
     transaction::Transaction,
+    utils::words_to_bytes,
 };
 use kudo_logic_witness::{
     kudo_main_witness::KudoMainWitness,
@@ -29,7 +28,7 @@ pub fn build_issue_tx(
     receiver_signature: &AuthorizationSignature,
     receiver_nk_commitment: &NullifierKeyCommitment,
     latest_root: Vec<u32>,
-) -> Transaction {
+) -> Result<Transaction, ArmError> {
     let issuer = AuthorizationVerifyingKey::from_signing_key(issuer_sk);
     let (instant_nk, instant_nk_commitment) = NullifierKey::random_pair();
     let kudo_logic = KudoMainInfo::verifying_key_as_bytes();
@@ -48,7 +47,7 @@ pub fn build_issue_tx(
         nonce.to_vec(),
         instant_nk_commitment.clone(),
     );
-    let ephemeral_kudo_resource_nf = ephemeral_kudo_resource.nullifier(&instant_nk).unwrap();
+    let ephemeral_kudo_resource_nf = ephemeral_kudo_resource.nullifier(&instant_nk)?;
 
     // Construct the issued kudo resource
     let issued_kudo_resource = Resource::create(
@@ -73,7 +72,7 @@ pub fn build_issue_tx(
         nonce.to_vec(),
         instant_nk_commitment.clone(),
     );
-    let issued_receive_resource_nf = issued_receive_resource.nullifier(&instant_nk).unwrap();
+    let issued_receive_resource_nf = issued_receive_resource.nullifier(&instant_nk)?;
 
     // Construct the issued denomination resource
     let denomination_logic = SimpleDenominationInfo::verifying_key_as_bytes();
@@ -91,7 +90,7 @@ pub fn build_issue_tx(
     // Construct the padding resource
     let padding_resource =
         PaddingResourceLogic::create_padding_resource(instant_nk_commitment.clone());
-    let padding_resource_nf = padding_resource.nullifier(&instant_nk).unwrap();
+    let padding_resource_nf = padding_resource.nullifier(&instant_nk)?;
 
     // Construct the ephemeral denomination resource
     let ephemeral_denomination_resource = Resource::create(
@@ -118,20 +117,14 @@ pub fn build_issue_tx(
     let root_bytes = words_to_bytes(&root);
 
     // Generate paths
-    let ephemeral_kudo_existence_path = action_tree
-        .generate_path(&ephemeral_kudo_resource_nf)
-        .unwrap();
-    let issued_kudo_existence_path = action_tree.generate_path(&issued_kudo_resource_cm).unwrap();
-    let issued_receive_existence_path = action_tree
-        .generate_path(&issued_receive_resource_nf)
-        .unwrap();
-    let issued_denomination_existence_path = action_tree
-        .generate_path(&issued_denomination_resource_cm)
-        .unwrap();
-    let padding_resource_existence_path = action_tree.generate_path(&padding_resource_nf).unwrap();
-    let ephemeral_denomination_existence_path = action_tree
-        .generate_path(&ephemeral_denomination_resource_cm)
-        .unwrap();
+    let ephemeral_kudo_existence_path = action_tree.generate_path(&ephemeral_kudo_resource_nf)?;
+    let issued_kudo_existence_path = action_tree.generate_path(&issued_kudo_resource_cm)?;
+    let issued_receive_existence_path = action_tree.generate_path(&issued_receive_resource_nf)?;
+    let issued_denomination_existence_path =
+        action_tree.generate_path(&issued_denomination_resource_cm)?;
+    let padding_resource_existence_path = action_tree.generate_path(&padding_resource_nf)?;
+    let ephemeral_denomination_existence_path =
+        action_tree.generate_path(&ephemeral_denomination_resource_cm)?;
 
     // Construct the issued kudo witness
     let issue_kudo_logic_witness = KudoMainWitness::generate_persistent_resource_creation_witness(
@@ -236,20 +229,21 @@ fn generate_an_issue_tx() {
     };
 
     let tx_start_timer = Instant::now();
-    let mut tx = build_issue_tx(
+    let tx = build_issue_tx(
         &AuthorizationSigningKey::new(),
         100,
         &receiver_pk,
         &receiver_signature,
         &NullifierKeyCommitment::default(),
         INITIAL_ROOT.as_words().to_vec(),
-    );
+    )
+    .unwrap();
 
-    tx.generate_delta_proof();
+    let balanced_tx = tx.generate_delta_proof().unwrap();
     println!("Tx build duration time: {:?}", tx_start_timer.elapsed());
 
     let tx_verify_start_timer = Instant::now();
-    assert!(tx.verify());
+    balanced_tx.verify().unwrap();
     println!(
         "TX verify duration time: {:?}",
         tx_verify_start_timer.elapsed()

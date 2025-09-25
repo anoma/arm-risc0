@@ -1,7 +1,8 @@
+use crate::error::ArmError;
 use k256::{
     ecdsa::{
         signature::{Signer, Verifier},
-        Error, Signature, SigningKey, VerifyingKey,
+        Signature, SigningKey, VerifyingKey,
     },
     elliptic_curve::{rand_core::OsRng, sec1::ToEncodedPoint},
     AffinePoint,
@@ -31,8 +32,10 @@ impl AuthorizationSigningKey {
         self.0.to_bytes().into()
     }
 
-    pub fn from_bytes(bytes: &[u8]) -> Self {
-        AuthorizationSigningKey(SigningKey::from_bytes(bytes.into()).unwrap())
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, ArmError> {
+        let signing_key =
+            SigningKey::from_bytes(bytes.into()).map_err(|_| ArmError::InvalidSigningKey)?;
+        Ok(AuthorizationSigningKey(signing_key))
     }
 }
 
@@ -57,7 +60,7 @@ impl<'de> Deserialize<'de> for AuthorizationSigningKey {
         D: serde::Deserializer<'de>,
     {
         let bytes = <[u8; 32]>::deserialize(deserializer)?;
-        Ok(AuthorizationSigningKey::from_bytes(&bytes))
+        AuthorizationSigningKey::from_bytes(&bytes).map_err(serde::de::Error::custom)
     }
 }
 
@@ -67,10 +70,15 @@ impl AuthorizationVerifyingKey {
         Self::from_affine(*verifying_key.as_affine())
     }
 
-    pub fn verify(&self, message: &[u8], signature: &AuthorizationSignature) -> Result<(), Error> {
+    pub fn verify(
+        &self,
+        message: &[u8],
+        signature: &AuthorizationSignature,
+    ) -> Result<(), ArmError> {
         VerifyingKey::from_affine(self.0)
-            .unwrap()
+            .map_err(|_| ArmError::InvalidPublicKey)?
             .verify(message, signature.inner())
+            .map_err(|_| ArmError::InvalidSignature)
     }
 
     pub fn from_affine(point: AffinePoint) -> Self {
@@ -95,12 +103,14 @@ impl AuthorizationSignature {
         self.0.to_bytes().to_vec()
     }
 
-    pub fn from_bytes(bytes: &[u8]) -> Self {
-        AuthorizationSignature(Signature::from_bytes(bytes.into()).unwrap())
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, ArmError> {
+        let sig = Signature::from_bytes(bytes.into()).map_err(|_| ArmError::InvalidSignature)?;
+        Ok(AuthorizationSignature(sig))
     }
 }
 
 impl Default for AuthorizationSignature {
+    // The default value is only for testing
     fn default() -> Self {
         AuthorizationSignature::from_bytes(&[
             101, 32, 148, 79, 63, 230, 254, 97, 75, 207, 23, 50, 92, 222, 89, 100, 165, 2, 71, 210,
@@ -108,6 +118,7 @@ impl Default for AuthorizationSignature {
             239, 106, 34, 243, 48, 39, 100, 175, 157, 236, 122, 31, 161, 83, 8, 27, 17, 33, 145,
             161, 164, 137, 140, 209, 239, 25,
         ])
+        .unwrap()
     }
 }
 

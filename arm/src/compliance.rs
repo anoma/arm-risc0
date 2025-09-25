@@ -1,4 +1,5 @@
 use crate::{
+    error::ArmError,
     merkle_path::MerklePath,
     nullifier_key::NullifierKey,
     resource::Resource,
@@ -101,12 +102,12 @@ impl ComplianceWitness {
         }
     }
 
-    pub fn constrain(&self) -> ComplianceInstance {
+    pub fn constrain(&self) -> Result<ComplianceInstance, ArmError> {
         let consumed_cm = self.consumed_commitment();
         let consumed_logic_ref = self.consumed_resource_logic();
         let consumed_commitment_tree_root = self.consumed_commitment_tree_root(&consumed_cm);
 
-        let consumed_nullifier = self.consumed_nullifier(&consumed_cm);
+        let consumed_nullifier = self.consumed_nullifier(&consumed_cm)?;
         let created_logic_ref = self.created_resource_logic();
         let created_commitment = self.created_commitment();
 
@@ -117,9 +118,9 @@ impl ComplianceWitness {
             "Created resource nonce must match consumed nullifier"
         );
 
-        let (delta_x, delta_y) = self.delta();
+        let (delta_x, delta_y) = self.delta()?;
 
-        ComplianceInstance {
+        Ok(ComplianceInstance {
             consumed_nullifier: consumed_nullifier.as_words().to_vec(),
             consumed_logic_ref: consumed_logic_ref.as_words().to_vec(),
             consumed_commitment_tree_root,
@@ -127,14 +128,16 @@ impl ComplianceWitness {
             created_logic_ref: created_logic_ref.as_words().to_vec(),
             delta_x,
             delta_y,
-        }
+        })
     }
 
     pub fn consumed_resource_logic(&self) -> Digest {
+        // TODO(issue 119): the error handling can be fixed in a separate PR when reverting back to using Digest
         Digest::from_bytes(self.consumed_resource.logic_ref.clone().try_into().unwrap())
     }
 
     pub fn created_resource_logic(&self) -> Digest {
+        // TODO(issue 119): the error handling can be fixed in a separate PR when reverting back to using Digest
         Digest::from_bytes(self.created_resource.logic_ref.clone().try_into().unwrap())
     }
 
@@ -146,10 +149,9 @@ impl ComplianceWitness {
         self.created_resource.commitment()
     }
 
-    pub fn consumed_nullifier(&self, cm: &Digest) -> Digest {
+    pub fn consumed_nullifier(&self, cm: &Digest) -> Result<Digest, ArmError> {
         self.consumed_resource
             .nullifier_from_commitment(&self.nf_key, cm)
-            .unwrap()
     }
 
     pub fn consumed_commitment_tree_root(&self, cm: &Digest) -> Vec<u32> {
@@ -160,28 +162,33 @@ impl ComplianceWitness {
         }
     }
 
-    pub fn delta(&self) -> (Vec<u32>, Vec<u32>) {
+    pub fn delta(&self) -> Result<(Vec<u32>, Vec<u32>), ArmError> {
         // Compute delta and make delta commitment public
         let rcv_array: [u8; 32] = self
             .rcv
             .as_slice()
             .try_into()
-            .expect("rcv must be 32 bytes");
-        let rcv_scalar = Scalar::from_repr(rcv_array.into()).expect("rcv must be a valid scalar");
-        let delta = self.consumed_resource.kind() * self.consumed_resource.quantity_scalar()
-            - self.created_resource.kind() * self.created_resource.quantity_scalar()
+            .map_err(|_| ArmError::InvalidRcv)?;
+        let rcv_scalar = Scalar::from_repr(rcv_array.into())
+            .into_option()
+            .ok_or(ArmError::InvalidRcv)?;
+        let consumed_kind = self.consumed_resource.kind()?;
+        let created_kind = self.created_resource.kind()?;
+        let delta = consumed_kind * self.consumed_resource.quantity_scalar()
+            - created_kind * self.created_resource.quantity_scalar()
             + ProjectivePoint::GENERATOR * rcv_scalar;
 
         let encoded_delta = delta.to_encoded_point(false);
 
-        (
-            bytes_to_words(encoded_delta.x().unwrap()),
-            bytes_to_words(encoded_delta.y().unwrap()),
-        )
+        Ok((
+            bytes_to_words(encoded_delta.x().ok_or(ArmError::InvalidDelta)?),
+            bytes_to_words(encoded_delta.y().ok_or(ArmError::InvalidDelta)?),
+        ))
     }
 }
 
 impl Default for ComplianceWitness {
+    // The default value is meaningless and only for testing
     fn default() -> Self {
         let nf_key = NullifierKey::default();
 
@@ -225,15 +232,17 @@ impl Default for ComplianceWitness {
 }
 
 impl ComplianceInstance {
-    pub fn delta_projective(&self) -> ProjectivePoint {
+    pub fn delta_projective(&self) -> Result<ProjectivePoint, ArmError> {
         let x: [u8; 32] = words_to_bytes(&self.delta_x)
             .try_into()
-            .expect("delta_x must be 32 bytes");
+            .map_err(|_| ArmError::InvalidDelta)?;
         let y: [u8; 32] = words_to_bytes(&self.delta_y)
             .try_into()
-            .expect("delta_y must be 32 bytes");
+            .map_err(|_| ArmError::InvalidDelta)?;
         let encoded_point = EncodedPoint::from_affine_coordinates(&x.into(), &y.into(), false);
-        ProjectivePoint::from_encoded_point(&encoded_point).unwrap()
+        ProjectivePoint::from_encoded_point(&encoded_point)
+            .into_option()
+            .ok_or(ArmError::InvalidDelta)
     }
 
     pub fn delta_msg(&self) -> Vec<u8> {

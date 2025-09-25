@@ -1,6 +1,7 @@
 use crate::{
     action::Action,
     delta_proof::{DeltaInstance, DeltaProof, DeltaWitness},
+    error::ArmError,
 };
 use serde::{Deserialize, Serialize};
 
@@ -32,53 +33,53 @@ impl Transaction {
         }
     }
 
-    pub fn generate_delta_proof(&mut self) {
+    pub fn generate_delta_proof(self) -> Result<Transaction, ArmError> {
         match self.delta_proof {
             Delta::Witness(ref witness) => {
-                let msg = self.get_delta_msg();
-                let proof = DeltaProof::prove(&msg, witness);
-                self.delta_proof = Delta::Proof(proof);
+                let msg = self.get_delta_msg()?;
+                let proof = DeltaProof::prove(&msg, witness)?;
+                let delta_proof = Delta::Proof(proof);
+                Ok(Transaction {
+                    actions: self.actions,
+                    delta_proof,
+                    expected_balance: self.expected_balance,
+                })
             }
-            Delta::Proof(_) => {}
+            Delta::Proof(_) => Ok(self),
         }
     }
 
-    pub fn verify(self) -> bool {
+    pub fn verify(self) -> Result<(), ArmError> {
         match &self.delta_proof {
             Delta::Proof(ref proof) => {
-                let msg = self.get_delta_msg();
-                let instance = self.delta();
-                if DeltaProof::verify(&msg, proof, instance).is_err() {
-                    return false;
-                }
+                let msg = self.get_delta_msg()?;
+                let instance = self.delta()?;
+                DeltaProof::verify(&msg, proof, instance)?;
                 for action in self.actions {
-                    if !action.verify() {
-                        return false;
-                    }
+                    action.verify()?;
                 }
-                true
+                Ok(())
             }
-            Delta::Witness(_) => false,
+            Delta::Witness(_) => Err(ArmError::ExpectedDeltaProof),
         }
     }
 
     // Returns the DeltaInstance constructed from the sum of all actions'
     // deltas.
-    pub fn delta(&self) -> DeltaInstance {
-        let deltas = self
-            .actions
-            .iter()
-            .map(|action| action.delta())
-            .collect::<Vec<_>>();
-        DeltaInstance::from_deltas(&deltas).unwrap()
+    pub fn delta(&self) -> Result<DeltaInstance, ArmError> {
+        let mut points = Vec::with_capacity(self.actions.len());
+        for action in &self.actions {
+            points.push(action.delta()?);
+        }
+        DeltaInstance::from_deltas(&points)
     }
 
-    pub fn get_delta_msg(&self) -> Vec<u8> {
+    pub fn get_delta_msg(&self) -> Result<Vec<u8>, ArmError> {
         let mut msg = Vec::new();
         for action in &self.actions {
-            msg.extend(action.get_delta_msg());
+            msg.extend(action.get_delta_msg()?);
         }
-        msg
+        Ok(msg)
     }
 
     pub fn compose(tx1: Transaction, tx2: Transaction) -> Transaction {
@@ -94,13 +95,14 @@ impl Transaction {
     }
 }
 
+// Only for testing, todo: move to tests module (Issue 120)
 pub fn generate_test_transaction(n_actions: usize) -> Transaction {
     use crate::action::create_multiple_actions;
     let (actions, delta_witness) = create_multiple_actions(n_actions);
-    let mut tx = Transaction::create(actions, Delta::Witness(delta_witness));
-    tx.generate_delta_proof();
-    assert!(tx.clone().verify());
-    tx
+    let tx = Transaction::create(actions, Delta::Witness(delta_witness));
+    let balanced_tx = tx.generate_delta_proof().unwrap();
+    balanced_tx.clone().verify().unwrap();
+    balanced_tx
 }
 
 #[cfg(test)]

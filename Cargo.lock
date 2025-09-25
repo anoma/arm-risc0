@@ -613,6 +613,7 @@ dependencies = [
  "rustler",
  "serde",
  "sha3",
+ "thiserror 2.0.12",
 ]
 
 [[package]]

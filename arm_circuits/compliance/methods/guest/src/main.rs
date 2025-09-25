@@ -6,7 +6,7 @@ use risc0_zkvm::guest::env;
 pub fn main() {
     let compliance_witness: ComplianceWitness = env::read();
 
-    let compliance_instance = compliance_witness.constrain();
+    let compliance_instance = compliance_witness.constrain().unwrap();
 
     env::commit(&compliance_instance);
 }

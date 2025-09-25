@@ -1,6 +1,7 @@
 pub use arm::resource_logic::LogicCircuit;
 use arm::{
     encryption::{AffinePoint, Ciphertext, SecretKey},
+    error::ArmError,
     logic_instance::{AppData, ExpirableBlob, LogicInstance},
     merkle_path::MerklePath,
     nullifier_key::NullifierKey,
@@ -46,9 +47,9 @@ impl CounterWitness {
 }
 
 impl LogicCircuit for CounterWitness {
-    fn constrain(&self) -> LogicInstance {
+    fn constrain(&self) -> Result<LogicInstance, ArmError> {
         // Load resources
-        let old_nf = self.old_counter.nullifier(&self.nf_key).unwrap();
+        let old_nf = self.old_counter.nullifier(&self.nf_key)?;
         let new_cm = self.new_counter.commitment();
 
         // Check existence paths
@@ -59,10 +60,16 @@ impl LogicCircuit for CounterWitness {
         assert_eq!(self.old_counter.quantity, 1);
         assert_eq!(self.new_counter.quantity, 1);
 
-        let old_counter_value: u128 =
-            u128::from_le_bytes(self.old_counter.value_ref[0..16].try_into().unwrap());
-        let new_counter_value: u128 =
-            u128::from_le_bytes(self.new_counter.value_ref[0..16].try_into().unwrap());
+        let old_counter_value: u128 = u128::from_le_bytes(
+            self.old_counter.value_ref[0..16]
+                .try_into()
+                .map_err(|_| ArmError::InvalidResourceValueRef)?,
+        );
+        let new_counter_value: u128 = u128::from_le_bytes(
+            self.new_counter.value_ref[0..16]
+                .try_into()
+                .map_err(|_| ArmError::InvalidResourceValueRef)?,
+        );
 
         // Init a new counter resource with the value 1
         if self.old_counter.is_ephemeral {
@@ -80,7 +87,7 @@ impl LogicCircuit for CounterWitness {
                 &self.discovery_pk,
                 &self.discovery_sk,
                 self.discovery_nonce,
-            );
+            )?;
             let cipher_expirable_blob = ExpirableBlob {
                 blob: cipher.as_words(),
                 deletion_criterion: 1,
@@ -93,11 +100,11 @@ impl LogicCircuit for CounterWitness {
             ..Default::default()
         };
 
-        LogicInstance {
+        Ok(LogicInstance {
             tag: tag.as_words().to_vec(),
             is_consumed: self.is_consumed,
             root: old_counter_root,
             app_data,
-        }
+        })
     }
 }
