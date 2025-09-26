@@ -201,7 +201,7 @@ impl LogicProver for TrivialLogicWitness {
 }
 
 #[test]
-fn test_trivial_logic_prover() {
+fn test_padding_logic_prover() {
     let trivial_logic = PaddingResourceLogic::default();
     let proof = trivial_logic.prove().unwrap();
     proof.verify().unwrap();

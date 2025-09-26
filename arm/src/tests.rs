@@ -30,7 +30,6 @@ lazy_static! {
             .unwrap();
 }
 
-// TODO: consider moving it to a separate module
 #[derive(Clone, Default, Deserialize, Serialize)]
 pub struct TestLogic {
     witness: TestLogicWitness,
