@@ -4,6 +4,7 @@ use arm::{
     compliance_unit::ComplianceUnit,
     error::ArmError,
     transaction::{Delta, Transaction},
+    Digest,
 };
 use arm::{compliance::ComplianceWitness, delta_proof::DeltaWitness};
 
@@ -24,7 +25,7 @@ where
     K: KudoInfo,
     D: DenominationInfo,
 {
-    pub fn create_tx(&self, latest_root: Vec<u32>) -> Result<Transaction, ArmError> {
+    pub fn create_tx(&self, latest_root: Digest) -> Result<Transaction, ArmError> {
         // Create the action
         let (action, delta_witness) = {
             // Generate compliance units

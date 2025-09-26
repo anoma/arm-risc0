@@ -7,6 +7,7 @@ use arm::{
     error::ArmError,
     logic_proof::{LogicProver, PaddingResourceLogic},
     transaction::{Delta, Transaction},
+    Digest,
 };
 
 #[derive(Clone)]
@@ -30,7 +31,7 @@ where
     D: DenominationInfo,
     R: ReceiveInfo,
 {
-    pub fn create_tx(&self, latest_root: Vec<u32>) -> Result<Transaction, ArmError> {
+    pub fn create_tx(&self, latest_root: Digest) -> Result<Transaction, ArmError> {
         // Create the action
         let (action, delta_witness) = {
             // Generate compliance units
@@ -40,7 +41,7 @@ where
             let (compliance_unit_1, delta_witness_1) = {
                 let compliance_witness: ComplianceWitness = ComplianceWitness::from_resources(
                     self.ephemeral_kudo.resource(),
-                    latest_root.clone(),
+                    latest_root,
                     self.ephemeral_kudo
                         .nf_key()
                         .ok_or(ArmError::MissingField("Ephemeral kudo nullifier key"))?,
@@ -58,7 +59,7 @@ where
             let (compliance_unit_2, delta_witness_2) = {
                 let compliance_witness: ComplianceWitness = ComplianceWitness::from_resources(
                     self.issue_receive.resource(),
-                    latest_root.clone(),
+                    latest_root,
                     self.issue_receive
                         .nf_key()
                         .ok_or(ArmError::MissingField("Issued receive nullifier key"))?,

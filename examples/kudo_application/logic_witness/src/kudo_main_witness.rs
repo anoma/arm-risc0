@@ -113,7 +113,7 @@ impl LogicCircuit for KudoMainWitness {
         };
 
         Ok(LogicInstance {
-            tag: tag.as_words().to_vec(),
+            tag,
             is_consumed: self.kudo_is_consumed,
             root,
             app_data,

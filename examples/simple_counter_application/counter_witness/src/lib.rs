@@ -101,7 +101,7 @@ impl LogicCircuit for CounterWitness {
         };
 
         Ok(LogicInstance {
-            tag: tag.as_words().to_vec(),
+            tag,
             is_consumed: self.is_consumed,
             root: old_counter_root,
             app_data,

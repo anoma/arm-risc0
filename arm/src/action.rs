@@ -6,6 +6,7 @@ use crate::{
     logic_proof::{LogicVerifier, LogicVerifierInputs},
 };
 use k256::ProjectivePoint;
+use risc0_zkvm::Digest;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -49,23 +50,13 @@ impl Action {
             .collect::<Result<Vec<ComplianceInstance>, ArmError>>()?;
 
         // Construct the action tree
-        let tags: Vec<Vec<u32>> = compliance_intances
+        let tags: Vec<Digest> = compliance_intances
             .iter()
-            .flat_map(|instance| {
-                vec![
-                    instance.consumed_nullifier.clone(),
-                    instance.created_commitment.clone(),
-                ]
-            })
+            .flat_map(|instance| vec![instance.consumed_nullifier, instance.created_commitment])
             .collect();
         let logics = compliance_intances
             .iter()
-            .flat_map(|instance| {
-                vec![
-                    instance.consumed_logic_ref.clone(),
-                    instance.created_logic_ref.clone(),
-                ]
-            })
+            .flat_map(|instance| vec![instance.consumed_logic_ref, instance.created_logic_ref])
             .collect::<Vec<_>>();
         let action_tree = MerkleTree::from(tags.clone());
         let root = action_tree.root();
@@ -78,7 +69,7 @@ impl Action {
                 }
 
                 let is_comsumed = index % 2 == 0;
-                let verifier = input.to_logic_verifier(is_comsumed, root.clone())?;
+                let verifier = input.to_logic_verifier(is_comsumed, root)?;
                 verifier.verify()?;
             } else {
                 return Err(ArmError::TagNotFound);
