@@ -44,7 +44,7 @@ impl LogicCircuit for SimpleReceiveLogicWitness {
         // TODO: add custom receive logic
 
         Ok(LogicInstance {
-            tag: tag.as_words().to_vec(),
+            tag,
             is_consumed: self.is_consumed, // It can be either consumed or created to reduce padding resources
             root,
             app_data: AppData::default(), // no app data needed

@@ -7,6 +7,7 @@ use arm::{
     error::ArmError,
     logic_proof::{LogicProver, PaddingResourceLogic},
     transaction::{Delta, Transaction},
+    Digest,
 };
 
 // TODO: Swap seems simillar to TransferWitness, consider abstracting and
@@ -36,7 +37,7 @@ where
     D2: DenominationInfo,
     R: ReceiveInfo,
 {
-    pub fn create_tx(&self, latest_root: Vec<u32>) -> Result<Transaction, ArmError> {
+    pub fn create_tx(&self, latest_root: Digest) -> Result<Transaction, ArmError> {
         // Create the action
         let (action, delta_witness) = {
             // Generate compliance units Compliance unit 1: the consumed kudo
@@ -68,7 +69,7 @@ where
             let (compliance_unit_2, delta_witness_2) = {
                 let compliance_witness: ComplianceWitness = ComplianceWitness::from_resources(
                     self.consumed_denomination.resource(),
-                    latest_root.clone(),
+                    latest_root,
                     self.consumed_denomination
                         .nf_key()
                         .ok_or(ArmError::MissingField(

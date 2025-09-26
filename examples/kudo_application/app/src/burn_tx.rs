@@ -6,8 +6,9 @@ use arm::{
     merkle_path::MerklePath,
     nullifier_key::NullifierKey,
     resource::Resource,
+    Digest,
 };
-use arm::{logic_proof::LogicProver, transaction::Transaction, utils::words_to_bytes};
+use arm::{logic_proof::LogicProver, transaction::Transaction};
 use kudo_logic_witness::{
     kudo_main_witness::KudoMainWitness,
     simple_denomination_witness::SimpleDenominationLogicWitness,
@@ -22,7 +23,7 @@ pub fn build_burn_tx(
     burned_kudo_resource: &Resource,
     burned_kudoresource_nf_key: &NullifierKey,
     burned_kudo_path: MerklePath,
-    latest_root: Vec<u32>,
+    latest_root: Digest,
 ) -> Result<Transaction, ArmError> {
     let issuer = AuthorizationVerifyingKey::from_signing_key(issuer_sk);
     let (instant_nk, instant_nk_commitment) = NullifierKey::random_pair();
@@ -78,7 +79,7 @@ pub fn build_burn_tx(
         burned_denomination_resource_cm,
     ]);
     let root = action_tree.root();
-    let root_bytes = words_to_bytes(&root);
+    let root_bytes = root.as_bytes();
 
     // Generate paths
     let burned_kudo_existence_path = action_tree.generate_path(&burned_kudo_resource_nf)?;
@@ -185,7 +186,7 @@ fn generate_a_burn_tx() {
         &kudo_resource,
         &kudo_nf_key,
         MerklePath::default(), // It should be a real path
-        INITIAL_ROOT.as_words().to_vec(),
+        *INITIAL_ROOT,
     )
     .unwrap();
 

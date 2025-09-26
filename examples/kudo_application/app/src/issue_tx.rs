@@ -10,7 +10,7 @@ use arm::{
     nullifier_key::{NullifierKey, NullifierKeyCommitment},
     resource::Resource,
     transaction::Transaction,
-    utils::words_to_bytes,
+    Digest,
 };
 use kudo_logic_witness::{
     kudo_main_witness::KudoMainWitness,
@@ -27,7 +27,7 @@ pub fn build_issue_tx(
     receiver_pk: &AuthorizationVerifyingKey,
     receiver_signature: &AuthorizationSignature,
     receiver_nk_commitment: &NullifierKeyCommitment,
-    latest_root: Vec<u32>,
+    latest_root: Digest,
 ) -> Result<Transaction, ArmError> {
     let issuer = AuthorizationVerifyingKey::from_signing_key(issuer_sk);
     let (instant_nk, instant_nk_commitment) = NullifierKey::random_pair();
@@ -114,7 +114,7 @@ pub fn build_issue_tx(
         ephemeral_denomination_resource_cm,
     ]);
     let root = action_tree.root();
-    let root_bytes = words_to_bytes(&root);
+    let root_bytes = root.as_bytes();
 
     // Generate paths
     let ephemeral_kudo_existence_path = action_tree.generate_path(&ephemeral_kudo_resource_nf)?;
@@ -235,7 +235,7 @@ fn generate_an_issue_tx() {
         &receiver_pk,
         &receiver_signature,
         &NullifierKeyCommitment::default(),
-        INITIAL_ROOT.as_words().to_vec(),
+        *INITIAL_ROOT,
     )
     .unwrap();
 

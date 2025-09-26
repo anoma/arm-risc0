@@ -7,33 +7,29 @@ use risc0_zkvm::sha::Digest;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MerkleTree {
-    pub leaves: Vec<Vec<u32>>,
+    pub leaves: Vec<Digest>,
 }
 
 impl MerkleTree {
     pub fn new(leaves: Vec<Digest>) -> Self {
-        let leaves = leaves
-            .into_iter()
-            .map(|digest| digest.as_words().to_vec())
-            .collect();
         MerkleTree { leaves }
     }
 
     pub fn insert(&mut self, value: Digest) {
-        self.leaves.push(value.as_words().to_vec())
+        self.leaves.push(value)
     }
 
-    pub fn root(&self) -> Vec<u32> {
+    pub fn root(&self) -> Digest {
         let len = self.leaves.len().next_power_of_two();
         let mut cur_layer = self.leaves.clone();
-        cur_layer.resize(len, PADDING_LEAF.as_words().to_vec());
+        cur_layer.resize(len, *PADDING_LEAF);
         while cur_layer.len() > 1 {
             cur_layer = cur_layer
                 .chunks(2)
                 .map(|pair| hash_two(&pair[0], &pair[1]))
                 .collect();
         }
-        cur_layer[0].clone()
+        cur_layer[0]
     }
 
     // Generate the merkle path for the current leave
@@ -54,21 +50,21 @@ impl MerkleTree {
     pub fn generate_path(&self, cur_leave: &Digest) -> Result<MerklePath, ArmError> {
         let len = self.leaves.len().next_power_of_two();
         let mut cur_layer = self.leaves.clone();
-        cur_layer.resize(len, PADDING_LEAF.as_words().to_vec());
-        if let Some(position) = cur_layer.iter().position(|v| v == cur_leave.as_words()) {
+        cur_layer.resize(len, *PADDING_LEAF);
+        if let Some(position) = cur_layer.iter().position(|v| v == cur_leave) {
             let mut merkle_path = Vec::new();
             fn build_merkle_path_inner(
-                cur_layer: Vec<Vec<u32>>,
+                cur_layer: Vec<Digest>,
                 position: usize,
-                path: &mut Vec<(Vec<u32>, bool)>,
+                path: &mut Vec<(Digest, bool)>,
             ) {
                 if cur_layer.len() > 1 {
                     let sibling = {
                         let is_sibling_left = position % 2 != 0;
                         let sibling_value = if is_sibling_left {
-                            cur_layer[position - 1].clone()
+                            cur_layer[position - 1]
                         } else {
-                            cur_layer[position + 1].clone()
+                            cur_layer[position + 1]
                         };
                         (sibling_value, is_sibling_left)
                     };
@@ -93,11 +89,5 @@ impl MerkleTree {
 impl From<Vec<Digest>> for MerkleTree {
     fn from(leaves: Vec<Digest>) -> Self {
         MerkleTree::new(leaves)
-    }
-}
-
-impl From<Vec<Vec<u32>>> for MerkleTree {
-    fn from(leaves: Vec<Vec<u32>>) -> Self {
-        MerkleTree { leaves }
     }
 }

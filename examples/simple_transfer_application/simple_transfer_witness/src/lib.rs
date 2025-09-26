@@ -11,7 +11,7 @@ use arm::{
     merkle_path::MerklePath,
     nullifier_key::NullifierKey,
     resource::Resource,
-    utils::{bytes_to_words, hash_bytes, words_to_bytes},
+    utils::{bytes_to_words, hash_bytes},
 };
 use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -77,7 +77,7 @@ impl LogicCircuit for SimpleTransferWitness {
 
         // Check the existence path
         let root = self.existence_path.root(&tag);
-        let root_bytes = words_to_bytes(&root);
+        let root_bytes = root.as_bytes();
 
         // Generate resource_payload and external_payload
         let (discovery_payload, resource_payload, external_payload) = if self.resource.is_ephemeral
@@ -204,7 +204,7 @@ impl LogicCircuit for SimpleTransferWitness {
         };
 
         Ok(LogicInstance {
-            tag: tag.as_words().to_vec(),
+            tag,
             is_consumed: self.is_consumed,
             root,
             app_data,

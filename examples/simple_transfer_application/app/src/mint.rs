@@ -10,6 +10,7 @@ use arm::{
     nullifier_key::NullifierKey,
     resource::Resource,
     transaction::{Delta, Transaction},
+    Digest,
 };
 
 use crate::TransferLogic;
@@ -17,7 +18,7 @@ use crate::TransferLogic;
 #[allow(clippy::too_many_arguments)]
 pub fn construct_mint_tx(
     consumed_resource: Resource,
-    latest_cm_tree_root: Vec<u32>,
+    latest_cm_tree_root: Digest,
     consumed_nf_key: NullifierKey,
     forwarder_addr: Vec<u8>,
     token_addr: Vec<u8>,
@@ -110,7 +111,7 @@ fn simple_mint_test() {
     );
     let consumed_nf = consumed_resource.nullifier(&consumed_nf_key).unwrap();
     // Fetch the latest cm tree root from the chain
-    let latest_cm_tree_root = INITIAL_ROOT.as_words().to_vec();
+    let latest_cm_tree_root = *INITIAL_ROOT;
 
     // Generate the created resource
     let (_created_nf_key, created_nf_cm) = NullifierKey::random_pair();

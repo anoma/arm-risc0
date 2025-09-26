@@ -11,7 +11,7 @@ use arm::{
     nullifier_key::NullifierKey,
     resource::Resource,
     transaction::Transaction,
-    utils::words_to_bytes,
+    Digest,
 };
 use kudo_logic_witness::{
     kudo_main_witness::KudoMainWitness,
@@ -31,7 +31,7 @@ pub fn build_swap_tx(
     consumed_kudo_path: MerklePath,
     created_issuer: &AuthorizationVerifyingKey,
     created_kudo_quantity: u128,
-    latest_root: Vec<u32>,
+    latest_root: Digest,
 ) -> Result<Transaction, ArmError> {
     let (instant_nk, instant_nk_commitment) = NullifierKey::random_pair();
 
@@ -113,7 +113,7 @@ pub fn build_swap_tx(
         receive_resource_cm,
     ]);
     let root = action_tree.root();
-    let root_bytes = words_to_bytes(&root);
+    let root_bytes = root.as_bytes();
 
     // Generate paths
     let consumed_kudo_existence_path = action_tree.generate_path(&consumed_kudo_nf)?;
@@ -268,7 +268,7 @@ fn generate_a_swap_tx() {
         MerklePath::default(), // It should be a real path
         &alice_created_issuer,
         alice_created_kudo_quantity,
-        INITIAL_ROOT.as_words().to_vec(),
+        *INITIAL_ROOT,
     )
     .unwrap();
 
@@ -299,7 +299,7 @@ fn generate_a_swap_tx() {
         MerklePath::default(), // It should be a real path
         &bob_created_issuer,
         bob_created_kudo_quantity,
-        INITIAL_ROOT.as_words().to_vec(),
+        *INITIAL_ROOT,
     )
     .unwrap();
 
