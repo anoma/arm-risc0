@@ -103,9 +103,9 @@ fn simple_mint_test() {
         &forwarder_addr,
         &token_addr,
         quantity,
-        vec![4u8; 32], // nonce
+        [4u8; 32], // nonce
         consumed_nf_cm,
-        vec![5u8; 32], // rand_seed
+        [5u8; 32], // rand_seed
         CallType::Wrap,
         &user_addr,
     );
@@ -123,9 +123,9 @@ fn simple_mint_test() {
         &forwarder_addr,
         &token_addr,
         quantity,
-        consumed_nf.as_bytes().to_vec(), // nonce
+        consumed_nf.as_bytes().try_into().unwrap(), // nonce
         created_nf_cm,
-        vec![6u8; 32], // rand_seed
+        [6u8; 32], // rand_seed
         &created_auth_pk,
     );
 

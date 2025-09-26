@@ -12,6 +12,7 @@ use arm::{
     nullifier_key::NullifierKey,
     resource::Resource,
     utils::{bytes_to_words, hash_bytes},
+    Digest,
 };
 use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -235,17 +236,17 @@ impl SimpleTransferWitness {
     }
 }
 
-pub fn calculate_value_ref_from_auth(auth_pk: &AuthorizationVerifyingKey) -> Vec<u8> {
+pub fn calculate_value_ref_from_auth(auth_pk: &AuthorizationVerifyingKey) -> Digest {
     hash_bytes(&auth_pk.to_bytes())
 }
 
-pub fn calculate_value_ref_calltype_user(call_type: CallType, user_addr: &[u8]) -> Vec<u8> {
+pub fn calculate_value_ref_calltype_user(call_type: CallType, user_addr: &[u8]) -> Digest {
     let mut data = vec![call_type as u8];
     data.extend_from_slice(user_addr);
     hash_bytes(&data)
 }
 
-pub fn calculate_label_ref(forwarder_add: &[u8], erc20_add: &[u8]) -> Vec<u8> {
+pub fn calculate_label_ref(forwarder_add: &[u8], erc20_add: &[u8]) -> Digest {
     hash_bytes(&[forwarder_add, erc20_add].concat())
 }
 

@@ -59,8 +59,7 @@ impl LogicCircuit for KudoMainWitness {
         assert_eq!(root, dr_root);
 
         // Check denomination.label = kudo_resource.tag
-        let tag_bytes = tag.as_bytes().to_vec();
-        assert_eq!(self.denomination_resource.label_ref, tag_bytes);
+        assert_eq!(self.denomination_resource.label_ref, tag);
 
         // Decode label of the kudo resource and check the correspondence between the
         // kudo resource and the domination resource
@@ -84,14 +83,15 @@ impl LogicCircuit for KudoMainWitness {
             let owner_bytes = self.owner.to_bytes();
             assert_eq!(
                 self.kudo_resource.value_ref,
-                *Impl::hash_bytes(&owner_bytes).as_bytes().to_vec()
+                *Impl::hash_bytes(&owner_bytes)
             );
 
             // Check receive_resource.label = kudo_resource.tag
-            assert_eq!(self.receive_resource.label_ref, tag_bytes);
+            assert_eq!(self.receive_resource.label_ref, tag);
 
             // Verify signature
-            let mut receive_logic_and_owner_bytes = self.receive_resource.logic_ref.clone();
+            let mut receive_logic_and_owner_bytes =
+                self.receive_resource.logic_ref.as_bytes().to_vec();
             receive_logic_and_owner_bytes.extend_from_slice(&owner_bytes);
             assert!(self
                 .owner

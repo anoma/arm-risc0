@@ -18,7 +18,7 @@ pub fn increment_counter(
 ) -> Result<Resource, ArmError> {
     let mut new_counter = old_counter.clone();
     let current_value = u128::from_le_bytes(
-        new_counter.value_ref[0..16]
+        new_counter.value_ref.as_bytes()[0..16]
             .try_into()
             .map_err(|_| ArmError::InvalidResourceValueRef)?,
     );

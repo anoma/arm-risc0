@@ -128,13 +128,11 @@ impl ComplianceWitness {
     }
 
     pub fn consumed_resource_logic(&self) -> Digest {
-        // TODO(issue 119): the error handling can be fixed in a separate PR when reverting back to using Digest
-        Digest::from_bytes(self.consumed_resource.logic_ref.clone().try_into().unwrap())
+        self.consumed_resource.logic_ref
     }
 
     pub fn created_resource_logic(&self) -> Digest {
-        // TODO(issue 119): the error handling can be fixed in a separate PR when reverting back to using Digest
-        Digest::from_bytes(self.created_resource.logic_ref.clone().try_into().unwrap())
+        self.created_resource.logic_ref
     }
 
     pub fn consumed_commitment(&self) -> Digest {
@@ -199,27 +197,27 @@ impl Default for ComplianceWitness {
         let nf_key = NullifierKey::default();
 
         let consumed_resource = Resource {
-            logic_ref: vec![0; 32],
-            label_ref: vec![0; 32],
+            logic_ref: Digest::default(),
+            label_ref: Digest::default(),
             quantity: 1u128,
-            value_ref: vec![0; 32],
+            value_ref: Digest::default(),
             is_ephemeral: false,
-            nonce: vec![0; 32],
+            nonce: [0u8; 32],
             nk_commitment: nf_key.commit(),
-            rand_seed: vec![0; 32],
+            rand_seed: [0u8; 32],
         };
 
         let nf = consumed_resource.nullifier(&nf_key).unwrap();
 
         let created_resource = Resource {
-            logic_ref: vec![0; 32],
-            label_ref: vec![0; 32],
+            logic_ref: Digest::default(),
+            label_ref: Digest::default(),
             quantity: 1u128,
-            value_ref: vec![0; 32],
+            value_ref: Digest::default(),
             is_ephemeral: false,
-            nonce: nf.as_bytes().to_vec(),
+            nonce: nf.as_bytes().try_into().unwrap(),
             nk_commitment: nf_key.commit(),
-            rand_seed: vec![0; 32],
+            rand_seed: [0u8; 32],
         };
 
         let merkle_path = MerklePath::default();

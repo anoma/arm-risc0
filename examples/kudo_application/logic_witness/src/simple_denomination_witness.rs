@@ -60,7 +60,7 @@ impl LogicCircuit for SimpleDenominationLogicWitness {
         let root_bytes = root.as_bytes();
 
         // Check denomination.label = kudo_resource.tag
-        assert_eq!(self.denomination_resource.label_ref, kudo_tag.as_bytes());
+        assert_eq!(self.denomination_resource.label_ref, kudo_tag);
 
         // Decode label of the kudo resource and check the correspondence between the
         // kudo resource and the domination resource

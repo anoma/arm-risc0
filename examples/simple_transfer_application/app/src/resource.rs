@@ -12,15 +12,15 @@ pub fn construct_persistent_resource(
     forwarder_addr: &[u8],
     token_addr: &[u8],
     quantity: u128,
-    nonce: Vec<u8>,
+    nonce: [u8; 32],
     nk_commitment: NullifierKeyCommitment,
-    rand_seed: Vec<u8>,
+    rand_seed: [u8; 32],
     auth_pk: &AuthorizationVerifyingKey,
 ) -> Resource {
     let label_ref = calculate_label_ref(forwarder_addr, token_addr);
     let value_ref = calculate_value_ref_from_auth(auth_pk);
     Resource {
-        logic_ref: TransferLogic::verifying_key_as_bytes(),
+        logic_ref: TransferLogic::verifying_key(),
         label_ref,
         quantity,
         value_ref,
@@ -36,16 +36,16 @@ pub fn construct_ephemeral_resource(
     forwarder_addr: &[u8],
     token_addr: &[u8],
     quantity: u128,
-    nonce: Vec<u8>,
+    nonce: [u8; 32],
     nk_commitment: NullifierKeyCommitment,
-    rand_seed: Vec<u8>,
+    rand_seed: [u8; 32],
     call_type: CallType,
     user_addr: &[u8],
 ) -> Resource {
     let label_ref = calculate_label_ref(forwarder_addr, token_addr);
     let value_ref = calculate_value_ref_calltype_user(call_type, user_addr);
     Resource {
-        logic_ref: TransferLogic::verifying_key_as_bytes(),
+        logic_ref: TransferLogic::verifying_key(),
         label_ref,
         quantity,
         value_ref,

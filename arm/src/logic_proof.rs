@@ -140,17 +140,15 @@ impl PaddingResourceLogic {
     }
     pub fn create_padding_resource(nk_commitment: NullifierKeyCommitment) -> Resource {
         let mut rng = rand::thread_rng();
-        let nonce: [u8; 32] = rng.gen();
-        let rand_seed: [u8; 32] = rng.gen();
         Resource {
-            logic_ref: Self::verifying_key().as_bytes().to_vec(),
-            label_ref: vec![0; 32],
+            logic_ref: Self::verifying_key(),
+            label_ref: Digest::default(),
             quantity: 0,
-            value_ref: vec![0; 32],
+            value_ref: Digest::default(),
             is_ephemeral: true,
-            nonce: nonce.to_vec(),
+            nonce: rng.gen(),
             nk_commitment,
-            rand_seed: rand_seed.to_vec(),
+            rand_seed: rng.gen(),
         }
     }
 }
