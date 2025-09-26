@@ -94,23 +94,3 @@ impl Transaction {
         Transaction::create(actions, delta)
     }
 }
-
-// Only for testing, todo: move to tests module (Issue 120)
-pub fn generate_test_transaction(n_actions: usize) -> Transaction {
-    use crate::action::create_multiple_actions;
-    let (actions, delta_witness) = create_multiple_actions(n_actions);
-    let tx = Transaction::create(actions, Delta::Witness(delta_witness));
-    let balanced_tx = tx.generate_delta_proof().unwrap();
-    balanced_tx.clone().verify().unwrap();
-    balanced_tx
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_transaction() {
-        let _ = generate_test_transaction(1);
-    }
-}

@@ -96,6 +96,8 @@ We have the following feature flags in arm lib:
 | `composite_prover`         |                           | Fastest option producing linear-size proofs, and supports compression via recursion                                                                 |
 | `groth16_prover`           |                           | Generates groth16 proofs(requires x86_64 machines)                                                                              |
 | `nif`                      |                           | Enables Erlang/Elixir NIF (Native Implemented Function) bindings                                                                |
+| `test_circuit`             |                           | A simple circuit implementation for testing |
+| `test`                     |                           | Includes tx and action tests; some test APIs are available outside the arm lib(Binding lib and Elixir SDK). |
 
 
 ### Usage Examples

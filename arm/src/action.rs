@@ -1,12 +1,9 @@
 use crate::{
     action_tree::MerkleTree,
-    compliance::{ComplianceInstance, ComplianceWitness},
+    compliance::ComplianceInstance,
     compliance_unit::ComplianceUnit,
-    delta_proof::DeltaWitness,
     error::ArmError,
-    logic_proof::{LogicProver, LogicVerifier, LogicVerifierInputs},
-    nullifier_key::NullifierKey,
-    resource::Resource,
+    logic_proof::{LogicVerifier, LogicVerifierInputs},
 };
 use k256::ProjectivePoint;
 use serde::{Deserialize, Serialize};
@@ -111,78 +108,5 @@ impl Action {
             }
         }
         Ok(msg)
-    }
-}
-
-// Only for testing, todo: move to tests module (Issue 120)
-pub fn create_an_action(nonce: u8) -> (Action, DeltaWitness) {
-    use crate::logic_proof::TestLogic;
-
-    let nf_key = NullifierKey::default();
-    let nf_key_cm = nf_key.commit();
-    let mut consumed_resource = Resource {
-        logic_ref: TestLogic::verifying_key_as_bytes(),
-        nk_commitment: nf_key_cm,
-        quantity: 1,
-        ..Default::default()
-    };
-    consumed_resource.nonce[0] = nonce;
-    let consumed_resource_nf = consumed_resource.nullifier(&nf_key).unwrap();
-
-    let mut created_resource = consumed_resource.clone();
-    created_resource.set_nonce(consumed_resource_nf.as_bytes().to_vec());
-
-    let compliance_witness = ComplianceWitness::with_fixed_rcv(
-        consumed_resource.clone(),
-        nf_key.clone(),
-        created_resource.clone(),
-    );
-    let compliance_receipt = ComplianceUnit::create(&compliance_witness).unwrap();
-
-    let created_resource_cm = created_resource.commitment();
-    let action_tree = MerkleTree::new(vec![consumed_resource_nf, created_resource_cm]);
-    let consumed_resource_path = action_tree.generate_path(&consumed_resource_nf).unwrap();
-    let created_resource_path = action_tree.generate_path(&created_resource_cm).unwrap();
-
-    let consumed_logic = TestLogic::new(
-        consumed_resource,
-        consumed_resource_path,
-        nf_key.clone(),
-        true,
-    );
-    let consumed_logic_proof = consumed_logic.prove().unwrap();
-
-    let created_logic = TestLogic::new(created_resource, created_resource_path, nf_key, false);
-    let created_logic_proof = created_logic.prove().unwrap();
-
-    let compliance_units = vec![compliance_receipt];
-    let logic_verifier_inputs = vec![consumed_logic_proof, created_logic_proof];
-
-    let action = Action::new(compliance_units, logic_verifier_inputs).unwrap();
-    action.clone().verify().unwrap();
-
-    let delta_witness = DeltaWitness::from_bytes_vec(&[compliance_witness.rcv]).unwrap();
-    (action, delta_witness)
-}
-
-// Only for testing, todo: move to tests module (Issue 120)
-pub fn create_multiple_actions(n: usize) -> (Vec<Action>, DeltaWitness) {
-    let mut actions = Vec::new();
-    let mut delta_witnesses = Vec::new();
-    for i in 0..n {
-        let (action, delta_witness) = create_an_action(i as u8);
-        actions.push(action);
-        delta_witnesses.push(delta_witness);
-    }
-    (actions, DeltaWitness::compress(&delta_witnesses))
-}
-
-#[cfg(test)]
-pub mod tests {
-    use super::*;
-
-    #[test]
-    fn test_action() {
-        let _ = create_an_action(1);
     }
 }
