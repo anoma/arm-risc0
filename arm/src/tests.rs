@@ -26,7 +26,7 @@ pub const TEST_LOGIC_PK: &[u8] = include_bytes!("../elfs/logic-test-guest.bin");
 lazy_static! {
     // test logic verification key / compliance image id
     pub static ref TEST_LOGIC_VK: Digest =
-        Digest::from_hex("ceae056a0ea40994961213e88a8bf1e85d0b1ed12434c9161b63792a1ebf862f")
+        Digest::from_hex("979a12ac83b4117036b2d8a2bbba4a149a232d14ac8410b9e60b4613c5bd4d4e")
             .unwrap();
 }
 
@@ -72,7 +72,7 @@ pub fn create_an_action(nonce: u8) -> (Action, DeltaWitness) {
     let nf_key = NullifierKey::default();
     let nf_key_cm = nf_key.commit();
     let mut consumed_resource = Resource {
-        logic_ref: TestLogic::verifying_key_as_bytes(),
+        logic_ref: TestLogic::verifying_key(),
         nk_commitment: nf_key_cm,
         quantity: 1,
         ..Default::default()
@@ -81,7 +81,7 @@ pub fn create_an_action(nonce: u8) -> (Action, DeltaWitness) {
     let consumed_resource_nf = consumed_resource.nullifier(&nf_key).unwrap();
 
     let mut created_resource = consumed_resource.clone();
-    created_resource.set_nonce(consumed_resource_nf.as_bytes().to_vec());
+    created_resource.set_nonce(consumed_resource_nf);
 
     let compliance_witness = ComplianceWitness::with_fixed_rcv(
         consumed_resource.clone(),
