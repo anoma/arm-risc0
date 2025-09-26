@@ -64,4 +64,8 @@ pub enum ArmError {
     MissingField(&'static str),
     #[error("Invalid encryption nonce")]
     InvalidEncryptionNonce,
+    #[error("Invalid resource nonce")]
+    InvalidResourceNonce,
+    #[error("Invalid nullifier commitment")]
+    InvalidNullifierCommitment,
 }

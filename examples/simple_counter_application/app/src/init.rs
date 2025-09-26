@@ -11,6 +11,7 @@ use arm::{
     nullifier_key::NullifierKey,
     resource::Resource,
     transaction::{Delta, Transaction},
+    Digest,
 };
 use rand::Rng;
 
@@ -22,12 +23,12 @@ pub fn ephemeral_counter() -> (Resource, NullifierKey) {
     let label_ref: [u8; 32] = rng.gen(); // Random label reference, it should be unique for each counter
     let nonce: [u8; 32] = rng.gen(); // Random nonce for the ephemeral resource
     let ephemeral_resource = Resource::create(
-        CounterLogic::verifying_key_as_bytes(),
-        label_ref.to_vec(),
+        CounterLogic::verifying_key(),
+        Digest::from(label_ref),
         1,
         convert_counter_to_value_ref(0u128), // Initialize with value/counter 0
         true,
-        nonce.to_vec(),
+        Digest::from(nonce),
         nf_key_cm,
     );
     (ephemeral_resource, nf_key)

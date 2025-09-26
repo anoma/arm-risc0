@@ -67,11 +67,11 @@ impl LogicProver for CounterLogic {
     }
 }
 
-pub fn convert_counter_to_value_ref(value: u128) -> Vec<u8> {
+pub fn convert_counter_to_value_ref(value: u128) -> Digest {
     let mut arr = [0u8; 32];
     let bytes = value.to_le_bytes();
     arr[..16].copy_from_slice(&bytes); // left-align, right-pad with 0
-    arr.to_vec()
+    Digest::from(arr)
 }
 
 pub fn generate_compliance_proof(

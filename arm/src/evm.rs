@@ -28,13 +28,13 @@ impl Resource {
 impl From<ArmResource> for Resource {
     fn from(r: ArmResource) -> Self {
         Self {
-            logicRef: B256::from_slice(&r.logic_ref),
-            labelRef: B256::from_slice(&r.label_ref),
+            logicRef: B256::from_slice(r.logic_ref.as_bytes()),
+            labelRef: B256::from_slice(r.label_ref.as_bytes()),
             quantity: r.quantity,
-            valueRef: B256::from_slice(&r.value_ref),
+            valueRef: B256::from_slice(r.value_ref.as_bytes()),
             ephemeral: r.is_ephemeral,
             nonce: B256::from_slice(&r.nonce),
-            nullifierKeyCommitment: B256::from_slice(r.nk_commitment.inner()),
+            nullifierKeyCommitment: B256::from_slice(r.nk_commitment.as_bytes()),
             randSeed: B256::from_slice(&r.rand_seed),
         }
     }
@@ -184,15 +184,24 @@ fn evm_resource_test() {
     let evm_resource: Resource = arm_resource.clone().into();
     let encoded_resource = evm_resource.encode();
     let decoded_resource = Resource::decode(&encoded_resource).unwrap();
-    assert_eq!(arm_resource.logic_ref, decoded_resource.logicRef.as_slice());
-    assert_eq!(arm_resource.label_ref, decoded_resource.labelRef.as_slice());
-    assert_eq!(arm_resource.value_ref, decoded_resource.valueRef.as_slice());
+    assert_eq!(
+        arm_resource.logic_ref.as_bytes(),
+        decoded_resource.logicRef.as_slice()
+    );
+    assert_eq!(
+        arm_resource.label_ref.as_bytes(),
+        decoded_resource.labelRef.as_slice()
+    );
+    assert_eq!(
+        arm_resource.value_ref.as_bytes(),
+        decoded_resource.valueRef.as_slice()
+    );
     assert_eq!(arm_resource.nonce, decoded_resource.nonce.as_slice());
     assert_eq!(arm_resource.rand_seed, decoded_resource.randSeed.as_slice());
     assert_eq!(arm_resource.is_ephemeral, decoded_resource.ephemeral);
     assert_eq!(arm_resource.quantity, decoded_resource.quantity);
     assert_eq!(
-        arm_resource.nk_commitment.inner(),
+        arm_resource.nk_commitment.as_bytes(),
         decoded_resource.nullifierKeyCommitment.as_slice()
     );
 }

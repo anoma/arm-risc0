@@ -31,7 +31,7 @@ pub fn build_issue_tx(
 ) -> Result<Transaction, ArmError> {
     let issuer = AuthorizationVerifyingKey::from_signing_key(issuer_sk);
     let (instant_nk, instant_nk_commitment) = NullifierKey::random_pair();
-    let kudo_logic = KudoMainInfo::verifying_key_as_bytes();
+    let kudo_logic = KudoMainInfo::verifying_key();
     let kudo_lable = compute_kudo_label(&kudo_logic, &issuer);
     let kudo_value = compute_kudo_value(receiver_pk);
 
@@ -39,12 +39,12 @@ pub fn build_issue_tx(
     let mut rng = rand::thread_rng();
     let nonce: [u8; 32] = rng.gen(); // Random nonce for the ephemeral resource
     let ephemeral_kudo_resource = Resource::create(
-        kudo_logic.clone(),
-        kudo_lable.clone(),
+        kudo_logic,
+        kudo_lable,
         quantity,
-        kudo_value.clone(),
+        kudo_value,
         true,
-        nonce.to_vec(),
+        Digest::from(nonce),
         instant_nk_commitment.clone(),
     );
     let ephemeral_kudo_resource_nf = ephemeral_kudo_resource.nullifier(&instant_nk)?;
@@ -56,7 +56,7 @@ pub fn build_issue_tx(
         quantity,
         kudo_value,
         false,
-        ephemeral_kudo_resource_nf.as_bytes().to_vec(),
+        ephemeral_kudo_resource_nf,
         receiver_nk_commitment.clone(),
     );
     let issued_kudo_resource_cm = issued_kudo_resource.commitment();
@@ -64,25 +64,25 @@ pub fn build_issue_tx(
     // Construct the issued receive logic resource
     let nonce: [u8; 32] = rng.gen(); // Random nonce for the ephemeral resource
     let issued_receive_resource = Resource::create(
-        SimpleReceiveInfo::verifying_key_as_bytes(),
-        issued_kudo_resource_cm.as_bytes().to_vec(),
+        SimpleReceiveInfo::verifying_key(),
+        issued_kudo_resource_cm,
         0,
-        [0u8; 32].into(),
+        Digest::default(),
         true,
-        nonce.to_vec(),
+        Digest::from(nonce),
         instant_nk_commitment.clone(),
     );
     let issued_receive_resource_nf = issued_receive_resource.nullifier(&instant_nk)?;
 
     // Construct the issued denomination resource
-    let denomination_logic = SimpleDenominationInfo::verifying_key_as_bytes();
+    let denomination_logic = SimpleDenominationInfo::verifying_key();
     let issued_denomination_resource = Resource::create(
-        denomination_logic.clone(),
-        issued_kudo_resource_cm.as_bytes().to_vec(), // Use the issued kudo commitment as the label
+        denomination_logic,
+        issued_kudo_resource_cm, // Use the issued kudo commitment as the label
         0,
-        [0u8; 32].into(),
+        Digest::default(),
         true,
-        issued_receive_resource_nf.as_bytes().to_vec(),
+        issued_receive_resource_nf,
         instant_nk_commitment.clone(),
     );
     let issued_denomination_resource_cm = issued_denomination_resource.commitment();
@@ -95,11 +95,11 @@ pub fn build_issue_tx(
     // Construct the ephemeral denomination resource
     let ephemeral_denomination_resource = Resource::create(
         denomination_logic,
-        ephemeral_kudo_resource_nf.as_bytes().to_vec(), // Use the ephemeral kudo nullifier as the label
+        ephemeral_kudo_resource_nf, // Use the ephemeral kudo nullifier as the label
         0,
-        [0u8; 32].into(),
+        Digest::default(), // Value is not used for ephemeral resources
         true,
-        padding_resource_nf.as_bytes().to_vec(),
+        padding_resource_nf,
         instant_nk_commitment.clone(),
     );
     let ephemeral_denomination_resource_cm = ephemeral_denomination_resource.commitment();

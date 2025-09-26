@@ -37,7 +37,7 @@ pub fn build_transfer_tx(
     let (instant_nk, instant_nk_commitment) = NullifierKey::random_pair();
 
     // Construct the consumed kudo resource
-    let kudo_logic = KudoMainInfo::verifying_key_as_bytes();
+    let kudo_logic = KudoMainInfo::verifying_key();
     let kudo_lable = compute_kudo_label(&kudo_logic, issuer);
     assert_eq!(consumed_kudo_resource.label_ref, kudo_lable);
     let owner = AuthorizationVerifyingKey::from_signing_key(owner_sk);
@@ -53,20 +53,20 @@ pub fn build_transfer_tx(
     created_kudo_resource.set_value_ref(created_kudo_value);
     // Reset the randomness and nonce
     created_kudo_resource.reset_randomness();
-    created_kudo_resource.set_nonce(consumed_kudo_nf.as_bytes().to_vec());
+    created_kudo_resource.set_nonce(consumed_kudo_nf);
     let created_kudo_cm = created_kudo_resource.commitment();
 
     // Construct the denomination resource corresponding to the consumed kudo resource
-    let denomination_logic = SimpleDenominationInfo::verifying_key_as_bytes();
+    let denomination_logic = SimpleDenominationInfo::verifying_key();
     let mut rng = rand::thread_rng();
     let nonce: [u8; 32] = rng.gen(); // Random nonce for the ephemeral resource
     let consumed_denomination_resource = Resource::create(
-        denomination_logic.clone(),
-        consumed_kudo_nf.as_bytes().to_vec(), // Use the consumed kudo nullifier as the label
+        denomination_logic,
+        consumed_kudo_nf, // Use the consumed kudo nullifier as the label
         0,
-        [0u8; 32].into(),
+        Digest::default(), // Value is not used for ephemeral resources
         true,
-        nonce.to_vec(),
+        Digest::from(nonce),
         instant_nk_commitment.clone(),
     );
     let consumed_denomination_resource_nf =
@@ -74,12 +74,12 @@ pub fn build_transfer_tx(
 
     // Construct the denomination resource corresponding to the created kudo resource
     let created_denomination_resource = Resource::create(
-        denomination_logic.clone(),
-        created_kudo_cm.as_bytes().to_vec(), // Use the created kudo commitment as the label
+        denomination_logic,
+        created_kudo_cm, // Use the created kudo commitment as the label
         0,
-        [0u8; 32].into(),
+        Digest::default(),
         true,
-        consumed_denomination_resource_nf.as_bytes().to_vec(),
+        consumed_denomination_resource_nf,
         instant_nk_commitment.clone(),
     );
     let created_denomination_resource_cm = created_denomination_resource.commitment();
@@ -91,12 +91,12 @@ pub fn build_transfer_tx(
 
     // Construct the receive logic resource
     let receive_resource = Resource::create(
-        SimpleReceiveInfo::verifying_key_as_bytes(),
-        created_kudo_cm.as_bytes().to_vec(),
+        SimpleReceiveInfo::verifying_key(),
+        created_kudo_cm,
         0,
-        [0u8; 32].into(),
+        Digest::default(),
         true,
-        padding_resource_nf.as_bytes().to_vec(),
+        padding_resource_nf,
         instant_nk_commitment.clone(),
     );
     let receive_resource_cm = receive_resource.commitment();
@@ -225,7 +225,7 @@ fn generate_a_transfer_tx() {
     use kudo_logic_witness::utils::generate_receive_signature;
     use std::time::Instant;
 
-    let kudo_logic = KudoMainInfo::verifying_key_as_bytes();
+    let kudo_logic = KudoMainInfo::verifying_key();
     let issuer_sk = AuthorizationSigningKey::new();
     let issuer = AuthorizationVerifyingKey::from_signing_key(&issuer_sk);
     let kudo_lable = compute_kudo_label(&kudo_logic, &issuer);
@@ -242,7 +242,7 @@ fn generate_a_transfer_tx() {
         (pk, signature)
     };
     let (_receiver_nf_key, receiver_nk_commitment) = NullifierKey::random_pair();
-    let nonce = vec![0u8; 32]; // Random nonce for the ephemeral resource
+    let nonce = Digest::default(); // Random nonce for the ephemeral resource
 
     let consumed_kudo_resource = Resource::create(
         kudo_logic, kudo_lable, 100, kudo_value, false, nonce, kudo_nk_cm,

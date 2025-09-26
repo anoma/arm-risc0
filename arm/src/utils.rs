@@ -35,8 +35,8 @@ pub fn hash_two(left: &Digest, right: &Digest) -> Digest {
     *Impl::hash_words(&words)
 }
 
-pub fn hash_bytes(bytes: &[u8]) -> Vec<u8> {
-    Impl::hash_bytes(bytes).as_bytes().to_vec()
+pub fn hash_bytes(bytes: &[u8]) -> Digest {
+    *Impl::hash_bytes(bytes)
 }
 
 #[test]
