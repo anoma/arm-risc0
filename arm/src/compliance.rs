@@ -1,5 +1,9 @@
 use crate::{
-    error::ArmError, merkle_path::MerklePath, nullifier_key::NullifierKey, resource::Resource,
+    error::ArmError,
+    merkle_path::MerklePath,
+    nullifier_key::NullifierKey,
+    resource::Resource,
+    utils::{bytes_to_words, words_to_bytes},
 };
 use hex::FromHex;
 use k256::{
@@ -24,8 +28,9 @@ pub struct ComplianceInstance {
     pub consumed_commitment_tree_root: Digest,
     pub created_commitment: Digest,
     pub created_logic_ref: Digest,
-    pub delta_x: [u8; 32],
-    pub delta_y: [u8; 32],
+    // Use u32 array to avoid padding issues in risc0
+    pub delta_x: [u32; 8],
+    pub delta_y: [u32; 8],
 }
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
@@ -156,7 +161,7 @@ impl ComplianceWitness {
         }
     }
 
-    pub fn delta(&self) -> Result<([u8; 32], [u8; 32]), ArmError> {
+    pub fn delta(&self) -> Result<([u32; 8], [u32; 8]), ArmError> {
         // Compute delta and make delta commitment public
         let rcv_array: [u8; 32] = self
             .rcv
@@ -173,17 +178,11 @@ impl ComplianceWitness {
             + ProjectivePoint::GENERATOR * rcv_scalar;
 
         let encoded_delta = delta.to_encoded_point(false);
-        let delta_x: [u8; 32] = encoded_delta
-            .x()
-            .ok_or(ArmError::InvalidDelta)?
-            .as_slice()
+        let delta_x: [u32; 8] = bytes_to_words(encoded_delta.x().ok_or(ArmError::InvalidDelta)?)
             .try_into()
             .map_err(|_| ArmError::InvalidDelta)?;
 
-        let delta_y: [u8; 32] = encoded_delta
-            .y()
-            .ok_or(ArmError::InvalidDelta)?
-            .as_slice()
+        let delta_y: [u32; 8] = bytes_to_words(encoded_delta.y().ok_or(ArmError::InvalidDelta)?)
             .try_into()
             .map_err(|_| ArmError::InvalidDelta)?;
 
@@ -238,8 +237,8 @@ impl Default for ComplianceWitness {
 impl ComplianceInstance {
     pub fn delta_projective(&self) -> Result<ProjectivePoint, ArmError> {
         let encoded_point = EncodedPoint::from_affine_coordinates(
-            &self.delta_x.into(),
-            &self.delta_y.into(),
+            words_to_bytes(&self.delta_x).into(),
+            words_to_bytes(&self.delta_y).into(),
             false,
         );
         ProjectivePoint::from_encoded_point(&encoded_point)
