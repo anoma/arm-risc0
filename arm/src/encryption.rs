@@ -1,6 +1,6 @@
 use crate::{
     error::ArmError,
-    utils::{bytes_to_words, words_to_bytes},
+    utils::{bytes_to_words, hash_bytes, words_to_bytes},
 };
 use aes_gcm::{aead::Aead, Aes256Gcm, Key, KeyInit};
 pub use k256::AffinePoint;
@@ -87,7 +87,7 @@ impl Ciphertext {
         nonce: [u8; 12],
     ) -> Result<Self, ArmError> {
         // Generate the secret key using Diffie-Hellman exchange
-        let inner_secret_key = InnerSecretKey::from_dh_exchange(receiver_pk, sender_sk.inner());
+        let inner_secret_key = InnerSecretKey::from_encryption(receiver_pk, sender_sk.inner());
 
         // Derive AES-256 key and nonce
         let aes_gcm = Aes256Gcm::new(&inner_secret_key.inner());
@@ -111,7 +111,7 @@ impl Ciphertext {
         let cipher: InnerCiphert =
             bincode::deserialize(self.inner()).map_err(|_| ArmError::DeserializationError)?;
         // Generate the secret key using Diffie-Hellman exchange
-        let inner_secret_key = InnerSecretKey::from_dh_exchange(&cipher.pk, sk.inner());
+        let inner_secret_key = InnerSecretKey::from_decryption(&cipher.pk, sk.inner());
 
         // Derive AES-256 key and nonce
         let aes_gcm = Aes256Gcm::new(&inner_secret_key.inner());
@@ -137,11 +137,24 @@ struct InnerCiphert {
 struct InnerSecretKey(Key<Aes256Gcm>);
 
 impl InnerSecretKey {
-    pub fn from_dh_exchange(pk: &AffinePoint, sk: &Scalar) -> Self {
+    pub fn from_encryption(pk: &AffinePoint, sk: &Scalar) -> Self {
         let pk = ProjectivePoint::from(*pk);
         let shared_point = pk * sk;
-        let key_bytes = shared_point.to_bytes().to_vec();
-        let key = Key::<Aes256Gcm>::from_slice(&key_bytes[..32]);
+        Self::generate_shared_key(&shared_point, &pk)
+    }
+
+    pub fn from_decryption(pk: &AffinePoint, sk: &Scalar) -> Self {
+        let shared_point = ProjectivePoint::from(*pk) * sk;
+        let pk = ProjectivePoint::GENERATOR * sk;
+        Self::generate_shared_key(&shared_point, &pk)
+    }
+
+    fn generate_shared_key(shared_point: &ProjectivePoint, pk: &ProjectivePoint) -> Self {
+        let pk_bytes = pk.to_bytes();
+        let key_bytes = shared_point.to_bytes();
+        let hash = hash_bytes(&[&pk_bytes[..], &key_bytes[..]].concat());
+        let shared_key = hash.as_bytes();
+        let key = Key::<Aes256Gcm>::from_slice(&shared_key[..32]);
         InnerSecretKey(*key)
     }
 
