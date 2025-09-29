@@ -61,12 +61,13 @@ impl LogicCircuit for CounterWitness {
         assert_eq!(self.new_counter.quantity, 1);
 
         let old_counter_value: u128 = u128::from_le_bytes(
-            self.old_counter.value_ref[0..16]
+            self.old_counter.value_ref.as_bytes()[0..16]
                 .try_into()
                 .map_err(|_| ArmError::InvalidResourceValueRef)?,
         );
+
         let new_counter_value: u128 = u128::from_le_bytes(
-            self.new_counter.value_ref[0..16]
+            self.new_counter.value_ref.as_bytes()[0..16]
                 .try_into()
                 .map_err(|_| ArmError::InvalidResourceValueRef)?,
         );
@@ -101,7 +102,7 @@ impl LogicCircuit for CounterWitness {
         };
 
         Ok(LogicInstance {
-            tag: tag.as_words().to_vec(),
+            tag,
             is_consumed: self.is_consumed,
             root: old_counter_root,
             app_data,

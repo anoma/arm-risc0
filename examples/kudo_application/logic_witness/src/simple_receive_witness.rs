@@ -39,12 +39,12 @@ impl LogicCircuit for SimpleReceiveLogicWitness {
 
         // Check if receive_resource.label equals kudo_resource.cm to ensure the
         // target kudo is loaded.
-        assert_eq!(self.receive_resource.label_ref, kudo_cm.as_bytes());
+        assert_eq!(self.receive_resource.label_ref, kudo_cm);
 
         // TODO: add custom receive logic
 
         Ok(LogicInstance {
-            tag: tag.as_words().to_vec(),
+            tag,
             is_consumed: self.is_consumed, // It can be either consumed or created to reduce padding resources
             root,
             app_data: AppData::default(), // no app data needed

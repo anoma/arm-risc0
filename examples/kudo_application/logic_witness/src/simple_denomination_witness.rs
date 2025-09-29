@@ -7,7 +7,6 @@ use arm::{
     merkle_path::MerklePath,
     nullifier_key::NullifierKey,
     resource::Resource,
-    utils::words_to_bytes,
 };
 use serde::{Deserialize, Serialize};
 
@@ -58,10 +57,10 @@ impl LogicCircuit for SimpleDenominationLogicWitness {
         };
         let kudo_root = self.kudo_existence_path.root(&kudo_tag);
         assert_eq!(root, kudo_root);
-        let root_bytes = words_to_bytes(&root);
+        let root_bytes = root.as_bytes();
 
         // Check denomination.label = kudo_resource.tag
-        assert_eq!(self.denomination_resource.label_ref, kudo_tag.as_bytes());
+        assert_eq!(self.denomination_resource.label_ref, kudo_tag);
 
         // Decode label of the kudo resource and check the correspondence between the
         // kudo resource and the domination resource
@@ -87,7 +86,7 @@ impl LogicCircuit for SimpleDenominationLogicWitness {
         }
 
         Ok(LogicInstance {
-            tag: denomination_tag.as_words().to_vec(),
+            tag: denomination_tag,
             is_consumed: self.denomination_is_consumed,
             root,
             app_data: AppData::default(), // no app data needed

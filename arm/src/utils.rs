@@ -1,4 +1,4 @@
-use risc0_zkvm::sha::{Impl, Sha256, DIGEST_WORDS};
+use risc0_zkvm::sha::{Digest, Impl, Sha256, DIGEST_WORDS};
 
 pub fn bytes_to_words(bytes: &[u8]) -> Vec<u32> {
     let mut words = Vec::new();
@@ -28,15 +28,15 @@ pub fn words_to_bytes(words: &[u32]) -> &[u8] {
     bytemuck::cast_slice(words)
 }
 
-pub fn hash_two(left: &[u32], right: &[u32]) -> Vec<u32> {
+pub fn hash_two(left: &Digest, right: &Digest) -> Digest {
     let mut words = Vec::with_capacity(2 * DIGEST_WORDS);
-    words.extend_from_slice(left);
-    words.extend_from_slice(right);
-    Impl::hash_words(&words).as_words().to_vec()
+    words.extend_from_slice(left.as_words());
+    words.extend_from_slice(right.as_words());
+    *Impl::hash_words(&words)
 }
 
-pub fn hash_bytes(bytes: &[u8]) -> Vec<u8> {
-    Impl::hash_bytes(bytes).as_bytes().to_vec()
+pub fn hash_bytes(bytes: &[u8]) -> Digest {
+    *Impl::hash_bytes(bytes)
 }
 
 #[test]

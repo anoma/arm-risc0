@@ -11,7 +11,8 @@ use arm::{
     merkle_path::MerklePath,
     nullifier_key::NullifierKey,
     resource::Resource,
-    utils::{bytes_to_words, hash_bytes, words_to_bytes},
+    utils::{bytes_to_words, hash_bytes},
+    Digest,
 };
 use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -77,7 +78,7 @@ impl LogicCircuit for SimpleTransferWitness {
 
         // Check the existence path
         let root = self.existence_path.root(&tag);
-        let root_bytes = words_to_bytes(&root);
+        let root_bytes = root.as_bytes();
 
         // Generate resource_payload and external_payload
         let (discovery_payload, resource_payload, external_payload) = if self.resource.is_ephemeral
@@ -204,7 +205,7 @@ impl LogicCircuit for SimpleTransferWitness {
         };
 
         Ok(LogicInstance {
-            tag: tag.as_words().to_vec(),
+            tag,
             is_consumed: self.is_consumed,
             root,
             app_data,
@@ -235,17 +236,17 @@ impl SimpleTransferWitness {
     }
 }
 
-pub fn calculate_value_ref_from_auth(auth_pk: &AuthorizationVerifyingKey) -> Vec<u8> {
+pub fn calculate_value_ref_from_auth(auth_pk: &AuthorizationVerifyingKey) -> Digest {
     hash_bytes(&auth_pk.to_bytes())
 }
 
-pub fn calculate_value_ref_calltype_user(call_type: CallType, user_addr: &[u8]) -> Vec<u8> {
+pub fn calculate_value_ref_calltype_user(call_type: CallType, user_addr: &[u8]) -> Digest {
     let mut data = vec![call_type as u8];
     data.extend_from_slice(user_addr);
     hash_bytes(&data)
 }
 
-pub fn calculate_label_ref(forwarder_add: &[u8], erc20_add: &[u8]) -> Vec<u8> {
+pub fn calculate_label_ref(forwarder_add: &[u8], erc20_add: &[u8]) -> Digest {
     hash_bytes(&[forwarder_add, erc20_add].concat())
 }
 

@@ -11,7 +11,7 @@ use arm::{
     nullifier_key::NullifierKey,
     resource::Resource,
     transaction::Transaction,
-    utils::words_to_bytes,
+    Digest,
 };
 use kudo_logic_witness::{
     kudo_main_witness::KudoMainWitness,
@@ -31,12 +31,12 @@ pub fn build_swap_tx(
     consumed_kudo_path: MerklePath,
     created_issuer: &AuthorizationVerifyingKey,
     created_kudo_quantity: u128,
-    latest_root: Vec<u32>,
+    latest_root: Digest,
 ) -> Result<Transaction, ArmError> {
     let (instant_nk, instant_nk_commitment) = NullifierKey::random_pair();
 
     // Construct the consumed kudo resource
-    let kudo_logic = KudoMainInfo::verifying_key_as_bytes();
+    let kudo_logic = KudoMainInfo::verifying_key();
     let consumed_kudo_lable = compute_kudo_label(&kudo_logic, consumed_issuer);
     assert_eq!(consumed_kudo_resource.label_ref, consumed_kudo_lable);
     let owner = AuthorizationVerifyingKey::from_signing_key(owner_sk);
@@ -48,27 +48,27 @@ pub fn build_swap_tx(
     // nk_commitment) as the consumed kudo resource
     let created_kudo_lable = compute_kudo_label(&kudo_logic, created_issuer);
     let created_kudo_resource = Resource::create(
-        kudo_logic.clone(),
+        kudo_logic,
         created_kudo_lable,
         created_kudo_quantity,
         kudo_value, // use the same kudo value as the consumed kudo resource
         false,
-        consumed_kudo_nf.as_bytes().to_vec(),
+        consumed_kudo_nf,
         consumed_kudo_resource.nk_commitment.clone(), // use the same nk_commitment as the consumed kudo resource
     );
     let created_kudo_value_cm = created_kudo_resource.commitment();
 
     // Construct the denomination resource corresponding to the consumed kudo resource
-    let denomination_logic = SimpleDenominationInfo::verifying_key_as_bytes();
+    let denomination_logic = SimpleDenominationInfo::verifying_key();
     let mut rng = rand::thread_rng();
     let nonce: [u8; 32] = rng.gen(); // Random nonce for the ephemeral resource
     let consumed_denomination_resource = Resource::create(
-        denomination_logic.clone(),
-        consumed_kudo_nf.as_bytes().to_vec(), // Use the consumed kudo nullifier as the label
+        denomination_logic,
+        consumed_kudo_nf, // Use the consumed kudo nullifier as the label
         0,
-        [0u8; 32].into(),
+        Digest::default(), // Value is not used for ephemeral resources
         true,
-        nonce.to_vec(),
+        Digest::from(nonce),
         instant_nk_commitment.clone(),
     );
     let consumed_denomination_resource_nf =
@@ -76,12 +76,12 @@ pub fn build_swap_tx(
 
     // Construct the denomination resource corresponding to the created kudo resource
     let created_denomination_resource = Resource::create(
-        denomination_logic.clone(),
-        created_kudo_value_cm.as_bytes().to_vec(), // Use the created kudo commitment as the label
+        denomination_logic,
+        created_kudo_value_cm, // Use the created kudo commitment as the label
         0,
-        [0u8; 32].into(),
+        Digest::default(),
         true,
-        consumed_denomination_resource_nf.as_bytes().to_vec(),
+        consumed_denomination_resource_nf,
         instant_nk_commitment.clone(),
     );
     let created_denomination_resource_cm = created_denomination_resource.commitment();
@@ -93,12 +93,12 @@ pub fn build_swap_tx(
 
     // Construct the receive logic resource
     let receive_resource = Resource::create(
-        SimpleReceiveInfo::verifying_key_as_bytes(),
-        created_kudo_value_cm.as_bytes().to_vec(),
+        SimpleReceiveInfo::verifying_key(),
+        created_kudo_value_cm,
         0,
-        [0u8; 32].into(),
+        Digest::default(),
         true,
-        padding_resource_nf.as_bytes().to_vec(),
+        padding_resource_nf,
         instant_nk_commitment.clone(),
     );
     let receive_resource_cm = receive_resource.commitment();
@@ -113,7 +113,7 @@ pub fn build_swap_tx(
         receive_resource_cm,
     ]);
     let root = action_tree.root();
-    let root_bytes = words_to_bytes(&root);
+    let root_bytes = root.as_bytes();
 
     // Generate paths
     let consumed_kudo_existence_path = action_tree.generate_path(&consumed_kudo_nf)?;
@@ -229,7 +229,7 @@ fn generate_a_swap_tx() {
     use arm::transaction::Transaction;
     use std::time::Instant;
 
-    let kudo_logic = KudoMainInfo::verifying_key_as_bytes();
+    let kudo_logic = KudoMainInfo::verifying_key();
     // The issuer determines the kind of kudo
     let alice_consumed_issuer_sk = AuthorizationSigningKey::new();
     let alice_consumed_issuer =
@@ -242,10 +242,10 @@ fn generate_a_swap_tx() {
     let alice_kudo_value = compute_kudo_value(&alice_pk);
     let (alice_kudo_nf_key, alice_kudo_nk_cm) = NullifierKey::random_pair();
     let alice_consumed_kudo_quantity = 100;
-    let nonce = vec![0u8; 32]; // Use a fixed nonce for testing
+    let nonce = Digest::default(); // Use a fixed nonce for testing
 
     let alice_consumed_kudo_resource = Resource::create(
-        kudo_logic.clone(),
+        kudo_logic,
         alice_consumed_kudo_lable,
         alice_consumed_kudo_quantity,
         alice_kudo_value,
@@ -268,7 +268,7 @@ fn generate_a_swap_tx() {
         MerklePath::default(), // It should be a real path
         &alice_created_issuer,
         alice_created_kudo_quantity,
-        INITIAL_ROOT.as_words().to_vec(),
+        *INITIAL_ROOT,
     )
     .unwrap();
 
@@ -276,7 +276,7 @@ fn generate_a_swap_tx() {
     let bob_pk = AuthorizationVerifyingKey::from_signing_key(&bob_sk);
     let bob_kudo_value = compute_kudo_value(&bob_pk);
     let (bob_kudo_nf_key, bob_kudo_nk_cm) = NullifierKey::random_pair();
-    let nonce = vec![1u8; 32]; // Use a fixed nonce for testing
+    let nonce = Digest::default(); // Use a fixed nonce for testing
     let bob_consumed_kudo_resource = Resource::create(
         kudo_logic,
         alice_created_kudo_lable,
@@ -299,7 +299,7 @@ fn generate_a_swap_tx() {
         MerklePath::default(), // It should be a real path
         &bob_created_issuer,
         bob_created_kudo_quantity,
-        INITIAL_ROOT.as_words().to_vec(),
+        *INITIAL_ROOT,
     )
     .unwrap();
 

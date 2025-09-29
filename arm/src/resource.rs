@@ -32,44 +32,46 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Resource {
     // a succinct representation of the predicate associated with the resource
-    pub logic_ref: Vec<u8>,
+    pub logic_ref: Digest,
     // specifies the fungibility domain for the resource
-    pub label_ref: Vec<u8>,
+    pub label_ref: Digest,
     // number representing the quantity of the resource
     pub quantity: u128,
     // the fungible value reference of the resource
-    pub value_ref: Vec<u8>,
+    pub value_ref: Digest,
     // flag that reflects the resource ephemerality
     pub is_ephemeral: bool,
     // guarantees the uniqueness of the resource computable components
-    pub nonce: Vec<u8>,
+    pub nonce: [u8; 32],
     // commitment to nullifier key
     pub nk_commitment: NullifierKeyCommitment,
     // randomness seed used to derive whatever randomness needed
-    pub rand_seed: Vec<u8>,
+    pub rand_seed: [u8; 32],
 }
 
 impl Resource {
     pub fn create(
-        logic_ref: Vec<u8>,
-        label_ref: Vec<u8>,
+        logic_ref: Digest,
+        label_ref: Digest,
         quantity: u128,
-        value_ref: Vec<u8>,
+        value_ref: Digest,
         is_ephemeral: bool,
-        nonce: Vec<u8>,
+        nonce: Digest,
         nk_commitment: NullifierKeyCommitment,
     ) -> Self {
         let mut rng = rand::thread_rng();
-        let rand_seed: [u8; DEFAULT_BYTES] = rng.gen();
         Self {
             logic_ref,
             label_ref,
             quantity,
             value_ref,
             is_ephemeral,
-            nonce,
+            nonce: nonce
+                .as_bytes()
+                .try_into()
+                .expect("it can not fail since the digest length is always 32 bytes"),
             nk_commitment,
-            rand_seed: rand_seed.to_vec(),
+            rand_seed: rng.gen(),
         }
     }
 
@@ -212,7 +214,7 @@ impl Resource {
         bincode::deserialize(bytes).map_err(|_| ArmError::InvalidResourceDeserialization)
     }
 
-    pub fn set_value_ref(&mut self, value_ref: Vec<u8>) {
+    pub fn set_value_ref(&mut self, value_ref: Digest) {
         self.value_ref = value_ref;
     }
 
@@ -222,12 +224,14 @@ impl Resource {
 
     pub fn reset_randomness(&mut self) {
         let mut rng = rand::thread_rng();
-        let rand_seed: [u8; DEFAULT_BYTES] = rng.gen();
-        self.rand_seed = rand_seed.to_vec();
+        self.rand_seed = rng.gen();
     }
 
-    pub fn set_nonce(&mut self, nonce: Vec<u8>) {
-        self.nonce = nonce;
+    pub fn set_nonce(&mut self, nf: Digest) {
+        self.nonce = nf
+            .as_bytes()
+            .try_into()
+            .expect("it can not fail since the digest length is always 32 bytes");
     }
 
     pub fn set_nonce_from_nf(
@@ -235,8 +239,11 @@ impl Resource {
         resource: &Resource,
         nf_key: &NullifierKey,
     ) -> Result<(), ArmError> {
-        let nf = resource.nullifier(nf_key)?;
-        self.nonce = nf.as_bytes().to_vec();
+        self.nonce = resource
+            .nullifier(nf_key)?
+            .as_bytes()
+            .try_into()
+            .map_err(|_| ArmError::InvalidResourceNonce)?;
         Ok(())
     }
 
@@ -253,14 +260,14 @@ impl Resource {
 impl Default for Resource {
     fn default() -> Self {
         Self {
-            logic_ref: vec![0; DEFAULT_BYTES],
-            label_ref: vec![0; DEFAULT_BYTES],
+            logic_ref: Digest::default(),
+            label_ref: Digest::default(),
             quantity: 0,
-            value_ref: vec![0; DEFAULT_BYTES],
+            value_ref: Digest::default(),
             is_ephemeral: true,
-            nonce: vec![0; DEFAULT_BYTES],
+            nonce: [0; 32],
             nk_commitment: NullifierKeyCommitment::default(),
-            rand_seed: vec![0; DEFAULT_BYTES],
+            rand_seed: [0; 32],
         }
     }
 }

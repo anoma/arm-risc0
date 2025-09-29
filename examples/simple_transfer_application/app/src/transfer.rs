@@ -96,9 +96,9 @@ fn simple_transfer_test() {
         &forwarder_addr, // forwarder_addr
         &token_addr,     // token_addr
         quantity,
-        vec![4u8; 32], // nonce
+        [4u8; 32], // nonce
         consumed_nf_cm,
-        vec![5u8; 32], // rand_seed
+        [5u8; 32], // rand_seed
         &consumed_auth_pk,
     );
     let consumed_nf = consumed_resource.nullifier(&consumed_nf_key).unwrap();
@@ -113,9 +113,9 @@ fn simple_transfer_test() {
         &forwarder_addr, // forwarder_addr
         &token_addr,     // token_addr
         quantity,
-        consumed_nf.as_bytes().to_vec(), // nonce
+        consumed_nf.as_bytes().try_into().unwrap(), // nonce
         created_nf_cm,
-        vec![7u8; 32], // rand_seed
+        [7u8; 32], // rand_seed
         &created_auth_pk,
     );
     let created_cm = created_resource.commitment();

@@ -6,8 +6,9 @@ use arm::{
     merkle_path::MerklePath,
     nullifier_key::NullifierKey,
     resource::Resource,
+    Digest,
 };
-use arm::{logic_proof::LogicProver, transaction::Transaction, utils::words_to_bytes};
+use arm::{logic_proof::LogicProver, transaction::Transaction};
 use kudo_logic_witness::{
     kudo_main_witness::KudoMainWitness,
     simple_denomination_witness::SimpleDenominationLogicWitness,
@@ -22,13 +23,13 @@ pub fn build_burn_tx(
     burned_kudo_resource: &Resource,
     burned_kudoresource_nf_key: &NullifierKey,
     burned_kudo_path: MerklePath,
-    latest_root: Vec<u32>,
+    latest_root: Digest,
 ) -> Result<Transaction, ArmError> {
     let issuer = AuthorizationVerifyingKey::from_signing_key(issuer_sk);
     let (instant_nk, instant_nk_commitment) = NullifierKey::random_pair();
 
     // Construct the burned kudo resource
-    let kudo_lable = compute_kudo_label(&KudoMainInfo::verifying_key_as_bytes(), &issuer);
+    let kudo_lable = compute_kudo_label(&KudoMainInfo::verifying_key(), &issuer);
     assert_eq!(burned_kudo_resource.label_ref, kudo_lable);
     let owner = AuthorizationVerifyingKey::from_signing_key(owner_sk);
     let kudo_value = compute_kudo_value(&owner);
@@ -39,20 +40,20 @@ pub fn build_burn_tx(
     let mut ephemeral_kudo_resource = burned_kudo_resource.clone();
     ephemeral_kudo_resource.is_ephemeral = true;
     ephemeral_kudo_resource.reset_randomness();
-    ephemeral_kudo_resource.set_nonce(burned_kudo_resource_nf.as_bytes().to_vec());
+    ephemeral_kudo_resource.set_nonce(burned_kudo_resource_nf);
     let ephemeral_kudo_resource_cm = ephemeral_kudo_resource.commitment();
 
     // Construct the ephemeral denomination resource
-    let denomination_logic = SimpleDenominationInfo::verifying_key_as_bytes();
+    let denomination_logic = SimpleDenominationInfo::verifying_key();
     let mut rng = rand::thread_rng();
     let nonce: [u8; 32] = rng.gen(); // Random nonce for the ephemeral resource
     let ephemeral_denomination_resource = Resource::create(
-        denomination_logic.clone(),
-        ephemeral_kudo_resource_cm.as_bytes().to_vec(), // Use the ephemeral kudo commitment as the label
+        denomination_logic,
+        ephemeral_kudo_resource_cm, // Use the ephemeral kudo commitment as the label
         0,
-        [0u8; 32].into(),
+        Digest::default(), // Value is not used for ephemeral resources
         true,
-        nonce.to_vec(),
+        Digest::from(nonce), // Random nonce for the ephemeral resource
         instant_nk_commitment.clone(),
     );
     let ephemeral_denomination_resource_nf =
@@ -60,13 +61,13 @@ pub fn build_burn_tx(
 
     // Construct the burned denomination resource
     let burned_denomination_resource = Resource::create(
-        denomination_logic.clone(),
-        burned_kudo_resource_nf.as_bytes().to_vec(), // Use the burned kudo nullifier as the label
+        denomination_logic,
+        burned_kudo_resource_nf, // Use the burned kudo nullifier as the label
         0,
-        [0u8; 32].into(),
+        Digest::default(), // Value is not used for burned resources
         true,
-        ephemeral_denomination_resource_nf.as_bytes().to_vec(),
-        instant_nk_commitment.clone(),
+        ephemeral_denomination_resource_nf,
+        instant_nk_commitment,
     );
     let burned_denomination_resource_cm = burned_denomination_resource.commitment();
 
@@ -78,7 +79,7 @@ pub fn build_burn_tx(
         burned_denomination_resource_cm,
     ]);
     let root = action_tree.root();
-    let root_bytes = words_to_bytes(&root);
+    let root_bytes = root.as_bytes();
 
     // Generate paths
     let burned_kudo_existence_path = action_tree.generate_path(&burned_kudo_resource_nf)?;
@@ -166,13 +167,13 @@ fn generate_a_burn_tx() {
     let issuer_sk = AuthorizationSigningKey::new();
     let issuer = AuthorizationVerifyingKey::from_signing_key(&issuer_sk);
     // TODO: fix the kudo_logic
-    let kudo_logic = KudoMainInfo::verifying_key_as_bytes();
+    let kudo_logic = KudoMainInfo::verifying_key();
     let kudo_lable = compute_kudo_label(&kudo_logic, &issuer);
     let owner_sk = issuer_sk.clone();
     let owner = AuthorizationVerifyingKey::from_signing_key(&owner_sk);
     let kudo_value = compute_kudo_value(&owner);
     let (kudo_nf_key, kudo_nk_cm) = NullifierKey::random_pair();
-    let nonce = vec![0u8; 32]; // Use a fixed nonce for testing
+    let nonce = Digest::default(); // Use a fixed nonce for testing
 
     let kudo_resource = Resource::create(
         kudo_logic, kudo_lable, 100, kudo_value, false, nonce, kudo_nk_cm,
@@ -185,7 +186,7 @@ fn generate_a_burn_tx() {
         &kudo_resource,
         &kudo_nf_key,
         MerklePath::default(), // It should be a real path
-        INITIAL_ROOT.as_words().to_vec(),
+        *INITIAL_ROOT,
     )
     .unwrap();
 

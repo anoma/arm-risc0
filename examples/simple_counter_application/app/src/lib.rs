@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 pub const SIMPLE_COUNTER_ELF: &[u8] = include_bytes!("../elf/counter-guest.bin");
 lazy_static! {
     pub static ref SIMPLE_COUNTER_ID: Digest =
-        Digest::from_hex("5e8e3e0716789acc39593a9af10c38febbc90226a4639dc2ceb318d4e7abe691")
+        Digest::from_hex("aaf7c2ea165846015962ec8e778ae7cec85951230e39d428193695b03f492710")
             .unwrap();
 }
 
@@ -67,11 +67,11 @@ impl LogicProver for CounterLogic {
     }
 }
 
-pub fn convert_counter_to_value_ref(value: u128) -> Vec<u8> {
+pub fn convert_counter_to_value_ref(value: u128) -> Digest {
     let mut arr = [0u8; 32];
     let bytes = value.to_le_bytes();
     arr[..16].copy_from_slice(&bytes); // left-align, right-pad with 0
-    arr.to_vec()
+    Digest::from(arr)
 }
 
 pub fn generate_compliance_proof(

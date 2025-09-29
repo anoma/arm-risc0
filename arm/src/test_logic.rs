@@ -80,7 +80,7 @@ impl LogicCircuit for TestLogicWitness {
         };
 
         Ok(LogicInstance {
-            tag: tag.as_words().to_vec(),
+            tag,
             is_consumed: self.is_consumed, // It can be either consumed or created to reduce padding resources
             root,
             app_data,

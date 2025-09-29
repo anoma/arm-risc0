@@ -11,10 +11,7 @@ use crate::{
     utils::words_to_bytes,
 };
 use rand::Rng;
-use risc0_zkvm::{
-    serde::to_vec,
-    sha::{Digest, DIGEST_WORDS},
-};
+use risc0_zkvm::{serde::to_vec, sha::Digest};
 use serde::{Deserialize, Serialize};
 
 pub trait LogicProver: Default + Clone + Serialize + for<'de> Deserialize<'de> {
@@ -35,7 +32,7 @@ pub trait LogicProver: Default + Clone + Serialize + for<'de> Deserialize<'de> {
         Ok(LogicVerifier {
             proof,
             instance,
-            verifying_key: Self::verifying_key().as_words().to_vec(),
+            verifying_key: Self::verifying_key(),
         })
     }
 }
@@ -44,30 +41,20 @@ pub trait LogicProver: Default + Clone + Serialize + for<'de> Deserialize<'de> {
 pub struct LogicVerifier {
     pub proof: Vec<u8>,
     pub instance: Vec<u8>,
-    pub verifying_key: Vec<u32>,
+    pub verifying_key: Digest,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct LogicVerifierInputs {
-    pub tag: Vec<u32>,
-    pub verifying_key: Vec<u32>,
+    pub tag: Digest,
+    pub verifying_key: Digest,
     pub app_data: AppData,
     pub proof: Vec<u8>,
 }
 
 impl LogicVerifier {
     pub fn verify(&self) -> Result<(), ArmError> {
-        let vk = if self.verifying_key.len() == DIGEST_WORDS {
-            // TODO(issue 119): the error handling can be fixed in a separate PR when reverting back to using Digest
-            let words: [u32; DIGEST_WORDS] = self.verifying_key.clone().try_into().unwrap();
-            Digest::from(words)
-        } else {
-            return Err(ArmError::ProofVerificationFailed(
-                "Invalid verifying key length".into(),
-            ));
-        };
-
-        verify_proof(&vk, &self.instance, &self.proof)
+        verify_proof(&self.verifying_key, &self.instance, &self.proof)
             .map_err(|err| ArmError::ProofVerificationFailed(err.to_string()))
     }
 
@@ -80,7 +67,7 @@ impl LogicVerifierInputs {
     pub fn to_logic_verifier(
         self,
         is_consumed: bool,
-        root: Vec<u32>,
+        root: Digest,
     ) -> Result<LogicVerifier, ArmError> {
         let instance_words = to_vec(&self.to_instance(is_consumed, root))
             .map_err(|_| ArmError::InstanceSerializationFailed)?;
@@ -91,9 +78,9 @@ impl LogicVerifierInputs {
         })
     }
 
-    fn to_instance(&self, is_consumed: bool, root: Vec<u32>) -> LogicInstance {
+    fn to_instance(&self, is_consumed: bool, root: Digest) -> LogicInstance {
         LogicInstance {
-            tag: self.tag.clone(),
+            tag: self.tag,
             is_consumed,
             root,
             app_data: self.app_data.clone(),
@@ -153,17 +140,15 @@ impl PaddingResourceLogic {
     }
     pub fn create_padding_resource(nk_commitment: NullifierKeyCommitment) -> Resource {
         let mut rng = rand::thread_rng();
-        let nonce: [u8; 32] = rng.gen();
-        let rand_seed: [u8; 32] = rng.gen();
         Resource {
-            logic_ref: Self::verifying_key().as_bytes().to_vec(),
-            label_ref: vec![0; 32],
+            logic_ref: Self::verifying_key(),
+            label_ref: Digest::default(),
             quantity: 0,
-            value_ref: vec![0; 32],
+            value_ref: Digest::default(),
             is_ephemeral: true,
-            nonce: nonce.to_vec(),
+            nonce: rng.gen(),
             nk_commitment,
-            rand_seed: rand_seed.to_vec(),
+            rand_seed: rng.gen(),
         }
     }
 }
@@ -173,7 +158,7 @@ impl Default for PaddingResourceLogic {
         let (nf_key, nk_commitment) = NullifierKey::random_pair();
         let resource = Self::create_padding_resource(nk_commitment);
         let receive_existence_path =
-            MerklePath::from_path(vec![(vec![0u32; DIGEST_WORDS], false); 3].as_slice());
+            MerklePath::from_path(vec![(Digest::default(), false); 3].as_slice());
         let witness = TrivialLogicWitness {
             resource,
             receive_existence_path,
