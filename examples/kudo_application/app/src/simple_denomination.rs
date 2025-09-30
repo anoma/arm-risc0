@@ -38,7 +38,7 @@ impl LogicProver for SimpleDenominationInfo {
 
 impl ComplianceWitnessInfo for SimpleDenominationInfo {
     fn resource(&self) -> Resource {
-        self.logic_witness.denomination_resource.clone()
+        self.logic_witness.denomination_resource
     }
 
     fn nf_key(&self) -> Option<NullifierKey> {

@@ -38,7 +38,7 @@ impl LogicProver for SimpleReceiveInfo {
 
 impl ComplianceWitnessInfo for SimpleReceiveInfo {
     fn resource(&self) -> Resource {
-        self.logic_witness.receive_resource.clone()
+        self.logic_witness.receive_resource
     }
 
     fn nf_key(&self) -> Option<NullifierKey> {

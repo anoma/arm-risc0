@@ -45,7 +45,7 @@ pub fn build_issue_tx(
         kudo_value,
         true,
         Digest::from(nonce),
-        instant_nk_commitment.clone(),
+        instant_nk_commitment,
     );
     let ephemeral_kudo_resource_nf = ephemeral_kudo_resource.nullifier(&instant_nk)?;
 
@@ -57,7 +57,7 @@ pub fn build_issue_tx(
         kudo_value,
         false,
         ephemeral_kudo_resource_nf,
-        receiver_nk_commitment.clone(),
+        *receiver_nk_commitment,
     );
     let issued_kudo_resource_cm = issued_kudo_resource.commitment();
 
@@ -70,7 +70,7 @@ pub fn build_issue_tx(
         Digest::default(),
         true,
         Digest::from(nonce),
-        instant_nk_commitment.clone(),
+        instant_nk_commitment,
     );
     let issued_receive_resource_nf = issued_receive_resource.nullifier(&instant_nk)?;
 
@@ -83,13 +83,12 @@ pub fn build_issue_tx(
         Digest::default(),
         true,
         issued_receive_resource_nf,
-        instant_nk_commitment.clone(),
+        instant_nk_commitment,
     );
     let issued_denomination_resource_cm = issued_denomination_resource.commitment();
 
     // Construct the padding resource
-    let padding_resource =
-        PaddingResourceLogic::create_padding_resource(instant_nk_commitment.clone());
+    let padding_resource = PaddingResourceLogic::create_padding_resource(instant_nk_commitment);
     let padding_resource_nf = padding_resource.nullifier(&instant_nk)?;
 
     // Construct the ephemeral denomination resource
@@ -100,7 +99,7 @@ pub fn build_issue_tx(
         Digest::default(), // Value is not used for ephemeral resources
         true,
         padding_resource_nf,
-        instant_nk_commitment.clone(),
+        instant_nk_commitment,
     );
     let ephemeral_denomination_resource_cm = ephemeral_denomination_resource.commitment();
 
@@ -128,14 +127,14 @@ pub fn build_issue_tx(
 
     // Construct the issued kudo witness
     let issue_kudo_logic_witness = KudoMainWitness::generate_persistent_resource_creation_witness(
-        issued_kudo_resource.clone(),
+        issued_kudo_resource,
         issued_kudo_existence_path.clone(),
         issuer,
-        issued_denomination_resource.clone(),
+        issued_denomination_resource,
         issued_denomination_existence_path.clone(),
         instant_nk.clone(),
         false,
-        issued_receive_resource.clone(),
+        issued_receive_resource,
         instant_nk.clone(),
         true,
         issued_receive_existence_path.clone(),
@@ -147,11 +146,11 @@ pub fn build_issue_tx(
     // Construct the denomination witness corresponding to the issued kudo resource
     let issue_denomination_logic_witness =
         SimpleDenominationLogicWitness::generate_created_kudo_denomination_witness(
-            issued_denomination_resource.clone(),
+            issued_denomination_resource,
             issued_denomination_existence_path.clone(),
             false,
             instant_nk.clone(),
-            issued_kudo_resource.clone(),
+            issued_kudo_resource,
             issued_kudo_existence_path.clone(),
             issuer,
         );
@@ -159,22 +158,22 @@ pub fn build_issue_tx(
 
     // Construct the issued receive witness
     let issue_receive_logic_witness = SimpleReceiveLogicWitness::generate_witness(
-        issued_receive_resource.clone(),
+        issued_receive_resource,
         issued_receive_existence_path.clone(),
         instant_nk.clone(),
         true,
-        issued_kudo_resource.clone(),
+        issued_kudo_resource,
         issued_kudo_existence_path.clone(),
     );
     let issue_receive = SimpleReceiveInfo::new(issue_receive_logic_witness, None);
 
     // Construct the ephemeral kudo witness
     let ephemeral_kudo_logic_witness = KudoMainWitness::generate_consumed_ephemeral_witness(
-        ephemeral_kudo_resource.clone(),
+        ephemeral_kudo_resource,
         ephemeral_kudo_existence_path.clone(),
         instant_nk.clone(),
         issuer,
-        ephemeral_denomination_resource.clone(),
+        ephemeral_denomination_resource,
         ephemeral_denomination_existence_path.clone(),
     );
     let ephemeral_kudo = KudoMainInfo::new(ephemeral_kudo_logic_witness, None);
@@ -183,10 +182,10 @@ pub fn build_issue_tx(
     let signature = issuer_sk.sign(root_bytes);
     let ephemeral_denomination_logic_witness =
         SimpleDenominationLogicWitness::generate_issued_ephemeral_witness(
-            ephemeral_denomination_resource.clone(),
+            ephemeral_denomination_resource,
             ephemeral_denomination_existence_path.clone(),
             signature,
-            ephemeral_kudo_resource.clone(),
+            ephemeral_kudo_resource,
             ephemeral_kudo_existence_path.clone(),
             instant_nk.clone(),
             issuer,

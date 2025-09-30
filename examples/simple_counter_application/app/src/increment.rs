@@ -16,7 +16,7 @@ pub fn increment_counter(
     old_counter: &Resource,
     old_counter_nf_key: &NullifierKey,
 ) -> Result<Resource, ArmError> {
-    let mut new_counter = old_counter.clone();
+    let mut new_counter = *old_counter;
     let current_value = u128::from_le_bytes(
         new_counter.value_ref.as_bytes()[0..16]
             .try_into()
@@ -37,16 +37,16 @@ pub fn create_increment_tx(
 ) -> Result<(Transaction, Resource), ArmError> {
     let new_counter = increment_counter(&counter_resource, &nf_key)?;
     let (compliance_unit, rcv) = generate_compliance_proof(
-        counter_resource.clone(),
+        counter_resource,
         nf_key.clone(),
         consumed_merkle_path,
-        new_counter.clone(),
+        new_counter,
     )?;
     let logic_verifier_inputs = generate_logic_proofs(
         counter_resource,
         nf_key,
         consumed_discovery_pk,
-        new_counter.clone(),
+        new_counter,
         created_discovery_pk,
     )?;
 

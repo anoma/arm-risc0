@@ -37,10 +37,10 @@ pub fn construct_mint_tx(
 
     // Generate compliance units
     let compliance_witness = ComplianceWitness::from_resources(
-        consumed_resource.clone(),
+        consumed_resource,
         latest_cm_tree_root,
         consumed_nf_key.clone(),
-        created_resource.clone(),
+        created_resource,
     );
     let compliance_unit = ComplianceUnit::create(&compliance_witness)?;
 

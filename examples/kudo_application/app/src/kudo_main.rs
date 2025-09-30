@@ -38,7 +38,7 @@ impl LogicProver for KudoMainInfo {
 
 impl ComplianceWitnessInfo for KudoMainInfo {
     fn resource(&self) -> Resource {
-        self.logic_witness.kudo_resource.clone()
+        self.logic_witness.kudo_resource
     }
 
     fn nf_key(&self) -> Option<NullifierKey> {
