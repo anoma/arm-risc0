@@ -68,67 +68,103 @@ impl LogicProver for TestLogic {
     }
 }
 
-pub fn create_an_action(nonce: u8) -> (Action, DeltaWitness) {
+pub fn create_an_action_with_multiple_compliances(
+    compliance_num: usize,
+    nonce: u8,
+) -> (Action, DeltaWitness) {
     let nf_key = NullifierKey::default();
     let nf_key_cm = nf_key.commit();
-    let mut consumed_resource = Resource {
-        logic_ref: TestLogic::verifying_key(),
-        nk_commitment: nf_key_cm,
-        quantity: 1,
-        ..Default::default()
-    };
-    consumed_resource.nonce[0] = nonce;
-    let consumed_resource_nf = consumed_resource.nullifier(&nf_key).unwrap();
 
-    let mut created_resource = consumed_resource.clone();
-    created_resource.set_nonce(consumed_resource_nf);
+    // Generate multiple consumed and created resources
+    let (consumed_resources, created_resources): (Vec<_>, Vec<_>) = (0..compliance_num)
+        .map(|i| {
+            let mut consumed_resource = Resource {
+                logic_ref: TestLogic::verifying_key(),
+                nk_commitment: nf_key_cm,
+                quantity: 1,
+                ..Default::default()
+            };
+            consumed_resource.nonce = [[nonce; 16], [i as u8; 16]].concat().try_into().unwrap();
+            let consumed_resource_nf = consumed_resource.nullifier(&nf_key).unwrap();
 
-    let compliance_witness = ComplianceWitness::with_fixed_rcv(
-        consumed_resource.clone(),
-        nf_key.clone(),
-        created_resource.clone(),
-    );
-    let compliance_receipt = ComplianceUnit::create(&compliance_witness).unwrap();
+            let mut created_resource = consumed_resource;
+            created_resource.set_nonce(consumed_resource_nf);
+            (consumed_resource, created_resource)
+        })
+        .unzip();
 
-    let created_resource_cm = created_resource.commitment();
-    let action_tree = MerkleTree::new(vec![consumed_resource_nf, created_resource_cm]);
-    let consumed_resource_path = action_tree.generate_path(&consumed_resource_nf).unwrap();
-    let created_resource_path = action_tree.generate_path(&created_resource_cm).unwrap();
+    let mut compliance_units = Vec::new();
+    let mut rcvs = Vec::new();
+    let mut action_tree = MerkleTree::new(vec![]);
+    for i in 0..compliance_num {
+        let compliance_witness = ComplianceWitness::with_fixed_rcv(
+            consumed_resources[i],
+            nf_key.clone(),
+            created_resources[i],
+        );
+        let compliance_receipt = ComplianceUnit::create(&compliance_witness).unwrap();
 
-    let consumed_logic = TestLogic::new(
-        consumed_resource,
-        consumed_resource_path,
-        nf_key.clone(),
-        true,
-    );
-    let consumed_logic_proof = consumed_logic.prove().unwrap();
+        let consumed_resource_nf = consumed_resources[i].nullifier(&nf_key).unwrap();
+        let created_resource_cm = created_resources[i].commitment();
+        action_tree.insert(consumed_resource_nf);
+        action_tree.insert(created_resource_cm);
 
-    let created_logic = TestLogic::new(created_resource, created_resource_path, nf_key, false);
-    let created_logic_proof = created_logic.prove().unwrap();
+        compliance_units.push(compliance_receipt);
+        rcvs.push(compliance_witness.rcv);
+    }
 
-    let compliance_units = vec![compliance_receipt];
-    let logic_verifier_inputs = vec![consumed_logic_proof, created_logic_proof];
+    let logic_verifier_inputs = (0..compliance_num)
+        .flat_map(|i| {
+            let consumed_resource_nf = consumed_resources[i].nullifier(&nf_key).unwrap();
+            let created_resource_cm = created_resources[i].commitment();
+            let consumed_resource_path = action_tree.generate_path(&consumed_resource_nf).unwrap();
+            let created_resource_path = action_tree.generate_path(&created_resource_cm).unwrap();
+
+            let consumed_logic = TestLogic::new(
+                consumed_resources[i],
+                consumed_resource_path,
+                nf_key.clone(),
+                true,
+            );
+            let consumed_logic_proof = consumed_logic.prove().unwrap();
+
+            let created_logic = TestLogic::new(
+                created_resources[i],
+                created_resource_path,
+                nf_key.clone(),
+                false,
+            );
+            let created_logic_proof = created_logic.prove().unwrap();
+
+            vec![consumed_logic_proof, created_logic_proof]
+        })
+        .collect();
 
     let action = Action::new(compliance_units, logic_verifier_inputs).unwrap();
     action.clone().verify().unwrap();
 
-    let delta_witness = DeltaWitness::from_bytes_vec(&[compliance_witness.rcv]).unwrap();
+    let delta_witness = DeltaWitness::from_bytes_vec(&rcvs).unwrap();
     (action, delta_witness)
 }
 
-pub fn create_multiple_actions(n: usize) -> (Vec<Action>, DeltaWitness) {
+pub fn create_multiple_actions(
+    action_num: usize,
+    compliance_num: usize,
+) -> (Vec<Action>, DeltaWitness) {
     let mut actions = Vec::new();
     let mut delta_witnesses = Vec::new();
-    for i in 0..n {
-        let (action, delta_witness) = create_an_action(i as u8);
+    for i in 0..action_num {
+        let (action, delta_witness) =
+            create_an_action_with_multiple_compliances(compliance_num, i as u8);
         actions.push(action);
         delta_witnesses.push(delta_witness);
     }
     (actions, DeltaWitness::compress(&delta_witnesses))
 }
 
-pub fn generate_test_transaction(n_actions: usize) -> Transaction {
-    let (actions, delta_witness) = create_multiple_actions(n_actions);
+// Create a test transaction with n_actions actions, each with compliance_num compliance units
+pub fn generate_test_transaction(n_actions: usize, compliance_num: usize) -> Transaction {
+    let (actions, delta_witness) = create_multiple_actions(n_actions, compliance_num);
     let tx = Transaction::create(actions, Delta::Witness(delta_witness));
     let balanced_tx = tx.generate_delta_proof().unwrap();
     balanced_tx.clone().verify().unwrap();
@@ -144,10 +180,10 @@ fn test_logic_prover() {
 
 #[test]
 fn test_action() {
-    let _ = create_an_action(1);
+    let _ = create_an_action_with_multiple_compliances(2, 1);
 }
 
 #[test]
 fn test_transaction() {
-    let _ = generate_test_transaction(1);
+    let _ = generate_test_transaction(2, 2);
 }
