@@ -1,3 +1,5 @@
+#[cfg(feature = "nif")]
+use crate::rustler_util::{bincode_deserialize, bincode_serialize};
 use crate::{
     error::ArmError,
     utils::{bytes_to_words, words_to_bytes},
@@ -35,7 +37,7 @@ impl SecretKey {
 
 #[cfg(feature = "nif")]
 fn do_encode<'a>(secret_key: &SecretKey, env: Env<'a>) -> Result<Term<'a>, Error> {
-    let bytes = bincode::serialize(&secret_key.0).unwrap();
+    let bytes = bincode_serialize(&secret_key)?;
 
     let mut erl_bin = OwnedBinary::new(bytes.len()).ok_or(Error::BadArg)?;
     let _ = erl_bin.as_mut_slice().write_all(&bytes);

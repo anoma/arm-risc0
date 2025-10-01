@@ -184,8 +184,7 @@ impl RustlerEncoder for AffinePoint {
 impl<'a> RustlerDecoder<'a> for AffinePoint {
     fn rustler_decode(term: Term<'a>) -> NifResult<Self> {
         let binary: Vec<u8> = RustlerDecoder::rustler_decode(term)?;
-        let affine_point = bincode::deserialize::<AffinePoint>(binary.as_slice());
-        Ok(affine_point.unwrap())
+        bincode_deserialize(&binary)
     }
 }
 
@@ -200,8 +199,7 @@ impl RustlerEncoder for Signature {
 impl<'a> RustlerDecoder<'a> for Signature {
     fn rustler_decode(term: Term<'a>) -> NifResult<Self> {
         let binary: Vec<u8> = RustlerDecoder::rustler_decode(term)?;
-        let signature = bincode::deserialize::<Signature>(binary.as_slice());
-        Ok(signature.unwrap())
+        bincode_deserialize(&binary)
     }
 }
 
