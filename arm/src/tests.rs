@@ -193,7 +193,7 @@ fn test_transaction() {
 fn test_aggregation_works() {
     use crate::aggregation::AggregationStrategy;
 
-    let tx = generate_test_transaction(1);
+    let tx = generate_test_transaction(2, 2);
 
     for strategy in [AggregationStrategy::Sequential, AggregationStrategy::Batch] {
         let mut tx_str = tx.clone();
@@ -208,7 +208,7 @@ fn test_aggregation_works() {
 fn test_verify_aggregation_fails_for_incorrect_instances() {
     use crate::aggregation::AggregationStrategy;
 
-    let tx = generate_test_transaction(2);
+    let tx = generate_test_transaction(2, 2);
 
     for strategy in [AggregationStrategy::Sequential, AggregationStrategy::Batch] {
         let mut tx_str = tx.clone();
@@ -225,7 +225,7 @@ fn test_verify_aggregation_fails_for_incorrect_instances() {
 fn test_cannot_aggregate_invalid_proofs() {
     use crate::{aggregation::AggregationStrategy, logic_proof::LogicVerifierInputs};
 
-    let tx = generate_test_transaction(2);
+    let tx = generate_test_transaction(2, 2);
 
     // Create a transaction with one invalid proof.
     let bad_lproof = LogicVerifierInputs {
