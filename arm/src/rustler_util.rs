@@ -22,6 +22,7 @@ use risc0_zkvm::Digest;
 use rustler::types::map::map_new;
 use rustler::{atoms, Binary, Decoder, Encoder, NifResult};
 use rustler::{Env, Error, OwnedBinary, Term};
+use serde::{Deserialize, Serialize};
 use std::io::Write;
 
 atoms! {
@@ -88,6 +89,25 @@ atoms! {
     at_delta_proof_field = "delta_proof",
     at_expected_balance = "expected_balance",
     at_witness = "witness"
+}
+
+//--------------------------------------------------------------------------------------------------
+// Helpers for encoding
+
+/// I run bincode deserialize but with the error being a rustler::Error
+pub fn bincode_deserialize<T>(binary: &[u8]) -> NifResult<T>
+where
+    T: for<'de> Deserialize<'de>,
+{
+    bincode::deserialize::<T>(binary).map_err(|e| Error::Term(Box::new(e.to_string())))
+}
+
+/// I run bincode serialize but with the error being a rustler::Error
+pub fn bincode_serialize<T>(term: &T) -> NifResult<Vec<u8>>
+where
+    T: Serialize,
+{
+    bincode::serialize(term).map_err(|e| Error::Term(Box::new(e.to_string())))
 }
 
 pub trait RustlerEncoder {
