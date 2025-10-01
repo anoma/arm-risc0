@@ -97,6 +97,11 @@ pub trait RustlerEncoder {
 pub trait RustlerDecoder<'a>: Sized + 'a {
     fn rustler_decode(term: Term<'a>) -> NifResult<Self>;
 }
+impl<'a> RustlerDecoder<'a> for Binary<'a> {
+    fn rustler_decode(term: Term<'a>) -> NifResult<Self> {
+        term.decode::<Binary<'a>>()
+    }
+}
 
 impl RustlerEncoder for Vec<u8> {
     fn rustler_encode<'a>(&self, env: Env<'a>) -> Result<Term<'a>, Error> {
