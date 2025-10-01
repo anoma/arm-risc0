@@ -91,7 +91,7 @@ atoms! {
 }
 
 pub trait RustlerEncoder {
-    fn rustler_encode<'a>(&self, env: Env<'a>) -> Result<Term<'a>, Error>;
+    fn rustler_encode<'a>(&self, env: Env<'a>) -> NifResult<Term<'a>>;
 }
 
 pub trait RustlerDecoder<'a>: Sized + 'a {
@@ -99,7 +99,7 @@ pub trait RustlerDecoder<'a>: Sized + 'a {
 }
 
 impl RustlerEncoder for Vec<u8> {
-    fn rustler_encode<'a>(&self, env: Env<'a>) -> Result<Term<'a>, Error> {
+    fn rustler_encode<'a>(&self, env: Env<'a>) -> NifResult<Term<'a>> {
         let mut erl_bin = OwnedBinary::new(self.len())
             .ok_or("could not create OwnedBinary")
             .expect("could not allocate binary");
@@ -116,7 +116,7 @@ impl<'a> RustlerDecoder<'a> for Vec<u8> {
 }
 
 impl RustlerEncoder for Vec<u32> {
-    fn rustler_encode<'a>(&self, env: Env<'a>) -> Result<Term<'a>, Error> {
+    fn rustler_encode<'a>(&self, env: Env<'a>) -> NifResult<Term<'a>> {
         let mut erl_bin: OwnedBinary = OwnedBinary::new(self.len() * 4)
             .ok_or("could not create OwnedBinary")
             .expect("could not allocate binary");
@@ -136,7 +136,7 @@ impl<'a> RustlerDecoder<'a> for Vec<u32> {
 }
 
 impl RustlerEncoder for Digest {
-    fn rustler_encode<'a>(&self, env: Env<'a>) -> Result<Term<'a>, Error> {
+    fn rustler_encode<'a>(&self, env: Env<'a>) -> NifResult<Term<'a>> {
         self.as_words().to_vec().rustler_encode(env)
     }
 }
@@ -149,7 +149,7 @@ impl<'a> RustlerDecoder<'a> for Digest {
 }
 
 impl RustlerEncoder for AffinePoint {
-    fn rustler_encode<'a>(&self, env: Env<'a>) -> Result<Term<'a>, Error> {
+    fn rustler_encode<'a>(&self, env: Env<'a>) -> NifResult<Term<'a>> {
         bincode::serialize(self)
             .expect("failed to encode AffinePoint")
             .rustler_encode(env)
@@ -165,7 +165,7 @@ impl<'a> RustlerDecoder<'a> for AffinePoint {
 }
 
 impl RustlerEncoder for Signature {
-    fn rustler_encode<'a>(&self, env: Env<'a>) -> Result<Term<'a>, Error> {
+    fn rustler_encode<'a>(&self, env: Env<'a>) -> NifResult<Term<'a>> {
         bincode::serialize(self)
             .expect("failed to encode Signature")
             .rustler_encode(env)
@@ -181,7 +181,7 @@ impl<'a> RustlerDecoder<'a> for Signature {
 }
 
 impl RustlerEncoder for RecoveryId {
-    fn rustler_encode<'a>(&self, env: Env<'a>) -> Result<Term<'a>, Error> {
+    fn rustler_encode<'a>(&self, env: Env<'a>) -> NifResult<Term<'a>> {
         let byte: u8 = self.to_byte();
         Ok(byte.encode(env))
     }
@@ -195,7 +195,7 @@ impl<'a> RustlerDecoder<'a> for RecoveryId {
 }
 
 impl RustlerEncoder for SigningKey {
-    fn rustler_encode<'a>(&self, env: Env<'a>) -> Result<Term<'a>, Error> {
+    fn rustler_encode<'a>(&self, env: Env<'a>) -> NifResult<Term<'a>> {
         let bytes = self.to_bytes();
         let bytez = bytes.to_vec();
         RustlerEncoder::rustler_encode(&bytez, env)
@@ -213,7 +213,7 @@ impl<'a> RustlerDecoder<'a> for SigningKey {
 // ComplianceUnit
 
 impl RustlerEncoder for ComplianceUnit {
-    fn rustler_encode<'a>(&self, env: Env<'a>) -> Result<Term<'a>, Error> {
+    fn rustler_encode<'a>(&self, env: Env<'a>) -> NifResult<Term<'a>> {
         let map = map_new(env)
             .map_put(at_struct().encode(env), at_compliance_unit().encode(env))?
             .map_put(at_proof().encode(env), self.proof.rustler_encode(env)?)?
@@ -253,7 +253,7 @@ impl<'a> Decoder<'a> for ComplianceUnit {
 // ExpirableBlob
 
 impl RustlerEncoder for ExpirableBlob {
-    fn rustler_encode<'a>(&self, env: Env<'a>) -> Result<Term<'a>, Error> {
+    fn rustler_encode<'a>(&self, env: Env<'a>) -> NifResult<Term<'a>> {
         let map = map_new(env)
             .map_put(at_struct().encode(env), at_expirable_blob().encode(env))?
             .map_put(at_blob().encode(env), self.blob.rustler_encode(env)?)?
@@ -296,7 +296,7 @@ impl<'a> Decoder<'a> for ExpirableBlob {
 // AppData
 
 impl RustlerEncoder for AppData {
-    fn rustler_encode<'a>(&self, env: Env<'a>) -> Result<Term<'a>, Error> {
+    fn rustler_encode<'a>(&self, env: Env<'a>) -> NifResult<Term<'a>> {
         let map = map_new(env)
             .map_put(at_struct().encode(env), at_app_data().encode(env))?
             .map_put(
@@ -357,7 +357,7 @@ impl<'a> Decoder<'a> for AppData {
 // LogicVerifierInputs
 
 impl RustlerEncoder for LogicVerifierInputs {
-    fn rustler_encode<'a>(&self, env: Env<'a>) -> Result<Term<'a>, Error> {
+    fn rustler_encode<'a>(&self, env: Env<'a>) -> NifResult<Term<'a>> {
         let map = map_new(env)
             .map_put(
                 at_struct().encode(env),
@@ -451,7 +451,7 @@ impl<'a> Decoder<'a> for LogicVerifierInputs {
 // Action
 
 impl RustlerEncoder for Action {
-    fn rustler_encode<'a>(&self, env: Env<'a>) -> Result<Term<'a>, Error> {
+    fn rustler_encode<'a>(&self, env: Env<'a>) -> NifResult<Term<'a>> {
         let map = map_new(env)
             .map_put(at_struct().encode(env), at_action().encode(env))?
             .map_put(
@@ -500,7 +500,7 @@ impl<'a> Decoder<'a> for Action {
 // MerkleTree
 
 impl RustlerEncoder for MerkleTree {
-    fn rustler_encode<'a>(&self, env: Env<'a>) -> Result<Term<'a>, Error> {
+    fn rustler_encode<'a>(&self, env: Env<'a>) -> NifResult<Term<'a>> {
         // encode the leaves separately.
         // each leaf is a vec<u32> and we have to encode those as a binary individually.
         let encoded_vec: Term = self
@@ -553,7 +553,7 @@ impl<'a> Decoder<'a> for MerkleTree {
 // MerklePath
 
 impl RustlerEncoder for MerklePath {
-    fn rustler_encode<'a>(&self, env: Env<'a>) -> Result<Term<'a>, Error> {
+    fn rustler_encode<'a>(&self, env: Env<'a>) -> NifResult<Term<'a>> {
         let encoded_vec: Vec<Term> = self
             .0
             .iter()
@@ -609,7 +609,7 @@ impl<'a> Decoder<'a> for MerklePath {
 // ComplianceInstance
 
 impl RustlerEncoder for ComplianceInstance {
-    fn rustler_encode<'a>(&self, env: Env<'a>) -> Result<Term<'a>, Error> {
+    fn rustler_encode<'a>(&self, env: Env<'a>) -> NifResult<Term<'a>> {
         let map = map_new(env)
             .map_put(
                 at_struct().encode(env),
@@ -703,7 +703,7 @@ impl<'a> Decoder<'a> for ComplianceInstance {
 // ComplianceWitness
 
 impl RustlerEncoder for ComplianceWitness {
-    fn rustler_encode<'a>(&self, env: Env<'a>) -> Result<Term<'a>, Error> {
+    fn rustler_encode<'a>(&self, env: Env<'a>) -> NifResult<Term<'a>> {
         let map = map_new(env)
             .map_put(at_struct().encode(env), at_compliance_witness().encode(env))?
             .map_put(
@@ -777,7 +777,7 @@ impl<'a> Decoder<'a> for ComplianceWitness {
 // NullifierKeyCommitment
 
 impl RustlerEncoder for NullifierKeyCommitment {
-    fn rustler_encode<'a>(&self, env: Env<'a>) -> Result<Term<'a>, Error> {
+    fn rustler_encode<'a>(&self, env: Env<'a>) -> NifResult<Term<'a>> {
         let inner_bytes = self.inner().as_words().to_vec();
         inner_bytes.rustler_encode(env)
     }
@@ -808,7 +808,7 @@ impl<'a> Decoder<'a> for NullifierKeyCommitment {
 // NullifierKey
 
 impl RustlerEncoder for NullifierKey {
-    fn rustler_encode<'a>(&self, env: Env<'a>) -> Result<Term<'a>, Error> {
+    fn rustler_encode<'a>(&self, env: Env<'a>) -> NifResult<Term<'a>> {
         let inner_bytes = self.inner().to_vec();
         inner_bytes.rustler_encode(env)
     }
@@ -838,7 +838,7 @@ impl<'a> Decoder<'a> for NullifierKey {
 // Resource
 
 impl RustlerEncoder for Resource {
-    fn rustler_encode<'a>(&self, env: Env<'a>) -> Result<Term<'a>, Error> {
+    fn rustler_encode<'a>(&self, env: Env<'a>) -> NifResult<Term<'a>> {
         let map = map_new(env)
             .map_put(at_struct().encode(env), at_resource().encode(env))?
             .map_put(
@@ -931,7 +931,7 @@ impl<'a> Decoder<'a> for Resource {
 // DeltaProof
 
 impl RustlerEncoder for DeltaProof {
-    fn rustler_encode<'a>(&self, env: Env<'a>) -> Result<Term<'a>, Error> {
+    fn rustler_encode<'a>(&self, env: Env<'a>) -> NifResult<Term<'a>> {
         let map = map_new(env)
             .map_put(at_struct().encode(env), at_delta_proof().encode(env))?
             .map_put(
@@ -973,7 +973,7 @@ impl<'a> Decoder<'a> for DeltaProof {
 // DeltaWitness
 
 impl RustlerEncoder for DeltaWitness {
-    fn rustler_encode<'a>(&self, env: Env<'a>) -> Result<Term<'a>, Error> {
+    fn rustler_encode<'a>(&self, env: Env<'a>) -> NifResult<Term<'a>> {
         let map = map_new(env)
             .map_put(at_struct().encode(env), at_delta_witness().encode(env))?
             .map_put(
@@ -1011,7 +1011,7 @@ impl<'a> Decoder<'a> for DeltaWitness {
 // LogicVerifier
 
 impl RustlerEncoder for LogicVerifier {
-    fn rustler_encode<'a>(&self, env: Env<'a>) -> Result<Term<'a>, Error> {
+    fn rustler_encode<'a>(&self, env: Env<'a>) -> NifResult<Term<'a>> {
         let map = map_new(env)
             .map_put(at_struct().encode(env), at_logic_verifier().encode(env))?
             .map_put(at_proof().encode(env), self.proof.rustler_encode(env)?)?
@@ -1064,7 +1064,7 @@ impl<'a> Decoder<'a> for LogicVerifier {
 // Transaction
 
 impl RustlerEncoder for Transaction {
-    fn rustler_encode<'a>(&self, env: Env<'a>) -> Result<Term<'a>, Error> {
+    fn rustler_encode<'a>(&self, env: Env<'a>) -> NifResult<Term<'a>> {
         let map = map_new(env)
             .map_put(at_struct().encode(env), at_transaction().encode(env))?
             .map_put(at_actions().encode(env), self.actions.encode(env))?
@@ -1123,7 +1123,7 @@ impl<'a> Decoder<'a> for Transaction {
 // Delta
 
 impl RustlerEncoder for Delta {
-    fn rustler_encode<'a>(&self, env: Env<'a>) -> Result<Term<'a>, Error> {
+    fn rustler_encode<'a>(&self, env: Env<'a>) -> NifResult<Term<'a>> {
         Ok(self.encode(env))
     }
 }
