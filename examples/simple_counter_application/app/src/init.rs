@@ -44,12 +44,12 @@ pub fn init_counter_resource(
     ephemeral_counter_nf_key: &NullifierKey,
 ) -> Result<(Resource, NullifierKey), ArmError> {
     let (nf_key, nf_key_cm) = NullifierKey::random_pair();
-    let mut init_counter = ephemeral_counter.clone();
+    let mut init_counter = *ephemeral_counter;
     init_counter.is_ephemeral = false;
     init_counter.reset_randomness();
     init_counter.set_nonce_from_nf(ephemeral_counter, ephemeral_counter_nf_key)?;
     init_counter.set_value_ref(convert_counter_to_value_ref(1u128));
-    init_counter.set_nf_commitment(nf_key_cm.clone());
+    init_counter.set_nf_commitment(nf_key_cm);
     Ok((init_counter, nf_key))
 }
 
@@ -64,16 +64,16 @@ pub fn create_init_counter_tx(
     let (counter_resource, counter_nf_key) =
         init_counter_resource(&ephemeral_counter, &ephemeral_nf_key)?;
     let (compliance_unit, rcv) = generate_compliance_proof(
-        ephemeral_counter.clone(),
+        ephemeral_counter,
         ephemeral_nf_key.clone(),
         MerklePath::default(),
-        counter_resource.clone(),
+        counter_resource,
     )?;
     let logic_verifier_inputs = generate_logic_proofs(
         ephemeral_counter,
         ephemeral_nf_key,
         discovery_pk,
-        counter_resource.clone(),
+        counter_resource,
         discovery_pk,
     )?;
 

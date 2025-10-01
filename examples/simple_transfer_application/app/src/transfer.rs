@@ -33,17 +33,17 @@ pub fn construct_transfer_tx(
 
     // Generate compliance units
     let compliance_witness = ComplianceWitness::from_resources_with_path(
-        consumed_resource.clone(),
+        consumed_resource,
         consumed_nf_key.clone(),
         consumed_resource_path,
-        created_resource.clone(),
+        created_resource,
     );
     let compliance_unit = ComplianceUnit::create(&compliance_witness)?;
 
     // Generate logic proofs
     let consumed_resource_path = action_tree.generate_path(&consumed_nf)?;
     let consumed_resource_logic = TransferLogic::consume_persistent_resource_logic(
-        consumed_resource.clone(),
+        consumed_resource,
         consumed_resource_path,
         consumed_nf_key,
         consumed_auth_pk,
@@ -129,12 +129,12 @@ fn simple_transfer_test() {
 
     let tx_start_timer = std::time::Instant::now();
     let tx = construct_transfer_tx(
-        consumed_resource.clone(),
+        consumed_resource,
         merkle_path.clone(),
         consumed_nf_key.clone(),
         consumed_auth_pk,
         auth_sig,
-        created_resource.clone(),
+        created_resource,
         created_discovery_pk,
         created_encryption_pk,
     )

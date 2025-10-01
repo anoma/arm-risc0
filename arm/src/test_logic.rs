@@ -37,7 +37,7 @@ impl LogicCircuit for TestLogicWitness {
         assert!(self.resource.is_ephemeral);
 
         let resource_payload = {
-            let encoded_resource = EvmResource::from(self.resource.clone()).encode();
+            let encoded_resource = EvmResource::from(self.resource).encode();
             let encoded_resource_expirable_blob = ExpirableBlob {
                 blob: bytes_to_words(&encoded_resource),
                 deletion_criterion: 1,

@@ -37,7 +37,7 @@ pub fn build_burn_tx(
     let burned_kudo_resource_nf = burned_kudo_resource.nullifier(burned_kudoresource_nf_key)?;
 
     // Construct the ephemeral kudo resource
-    let mut ephemeral_kudo_resource = burned_kudo_resource.clone();
+    let mut ephemeral_kudo_resource = *burned_kudo_resource;
     ephemeral_kudo_resource.is_ephemeral = true;
     ephemeral_kudo_resource.reset_randomness();
     ephemeral_kudo_resource.set_nonce(burned_kudo_resource_nf);
@@ -54,7 +54,7 @@ pub fn build_burn_tx(
         Digest::default(), // Value is not used for ephemeral resources
         true,
         Digest::from(nonce), // Random nonce for the ephemeral resource
-        instant_nk_commitment.clone(),
+        instant_nk_commitment,
     );
     let ephemeral_denomination_resource_nf =
         ephemeral_denomination_resource.nullifier(&instant_nk)?;
@@ -92,11 +92,11 @@ pub fn build_burn_tx(
     // Construct the burned kudo witness: consume the kudo resource
     let burned_kudo_logic_witness =
         KudoMainWitness::generate_persistent_resource_consumption_witness(
-            burned_kudo_resource.clone(),
+            *burned_kudo_resource,
             burned_kudo_existence_path.clone(),
             burned_kudoresource_nf_key.clone(),
             issuer,
-            burned_denomination_resource.clone(),
+            burned_denomination_resource,
             burned_denomination_existence_path.clone(),
             false,
             NullifierKey::default(), // Not used in this case
@@ -112,7 +112,7 @@ pub fn build_burn_tx(
             false,
             NullifierKey::default(), // Not used in this case
             consumption_signature,
-            burned_kudo_resource.clone(),
+            *burned_kudo_resource,
             burned_kudo_existence_path,
             true, // The kudo resource is consumed
             burned_kudoresource_nf_key.clone(),
@@ -124,10 +124,10 @@ pub fn build_burn_tx(
 
     // Construct the ephemeral kudo witness
     let ephemeral_kudo_logic_witness = KudoMainWitness::generate_created_ephemeral_witness(
-        ephemeral_kudo_resource.clone(),
+        ephemeral_kudo_resource,
         ephemeral_kudo_existence_path.clone(),
         issuer,
-        ephemeral_denomination_resource.clone(),
+        ephemeral_denomination_resource,
         ephemeral_denomination_existence_path.clone(),
         instant_nk.clone(),
     );

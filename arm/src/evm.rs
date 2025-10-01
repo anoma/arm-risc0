@@ -181,7 +181,7 @@ fn forward_call_data_test() {
 #[test]
 fn evm_resource_test() {
     let arm_resource = ArmResource::default();
-    let evm_resource: Resource = arm_resource.clone().into();
+    let evm_resource: Resource = arm_resource.into();
     let encoded_resource = evm_resource.encode();
     let decoded_resource = Resource::decode(&encoded_resource).unwrap();
     assert_eq!(

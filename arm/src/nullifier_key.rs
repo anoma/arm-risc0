@@ -40,7 +40,7 @@ impl Default for NullifierKey {
 }
 
 /// Commitment to nullifier key
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
 pub struct NullifierKeyCommitment(Digest);
 
 impl NullifierKeyCommitment {

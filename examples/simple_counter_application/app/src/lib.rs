@@ -107,10 +107,10 @@ pub fn generate_logic_proofs(
 
     let consumed_counter_logic = CounterLogic::new(
         true,
-        consumed_counter.clone(),
+        consumed_counter,
         consumed_counter_path.clone(),
         nf_key.clone(),
-        created_counter.clone(),
+        created_counter,
         created_counter_path.clone(),
         consumed_discovery_pk,
     );
