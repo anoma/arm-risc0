@@ -109,23 +109,23 @@ We have the following feature flags in arm lib:
 
 ```toml
 # Default configuration (succinct proofs + transaction support)
-arm = "0.7.0"
+arm = "0.8.0"
 
 # Blockchain deployment with Groth16 proofs
-arm = { version = "0.7.0", default-features = false, features = ["groth16_prover", "transaction"] }
+arm = { version = "0.8.0", default-features = false, features = ["groth16_prover", "transaction"] }
 
 # Proof aggregation (a single succinct proof per transaction)
-arm = { version = "0.7.0", features = ["aggregation"] }
+arm = { version = "0.8.0", features = ["aggregation"] }
 
 # Blockchain deployment with a Groth16 aggregation proof
-arm = { version = "0.7.0", features = ["groth16_aggregation"] }
+arm = { version = "0.8.0", features = ["groth16_aggregation"] }
 
 # Logic-circuit-only usage
-arm = { version = "0.7.0", default-features = false }
+arm = { version = "0.8.0", default-features = false }
 
 # Elixir Anoma SDK
-arm = { version = "0.7.0", features = ["nif"] }
-arm = { version = "0.7.0", features = ["nif"] }
+arm = { version = "0.8.0", features = ["nif"] }
+arm = { version = "0.8.0", features = ["nif"] }
 ```
 
 
@@ -145,7 +145,7 @@ will reproduce the output to:
 View build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/zbrzf1brqyb5evydjxs9h3gvl
 
 ELFs ready at:
-ImageID: ab5a67860b67f0bc448c1ac55d71561e837601a85591581055cf80e216ddc216 - 
+ImageID: d879b4eee9cd50c086519f0b24d0fc6f42fbd7bf5efe1dc48cb3f6df3ed6b18c - 
 arm-risc0/arm_circuits/compliance/methods/guest/target/riscv32im-risc0-zkvm-elf/docker/compliance-guest.bin
 ```
 
