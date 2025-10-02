@@ -79,6 +79,7 @@ atoms! {
     at_nk_commitment = "nk_commitment",
     at_rand_seed = "rand_seed",
     at_delta_proof = "Elixir.Anoma.Arm.DeltaProof",
+    at_aggregation_proof = "aggregation_proof",
     at_signature = "signature",
     at_recid = "recid",
     at_delta_witness = "Elixir.Anoma.Arm.DeltaWitness",
@@ -260,7 +261,7 @@ impl RustlerEncoder for ComplianceUnit {
 impl<'a> RustlerDecoder<'a> for ComplianceUnit {
     fn rustler_decode(term: Term<'a>) -> NifResult<Self> {
         let proof_term = term.map_get(at_proof().encode(term.get_env()));
-        let proof: Vec<u8> = RustlerDecoder::rustler_decode(proof_term?)?;
+        let proof = RustlerDecoder::rustler_decode(proof_term?)?;
         let instance_term = term.map_get(at_instance().encode(term.get_env()));
         let instance: Vec<u8> = RustlerDecoder::rustler_decode(instance_term?)?;
         Ok(ComplianceUnit { proof, instance })
@@ -415,7 +416,7 @@ impl<'a> RustlerDecoder<'a> for LogicVerifierInputs {
         let app_data_term = term.map_get(at_app_data_key().encode(term.get_env()))?;
         let app_data: AppData = app_data_term.decode()?;
         let proof_term = term.map_get(at_proof().encode(term.get_env()))?;
-        let proof: Vec<u8> = RustlerDecoder::rustler_decode(proof_term)?;
+        let proof = RustlerDecoder::rustler_decode(proof_term)?;
 
         Ok(LogicVerifierInputs {
             tag,
@@ -1062,7 +1063,7 @@ impl RustlerEncoder for LogicVerifier {
 impl<'a> RustlerDecoder<'a> for LogicVerifier {
     fn rustler_decode(term: Term<'a>) -> NifResult<Self> {
         let proof_term = term.map_get(at_proof().encode(term.get_env()))?;
-        let proof: Vec<u8> = RustlerDecoder::rustler_decode(proof_term)?;
+        let proof = RustlerDecoder::rustler_decode(proof_term)?;
 
         let instance_term = term.map_get(at_instance().encode(term.get_env()))?;
         let instance: Vec<u8> = RustlerDecoder::rustler_decode(instance_term)?;
@@ -1109,6 +1110,13 @@ impl RustlerEncoder for Transaction {
                     Some(balance) => balance.rustler_encode(env)?,
                     None => ().encode(env),
                 },
+            )?
+            .map_put(
+                at_aggregation_proof().encode(env),
+                match &self.aggregation_proof {
+                    Some(proof) => proof.rustler_encode(env)?,
+                    None => ().encode(env),
+                },
             )?;
 
         Ok(map)
@@ -1129,10 +1137,15 @@ impl<'a> RustlerDecoder<'a> for Transaction {
             Err(_) => Some(RustlerDecoder::rustler_decode(expected_balance_term)?),
         };
 
+        let aggregation_proof_term = term.map_get(at_aggregation_proof().encode(term.get_env()))?;
+        let aggregation_proof: Option<Vec<u8>> =
+            RustlerDecoder::rustler_decode(aggregation_proof_term)?;
+
         Ok(Transaction {
             actions,
             delta_proof,
             expected_balance,
+            aggregation_proof,
         })
     }
 }
