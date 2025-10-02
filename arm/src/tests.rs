@@ -5,8 +5,8 @@
 use crate::{
     action::Action,
     action_tree::MerkleTree,
-    compliance::ComplianceWitness,
-    compliance_unit::ComplianceUnit,
+    compliance::{ComplianceWitness, ComplianceWitnessVar},
+    compliance_unit::{ComplianceUnit, ComplianceUnitVar},
     delta_proof::DeltaWitness,
     logic_proof::LogicProver,
     merkle_path::MerklePath,
@@ -171,6 +171,66 @@ pub fn generate_test_transaction(n_actions: usize, compliance_num: usize) -> Tra
     balanced_tx
 }
 
+/// Creates a variable-sized compliance unit with `old_num` consumed resources and `new_num` created resources.
+pub fn create_compliance_unit_var(old_num: u32, new_num: u32) -> ComplianceUnitVar {
+    let nf_key = NullifierKey::default();
+    let nf_key_cm = nf_key.commit();
+
+    // Generate consumed resources and their nullifiers
+    let (consumed_resources, consumed_nullifiers): (Vec<Resource>, Vec<Digest>) = (0..old_num)
+        .map(|index| {
+            let mut consumed_resource = Resource {
+                logic_ref: TestLogic::verifying_key(),
+                nk_commitment: nf_key_cm,
+                quantity: 1,
+                ..Default::default()
+            };
+            consumed_resource.nonce = [
+                index.to_be_bytes(),
+                index.to_be_bytes(),
+                index.to_be_bytes(),
+                index.to_be_bytes(),
+                index.to_be_bytes(),
+                index.to_be_bytes(),
+                index.to_be_bytes(),
+                index.to_be_bytes(),
+            ]
+            .concat()
+            .try_into()
+            .unwrap();
+            let consumed_nf = consumed_resource.nullifier(&nf_key).unwrap();
+
+            (consumed_resource, consumed_nf)
+        })
+        .unzip();
+
+    // Generate created resources
+    let created_resources: Vec<Resource> = (0..new_num)
+        .map(|index| {
+            let mut created_resource = Resource {
+                logic_ref: TestLogic::verifying_key(),
+                nk_commitment: nf_key_cm,
+                quantity: 1,
+                ..Default::default()
+            };
+            created_resource.nonce =
+                Resource::derive_nonce(index as usize, &consumed_nullifiers).unwrap();
+
+            created_resource
+        })
+        .collect();
+
+    // Set the witness to the compliance var circuit
+    let nf_keys = vec![nf_key; old_num as usize];
+    let compliance_witness =
+        ComplianceWitnessVar::with_fixed_rcv(consumed_resources, nf_keys, created_resources);
+
+    // Prove
+    let cu = ComplianceUnitVar::create(&compliance_witness).unwrap();
+
+    cu
+}
+
 #[test]
 fn test_logic_prover() {
     let test_logic = TestLogic::default();
@@ -186,6 +246,12 @@ fn test_action() {
 #[test]
 fn test_transaction() {
     let _ = generate_test_transaction(2, 2);
+}
+
+#[test]
+fn test_create_compliance_unit_var_works() {
+    let cu_var = create_compliance_unit_var(5, 3);
+    assert!(cu_var.verify().is_ok());
 }
 
 #[test]

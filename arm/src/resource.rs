@@ -247,6 +247,25 @@ impl Resource {
         Ok(())
     }
 
+    /// Derives the nonce based on the passed resource nullifiers and an index.
+    /// The index must be a 32-bit integer.
+    pub fn derive_nonce(index: usize, nullifiers: &[Digest]) -> Result<[u8; 32], ArmError> {
+        let index_u32: u32 = index
+            .try_into()
+            .map_err(|_| ArmError::InvalidResourceIndex)?;
+
+        let mut bytes = Vec::new();
+        bytes.append(&mut index_u32.to_le_bytes().to_vec().clone());
+        for nf in nullifiers.iter() {
+            bytes.append(&mut nf.as_bytes().to_vec().clone());
+        }
+
+        Ok(Impl::hash_bytes(&bytes)
+            .as_bytes()
+            .try_into()
+            .map_err(|_| ArmError::InvalidResourceNonce)?)
+    }
+
     pub fn tag(&self, is_consumed: bool, nf_key: &NullifierKey) -> Result<Digest, ArmError> {
         let cm = self.commitment();
         if is_consumed {
