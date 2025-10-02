@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 pub const DENOMINATION_ELF: &[u8] = include_bytes!("../elfs/simple-kudo-denomination-guest.bin");
 lazy_static! {
     pub static ref DENOMINATION_ID: Digest =
-        Digest::from_hex("2857c3dab57d57d2462131c5453791172a579b20df0df35579288c30bab7c9f2")
+        Digest::from_hex("554dc62216b6d7e5ef414a0f0be470feea212bedbb65e0e3cb1bf02cfdacf3f2")
             .unwrap();
 }
 
@@ -38,7 +38,7 @@ impl LogicProver for SimpleDenominationInfo {
 
 impl ComplianceWitnessInfo for SimpleDenominationInfo {
     fn resource(&self) -> Resource {
-        self.logic_witness.denomination_resource.clone()
+        self.logic_witness.denomination_resource
     }
 
     fn nf_key(&self) -> Option<NullifierKey> {

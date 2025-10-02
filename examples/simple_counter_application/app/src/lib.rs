@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 pub const SIMPLE_COUNTER_ELF: &[u8] = include_bytes!("../elf/counter-guest.bin");
 lazy_static! {
     pub static ref SIMPLE_COUNTER_ID: Digest =
-        Digest::from_hex("8ceab09254bf31c827d80127de494289982b9806b2c053a59c05bd7f12a7ef02")
+        Digest::from_hex("c8da81039e75d8978f2d2dcddf4fb2f297cc3d1302b833eedc1b521fdf47cc70")
             .unwrap();
 }
 
@@ -107,10 +107,10 @@ pub fn generate_logic_proofs(
 
     let consumed_counter_logic = CounterLogic::new(
         true,
-        consumed_counter.clone(),
+        consumed_counter,
         consumed_counter_path.clone(),
         nf_key.clone(),
-        created_counter.clone(),
+        created_counter,
         created_counter_path.clone(),
         consumed_discovery_pk,
     );

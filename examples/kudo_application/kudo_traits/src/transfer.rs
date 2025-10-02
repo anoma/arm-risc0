@@ -83,7 +83,7 @@ where
             println!("Generating compliance unit 3");
             let (compliance_unit_3, delta_witness_3) = {
                 let compliance_witness: ComplianceWitness = ComplianceWitness::from_resources(
-                    self.padding_resource_logic.witness().resource.clone(),
+                    self.padding_resource_logic.witness().resource,
                     latest_root,
                     self.padding_resource_logic.witness().nf_key.clone(),
                     self.created_receive.resource(),

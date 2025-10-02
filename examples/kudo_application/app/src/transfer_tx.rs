@@ -46,9 +46,9 @@ pub fn build_transfer_tx(
     let consumed_kudo_nf = consumed_kudo_resource.nullifier(consumed_kudo_nf_key)?;
 
     // Construct the created kudo resource
-    let mut created_kudo_resource = consumed_kudo_resource.clone();
+    let mut created_kudo_resource = *consumed_kudo_resource;
     // Set the new ownership to the created kudo resource
-    created_kudo_resource.set_nf_commitment(receiver_nk_commitment.clone());
+    created_kudo_resource.set_nf_commitment(*receiver_nk_commitment);
     let created_kudo_value = compute_kudo_value(receiver_pk);
     created_kudo_resource.set_value_ref(created_kudo_value);
     // Reset the randomness and nonce
@@ -67,7 +67,7 @@ pub fn build_transfer_tx(
         Digest::default(), // Value is not used for ephemeral resources
         true,
         Digest::from(nonce),
-        instant_nk_commitment.clone(),
+        instant_nk_commitment,
     );
     let consumed_denomination_resource_nf =
         consumed_denomination_resource.nullifier(&instant_nk)?;
@@ -80,13 +80,12 @@ pub fn build_transfer_tx(
         Digest::default(),
         true,
         consumed_denomination_resource_nf,
-        instant_nk_commitment.clone(),
+        instant_nk_commitment,
     );
     let created_denomination_resource_cm = created_denomination_resource.commitment();
 
     // Construct the padding resource
-    let padding_resource =
-        PaddingResourceLogic::create_padding_resource(instant_nk_commitment.clone());
+    let padding_resource = PaddingResourceLogic::create_padding_resource(instant_nk_commitment);
     let padding_resource_nf = padding_resource.nullifier(&instant_nk)?;
 
     // Construct the receive logic resource
@@ -97,7 +96,7 @@ pub fn build_transfer_tx(
         Digest::default(),
         true,
         padding_resource_nf,
-        instant_nk_commitment.clone(),
+        instant_nk_commitment,
     );
     let receive_resource_cm = receive_resource.commitment();
 
@@ -126,11 +125,11 @@ pub fn build_transfer_tx(
     // Construct the consumed kudo witness
     let consumed_kudo_logic_witness =
         KudoMainWitness::generate_persistent_resource_consumption_witness(
-            consumed_kudo_resource.clone(),
+            *consumed_kudo_resource,
             consumed_kudo_existence_path.clone(),
             consumed_kudo_nf_key.clone(),
             *issuer,
-            consumed_denomination_resource.clone(),
+            consumed_denomination_resource,
             consumed_denomination_existence_path.clone(),
             true,
             instant_nk.clone(),
@@ -141,12 +140,12 @@ pub fn build_transfer_tx(
     let consumption_signature = owner_sk.sign(root_bytes);
     let consumed_denomination_logic_witness =
         SimpleDenominationLogicWitness::generate_denomimation_witness(
-            consumed_denomination_resource.clone(),
+            consumed_denomination_resource,
             consumed_denomination_existence_path.clone(),
             true,
             instant_nk.clone(),
             consumption_signature,
-            consumed_kudo_resource.clone(),
+            *consumed_kudo_resource,
             consumed_kudo_existence_path.clone(),
             true, // The kudo resource is consumed
             consumed_kudo_nf_key.clone(),
@@ -158,14 +157,14 @@ pub fn build_transfer_tx(
 
     // Construct the created kudo witness
     let created_kudo_logic_witness = KudoMainWitness::generate_persistent_resource_creation_witness(
-        created_kudo_resource.clone(),
+        created_kudo_resource,
         created_kudo_existence_path.clone(),
         *issuer,
-        created_denomination_resource.clone(),
+        created_denomination_resource,
         created_denomination_existence_path.clone(),
         NullifierKey::default(), // Not used in this case
         false,
-        receive_resource.clone(),
+        receive_resource,
         NullifierKey::default(), // Not used in this case
         false,
         receive_existence_path.clone(),
@@ -177,11 +176,11 @@ pub fn build_transfer_tx(
     // Construct the denomination witness corresponding to the created kudo resource
     let created_denomination_logic_witness =
         SimpleDenominationLogicWitness::generate_created_kudo_denomination_witness(
-            created_denomination_resource.clone(),
+            created_denomination_resource,
             created_denomination_existence_path.clone(),
             false,
             NullifierKey::default(), // Not used in this case
-            created_kudo_resource.clone(),
+            created_kudo_resource,
             created_kudo_existence_path.clone(),
             *issuer,
         );
@@ -190,11 +189,11 @@ pub fn build_transfer_tx(
 
     // Construct the receive witness
     let created_receive_logic_witness = SimpleReceiveLogicWitness::generate_witness(
-        receive_resource.clone(),
+        receive_resource,
         receive_existence_path.clone(),
         instant_nk.clone(),
         false,
-        created_kudo_resource.clone(),
+        created_kudo_resource,
         created_kudo_existence_path.clone(),
     );
     let created_receive = SimpleReceiveInfo::new(created_receive_logic_witness, None);

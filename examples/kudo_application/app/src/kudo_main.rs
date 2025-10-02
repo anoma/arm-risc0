@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 pub const KUDO_LOGIC_ELF: &[u8] = include_bytes!("../elfs/kudo-main-guest.bin");
 lazy_static! {
     pub static ref KUDO_LOGIC_ID: Digest =
-        Digest::from_hex("2391ff87dd8a15a9902a2e1695a2c6f6603b26acda3092b25a7577d4adb6bef3")
+        Digest::from_hex("49339f4e11fb89060caa4adae2d088fff1bd2562dc0ecd2796d72488a4c92796")
             .unwrap();
 }
 
@@ -38,7 +38,7 @@ impl LogicProver for KudoMainInfo {
 
 impl ComplianceWitnessInfo for KudoMainInfo {
     fn resource(&self) -> Resource {
-        self.logic_witness.kudo_resource.clone()
+        self.logic_witness.kudo_resource
     }
 
     fn nf_key(&self) -> Option<NullifierKey> {

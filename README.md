@@ -15,6 +15,7 @@ This is a shielded resource machine implementation based on [Risc0-zkvm](https:/
 - **`arm_circuits/`**: Demonstration circuits for arms and applications:
   - **compliance**: Basic compliance checking circuit
   - **trivial_logic**: Minimal logic circuit example, also used in padding resources
+  - **proof aggregation (batch_aggregation, sequential_aggregation)**: Circuits for single-run aggregation and IVC-based aggregation, respectively
   - **logic_test**: The logic circuit contains hardcoded data to cover all instance fields and is used only in tests
   - **counter**: The simple counter logic circuit
   - **kudo circuits(kudo_main, simple_kudo_denomination, simple_kudo_receive)**: kudo application circuits
@@ -98,22 +99,33 @@ We have the following feature flags in arm lib:
 | `nif`                      |                           | Enables Erlang/Elixir NIF (Native Implemented Function) bindings                                                                |
 | `test_circuit`             |                           | A simple circuit implementation for testing |
 | `test`                     |                           | Includes tx and action tests; some test APIs are available outside the arm lib(Binding lib and Elixir SDK). |
+| `aggregation_circuit`      |                           | A specific feature for (pcd-based) aggregation circuits |
+| `aggregation`              | `aggregation_circuit`, `transaction`       | Enables proof aggregation (with constant-sized proofs by default) |
+|`fast_aggregation`          | `aggregation`               | Faster aggregation with linear-sized proofs without compression
+|`groth16_aggregation`       | `aggregation`               | Generates groth16 aggregation proofs (requires x86_64 machines)
 
 
 ### Usage Examples
 
 ```toml
 # Default configuration (succinct proofs + transaction support)
-arm = "0.7.0"
+arm = "0.8.0"
 
 # Blockchain deployment with Groth16 proofs
-arm = { version = "0.7.0", default-features = false, features = ["groth16_prover", "transaction"] }
+arm = { version = "0.8.0", default-features = false, features = ["groth16_prover", "transaction"] }
+
+# Proof aggregation (a single succinct proof per transaction)
+arm = { version = "0.8.0", features = ["aggregation"] }
+
+# Blockchain deployment with a Groth16 aggregation proof
+arm = { version = "0.8.0", features = ["groth16_aggregation"] }
 
 # Logic-circuit-only usage
-arm = { version = "0.7.0", default-features = false }
+arm = { version = "0.8.0", default-features = false }
 
 # Elixir Anoma SDK
-arm = { version = "0.7.0", features = ["nif"] }
+arm = { version = "0.8.0", features = ["nif"] }
+arm = { version = "0.8.0", features = ["nif"] }
 ```
 
 
@@ -133,7 +145,7 @@ will reproduce the output to:
 View build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/zbrzf1brqyb5evydjxs9h3gvl
 
 ELFs ready at:
-ImageID: ab5a67860b67f0bc448c1ac55d71561e837601a85591581055cf80e216ddc216 - 
+ImageID: d879b4eee9cd50c086519f0b24d0fc6f42fbd7bf5efe1dc48cb3f6df3ed6b18c - 
 arm-risc0/arm_circuits/compliance/methods/guest/target/riscv32im-risc0-zkvm-elf/docker/compliance-guest.bin
 ```
 
@@ -141,3 +153,59 @@ Note: The `unstable` feature of `risc0-zkvm` currently causes issues in circuits
 ```bash
 cargo install --force --git https://github.com/risc0/risc0 --tag v3.0.3 -Fexperimental cargo-risczero
 ```
+
+## Proof aggregation
+If a single transaction bundles too many resources, it is possible to aggregate all compliance and logic proofs into a single aggregation proof, attesting to the validity of them all. This reduces overall verification time and transaction size. 
+
+### Before aggregation
+ Generate the transaction in the normal way in your workflow. But note that succinct proofs will yield faster aggregation. 
+
+ **Warning:** Bonsai does not support in-circuit verification of Groth16 proofs. You would need to generate succinct compliance and logic proofs instead.
+
+
+### Prove and verify aggregations
+You need to enable the `aggregation` feature to be able to prove or verify aggregations. 
+
+The type of the aggregation proof is selected via a feature. It defaults to succinct stark proofs. For on-chain verification, you probably want to aggregate with the `groth16_aggregation` feature enabled. See the features table above for more information.
+
+We currently support two different aggregation strategies. The _batch_ strategy aggregates all proofs in the transaction in a single run. It is the default aggregation.
+
+```rust
+use arm::transaction;
+
+let mut tx = generate_test_transaction(1); // Just a dummy tx, for illustration.
+
+// Upon succesful aggregation, compliance and resource logic proofs are erased.
+assert!(tx.aggregate().is_ok());
+assert!(tx.verify_aggregation().is_ok());
+```
+
+The _sequential_ strategy aggregates sequentially, in an IVC style.
+
+```rust
+use arm::aggregation::AggregationStrategy;
+
+assert!(tx.aggregate_with_strategy(AggregationStrategy::Sequential).is_ok());
+``` 
+
+**Warning:** Once again, aggregation erases all the individual proofs from `tx` and replaces them with the (single) aggregation proof in a dedicated field. This is why the transaction must be `mut`. This is true independently of the strategy used.
+
+
+### External verification of the aggregation proof
+Use
+
+```rust
+tx.get_raw_aggregation_proof()
+``` 
+to get the RISC0 `InnerReceipt` (the actual proof). The verifier would also need to derive the aggregation instance from `tx` on its own, and wrap both in a RISC0 `Receipt`.
+
+### Comparison
+
+**Strategy** | **Prover cost** | **Public input size** | **Aggregation scope** | **Memory efficient**
+-------------|-----------------|-----------------------|-----------------------|----------------------
+**batch** | amortized among all tx proofs | linear in #{tx proofs} | fixed (single prover) | for RISC0 yes. In general, depends on the zkVM (if supports continuations) 
+**sequential** | linear in #{tx proofs} | constant | composable (different provers) | by design
+
+The sequential (IVC) strategy is an example of proof-carrying data computation. PCD-based aggregation can be distributed across mutually _untrusted_ nodes, and proofs to be aggregated arbitrarily grouped and arranged in different transcripts.
+
+**[TODO] Parallel proving at the ARM level.** It is possible with tree-like transcripts. Currently not supported, but [planned](https://github.com/anoma/arm-risc0/issues/112).

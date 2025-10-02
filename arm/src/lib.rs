@@ -1,8 +1,10 @@
 #[cfg(feature = "transaction")]
 pub mod action;
 pub mod action_tree;
+#[cfg(feature = "aggregation")]
+pub mod aggregation;
 pub mod authorization;
-#[cfg(feature = "compliance_circuit")]
+#[cfg(any(feature = "compliance_circuit", feature = "aggregation_circuit"))]
 pub mod compliance;
 #[cfg(feature = "transaction")]
 pub mod compliance_unit;
@@ -13,6 +15,8 @@ pub mod delta_proof;
 pub mod encryption;
 pub mod error;
 pub mod evm;
+#[cfg(feature = "aggregation_circuit")]
+pub mod hash;
 pub mod logic_instance;
 #[cfg(feature = "transaction")]
 pub mod logic_proof;

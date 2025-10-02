@@ -38,10 +38,8 @@ impl Action {
         &self.logic_verifier_inputs
     }
 
-    pub fn verify(self) -> Result<(), ArmError> {
-        for unit in &self.compliance_units {
-            unit.verify()?;
-        }
+    pub(crate) fn get_logic_verifiers(&self) -> Result<Vec<LogicVerifier>, ArmError> {
+        let mut logic_verifiers = Vec::new();
 
         let compliance_intances = self
             .compliance_units
@@ -61,7 +59,7 @@ impl Action {
         let action_tree = MerkleTree::from(tags.clone());
         let root = action_tree.root();
 
-        for input in self.logic_verifier_inputs {
+        for input in self.logic_verifier_inputs.iter() {
             if let Some(index) = tags.iter().position(|tag| *tag == input.tag) {
                 if input.verifying_key != logics[index] {
                     // The verifying_key doesn't match the resource logic
@@ -69,11 +67,24 @@ impl Action {
                 }
 
                 let is_comsumed = index % 2 == 0;
-                let verifier = input.to_logic_verifier(is_comsumed, root)?;
-                verifier.verify()?;
+                let verifier = input.clone().to_logic_verifier(is_comsumed, root)?;
+                logic_verifiers.push(verifier);
             } else {
                 return Err(ArmError::TagNotFound);
             }
+        }
+
+        Ok(logic_verifiers)
+    }
+
+    pub fn verify(self) -> Result<(), ArmError> {
+        for unit in &self.compliance_units {
+            unit.verify()?;
+        }
+
+        let logic_verifiers = self.get_logic_verifiers()?;
+        for verifier in logic_verifiers.iter() {
+            verifier.verify()?;
         }
 
         Ok(())
