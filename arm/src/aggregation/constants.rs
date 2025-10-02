@@ -11,8 +11,8 @@ pub const BATCH_AGGREGATION_PK: &[u8] = include_bytes!("../../elfs/batch_aggrega
 lazy_static! {
     // Sequential aggregation verification key / sequential aggregation image id.
     pub static ref SEQUENTIAL_AGGREGATION_VK: Digest =
-        Digest::from_hex("5a6cd329ca699281969f4c123cebe4252bea6ca8eddbce82573fa01e26d9122b").unwrap();
+        Digest::from_hex("5f74f564e176a86b9b741e72da7181e79c432ce58dd64c67df7990142b49d5e2").unwrap();
 
     // Batch aggregation verification key / Batch aggregation image id.
-    pub static ref BATCH_AGGREGATION_VK: Digest = Digest::from_hex("76f14290fe0d1be7310b724c7722806d92f7ba46b3001d8175c95b7307c1f445").unwrap();
+    pub static ref BATCH_AGGREGATION_VK: Digest = Digest::from_hex("5fa611e4c78bd728efdd65f356ac9a89b3beab18e5ecd414ea9ef6750595279a").unwrap();
 }
