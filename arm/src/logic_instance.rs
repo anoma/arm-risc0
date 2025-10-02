@@ -1,11 +1,7 @@
 use risc0_zkvm::Digest;
-#[cfg(feature = "nif")]
-use rustler::NifStruct;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
-#[cfg_attr(feature = "nif", derive(NifStruct))]
-#[cfg_attr(feature = "nif", module = "Anoma.Arm.LogicInstance")]
 pub struct LogicInstance {
     pub tag: Digest,
     pub is_consumed: bool,
