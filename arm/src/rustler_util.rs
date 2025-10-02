@@ -19,6 +19,7 @@ use bincode;
 use k256::ecdsa::{RecoveryId, Signature, SigningKey};
 use k256::AffinePoint;
 use risc0_zkvm::Digest;
+use rustler::types::atom;
 use rustler::types::map::map_new;
 use rustler::{atoms, Binary, Decoder, Encoder, NifResult};
 use rustler::{Env, Error, OwnedBinary, Term};
@@ -96,6 +97,36 @@ pub trait RustlerEncoder {
 
 pub trait RustlerDecoder<'a>: Sized + 'a {
     fn rustler_decode(term: Term<'a>) -> NifResult<Self>;
+}
+
+impl<T> RustlerEncoder for Option<T>
+where
+    T: RustlerEncoder,
+{
+    fn rustler_encode<'c>(&self, env: Env<'c>) -> Result<Term<'c>, Error> {
+        match *self {
+            Some(ref value) => value.rustler_encode(env),
+            None => Ok(atom::nil().encode(env)),
+        }
+    }
+}
+
+impl<'a, T> RustlerDecoder<'a> for Option<T>
+where
+    T: RustlerDecoder<'a>,
+{
+    fn rustler_decode(term: Term<'a>) -> NifResult<Self> {
+        if let Ok(term) = RustlerDecoder::rustler_decode(term) {
+            Ok(Some(term))
+        } else {
+            let decoded_atom: atom::Atom = term.decode()?;
+            if decoded_atom == atom::nil() {
+                Ok(None)
+            } else {
+                Err(Error::BadArg)
+            }
+        }
+    }
 }
 
 impl RustlerEncoder for Vec<u8> {
