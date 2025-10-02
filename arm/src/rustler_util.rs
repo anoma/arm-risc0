@@ -104,7 +104,7 @@ impl<T> RustlerEncoder for Option<T>
 where
     T: RustlerEncoder,
 {
-    fn rustler_encode<'c>(&self, env: Env<'c>) -> Result<Term<'c>, Error> {
+    fn rustler_encode<'c>(&self, env: Env<'c>) -> NifResult<Term<'c>> {
         match *self {
             Some(ref value) => value.rustler_encode(env),
             None => Ok(atom::nil().encode(env)),
