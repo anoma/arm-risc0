@@ -48,8 +48,7 @@ fn do_encode<'a>(secret_key: &SecretKey, env: Env<'a>) -> Result<Term<'a>, Error
 #[cfg(feature = "nif")]
 impl Encoder for SecretKey {
     fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
-        let result = do_encode(self, env).expect("failed to encode SecretKey");
-        result
+        do_encode(self, env).unwrap_or_else(|_| env.error_tuple("failed to encode SecretKey"))
     }
 }
 
@@ -57,7 +56,7 @@ impl Encoder for SecretKey {
 impl<'a> Decoder<'a> for SecretKey {
     fn decode(term: Term<'a>) -> NifResult<Self> {
         let binary = term.decode_as_binary()?.as_slice();
-        let scalar: Scalar = bincode::deserialize(binary).expect("failed to decode SecretKey");
+        let scalar: Scalar = bincode_deserialize(binary)?;
         Ok(SecretKey(scalar))
     }
 }

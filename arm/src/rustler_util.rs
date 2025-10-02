@@ -126,8 +126,7 @@ impl<'a> RustlerDecoder<'a> for Binary<'a> {
 impl RustlerEncoder for Vec<u8> {
     fn rustler_encode<'a>(&self, env: Env<'a>) -> Result<Term<'a>, Error> {
         let mut erl_bin = OwnedBinary::new(self.len())
-            .ok_or("could not create OwnedBinary")
-            .expect("could not allocate binary");
+            .ok_or_else(|| Error::RaiseTerm(Box::new("could not create OwnedBinary")))?;
         let _ = erl_bin.as_mut_slice().write_all(&self.as_slice());
         Ok(erl_bin.release(env).to_term(env))
     }
@@ -135,16 +134,14 @@ impl RustlerEncoder for Vec<u8> {
 
 impl<'a> RustlerDecoder<'a> for Vec<u8> {
     fn rustler_decode(term: Term<'a>) -> NifResult<Self> {
-        let binary: Binary = term.decode().expect("failed to decode binary");
-        Ok(binary.as_slice().to_vec())
+        term.decode::<Binary>().map(|t| t.to_vec())
     }
 }
 
 impl RustlerEncoder for Vec<u32> {
     fn rustler_encode<'a>(&self, env: Env<'a>) -> Result<Term<'a>, Error> {
         let mut erl_bin: OwnedBinary = OwnedBinary::new(self.len() * 4)
-            .ok_or("could not create OwnedBinary")
-            .expect("could not allocate binary");
+            .ok_or_else(|| Error::RaiseTerm(Box::new("could not create OwnedBinary")))?;
         let bytes: &[u8] = words_to_bytes(self.as_slice());
         let _ = erl_bin.as_mut_slice().write_all(bytes);
         Ok(erl_bin.release(env).to_term(env))
@@ -153,10 +150,8 @@ impl RustlerEncoder for Vec<u32> {
 
 impl<'a> RustlerDecoder<'a> for Vec<u32> {
     fn rustler_decode(term: Term<'a>) -> NifResult<Self> {
-        let binary: Binary = term.decode().expect("failed to decode binary");
-        let bytes: &[u8] = binary.as_slice();
-        let words: Vec<u32> = bytes_to_words(bytes);
-        Ok(words)
+        term.decode::<Binary>()
+            .map(|b| bytes_to_words(b.as_slice()))
     }
 }
 
@@ -175,9 +170,7 @@ impl<'a> RustlerDecoder<'a> for Digest {
 
 impl RustlerEncoder for AffinePoint {
     fn rustler_encode<'a>(&self, env: Env<'a>) -> Result<Term<'a>, Error> {
-        bincode::serialize(self)
-            .expect("failed to encode AffinePoint")
-            .rustler_encode(env)
+        bincode_serialize(self)?.rustler_encode(env)
     }
 }
 
@@ -190,9 +183,7 @@ impl<'a> RustlerDecoder<'a> for AffinePoint {
 
 impl RustlerEncoder for Signature {
     fn rustler_encode<'a>(&self, env: Env<'a>) -> Result<Term<'a>, Error> {
-        bincode::serialize(self)
-            .expect("failed to encode Signature")
-            .rustler_encode(env)
+        bincode_serialize(self)?.rustler_encode(env)
     }
 }
 
@@ -213,7 +204,7 @@ impl RustlerEncoder for RecoveryId {
 impl<'a> RustlerDecoder<'a> for RecoveryId {
     fn rustler_decode(term: Term<'a>) -> NifResult<Self> {
         let byte: u8 = term.decode()?;
-        Ok(RecoveryId::from_byte(byte).expect("invalid RecoveryId"))
+        RecoveryId::from_byte(byte).ok_or_else(|| Error::Term(Box::new("RecoveryId")))
     }
 }
 
@@ -228,7 +219,7 @@ impl RustlerEncoder for SigningKey {
 impl<'a> RustlerDecoder<'a> for SigningKey {
     fn rustler_decode(term: Term<'a>) -> NifResult<Self> {
         let bytez: Vec<u8> = RustlerDecoder::rustler_decode(term)?;
-        Ok(SigningKey::from_slice(&bytez).expect("invalid SigningKey"))
+        SigningKey::from_slice(&bytez).map_err(|_| Error::Term(Box::new("invalid SigningKey")))
     }
 }
 
@@ -261,8 +252,8 @@ impl<'a> RustlerDecoder<'a> for ComplianceUnit {
 
 impl Encoder for ComplianceUnit {
     fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
-        let encoded = self.rustler_encode(env);
-        encoded.expect("failed to encode ComplianceUnit")
+        self.rustler_encode(env)
+            .unwrap_or_else(|_e| env.error_tuple("failed to encode ComplianceUnit"))
     }
 }
 
@@ -304,8 +295,8 @@ impl<'a> RustlerDecoder<'a> for ExpirableBlob {
 
 impl Encoder for ExpirableBlob {
     fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
-        let encoded = self.rustler_encode(env);
-        encoded.expect("failed to encode ExpirableBlob")
+        self.rustler_encode(env)
+            .unwrap_or_else(|_e| env.error_tuple("failed to encode ExpirableBlob"))
     }
 }
 
@@ -365,8 +356,8 @@ impl<'a> RustlerDecoder<'a> for AppData {
 
 impl Encoder for AppData {
     fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
-        let encoded = self.rustler_encode(env);
-        encoded.expect("failed to encode AppData")
+        self.rustler_encode(env)
+            .unwrap_or_else(|_e| env.error_tuple("failed to encode AppData"))
     }
 }
 
@@ -459,8 +450,8 @@ impl<'a> RustlerDecoder<'a> for LogicInstance {
 
 impl Encoder for LogicVerifierInputs {
     fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
-        let encoded = self.rustler_encode(env);
-        encoded.expect("failed to encode LogicVerifierInputs")
+        self.rustler_encode(env)
+            .unwrap_or_else(|_| env.error_tuple("failed to encode LogicVerifierInputs"))
     }
 }
 
@@ -508,8 +499,8 @@ impl<'a> RustlerDecoder<'a> for Action {
 
 impl Encoder for Action {
     fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
-        let encoded = self.rustler_encode(env);
-        encoded.expect("failed to encode Action")
+        self.rustler_encode(env)
+            .unwrap_or_else(|_e| env.error_tuple("failed to encode Action"))
     }
 }
 
@@ -529,11 +520,8 @@ impl RustlerEncoder for MerkleTree {
         let encoded_vec: Term = self
             .leaves
             .iter()
-            .map(|leaf| {
-                leaf.rustler_encode(env)
-                    .expect("could not encode MerkleTree leaf")
-            })
-            .collect::<Vec<Term>>()
+            .map(|leaf| leaf.rustler_encode(env))
+            .collect::<NifResult<Vec<Term>>>()?
             .encode(env);
 
         let map = map_new(env)
@@ -547,13 +535,12 @@ impl RustlerEncoder for MerkleTree {
 impl<'a> RustlerDecoder<'a> for MerkleTree {
     fn rustler_decode(term: Term<'a>) -> NifResult<Self> {
         let leaves_term = term.map_get(at_leaves().encode(term.get_env()))?;
-        let leaves_terms =
-            Vec::<Term>::decode(leaves_term).expect("failed to decode MerkleTree leaves");
+        let leaves_terms = Vec::<Term>::decode(leaves_term)?;
 
         let leaves: Vec<Digest> = leaves_terms
             .iter()
-            .map(|term| RustlerDecoder::rustler_decode(*term).expect("failed to decode leaf"))
-            .collect();
+            .map(|term| RustlerDecoder::rustler_decode(*term))
+            .collect::<NifResult<Vec<_>>>()?;
 
         Ok(MerkleTree { leaves })
     }
@@ -561,8 +548,8 @@ impl<'a> RustlerDecoder<'a> for MerkleTree {
 
 impl Encoder for MerkleTree {
     fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
-        let encoded = self.rustler_encode(env);
-        encoded.expect("failed to encode MerkleTree")
+        self.rustler_encode(env)
+            .unwrap_or_else(|_e| env.error_tuple("failed to encode MerkleTree"))
     }
 }
 
@@ -581,13 +568,9 @@ impl RustlerEncoder for MerklePath {
             .0
             .iter()
             .map(|(hash, is_right)| {
-                let hash_term = hash
-                    .rustler_encode(env)
-                    .expect("could not encode MerklePath hash");
-                let is_right_term = is_right.encode(env);
-                (hash_term, is_right_term).encode(env)
+                Ok((hash.rustler_encode(env)?, is_right.encode(env)).encode(env))
             })
-            .collect();
+            .collect::<NifResult<Vec<Term>>>()?;
 
         Ok(encoded_vec.encode(env))
     }
@@ -595,30 +578,23 @@ impl RustlerEncoder for MerklePath {
 
 impl<'a> RustlerDecoder<'a> for MerklePath {
     fn rustler_decode(term: Term<'a>) -> NifResult<Self> {
-        let path_terms = Vec::<Term>::decode(term).expect("failed to decode MerklePath list");
-
-        let path: Vec<(Digest, bool)> = path_terms
+        Vec::<Term>::decode(term)?
             .iter()
             .map(|term| {
-                let tuple: (Term, Term) = term.decode().expect("failed to decode MerklePath tuple");
-                let hash: Digest = RustlerDecoder::rustler_decode(tuple.0)
-                    .expect("failed to decode MerklePath hash");
-                let is_right: bool = tuple
-                    .1
-                    .decode()
-                    .expect("failed to decode MerklePath boolean");
-                (hash, is_right)
+                let tuple: (Term, Term) = term.decode()?;
+                let hash: Digest = RustlerDecoder::rustler_decode(tuple.0)?;
+                let is_right: bool = tuple.1.decode()?;
+                Ok((hash, is_right))
             })
-            .collect();
-
-        Ok(MerklePath(path))
+            .collect::<NifResult<Vec<(Digest, bool)>>>()
+            .map(MerklePath)
     }
 }
 
 impl Encoder for MerklePath {
     fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
-        let encoded = self.rustler_encode(env);
-        encoded.expect("failed to encode MerklePath")
+        self.rustler_encode(env)
+            .unwrap_or_else(|_e| env.error_tuple("failed to encode MerklePath"))
     }
 }
 
@@ -711,8 +687,8 @@ impl<'a> RustlerDecoder<'a> for ComplianceInstance {
 
 impl Encoder for ComplianceInstance {
     fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
-        let encoded = self.rustler_encode(env);
-        encoded.expect("failed to encode ComplianceInstance")
+        self.rustler_encode(env)
+            .unwrap_or_else(|_| env.error_tuple("failed to encode compliance instance"))
     }
 }
 
@@ -785,8 +761,8 @@ impl<'a> RustlerDecoder<'a> for ComplianceWitness {
 
 impl Encoder for ComplianceWitness {
     fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
-        let encoded = self.rustler_encode(env);
-        encoded.expect("failed to encode ComplianceWitness")
+        self.rustler_encode(env)
+            .unwrap_or_else(|_| env.error_tuple("failed to encode compliance witness"))
     }
 }
 
@@ -816,8 +792,8 @@ impl<'a> RustlerDecoder<'a> for NullifierKeyCommitment {
 
 impl Encoder for NullifierKeyCommitment {
     fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
-        let encoded = self.rustler_encode(env);
-        encoded.expect("failed to encode NullifierKeyCommitment")
+        self.rustler_encode(env)
+            .unwrap_or_else(|_| env.error_tuple("failed to encode nullifier"))
     }
 }
 
@@ -846,8 +822,8 @@ impl<'a> RustlerDecoder<'a> for NullifierKey {
 
 impl Encoder for NullifierKey {
     fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
-        let encoded = self.rustler_encode(env);
-        encoded.expect("failed to encode NullifierKey")
+        self.rustler_encode(env)
+            .unwrap_or_else(|_| env.error_tuple("failed to encode NullifierKey"))
     }
 }
 
@@ -939,8 +915,8 @@ impl<'a> RustlerDecoder<'a> for Resource {
 
 impl Encoder for Resource {
     fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
-        let encoded = self.rustler_encode(env);
-        encoded.expect("failed to encode Resource")
+        self.rustler_encode(env)
+            .unwrap_or_else(|_| env.error_tuple("failed to encode Resource"))
     }
 }
 
@@ -981,8 +957,8 @@ impl<'a> RustlerDecoder<'a> for DeltaProof {
 
 impl Encoder for DeltaProof {
     fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
-        let encoded = self.rustler_encode(env);
-        encoded.expect("failed to encode DeltaProof")
+        self.rustler_encode(env)
+            .unwrap_or_else(|_| env.error_tuple("failed to encode DeltaProof"))
     }
 }
 
@@ -1019,8 +995,8 @@ impl<'a> RustlerDecoder<'a> for DeltaWitness {
 
 impl Encoder for DeltaWitness {
     fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
-        let encoded = self.rustler_encode(env);
-        encoded.expect("failed to encode DeltaWitness")
+        self.rustler_encode(env)
+            .unwrap_or_else(|_| env.error_tuple("failed to encode DeltaWitness"))
     }
 }
 
@@ -1073,7 +1049,7 @@ impl<'a> RustlerDecoder<'a> for LogicVerifier {
 impl Encoder for LogicVerifier {
     fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
         let encoded = self.rustler_encode(env);
-        encoded.expect("failed to encode LogicVerifier")
+        encoded.unwrap_or_else(|_e| env.error_tuple("failed to encode LogicVerifier"))
     }
 }
 
@@ -1131,8 +1107,8 @@ impl<'a> RustlerDecoder<'a> for Transaction {
 
 impl Encoder for Transaction {
     fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
-        let encoded = self.rustler_encode(env);
-        encoded.expect("failed to encode Transaction")
+        self.rustler_encode(env)
+            .unwrap_or_else(|_| env.error_tuple("failed to encode Transaction"))
     }
 }
 
