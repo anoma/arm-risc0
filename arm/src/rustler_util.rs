@@ -1183,7 +1183,7 @@ impl<'a> RustlerDecoder<'a> for Delta {
             let witness: DeltaWitness = value.decode()?;
             Ok(Delta::Witness(witness))
         } else {
-            Err(rustler::Error::BadArg)
+            Err(Error::BadArg)
         }
     }
 }
