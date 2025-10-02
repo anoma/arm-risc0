@@ -1058,10 +1058,8 @@ impl<'a> RustlerDecoder<'a> for Transaction {
         let delta_proof: Delta = delta_proof_term.decode()?;
 
         let expected_balance_term = term.map_get(at_expected_balance().encode(term.get_env()))?;
-        let expected_balance: Option<Vec<u8>> = match expected_balance_term.decode::<()>() {
-            Ok(_) => None,
-            Err(_) => Some(RustlerDecoder::rustler_decode(expected_balance_term)?),
-        };
+        let expected_balance: Option<Vec<u8>> =
+            RustlerDecoder::rustler_decode(expected_balance_term)?;
 
         Ok(Transaction {
             actions,
