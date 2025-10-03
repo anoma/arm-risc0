@@ -18,6 +18,7 @@ use crate::utils::{bytes_to_words, words_to_bytes};
 use bincode;
 use k256::ecdsa::{RecoveryId, Signature, SigningKey};
 use k256::AffinePoint;
+use rustler::types::atom;
 use rustler::types::map::map_new;
 use rustler::{atoms, Binary, Decoder, Encoder, NifResult};
 use rustler::{Env, Error, OwnedBinary, Term};
@@ -92,6 +93,36 @@ pub trait RustlerEncoder {
 
 pub trait RustlerDecoder<'a>: Sized + 'a {
     fn rustler_decode(term: Term<'a>) -> NifResult<Self>;
+}
+
+impl<T> RustlerEncoder for Option<T>
+where
+    T: RustlerEncoder,
+{
+    fn rustler_encode<'c>(&self, env: Env<'c>) -> Result<Term<'c>, Error> {
+        match *self {
+            Some(ref value) => value.rustler_encode(env),
+            None => Ok(atom::nil().encode(env)),
+        }
+    }
+}
+
+impl<'a, T> RustlerDecoder<'a> for Option<T>
+where
+    T: RustlerDecoder<'a>,
+{
+    fn rustler_decode(term: Term<'a>) -> NifResult<Self> {
+        if let Ok(term) = RustlerDecoder::rustler_decode(term) {
+            Ok(Some(term))
+        } else {
+            let decoded_atom: atom::Atom = term.decode()?;
+            if decoded_atom == atom::nil() {
+                Ok(None)
+            } else {
+                Err(Error::BadArg)
+            }
+        }
+    }
 }
 
 impl RustlerEncoder for Vec<u8> {
@@ -1027,10 +1058,8 @@ impl<'a> RustlerDecoder<'a> for Transaction {
         let delta_proof: Delta = delta_proof_term.decode()?;
 
         let expected_balance_term = term.map_get(at_expected_balance().encode(term.get_env()))?;
-        let expected_balance: Option<Vec<u8>> = match expected_balance_term.decode::<()>() {
-            Ok(_) => None,
-            Err(_) => Some(RustlerDecoder::rustler_decode(expected_balance_term)?),
-        };
+        let expected_balance: Option<Vec<u8>> =
+            RustlerDecoder::rustler_decode(expected_balance_term)?;
 
         Ok(Transaction {
             actions,
