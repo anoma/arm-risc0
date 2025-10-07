@@ -1,5 +1,5 @@
 use crate::resource::Resource as ArmResource;
-use alloy_primitives::{Address, B256, U256};
+use alloy_primitives::{keccak256, Address, B256, U256};
 use alloy_sol_types::{sol, SolValue};
 
 sol! {
@@ -46,6 +46,7 @@ sol! {
         bytes input;
         bytes output;
     }
+
 }
 
 impl ForwarderCalldata {
@@ -114,6 +115,11 @@ sol! {
         // In permit2, this is a uint256
         bytes32 deadline;
     }
+
+    /// @notice The Permit2 witness for a single token transfer
+    struct Witness {
+        bytes32 actionTreeRoot;
+    }
 }
 
 impl PermitTransferFrom {
@@ -142,19 +148,20 @@ pub fn encode_transfer(token: &[u8], to: &[u8], value: u128) -> Vec<u8> {
 pub fn encode_permit_witness_transfer_from(
     from: &[u8],
     permit: PermitTransferFrom,
-    witness: &[u8],
+    action_tree_root: &[u8],
     signature: &[u8],
 ) -> Vec<u8> {
     // This is only used in circuits, just let it panic if the address is invalid
     let from: Address = from.try_into().expect("Invalid address bytes");
-    (
-        CallType::Wrap,
-        from,
-        permit,
-        B256::from_slice(witness),
-        signature,
-    )
-        .abi_encode_params()
+
+    let witness = keccak256(
+        Witness {
+            actionTreeRoot: B256::from_slice(action_tree_root),
+        }
+        .abi_encode(),
+    );
+
+    (CallType::Wrap, from, permit, witness, signature).abi_encode_params()
 }
 
 #[test]
