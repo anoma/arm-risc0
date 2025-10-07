@@ -260,10 +260,10 @@ impl Resource {
             bytes.append(&mut nf.as_bytes().to_vec().clone());
         }
 
-        Ok(Impl::hash_bytes(&bytes)
+        Impl::hash_bytes(&bytes)
             .as_bytes()
             .try_into()
-            .map_err(|_| ArmError::InvalidResourceNonce)?)
+            .map_err(|_| ArmError::InvalidResourceNonce)
     }
 
     pub fn tag(&self, is_consumed: bool, nf_key: &NullifierKey) -> Result<Digest, ArmError> {

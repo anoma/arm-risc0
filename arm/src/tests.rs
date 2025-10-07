@@ -2,13 +2,15 @@
 // The functions here are also used in the elixir sdk and binding libraries to
 // ensure that the ARM crate's transaction functionalities work as expected.
 
+use std::time::{Duration, Instant};
+
 use crate::{
     action::Action,
     action_tree::MerkleTree,
     compliance::{ComplianceWitness, ComplianceWitnessVar},
     compliance_unit::{ComplianceUnit, ComplianceUnitVar},
     delta_proof::DeltaWitness,
-    logic_proof::LogicProver,
+    logic_proof::{LogicProver, PaddingResourceLogic},
     merkle_path::MerklePath,
     nullifier_key::NullifierKey,
     resource::Resource,
@@ -171,13 +173,11 @@ pub fn generate_test_transaction(n_actions: usize, compliance_num: usize) -> Tra
     balanced_tx
 }
 
-/// Creates a variable-sized compliance unit with `old_num` consumed resources and `new_num` created resources.
-pub fn create_compliance_unit_var(old_num: u32, new_num: u32) -> ComplianceUnitVar {
-    let nf_key = NullifierKey::default();
-    let nf_key_cm = nf_key.commit();
-
-    // Generate consumed resources and their nullifiers
-    let (consumed_resources, consumed_nullifiers): (Vec<Resource>, Vec<Digest>) = (0..old_num)
+/// Returns `num` dummy resources, their nullifiers, and their nullifier keys (for convenience).
+/// They all have the same logic ([TestLogic]) and quantity 1.
+fn dummy_resources(num: u32) -> (Vec<Resource>, Vec<Digest>, Vec<NullifierKey>) {
+    let (nf_key, nf_key_cm) = NullifierKey::random_pair();
+    let (consumed_resources, consumed_nullifiers): (Vec<Resource>, Vec<Digest>) = (0..num)
         .map(|index| {
             let mut consumed_resource = Resource {
                 logic_ref: TestLogic::verifying_key(),
@@ -204,13 +204,103 @@ pub fn create_compliance_unit_var(old_num: u32, new_num: u32) -> ComplianceUnitV
         })
         .unzip();
 
+    (
+        consumed_resources,
+        consumed_nullifiers,
+        vec![nf_key; num as usize],
+    )
+}
+
+/// Creates as many two-sized compliance units as necessary to fit `old_num` consumed resources
+/// and `new_num` created resources. Padding resources are added as necessary.
+/// To bench against compliance units of variable size (assume `old_num` >= `new_num`).
+pub fn create_compliance_units(old_num: u32, new_num: u32) -> Vec<ComplianceUnit> {
+    assert!(old_num >= new_num);
+
+    // Generate consumed resources and their nullifiers
+    let (consumed_resources, consumed_nullifiers, nf_keys) = dummy_resources(old_num);
+
     // Generate created resources
     let created_resources: Vec<Resource> = (0..new_num)
         .map(|index| {
+            let quantity = if index == 0 { old_num } else { 0 };
             let mut created_resource = Resource {
                 logic_ref: TestLogic::verifying_key(),
-                nk_commitment: nf_key_cm,
-                quantity: 1,
+                nk_commitment: NullifierKey::default().commit(),
+                quantity: quantity as u128,
+                ..Default::default()
+            };
+            created_resource.set_nonce(consumed_nullifiers[index as usize]);
+            created_resource
+        })
+        .collect();
+
+    // Generate `old_num` witnessess for the compliance unit circuit
+    let mut witnessess = Vec::new();
+    for i in 0..old_num {
+        let created_or_padding = if i < new_num {
+            created_resources[i as usize]
+        } else {
+            let mut pad =
+                PaddingResourceLogic::create_padding_resource(NullifierKey::default().commit());
+            let nf_key = nf_keys[i as usize].clone();
+            pad.set_nonce(consumed_resources[i as usize].nullifier(&nf_key).unwrap());
+            pad
+        };
+        let compliance_witness = ComplianceWitness::with_fixed_rcv(
+            consumed_resources[i as usize],
+            nf_keys[i as usize].clone(),
+            created_or_padding,
+        );
+        witnessess.push(compliance_witness);
+    }
+
+    // Prove compliance
+    let mut cus = Vec::new();
+    let mut prove_total = Duration::ZERO;
+
+    for witness in witnessess {
+        let prove_timer = Instant::now();
+
+        let cu = ComplianceUnit::create(&witness).unwrap();
+
+        let prove_single_cu = prove_timer.elapsed();
+        prove_total += prove_single_cu;
+
+        cus.push(cu);
+    }
+    let padding_overhead = prove_total
+        .div_f64((2 * old_num) as f64)
+        .mul_f64((old_num - new_num) as f64);
+    println!(
+        "BENCHMARK: cu size: 2, resources: {:?} ({:?} old, {:?} new), proving time: {:?}, #cu: {:?}, padding overhead: {:?}",
+        old_num + new_num,
+        old_num,
+        new_num,
+        prove_total,
+        cus.len(),
+        padding_overhead
+    );
+
+    cus
+}
+
+/// Creates a variable-sized compliance unit with `old_num` consumed resources and `new_num` created resources.
+/// For simplicity, assume `old_num` >= `new_num`.
+pub fn create_compliance_unit_var(old_num: u32, new_num: u32) -> ComplianceUnitVar {
+    assert!(old_num >= new_num);
+
+    // Generate consumed resources and their nullifiers
+    let (consumed_resources, consumed_nullifiers, nf_keys) = dummy_resources(old_num);
+
+    // Generate created resources
+    let created_resources: Vec<Resource> = (0..new_num)
+        .map(|index| {
+            let quantity = if index == 0 { old_num } else { 0 };
+            let mut created_resource = Resource {
+                logic_ref: TestLogic::verifying_key(),
+                nk_commitment: NullifierKey::default().commit(),
+                quantity: quantity as u128,
                 ..Default::default()
             };
             created_resource.nonce =
@@ -221,14 +311,24 @@ pub fn create_compliance_unit_var(old_num: u32, new_num: u32) -> ComplianceUnitV
         .collect();
 
     // Set the witness to the compliance var circuit
-    let nf_keys = vec![nf_key; old_num as usize];
     let compliance_witness =
         ComplianceWitnessVar::with_fixed_rcv(consumed_resources, nf_keys, created_resources);
 
-    // Prove
-    let cu = ComplianceUnitVar::create(&compliance_witness).unwrap();
+    // Prove compliance
+    let prove_timer = Instant::now();
 
-    cu
+    let cu_var = ComplianceUnitVar::create(&compliance_witness).unwrap();
+
+    let prove_duration = prove_timer.elapsed();
+    println!(
+        "BENCHMARK: cu size: var, resources: {:?} ({:?} old, {:?} new), proving time: {:?}, #cu: 1",
+        old_num + new_num,
+        old_num,
+        new_num,
+        prove_duration
+    );
+
+    cu_var
 }
 
 #[test]
@@ -252,6 +352,22 @@ fn test_transaction() {
 fn test_create_compliance_unit_var_works() {
     let cu_var = create_compliance_unit_var(5, 3);
     assert!(cu_var.verify().is_ok());
+}
+
+#[test]
+fn bench_compliance_2_vs_var() {
+    let number_resources: [(u32, u32); 5] = [
+        (1, 1), // Min with no padding
+        (2, 1), // Min with padding
+        (2, 2), // No padding
+        (4, 4), // No padding
+        (7, 1), // With max padding
+    ];
+    for (old_num, new_num) in number_resources.into_iter() {
+        create_compliance_units(old_num, new_num);
+        create_compliance_unit_var(old_num, new_num);
+    }
+    println!("DONE.")
 }
 
 #[test]
