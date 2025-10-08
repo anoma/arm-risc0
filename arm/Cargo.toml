@@ -10,7 +10,8 @@ edition = "2021"
 risc0-zkvm = { version = "3.0.3", features = ["std", "unstable"], default-features = false }
 serde = { version = "1.0.197", default-features = false }
 serde_with = "3.14.1"
-k256 = { version = "=0.13.3", features = ["arithmetic", "serde", "expose-field", "std", "ecdsa", "hash2curve"], default-features = false }
+#k256 = { version = "=0.13.3", features = ["arithmetic", "serde", "expose-field", "std", "ecdsa", "hash2curve"], default-features = false }
+k256 = { git = "https://github.com/risc0/RustCrypto-elliptic-curves", tag = "k256/v0.13.3-risczero.1", features = ["arithmetic", "serde", "expose-field", "std", "ecdsa", "hash2curve"] }
 sha3 = { version = "0.10", optional = true }
 rand = "0.8"
 aes-gcm = "0.10"

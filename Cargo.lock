@@ -133,7 +133,7 @@ dependencies = [
  "hashbrown 0.16.0",
  "indexmap 2.11.4",
  "itoa",
- "k256",
+ "k256 0.13.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-asm",
  "paste",
  "proptest",
@@ -609,7 +609,7 @@ dependencies = [
  "bincode",
  "bytemuck",
  "hex",
- "k256",
+ "k256 0.13.3 (git+https://github.com/risc0/RustCrypto-elliptic-curves?tag=k256%2Fv0.13.3-risczero.1)",
  "lazy_static",
  "rand 0.8.5",
  "risc0-zkvm",
@@ -2594,6 +2594,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "k256"
+version = "0.13.3"
+source = "git+https://github.com/risc0/RustCrypto-elliptic-curves?tag=k256%2Fv0.13.3-risczero.1#ff5d67b095cfcc2569b7789f2079ed87ef2c7756"
+dependencies = [
+ "bytemuck",
+ "cfg-if",
+ "ecdsa",
+ "elliptic-curve",
+ "once_cell",
+ "risc0-bigint2",
+ "serdect",
+ "sha2",
+ "signature",
+]
+
+[[package]]
 name = "keccak"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2618,7 +2634,7 @@ version = "0.1.0"
 dependencies = [
  "arm",
  "hex",
- "k256",
+ "k256 0.13.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "kudo-logic-witness",
  "kudo-traits",
  "lazy_static",
@@ -3864,6 +3880,16 @@ name = "ringbuffer"
 version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3df6368f71f205ff9c33c076d170dd56ebf68e8161c733c0caa07a7a5509ed53"
+
+[[package]]
+name = "risc0-bigint2"
+version = "1.4.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e916aa385e61e31935d7964aaeaec1fae9da617af6415d6363864147f430ebff"
+dependencies = [
+ "include_bytes_aligned",
+ "stability",
+]
 
 [[package]]
 name = "risc0-binfmt"
