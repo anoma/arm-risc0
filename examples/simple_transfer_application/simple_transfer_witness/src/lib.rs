@@ -90,15 +90,11 @@ impl LogicCircuit for SimpleTransferWitness {
             // Check resource label: label = sha2(forwarder_addr, erc20_addr)
             let forwarder_addr = forwarder_info.forwarder_addr.as_ref();
             let erc20_addr = forwarder_info.token_addr.as_ref();
-            let user_addr = forwarder_info.user_addr.as_ref();
             let label_ref = calculate_label_ref(forwarder_addr, erc20_addr);
             assert_eq!(self.resource.label_ref, label_ref);
 
-            // Check resource value_ref: value_ref = sha2(call_type, user_addr)
+            // Check call type
             let call_type = forwarder_info.call_type;
-            let value_ref = calculate_value_ref_calltype_user(call_type, user_addr);
-            assert_eq!(self.resource.value_ref, value_ref);
-
             if self.is_consumed {
                 // Minting
                 assert_eq!(call_type, CallType::Wrap);
@@ -107,6 +103,7 @@ impl LogicCircuit for SimpleTransferWitness {
                 assert_eq!(call_type, CallType::Unwrap);
             };
 
+            let user_addr = forwarder_info.user_addr.as_ref();
             let input = match call_type {
                 CallType::Unwrap => encode_transfer(erc20_addr, user_addr, self.resource.quantity),
                 CallType::Wrap => {
@@ -238,12 +235,6 @@ impl SimpleTransferWitness {
 
 pub fn calculate_value_ref_from_auth(auth_pk: &AuthorizationVerifyingKey) -> Digest {
     hash_bytes(&auth_pk.to_bytes())
-}
-
-pub fn calculate_value_ref_calltype_user(call_type: CallType, user_addr: &[u8]) -> Digest {
-    let mut data = vec![call_type as u8];
-    data.extend_from_slice(user_addr);
-    hash_bytes(&data)
 }
 
 pub fn calculate_label_ref(forwarder_add: &[u8], erc20_add: &[u8]) -> Digest {

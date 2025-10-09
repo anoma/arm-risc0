@@ -84,7 +84,6 @@ fn simple_burn_test() {
     use arm::{
         action_tree::MerkleTree,
         authorization::{AuthorizationSigningKey, AuthorizationVerifyingKey},
-        evm::CallType,
         merkle_path::MerklePath,
         nullifier_key::NullifierKey,
     };
@@ -118,8 +117,6 @@ fn simple_burn_test() {
         consumed_nf.as_bytes().try_into().unwrap(), // nonce
         created_nf_cm,
         [6u8; 32], // rand_seed
-        CallType::Unwrap,
-        &user_addr, // user_addr
     );
     let created_cm = created_resource.commitment();
 

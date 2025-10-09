@@ -88,7 +88,6 @@ fn simple_mint_test() {
         authorization::{AuthorizationSigningKey, AuthorizationVerifyingKey},
         compliance::INITIAL_ROOT,
         encryption::random_keypair,
-        evm::CallType,
         nullifier_key::NullifierKey,
     };
 
@@ -106,8 +105,6 @@ fn simple_mint_test() {
         [4u8; 32], // nonce
         consumed_nf_cm,
         [5u8; 32], // rand_seed
-        CallType::Wrap,
-        &user_addr,
     );
     let consumed_nf = consumed_resource.nullifier(&consumed_nf_key).unwrap();
     // Fetch the latest cm tree root from the chain
