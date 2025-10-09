@@ -3,8 +3,9 @@ use crate::{
     utils::hash_two,
 };
 use risc0_zkvm::sha::Digest;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Deserialize, Clone, PartialEq, Eq, Serialize)]
 pub struct MerkleTree {
     pub leaves: Vec<Vec<u32>>,
 }
