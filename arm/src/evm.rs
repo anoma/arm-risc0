@@ -115,11 +115,12 @@ sol! {
         // In permit2, this is a uint256
         bytes32 deadline;
     }
+}
 
-    /// @notice The Permit2 witness for a single token transfer
-    struct Witness {
-        bytes32 actionTreeRoot;
-    }
+pub const WITNESS_TYPE_DEF: &str = "Witness(bytes32 actionTreeRoot)";
+
+pub fn witness_type_hash() -> B256 {
+    keccak256(WITNESS_TYPE_DEF)
 }
 
 impl PermitTransferFrom {
@@ -154,12 +155,8 @@ pub fn encode_permit_witness_transfer_from(
     // This is only used in circuits, just let it panic if the address is invalid
     let from: Address = from.try_into().expect("Invalid address bytes");
 
-    let witness = keccak256(
-        Witness {
-            actionTreeRoot: B256::from_slice(action_tree_root),
-        }
-        .abi_encode(),
-    );
+    let witness =
+        keccak256((witness_type_hash(), B256::from_slice(action_tree_root)).abi_encode_params());
 
     (CallType::Wrap, from, permit, witness, signature).abi_encode_params()
 }
