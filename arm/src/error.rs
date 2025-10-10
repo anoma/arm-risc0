@@ -70,4 +70,6 @@ pub enum ArmError {
     InvalidNullifierCommitment,
     #[error("Invalid resource index")]
     InvalidResourceIndex,
+    #[error("Invalid mcv")]
+    InvalidMcv,
 }

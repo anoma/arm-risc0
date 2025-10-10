@@ -91,6 +91,17 @@ impl Resource {
             .map_err(|_| ArmError::InvalidResourceKind)
     }
 
+    // Compute the kind of a resource as a scalar.
+    pub fn kind_scalar(&self) -> Scalar {
+        // Concatenate the logic_ref and label_ref.
+        // TODO: Domain separation.
+        let mut bytes = [0u8; DIGEST_BYTES * 2];
+        bytes[0..DIGEST_BYTES].clone_from_slice(self.logic_ref.as_ref());
+        bytes[DIGEST_BYTES..DIGEST_BYTES * 2].clone_from_slice(self.label_ref.as_ref());
+
+        hash_to_scalar(&bytes)
+    }
+
     fn psi(&self) -> Vec<u8> {
         let mut bytes = [0u8; PRF_EXPAND_PERSONALIZATION_LEN + 1 + 2 * DIGEST_BYTES];
         let mut offset: usize = 0;
@@ -289,4 +300,15 @@ impl Default for Resource {
             rand_seed: [0; 32],
         }
     }
+}
+
+/// Hash and truncate to first 16 bytes. This is a dirty way yielding 128-bit hashes.
+/// TODO: Higher collision resistance.
+pub fn hash_to_scalar(bytes: &[u8]) -> Scalar {
+    let hash = Impl::hash_bytes(bytes).as_bytes().to_vec();
+    assert_eq!(hash.len(), 32);
+    let mut trunc_16 = Vec::new();
+    trunc_16.extend_from_slice(&hash[0..16]);
+
+    Scalar::from(u128::from_le_bytes(trunc_16.try_into().unwrap()))
 }

@@ -27,6 +27,7 @@ pub mod proving_system;
 pub mod resource;
 pub mod resource_logic;
 mod rustler_util;
+pub mod sigma;
 #[cfg(feature = "test_circuit")]
 pub mod test_logic;
 #[cfg(feature = "test")]

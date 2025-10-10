@@ -7,8 +7,10 @@ use std::time::{Duration, Instant};
 use crate::{
     action::Action,
     action_tree::MerkleTree,
-    compliance::{ComplianceWitness, ComplianceWitnessVar},
-    compliance_unit::{ComplianceUnit, ComplianceUnitVar},
+    compliance::{
+        ComplianceSigmabusWitness, ComplianceVarWitness, ComplianceWitness, TX_MAX_RESOURCES,
+    },
+    compliance_unit::{ComplianceSigmabusUnit, ComplianceUnit, ComplianceVarUnit},
     delta_proof::DeltaWitness,
     logic_proof::{LogicProver, PaddingResourceLogic},
     merkle_path::MerklePath,
@@ -175,7 +177,7 @@ pub fn generate_test_transaction(n_actions: usize, compliance_num: usize) -> Tra
 
 /// Returns `num` dummy resources, their nullifiers, and their nullifier keys (for convenience).
 /// They all have the same logic ([TestLogic]) and quantity 1.
-fn dummy_resources(num: u32) -> (Vec<Resource>, Vec<Digest>, Vec<NullifierKey>) {
+fn dummy_consumed_resources(num: u32) -> (Vec<Resource>, Vec<Digest>, Vec<NullifierKey>) {
     let (nf_key, nf_key_cm) = NullifierKey::random_pair();
     let (consumed_resources, consumed_nullifiers): (Vec<Resource>, Vec<Digest>) = (0..num)
         .map(|index| {
@@ -211,6 +213,26 @@ fn dummy_resources(num: u32) -> (Vec<Resource>, Vec<Digest>, Vec<NullifierKey>) 
     )
 }
 
+/// Returns `num` dummy resources. They all have the same logic ([TestLogic]),
+/// and their nonces are derived from the passed nullifiers.
+fn dummy_created_resources(num: u32, consumed_nullifiers: &[Digest]) -> Vec<Resource> {
+    (0..num)
+        .map(|index| {
+            let quantity = if index == 0 { num } else { 0 };
+            let mut created_resource = Resource {
+                logic_ref: TestLogic::verifying_key(),
+                nk_commitment: NullifierKey::default().commit(),
+                quantity: quantity as u128,
+                ..Default::default()
+            };
+            created_resource.nonce =
+                Resource::derive_nonce(index as usize, consumed_nullifiers).unwrap();
+
+            created_resource
+        })
+        .collect()
+}
+
 /// Creates as many two-sized compliance units as necessary to fit `old_num` consumed resources
 /// and `new_num` created resources. Padding resources are added as necessary.
 /// To bench against compliance units of variable size (assume `old_num` >= `new_num`).
@@ -218,7 +240,7 @@ pub fn create_compliance_units(old_num: u32, new_num: u32) -> Vec<ComplianceUnit
     assert!(old_num >= new_num);
 
     // Generate consumed resources and their nullifiers
-    let (consumed_resources, consumed_nullifiers, nf_keys) = dummy_resources(old_num);
+    let (consumed_resources, consumed_nullifiers, nf_keys) = dummy_consumed_resources(old_num);
 
     // Generate created resources
     let created_resources: Vec<Resource> = (0..new_num)
@@ -269,17 +291,19 @@ pub fn create_compliance_units(old_num: u32, new_num: u32) -> Vec<ComplianceUnit
 
         cus.push(cu);
     }
-    let padding_overhead = prove_total
+    let alignment_overhead = prove_total
         .div_f64((2 * old_num) as f64)
         .mul_f64((old_num - new_num) as f64);
+    
+    // circuit; resources; (consumed, created); proving time; #cu; alignment overhead
     println!(
-        "BENCHMARK: cu size: 2, resources: {:?} ({:?} old, {:?} new), proving time: {:?}, #cu: {:?}, padding overhead: {:?}",
+        "2 sized; {:?}; ({:?}, {:?}); {:?}; {:?}; {:?}",
         old_num + new_num,
         old_num,
         new_num,
         prove_total,
         cus.len(),
-        padding_overhead
+        alignment_overhead
     );
 
     cus
@@ -287,41 +311,29 @@ pub fn create_compliance_units(old_num: u32, new_num: u32) -> Vec<ComplianceUnit
 
 /// Creates a variable-sized compliance unit with `old_num` consumed resources and `new_num` created resources.
 /// For simplicity, assume `old_num` >= `new_num`.
-pub fn create_compliance_unit_var(old_num: u32, new_num: u32) -> ComplianceUnitVar {
+pub fn create_compliance_var_unit(old_num: u32, new_num: u32) -> ComplianceVarUnit {
     assert!(old_num >= new_num);
 
     // Generate consumed resources and their nullifiers
-    let (consumed_resources, consumed_nullifiers, nf_keys) = dummy_resources(old_num);
+    let (consumed_resources, consumed_nullifiers, nf_keys) = dummy_consumed_resources(old_num);
 
     // Generate created resources
-    let created_resources: Vec<Resource> = (0..new_num)
-        .map(|index| {
-            let quantity = if index == 0 { old_num } else { 0 };
-            let mut created_resource = Resource {
-                logic_ref: TestLogic::verifying_key(),
-                nk_commitment: NullifierKey::default().commit(),
-                quantity: quantity as u128,
-                ..Default::default()
-            };
-            created_resource.nonce =
-                Resource::derive_nonce(index as usize, &consumed_nullifiers).unwrap();
-
-            created_resource
-        })
-        .collect();
+    let created_resources = dummy_created_resources(new_num, &consumed_nullifiers);
 
     // Set the witness to the compliance var circuit
     let compliance_witness =
-        ComplianceWitnessVar::with_fixed_rcv(consumed_resources, nf_keys, created_resources);
+        ComplianceVarWitness::with_fixed_rcv(consumed_resources, nf_keys, created_resources);
 
     // Prove compliance
     let prove_timer = Instant::now();
 
-    let cu_var = ComplianceUnitVar::create(&compliance_witness).unwrap();
+    let cu_var = ComplianceVarUnit::create(&compliance_witness).unwrap();
 
     let prove_duration = prove_timer.elapsed();
+    
+    // circuit; resources; (consumed, created); proving time; #cu
     println!(
-        "BENCHMARK: cu size: var, resources: {:?} ({:?} old, {:?} new), proving time: {:?}, #cu: 1",
+        "var; {:?}; ({:?}, {:?}); {:?}; 1",
         old_num + new_num,
         old_num,
         new_num,
@@ -329,6 +341,41 @@ pub fn create_compliance_unit_var(old_num: u32, new_num: u32) -> ComplianceUnitV
     );
 
     cu_var
+}
+
+pub fn create_compliance_sigmabus_unit(old_num: u32, new_num: u32) -> ComplianceSigmabusUnit {
+    // Generate consumed resources and their nullifiers
+    let (consumed_resources, consumed_nullifiers, nf_keys) = dummy_consumed_resources(old_num);
+
+    // Generate created resources
+    let created_resources = dummy_created_resources(new_num, &consumed_nullifiers);
+
+    // Set the witness to the compliance var circuit
+    let compliance_witness = ComplianceSigmabusWitness::from_resources_with_fixed_path(
+        &consumed_resources,
+        &nf_keys,
+        &created_resources,
+    )
+    .unwrap();
+
+    // Prove compliance
+    let prove_timer = Instant::now();
+
+    let cu_sigmabus = ComplianceSigmabusUnit::create(&compliance_witness).unwrap();
+
+    let prove_duration = prove_timer.elapsed();
+    
+    // circuit; resources; (consumed, created); proving time; #cu
+    println!(
+        "sigmabus-{:?}; {:?}; ({:?}, {:?}); {:?}; 1",
+        TX_MAX_RESOURCES,
+        old_num + new_num,
+        old_num,
+        new_num,
+        prove_duration
+    );
+
+    cu_sigmabus
 }
 
 #[test]
@@ -349,24 +396,78 @@ fn test_transaction() {
 }
 
 #[test]
-fn test_create_compliance_unit_var_works() {
-    let cu_var = create_compliance_unit_var(5, 3);
+fn test_compliance_var_unit_works() {
+    let cu_var = create_compliance_var_unit(5, 3);
     assert!(cu_var.verify().is_ok());
 }
 
 #[test]
-fn bench_compliance_2_vs_var() {
-    let number_resources: [(u32, u32); 5] = [
-        (1, 1), // Min with no padding
-        (2, 1), // Min with padding
-        (2, 2), // No padding
-        (4, 4), // No padding
-        (7, 1), // With max padding
+fn test_compliance_sigmabus_unit_works() {
+    assert!(TX_MAX_RESOURCES > 8);
+    let cu_sigmabus = create_compliance_sigmabus_unit(5, 3);
+    assert!(cu_sigmabus.verify().is_ok());
+}
+
+#[test]
+fn bench_compliance_2_var_sigmabus() {
+    println!("2 vs VAR");
+    println!("circuit; resources; (consumed, created); proving time; #cu; alignment overhead");
+    let mut number_resources: Vec<(u32, u32)> = vec![
+        (1, 1),
+        (2, 1),
+        (2, 2),
+        (4, 4),
+        (7, 1),
     ];
     for (old_num, new_num) in number_resources.into_iter() {
         create_compliance_units(old_num, new_num);
-        create_compliance_unit_var(old_num, new_num);
+        create_compliance_var_unit(old_num, new_num);
     }
+
+    println!("2 -- FULLY UNALIGNED");
+    println!("circuit; resources; (consumed, created); proving time; #cu; alignment overhead");
+    number_resources = vec![
+        (1, 1),
+        (2, 1),
+        (3, 1),
+        (4, 1),
+        (5, 1),
+        (6,1),
+        (7,1)
+    ];
+    for (old_num, new_num) in number_resources.into_iter() {
+        create_compliance_units(old_num, new_num);
+    }
+
+    println!("VAR vs SIGMABUS");
+    println!("circuit; resources; (consumed, created); proving time; #cu;");
+    number_resources = vec![
+        (1, 1),
+        (3, 1),
+        (7, 1),
+        (15, 1),
+        (23, 1),
+        (31, 1),
+        (39, 1),
+        (47, 1),
+        (55, 1),
+        (63, 1),
+        (71,1),
+        (79,1),
+        (87,1),
+        (95,1),
+        (103,1),
+        (111,1),
+        (119,1),
+        (127,1)
+    ];
+    for (old_num, new_num) in number_resources.into_iter() {
+        create_compliance_var_unit(old_num, new_num);
+        if (old_num + new_num) as usize <= TX_MAX_RESOURCES {
+            create_compliance_sigmabus_unit(old_num, new_num);
+        }
+    }
+
     println!("DONE.")
 }
 
