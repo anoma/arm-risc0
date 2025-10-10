@@ -14,6 +14,7 @@ use crate::{
 };
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
+#[cfg_attr(feature = "nif", serde(rename = "Elixir.Anoma.Arm.Action"))]
 pub struct Action {
     pub compliance_units: Vec<ComplianceUnit>,
     pub logic_verifier_inputs: Vec<LogicVerifierInputs>,

@@ -2,19 +2,82 @@ use k256::ecdsa::{Error, RecoveryId, Signature, SigningKey, VerifyingKey};
 use k256::{
     elliptic_curve::PublicKey, elliptic_curve::ScalarPrimitive, ProjectivePoint, Scalar, SecretKey,
 };
-use serde::{Deserialize, Serialize};
+use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
+use serde::de::{SeqAccess};
 
 use sha3::{Digest, Keccak256};
+use std::marker::PhantomData;
+use std::fmt;
+use serde::de::Visitor;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[cfg_attr(feature = "nif", serde(rename = "Elixir.Anoma.Arm.DeltaProof"))]
 pub struct DeltaProof {
+    #[serde(deserialize_with = "deserialize_signature", serialize_with = "serialize_signature")]
     pub signature: Signature,
+    #[serde(deserialize_with = "deserialize_recovery_id", serialize_with = "serialize_recovery_id")]
     pub recid: RecoveryId,
 }
 
-#[derive(Clone, Debug)]
+fn serialize_signature<S>(t: &Signature, s: S) -> Result<S::Ok, S::Error> where S: Serializer {
+    s.serialize_bytes(&t.to_bytes())
+}
+
+fn deserialize_signature<'de, D>(deserializer: D) -> Result<Signature, D::Error> where D: Deserializer<'de> {
+    const LEN: usize = 64;
+    struct ArrayVisitor<T> {
+        element: PhantomData<T>,
+    }
+
+    impl<'de, T> Visitor<'de> for ArrayVisitor<T>
+    where T: Default + Copy + Deserialize<'de>
+    {
+        type Value = [T; LEN];
+
+        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            write!(formatter, "an array of length {}", LEN)
+        }
+
+        fn visit_seq<A>(self, mut seq: A) -> Result<[T; LEN], A::Error>
+        where A: SeqAccess<'de>
+        {
+            let mut arr = [T::default(); LEN];
+            for i in 0..LEN {
+                arr[i] = seq.next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(i, &self))?;
+            }
+            Ok(arr)
+        }
+    }
+
+    let visitor = ArrayVisitor { element: PhantomData };
+    let b: [u8; LEN] = deserializer.deserialize_tuple(LEN, visitor)?;
+    Signature::from_bytes(&b.into()).map_err(de::Error::custom)
+}
+
+fn serialize_recovery_id<S>(t: &RecoveryId, s: S) -> Result<S::Ok, S::Error> where S: Serializer {
+    s.serialize_u8(t.to_byte())
+}
+
+fn deserialize_recovery_id<'de, D>(d: D) -> Result<RecoveryId, D::Error> where D: Deserializer<'de> {
+    let s: u8 = de::Deserialize::deserialize(d)?;
+    RecoveryId::try_from(s).map_err(de::Error::custom)
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[cfg_attr(feature = "nif", serde(rename = "Elixir.Anoma.Arm.DeltaWitness"))]
 pub struct DeltaWitness {
+    #[serde(deserialize_with = "deserialize_signing_key", serialize_with = "serialize_signing_key")]
     pub signing_key: SigningKey,
+}
+
+fn serialize_signing_key<S>(t: &SigningKey, s: S) -> Result<S::Ok, S::Error> where S: Serializer {
+    s.serialize_bytes(&t.to_bytes())
+}
+
+fn deserialize_signing_key<'de, D>(deserializer: D) -> Result<SigningKey, D::Error> where D: Deserializer<'de> {
+    let b: [u8; 32] = Deserialize::deserialize(deserializer)?;
+    SigningKey::from_bytes(&b.into()).map_err(de::Error::custom)
 }
 
 pub struct DeltaInstance {
@@ -120,49 +183,6 @@ impl DeltaInstance {
         let pk = PublicKey::from_affine(sum.to_affine()).unwrap();
         let vk = VerifyingKey::from(&pk);
         Ok(DeltaInstance { verifying_key: vk })
-    }
-}
-
-impl Serialize for DeltaProof {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_bytes(&self.to_bytes())
-    }
-}
-
-impl<'de> Deserialize<'de> for DeltaProof {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let bytes: Vec<u8> = Vec::deserialize(deserializer)?;
-        if bytes.len() != 65 {
-            return Err(serde::de::Error::custom(
-                "Invalid byte length for DeltaProof",
-            ));
-        }
-        Ok(DeltaProof::from_bytes(&bytes))
-    }
-}
-
-impl Serialize for DeltaWitness {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_bytes(&self.to_bytes())
-    }
-}
-
-impl<'de> Deserialize<'de> for DeltaWitness {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let bytes = <[u8; 32]>::deserialize(deserializer)?;
-        Ok(DeltaWitness::from_bytes(&bytes))
     }
 }
 

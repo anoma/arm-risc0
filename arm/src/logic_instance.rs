@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "nif", serde(rename = "Elixir.Anoma.Arm.LogicInstance"))]
 pub struct LogicInstance {
     pub tag: Vec<u32>,
     pub is_consumed: bool,
@@ -9,6 +10,7 @@ pub struct LogicInstance {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "nif", serde(rename = "Elixir.Anoma.Arm.AppData"))]
 pub struct AppData {
     pub resource_payload: Vec<ExpirableBlob>,
     pub discovery_payload: Vec<ExpirableBlob>,
@@ -17,6 +19,7 @@ pub struct AppData {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "nif", serde(rename = "Elixir.Anoma.Arm.ExpirableBlob"))]
 pub struct ExpirableBlob {
     pub blob: Vec<u32>,
     pub deletion_criterion: u32,

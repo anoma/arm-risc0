@@ -6,6 +6,7 @@ use risc0_zkvm::sha::Digest;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "nif", serde(rename = "Elixir.Anoma.Arm.MerkleTree"))]
 pub struct MerkleTree {
     pub leaves: Vec<Vec<u32>>,
 }
