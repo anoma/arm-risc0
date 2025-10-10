@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use crate::{compliance::ComplianceWitness, constants::COMPLIANCE_PK, proving_system::prove};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
+#[cfg_attr(feature = "nif", serde(rename = "Elixir.Anoma.Arm.ComplianceUnit"))]
 pub struct ComplianceUnit {
     // vk is a constant in the compliance unit, so we don't place it here.
     pub proof: Vec<u8>,

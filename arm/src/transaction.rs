@@ -5,6 +5,7 @@ use crate::{
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
+#[cfg_attr(feature = "nif", serde(rename = "Elixir.Anoma.Arm.Transaction"))]
 pub struct Transaction {
     pub actions: Vec<Action>,
     // delta verification is a deterministic process, so we don't need a
@@ -15,8 +16,11 @@ pub struct Transaction {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
+#[cfg_attr(feature = "nif", serde(rename = "Elixir.Anoma.Arm.Delta"))]
 pub enum Delta {
+    #[cfg_attr(feature = "nif", serde(rename = "Elixir.Anoma.Arm.Delta.DeltaWitness"))]
     Witness(DeltaWitness),
+    #[cfg_attr(feature = "nif", serde(rename = "Elixir.Anoma.Arm.Delta.DeltaProof"))]
     Proof(DeltaProof),
 }
 

@@ -21,6 +21,7 @@ lazy_static! {
 }
 
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "nif", serde(rename = "Elixir.Anoma.Arm.ComplianceInstance"))]
 pub struct ComplianceInstance {
     pub consumed_nullifier: Vec<u32>,
     pub consumed_logic_ref: Vec<u32>,
@@ -32,6 +33,7 @@ pub struct ComplianceInstance {
 }
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "nif", serde(rename = "Elixir.Anoma.Arm.ComplianceWitness"))]
 pub struct ComplianceWitness {
     /// The consumed resource
     pub consumed_resource: Resource,

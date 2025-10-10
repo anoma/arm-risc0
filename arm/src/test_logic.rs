@@ -13,6 +13,7 @@ use k256::AffinePoint;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "nif", serde(rename = "Elixir.Anoma.Arm.TestLogicWitness"))]
 pub struct TestLogicWitness {
     pub resource: Resource,
     pub receive_existence_path: MerklePath,
