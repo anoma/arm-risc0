@@ -1,4 +1,4 @@
-use arm::compliance::ComplianceVarWitness;
+use arm::compliance::{ComplianceConstraint,ComplianceVarWitness};
 use risc0_zkvm::guest::env;
 
 // Guest code:

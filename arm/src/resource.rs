@@ -258,18 +258,15 @@ impl Resource {
         Ok(())
     }
 
-    /// Derives the nonce based on the passed resource nullifiers and an index.
-    /// The index must be a 32-bit integer.
-    pub fn derive_nonce(index: usize, nullifiers: &[Digest]) -> Result<[u8; 32], ArmError> {
+    /// Derives the nonce based on the passed index and digest.
+    /// The index must fit in a 32-bit integer.
+    pub fn derive_nonce(index: usize, nullifiers_digest: Digest) -> Result<[u8; 32], ArmError> {
         let index_u32: u32 = index
             .try_into()
             .map_err(|_| ArmError::InvalidResourceIndex)?;
-
-        let mut bytes = Vec::new();
-        bytes.append(&mut index_u32.to_le_bytes().to_vec().clone());
-        for nf in nullifiers.iter() {
-            bytes.append(&mut nf.as_bytes().to_vec().clone());
-        }
+        let mut bytes = [0u8; DIGEST_BYTES + 4];
+        bytes[0..4].clone_from_slice(&index_u32.to_le_bytes());
+        bytes[4..DIGEST_BYTES + 4].clone_from_slice(nullifiers_digest.as_ref());
 
         Impl::hash_bytes(&bytes)
             .as_bytes()

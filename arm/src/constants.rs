@@ -14,17 +14,17 @@ pub const PADDING_LOGIC_PK: &[u8] = include_bytes!("../elfs/trivial-logic-guest.
 lazy_static! {
     // compliance verification key / compliance image id
     pub static ref COMPLIANCE_VK: Digest =
-        Digest::from_hex("960a69bf921f04dae43bd0337064836dba8ff52b0d9c589d20bc087af989a45c")
+        Digest::from_hex("ff3f0fcdc1c1b5da091dd4922279a9b0ff635cc313700caa90a7097c6e59fdac")
             .unwrap();
 
     // compliance_var verification key / compliance image id
     pub static ref COMPLIANCE_VAR_VK: Digest =
-        Digest::from_hex("47fbde986742906d59894ee4fcf31b364869555ac534dd140bb2d5c5047323a8")
+        Digest::from_hex("ff4ba79ee21a1e8bd24cdd9c18d41e9033b5208f307b40cd1a80db62cd530b65")
             .unwrap();
 
     // compliance_sigmabus verification key / compliance image id
     pub static ref COMPLIANCE_SIGMABUS_VK: Digest =
-        Digest::from_hex("7e1ab7de6a233552eb0e1b3532a078eece5d159aa7a5b8f68f63a971fe6deff4")
+        Digest::from_hex("e1770ca538a8ebcff7ba20664f8f5d069d04199f9799363747a35013c2533c38")
             .unwrap();
 
     // padding logic verification key / compliance image id
