@@ -8,7 +8,6 @@ use arm::{
         PermitTransferFrom,
     },
     logic_instance::{AppData, ExpirableBlob, LogicInstance},
-    merkle_path::MerklePath,
     nullifier_key::NullifierKey,
     resource::Resource,
     utils::{bytes_to_words, hash_bytes},
@@ -19,7 +18,7 @@ use serde::{Deserialize, Serialize};
 pub struct SimpleTransferWitness {
     pub resource: Resource,
     pub is_consumed: bool,
-    pub existence_path: MerklePath,
+    pub action_tree_root: Digest,
     pub nf_key: Option<NullifierKey>,
     pub auth_info: Option<AuthorizationInfo>,
     pub encryption_info: Option<EncryptionInfo>,
@@ -76,9 +75,7 @@ impl LogicCircuit for SimpleTransferWitness {
             cm
         };
 
-        // Check the existence path
-        let root = self.existence_path.root(&tag);
-        let root_bytes = root.as_bytes();
+        let root_bytes = self.action_tree_root.as_bytes();
 
         // Generate resource_payload and external_payload
         let (discovery_payload, resource_payload, external_payload) = if self.resource.is_ephemeral
@@ -94,20 +91,19 @@ impl LogicCircuit for SimpleTransferWitness {
             let label_ref = calculate_label_ref(forwarder_addr, erc20_addr);
             assert_eq!(self.resource.label_ref, label_ref);
 
-            // Check resource value_ref: value_ref = sha2(call_type, user_addr)
-            let call_type = forwarder_info.call_type;
-            let value_ref = calculate_value_ref_calltype_user(call_type, user_addr);
+            // Check resource value_ref: value_ref[0..20] = user_addr
+            let value_ref = calculate_value_ref_from_user_addr(user_addr);
             assert_eq!(self.resource.value_ref, value_ref);
 
             if self.is_consumed {
                 // Minting
-                assert_eq!(call_type, CallType::Wrap);
+                assert_eq!(forwarder_info.call_type, CallType::Wrap);
             } else {
                 // Burning
-                assert_eq!(call_type, CallType::Unwrap);
+                assert_eq!(forwarder_info.call_type, CallType::Unwrap);
             };
 
-            let input = match call_type {
+            let input = match forwarder_info.call_type {
                 CallType::Unwrap => encode_transfer(erc20_addr, user_addr, self.resource.quantity),
                 CallType::Wrap => {
                     let permit_info = forwarder_info
@@ -207,7 +203,7 @@ impl LogicCircuit for SimpleTransferWitness {
         Ok(LogicInstance {
             tag,
             is_consumed: self.is_consumed,
-            root,
+            root: self.action_tree_root,
             app_data,
         })
     }
@@ -218,7 +214,7 @@ impl SimpleTransferWitness {
     pub fn new(
         resource: Resource,
         is_consumed: bool,
-        existence_path: MerklePath,
+        action_tree_root: Digest,
         nf_key: Option<NullifierKey>,
         auth_info: Option<AuthorizationInfo>,
         encryption_info: Option<EncryptionInfo>,
@@ -227,7 +223,7 @@ impl SimpleTransferWitness {
         Self {
             is_consumed,
             resource,
-            existence_path,
+            action_tree_root,
             nf_key,
             auth_info,
             encryption_info,
@@ -240,10 +236,17 @@ pub fn calculate_value_ref_from_auth(auth_pk: &AuthorizationVerifyingKey) -> Dig
     hash_bytes(&auth_pk.to_bytes())
 }
 
-pub fn calculate_value_ref_calltype_user(call_type: CallType, user_addr: &[u8]) -> Digest {
-    let mut data = vec![call_type as u8];
-    data.extend_from_slice(user_addr);
-    hash_bytes(&data)
+pub fn calculate_value_ref_from_user_addr(user_addr: &[u8]) -> Digest {
+    let mut addr_padded = [0u8; 32];
+    addr_padded[0..20].copy_from_slice(user_addr);
+    Digest::from_bytes(addr_padded)
+}
+
+pub fn get_user_addr(value_ref: &Digest) -> [u8; 20] {
+    let bytes = value_ref.as_bytes();
+    let mut addr = [0u8; 20];
+    addr.copy_from_slice(&bytes[0..20]);
+    addr
 }
 
 pub fn calculate_label_ref(forwarder_add: &[u8], erc20_add: &[u8]) -> Digest {

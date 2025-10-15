@@ -29,7 +29,7 @@ pub fn construct_transfer_tx(
     // Action tree
     let consumed_nf = consumed_resource.nullifier(&consumed_nf_key)?;
     let created_cm = created_resource.commitment();
-    let action_tree = MerkleTree::new(vec![consumed_nf, created_cm]);
+    let action_tree_root = MerkleTree::new(vec![consumed_nf, created_cm]).root();
 
     // Generate compliance units
     let compliance_witness = ComplianceWitness::from_resources_with_path(
@@ -41,20 +41,18 @@ pub fn construct_transfer_tx(
     let compliance_unit = ComplianceUnit::create(&compliance_witness)?;
 
     // Generate logic proofs
-    let consumed_resource_path = action_tree.generate_path(&consumed_nf)?;
     let consumed_resource_logic = TransferLogic::consume_persistent_resource_logic(
         consumed_resource,
-        consumed_resource_path,
+        action_tree_root,
         consumed_nf_key,
         consumed_auth_pk,
         consumed_auth_sig,
     );
     let consumed_logic_proof = consumed_resource_logic.prove()?;
 
-    let created_resource_path = action_tree.generate_path(&created_cm)?;
     let created_resource_logic = TransferLogic::create_persistent_resource_logic(
         created_resource,
-        created_resource_path,
+        action_tree_root,
         &created_discovery_pk,
         created_encryption_pk,
     );

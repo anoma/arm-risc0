@@ -33,7 +33,7 @@ pub fn construct_mint_tx(
     // Action tree
     let consumed_nf = consumed_resource.nullifier(&consumed_nf_key)?;
     let created_cm = created_resource.commitment();
-    let action_tree = MerkleTree::new(vec![consumed_nf, created_cm]);
+    let action_tree_root = MerkleTree::new(vec![consumed_nf, created_cm]).root();
 
     // Generate compliance units
     let compliance_witness = ComplianceWitness::from_resources(
@@ -45,10 +45,9 @@ pub fn construct_mint_tx(
     let compliance_unit = ComplianceUnit::create(&compliance_witness)?;
 
     // Generate logic proofs
-    let consumed_resource_path = action_tree.generate_path(&consumed_nf)?;
     let consumed_resource_logic = TransferLogic::mint_resource_logic_with_permit(
         consumed_resource,
-        consumed_resource_path,
+        action_tree_root,
         consumed_nf_key,
         forwarder_addr.clone(),
         token_addr.clone(),
@@ -59,10 +58,9 @@ pub fn construct_mint_tx(
     );
     let consumed_logic_proof = consumed_resource_logic.prove()?;
 
-    let created_resource_path = action_tree.generate_path(&created_cm)?;
     let created_resource_logic = TransferLogic::create_persistent_resource_logic(
         created_resource,
-        created_resource_path,
+        action_tree_root,
         &created_discovery_pk,
         created_encryption_pk,
     );
@@ -88,7 +86,6 @@ fn simple_mint_test() {
         authorization::{AuthorizationSigningKey, AuthorizationVerifyingKey},
         compliance::INITIAL_ROOT,
         encryption::random_keypair,
-        evm::CallType,
         nullifier_key::NullifierKey,
     };
 
@@ -106,7 +103,6 @@ fn simple_mint_test() {
         [4u8; 32], // nonce
         consumed_nf_cm,
         [5u8; 32], // rand_seed
-        CallType::Wrap,
         &user_addr,
     );
     let consumed_nf = consumed_resource.nullifier(&consumed_nf_key).unwrap();

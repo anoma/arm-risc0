@@ -30,7 +30,7 @@ pub fn construct_burn_tx(
     // Action tree
     let consumed_nf = consumed_resource.nullifier(&consumed_nf_key)?;
     let created_cm = created_resource.commitment();
-    let action_tree = MerkleTree::new(vec![consumed_nf, created_cm]);
+    let action_tree_root = MerkleTree::new(vec![consumed_nf, created_cm]).root();
 
     // Generate compliance units
     let compliance_witness = ComplianceWitness::from_resources_with_path(
@@ -42,20 +42,18 @@ pub fn construct_burn_tx(
     let compliance_unit = ComplianceUnit::create(&compliance_witness)?;
 
     // Generate logic proofs
-    let consumed_resource_path = action_tree.generate_path(&consumed_nf)?;
     let consumed_resource_logic = TransferLogic::consume_persistent_resource_logic(
         consumed_resource,
-        consumed_resource_path,
+        action_tree_root,
         consumed_nf_key,
         consumed_auth_pk,
         consumed_auth_sig,
     );
     let consumed_logic_proof = consumed_resource_logic.prove()?;
 
-    let created_resource_path = action_tree.generate_path(&created_cm)?;
     let created_resource_logic = TransferLogic::burn_resource_logic(
         created_resource,
-        created_resource_path,
+        action_tree_root,
         forwarder_addr,
         token_addr,
         user_addr,
@@ -84,7 +82,6 @@ fn simple_burn_test() {
     use arm::{
         action_tree::MerkleTree,
         authorization::{AuthorizationSigningKey, AuthorizationVerifyingKey},
-        evm::CallType,
         merkle_path::MerklePath,
         nullifier_key::NullifierKey,
     };
@@ -117,8 +114,7 @@ fn simple_burn_test() {
         quantity,
         consumed_nf.as_bytes().try_into().unwrap(), // nonce
         created_nf_cm,
-        [6u8; 32], // rand_seed
-        CallType::Unwrap,
+        [6u8; 32],  // rand_seed
         &user_addr, // user_addr
     );
     let created_cm = created_resource.commitment();

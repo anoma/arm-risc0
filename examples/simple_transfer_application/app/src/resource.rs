@@ -1,10 +1,10 @@
 use crate::TransferLogic;
 use arm::{
-    authorization::AuthorizationVerifyingKey, evm::CallType, logic_proof::LogicProver,
+    authorization::AuthorizationVerifyingKey, logic_proof::LogicProver,
     nullifier_key::NullifierKeyCommitment, resource::Resource,
 };
 use simple_transfer_witness::{
-    calculate_label_ref, calculate_value_ref_calltype_user, calculate_value_ref_from_auth,
+    calculate_label_ref, calculate_value_ref_from_auth, calculate_value_ref_from_user_addr,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -39,11 +39,10 @@ pub fn construct_ephemeral_resource(
     nonce: [u8; 32],
     nk_commitment: NullifierKeyCommitment,
     rand_seed: [u8; 32],
-    call_type: CallType,
     user_addr: &[u8],
 ) -> Resource {
     let label_ref = calculate_label_ref(forwarder_addr, token_addr);
-    let value_ref = calculate_value_ref_calltype_user(call_type, user_addr);
+    let value_ref = calculate_value_ref_from_user_addr(user_addr);
     Resource {
         logic_ref: TransferLogic::verifying_key(),
         label_ref,
