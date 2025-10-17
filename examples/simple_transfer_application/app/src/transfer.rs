@@ -4,7 +4,7 @@ use arm::{
     action_tree::MerkleTree,
     authorization::{AuthorizationSignature, AuthorizationVerifyingKey},
     compliance::ComplianceWitness,
-    compliance_unit::ComplianceUnit,
+    compliance_unit::{ComplianceUnit, CUI},
     delta_proof::DeltaWitness,
     encryption::AffinePoint,
     error::ArmError,

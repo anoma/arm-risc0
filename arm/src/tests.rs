@@ -10,7 +10,7 @@ use crate::{
     compliance::{
         ComplianceSigmabusWitness, ComplianceVarWitness, ComplianceWitness, TX_MAX_RESOURCES,
     },
-    compliance_unit::{ComplianceSigmabusUnit, ComplianceUnit, ComplianceVarUnit},
+    compliance_unit::{ComplianceSigmabusUnit, ComplianceUnit, ComplianceVarUnit, CUI},
     delta_proof::DeltaWitness,
     logic_proof::{LogicProver, PaddingResourceLogic},
     merkle_path::MerklePath,
@@ -21,7 +21,10 @@ use crate::{
 };
 use hex::FromHex;
 use lazy_static::lazy_static;
-use risc0_zkvm::Digest;
+use risc0_zkvm::{
+    sha::{Impl, Sha256},
+    Digest,
+};
 use serde::{Deserialize, Serialize};
 
 // Test logic proving key / test logic guest ELF binary
@@ -216,7 +219,15 @@ fn dummy_consumed_resources(num: u32) -> (Vec<Resource>, Vec<Digest>, Vec<Nullif
 /// Returns `num` dummy resources. They all have the same logic ([TestLogic]),
 /// and their nonces are derived from the passed nullifiers.
 fn dummy_created_resources(num: u32, consumed_nullifiers: &[Digest]) -> Vec<Resource> {
-    let nullifiers_digest = ComplianceVarWitness::hash_consumed_nullifiers(consumed_nullifiers);
+    let nullifiers_digest = {
+        let mut bytes = Vec::new();
+        for nf in consumed_nullifiers.iter() {
+            bytes.append(&mut nf.as_bytes().to_vec().clone());
+        }
+
+        Impl::hash_bytes(&bytes).as_bytes().try_into().unwrap()
+    };
+
     (0..num)
         .map(|index| {
             let quantity = if index == 0 { num } else { 0 };
@@ -323,7 +334,7 @@ pub fn create_compliance_var_unit(old_num: u32, new_num: u32) -> ComplianceVarUn
 
     // Set the witness to the compliance var circuit
     let compliance_witness =
-        ComplianceVarWitness::with_fixed_rcv(consumed_resources, nf_keys, created_resources);
+        ComplianceVarWitness::with_fixed_rcv(&consumed_resources, &nf_keys, &created_resources);
 
     // Prove compliance
     let prove_timer = Instant::now();

@@ -1,7 +1,7 @@
 use crate::resource_info::{DenominationInfo, KudoInfo};
 use arm::{
     action::Action,
-    compliance_unit::ComplianceUnit,
+    compliance_unit::{ComplianceUnit, CUI},
     error::ArmError,
     transaction::{Delta, Transaction},
     Digest,

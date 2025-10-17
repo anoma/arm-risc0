@@ -2,7 +2,7 @@ use arm::{
     action::Action,
     action_tree::MerkleTree,
     compliance::ComplianceWitness,
-    compliance_unit::ComplianceUnit,
+    compliance_unit::{ComplianceUnit, CUI},
     delta_proof::DeltaWitness,
     encryption::AffinePoint,
     error::ArmError,

@@ -2,7 +2,7 @@ use crate::resource_info::{DenominationInfo, KudoInfo, ReceiveInfo};
 use arm::{
     action::Action,
     compliance::ComplianceWitness,
-    compliance_unit::ComplianceUnit,
+    compliance_unit::{ComplianceUnit, CUI},
     delta_proof::DeltaWitness,
     error::ArmError,
     logic_proof::{LogicProver, PaddingResourceLogic},

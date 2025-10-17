@@ -1,12 +1,14 @@
 pub mod minimal;
+mod shared_constraints;
 pub mod sigmabus;
 pub mod var;
 use crate::error::ArmError;
 
 pub use minimal::ComplianceInstance;
 pub use minimal::ComplianceWitness;
+use serde::Serialize;
 pub use sigmabus::ComplianceSigmabusWitness;
-pub use sigmabus::SigmabusCircuitInstance;
+pub use sigmabus::SigmaBusCircuitInstance;
 pub use sigmabus::SigmabusCircuitWitness;
 pub use sigmabus::TX_MAX_RESOURCES;
 pub use var::ComplianceVarInstance;
@@ -21,8 +23,10 @@ lazy_static! {
             .unwrap();
 }
 
-pub trait ComplianceConstraint {
+/// This is a trait for compliance constraints implementation.
+pub trait ComplianceCircuit: Serialize {
     type Instance;
 
+    /// The code run in the zkVM
     fn constrain(&self) -> Result<Self::Instance, ArmError>;
 }

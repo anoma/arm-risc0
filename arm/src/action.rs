@@ -1,7 +1,7 @@
 use crate::{
     action_tree::MerkleTree,
     compliance::ComplianceInstance,
-    compliance_unit::ComplianceUnit,
+    compliance_unit::{ComplianceUnit, CUI},
     error::ArmError,
     logic_proof::{LogicVerifier, LogicVerifierInputs},
 };
@@ -44,7 +44,7 @@ impl Action {
         let compliance_intances = self
             .compliance_units
             .iter()
-            .map(|unit| unit.get_instance())
+            .map(|unit| unit.instance())
             .collect::<Result<Vec<ComplianceInstance>, ArmError>>()?;
 
         // Construct the action tree
@@ -103,7 +103,7 @@ impl Action {
     pub fn get_delta_msg(&self) -> Result<Vec<u8>, ArmError> {
         let mut msg = Vec::new();
         for unit in &self.compliance_units {
-            if let Ok(instance) = unit.get_instance() {
+            if let Ok(instance) = unit.instance() {
                 msg.extend_from_slice(&instance.delta_msg());
             } else {
                 return Err(ArmError::InvalidComplianceInstance);

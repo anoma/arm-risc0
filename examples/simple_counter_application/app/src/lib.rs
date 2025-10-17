@@ -6,7 +6,7 @@ use arm::{
     merkle_path::MerklePath, nullifier_key::NullifierKey, resource::Resource,
 };
 use arm::{
-    compliance_unit::ComplianceUnit,
+    compliance_unit::{ComplianceUnit, CUI},
     error::ArmError,
     logic_proof::{LogicProver, LogicVerifier},
 };

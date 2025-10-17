@@ -2,7 +2,7 @@
 const COMPLIANCE_INSTANCE_SIZE: usize = 56;
 
 use crate::{
-    compliance::{ComplianceConstraint, INITIAL_ROOT},
+    compliance::{shared_constraints, ComplianceCircuit, INITIAL_ROOT},
     error::ArmError,
     merkle_path::MerklePath,
     nullifier_key::NullifierKey,
@@ -107,85 +107,35 @@ impl ComplianceWitness {
             ephemeral_root: *INITIAL_ROOT,
         }
     }
-
-    pub fn consumed_resource_logic(&self) -> Digest {
-        self.consumed_resource.logic_ref
-    }
-
-    pub fn created_resource_logic(&self) -> Digest {
-        self.created_resource.logic_ref
-    }
-
-    pub fn consumed_commitment(&self) -> Digest {
-        self.consumed_resource.commitment()
-    }
-
-    pub fn created_commitment(&self) -> Digest {
-        self.created_resource.commitment()
-    }
-
-    pub fn consumed_nullifier(&self, cm: &Digest) -> Result<Digest, ArmError> {
-        self.consumed_resource
-            .nullifier_from_commitment(&self.nf_key, cm)
-    }
-
-    pub fn consumed_commitment_tree_root(&self, cm: &Digest) -> Digest {
-        if self.consumed_resource.is_ephemeral {
-            self.ephemeral_root
-        } else {
-            self.merkle_path.root(cm)
-        }
-    }
-
-    pub fn delta(&self) -> Result<([u32; 8], [u32; 8]), ArmError> {
-        // Compute delta and make delta commitment public
-        let rcv_array: [u8; 32] = self
-            .rcv
-            .as_slice()
-            .try_into()
-            .map_err(|_| ArmError::InvalidRcv)?;
-        let rcv_scalar = Scalar::from_repr(rcv_array.into())
-            .into_option()
-            .ok_or(ArmError::InvalidRcv)?;
-        let consumed_kind = self.consumed_resource.kind()?;
-        let created_kind = self.created_resource.kind()?;
-        let delta = consumed_kind * self.consumed_resource.quantity_scalar()
-            - created_kind * self.created_resource.quantity_scalar()
-            + ProjectivePoint::GENERATOR * rcv_scalar;
-
-        let encoded_delta = delta.to_encoded_point(false);
-        let delta_x: [u32; 8] = bytes_to_words(encoded_delta.x().ok_or(ArmError::InvalidDelta)?)
-            .try_into()
-            .map_err(|_| ArmError::InvalidDelta)?;
-
-        let delta_y: [u32; 8] = bytes_to_words(encoded_delta.y().ok_or(ArmError::InvalidDelta)?)
-            .try_into()
-            .map_err(|_| ArmError::InvalidDelta)?;
-
-        Ok((delta_x, delta_y))
-    }
 }
 
-impl ComplianceConstraint for ComplianceWitness {
+impl ComplianceCircuit for ComplianceWitness {
     type Instance = ComplianceInstance;
 
     fn constrain(&self) -> Result<Self::Instance, ArmError> {
-        let consumed_cm = self.consumed_commitment();
-        let consumed_logic_ref = self.consumed_resource_logic();
-        let consumed_commitment_tree_root = self.consumed_commitment_tree_root(&consumed_cm);
-
-        let consumed_nullifier = self.consumed_nullifier(&consumed_cm)?;
-        let created_logic_ref = self.created_resource_logic();
-        let created_commitment = self.created_commitment();
-
-        // constrain created_resource.nonce and consumed_resource.nf
-        assert_eq!(
-            self.created_resource.nonce,
-            consumed_nullifier.as_bytes(),
-            "Created resource nonce must match consumed nullifier"
+        // constrain the consumed resource
+        let consumed_cm = shared_constraints::commit(&self.consumed_resource);
+        let consumed_commitment_tree_root = shared_constraints::compute_commitment_tree_root(
+            &consumed_cm,
+            &self.merkle_path,
+            self.consumed_resource.is_ephemeral,
+            &self.ephemeral_root,
         );
+        let consumed_logic_ref = shared_constraints::read_resource_logic(&self.consumed_resource);
+        let consumed_nullifier = shared_constraints::compute_nullifier(
+            &self.consumed_resource,
+            &consumed_cm,
+            &self.nf_key,
+        )?;
 
-        let (delta_x, delta_y) = self.delta()?;
+        // constrain the created resource
+        let created_logic_ref = shared_constraints::read_resource_logic(&self.created_resource);
+        let created_commitment = shared_constraints::commit(&self.created_resource);
+        constraints::enforce_correct_nonce(&self.created_resource, consumed_nullifier)?;
+
+        // compute unit delta
+        let (delta_x, delta_y) =
+            constraints::delta_commit(&self.consumed_resource, &self.created_resource, &self.rcv)?;
 
         Ok(ComplianceInstance {
             consumed_nullifier,
@@ -260,5 +210,50 @@ impl ComplianceInstance {
         msg.extend_from_slice(self.consumed_nullifier.as_bytes());
         msg.extend_from_slice(self.created_commitment.as_bytes());
         msg
+    }
+}
+
+/// Constraints specific to 2-size compliance units.
+mod constraints {
+    use super::*;
+
+    /// Constrain the nonce of the created resource
+    pub(super) fn enforce_correct_nonce(
+        created_resource: &Resource,
+        consumed_nullifier: Digest,
+    ) -> Result<(), ArmError> {
+        if created_resource.nonce != consumed_nullifier.as_bytes() {
+            Err(ArmError::InvalidResourceNonce)
+        } else {
+            Ok(())
+        }
+    }
+
+    /// Computes the Delta commitment of the 2-sized compliance unit.
+    pub(super) fn delta_commit(
+        consumed_resource: &Resource,
+        created_resource: &Resource,
+        rcv: &[u8],
+    ) -> Result<([u32; 8], [u32; 8]), ArmError> {
+        let rcv_array: [u8; 32] = rcv.try_into().map_err(|_| ArmError::InvalidRcv)?;
+        let rcv_scalar = Scalar::from_repr(rcv_array.into())
+            .into_option()
+            .ok_or(ArmError::InvalidRcv)?;
+        let consumed_kind = consumed_resource.kind()?;
+        let created_kind = created_resource.kind()?;
+        let delta = consumed_kind * consumed_resource.quantity_scalar()
+            - created_kind * created_resource.quantity_scalar()
+            + ProjectivePoint::GENERATOR * rcv_scalar;
+
+        let encoded_delta = delta.to_encoded_point(false);
+        let delta_x: [u32; 8] = bytes_to_words(encoded_delta.x().ok_or(ArmError::InvalidDelta)?)
+            .try_into()
+            .map_err(|_| ArmError::InvalidDelta)?;
+
+        let delta_y: [u32; 8] = bytes_to_words(encoded_delta.y().ok_or(ArmError::InvalidDelta)?)
+            .try_into()
+            .map_err(|_| ArmError::InvalidDelta)?;
+
+        Ok((delta_x, delta_y))
     }
 }

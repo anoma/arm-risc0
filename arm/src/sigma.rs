@@ -107,6 +107,9 @@ impl SigmaWitness {
     }
 }
 
+/// A Sigma protocol to prove/verify knowledge of a batch of messages committed with Pedersen.
+/// The witness is the batch of messages and the commitment randomness.
+/// The instance is the batch of commitments.
 pub struct SigmaProtocol;
 impl SigmaProtocol {
     /// Non-interactive prover
