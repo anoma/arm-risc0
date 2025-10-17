@@ -29,20 +29,25 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "nif", serde(rename = "Elixir.Anoma.Arm.Resource"))]
 pub struct Resource {
     // a succinct representation of the predicate associated with the resource
+    #[serde(with = "serde_bytes")]
     pub logic_ref: Vec<u8>,
     // specifies the fungibility domain for the resource
+    #[serde(with = "serde_bytes")]
     pub label_ref: Vec<u8>,
     // number representing the quantity of the resource
     pub quantity: u128,
     // the fungible value reference of the resource
+    #[serde(with = "serde_bytes")]
     pub value_ref: Vec<u8>,
     // flag that reflects the resource ephemerality
     pub is_ephemeral: bool,
     // guarantees the uniqueness of the resource computable components
+    #[serde(with = "serde_bytes")]
     pub nonce: Vec<u8>,
     // commitment to nullifier key
     pub nk_commitment: NullifierKeyCommitment,
     // randomness seed used to derive whatever randomness needed
+    #[serde(with = "serde_bytes")]
     pub rand_seed: Vec<u8>,
 }
 

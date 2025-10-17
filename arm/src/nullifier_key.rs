@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 /// Nullifier key
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct NullifierKey(Vec<u8>);
+pub struct NullifierKey(#[serde(with = "serde_bytes")] Vec<u8>);
 
 impl NullifierKey {
     pub fn new(nf_key: &[u8]) -> NullifierKey {
@@ -40,7 +40,7 @@ impl Default for NullifierKey {
 
 /// Commitment to nullifier key
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
-pub struct NullifierKeyCommitment(Vec<u8>);
+pub struct NullifierKeyCommitment(#[serde(with = "serde_bytes")] Vec<u8>);
 
 impl NullifierKeyCommitment {
     pub fn inner(&self) -> &[u8] {
