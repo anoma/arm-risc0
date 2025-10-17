@@ -46,6 +46,7 @@ pub struct ComplianceWitness {
     /// The created resource
     pub created_resource: Resource,
     /// Random scalar for delta commitment
+    #[serde(with = "serde_bytes")]
     pub rcv: Vec<u8>,
     // TODO: If we want to add function privacy, include:
     // pub input_resource_logic_cm_r: [u8; DATA_BYTES],

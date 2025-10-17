@@ -13,7 +13,9 @@ use crate::{compliance::ComplianceWitness, constants::COMPLIANCE_PK, proving_sys
 #[cfg_attr(feature = "nif", serde(rename = "Elixir.Anoma.Arm.ComplianceUnit"))]
 pub struct ComplianceUnit {
     // vk is a constant in the compliance unit, so we don't place it here.
+    #[serde(with = "serde_bytes")]
     pub proof: Vec<u8>,
+    #[serde(with = "serde_bytes")]
     pub instance: Vec<u8>,
 }
 

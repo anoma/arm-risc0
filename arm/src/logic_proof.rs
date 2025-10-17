@@ -48,17 +48,23 @@ pub trait LogicProver: Default + Clone + Serialize + for<'de> Deserialize<'de> {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[cfg_attr(feature = "nif", serde(rename = "Elixir.Anoma.Arm.LogicVerifier"))]
 pub struct LogicVerifier {
+    #[serde(with = "serde_bytes")]
     pub proof: Vec<u8>,
+    #[serde(with = "serde_bytes")]
     pub instance: Vec<u8>,
     pub verifying_key: Vec<u32>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-#[cfg_attr(feature = "nif", serde(rename = "Elixir.Anoma.Arm.LogicVerifierInputs"))]
+#[cfg_attr(
+    feature = "nif",
+    serde(rename = "Elixir.Anoma.Arm.LogicVerifierInputs")
+)]
 pub struct LogicVerifierInputs {
     pub tag: Vec<u32>,
     pub verifying_key: Vec<u32>,
     pub app_data: AppData,
+    #[serde(with = "serde_bytes")]
     pub proof: Vec<u8>,
 }
 

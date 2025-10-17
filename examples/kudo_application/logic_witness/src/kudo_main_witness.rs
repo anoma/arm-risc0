@@ -21,6 +21,7 @@ pub struct KudoMainWitness {
     pub kudo_nf_key: NullifierKey,
     pub issuer: AuthorizationVerifyingKey,
     pub encryption_sk: SecretKey,
+    #[serde(with = "serde_bytes")]
     pub encryption_nonce: [u8; 12],
 
     // Denomination related fields

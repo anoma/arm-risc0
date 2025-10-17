@@ -18,6 +18,7 @@ pub struct CounterWitness {
     pub new_counter_existence_path: MerklePath,
     pub discovery_pk: AffinePoint, // From the receiver
     pub discovery_sk: SecretKey,   // randomly generated
+    #[serde(with = "serde_bytes")]
     pub discovery_nonce: [u8; 12], // randomly generated
 }
 

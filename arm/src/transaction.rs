@@ -2,7 +2,8 @@ use crate::{
     action::Action,
     delta_proof::{DeltaInstance, DeltaProof, DeltaWitness},
 };
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde_bytes::ByteBuf;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[cfg_attr(feature = "nif", serde(rename = "Elixir.Anoma.Arm.Transaction"))]
@@ -12,7 +13,25 @@ pub struct Transaction {
     // separate delta_vk here.
     pub delta_proof: Delta,
     // We can't support unbalanced transactions, so this is just a placeholder.
+    #[serde(
+        deserialize_with = "deserialize_expected_balance",
+        serialize_with = "serialize_expected_balance"
+    )]
     pub expected_balance: Option<Vec<u8>>,
+}
+
+fn serialize_expected_balance<S>(t: &Option<Vec<u8>>, s: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    t.clone().map(ByteBuf::from).serialize(s)
+}
+
+fn deserialize_expected_balance<'de, D>(deserializer: D) -> Result<Option<Vec<u8>>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    Ok(Option::<ByteBuf>::deserialize(deserializer)?.map(|x| x.into_vec()))
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

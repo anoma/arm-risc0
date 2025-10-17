@@ -27,7 +27,7 @@ impl SecretKey {
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct Ciphertext(Vec<u8>);
+pub struct Ciphertext(#[serde(with = "serde_bytes")] Vec<u8>);
 
 impl Ciphertext {
     pub fn from_bytes(cipher: Vec<u8>) -> Self {
@@ -88,8 +88,10 @@ impl Ciphertext {
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 struct InnerCiphert {
     // AES GCM encrypted message
+    #[serde(with = "serde_bytes")]
     pub cipher: Vec<u8>,
     // 96-bits; unique per message
+    #[serde(with = "serde_bytes")]
     pub nonce: [u8; 12],
     // Sender's public key
     pub pk: AffinePoint,
