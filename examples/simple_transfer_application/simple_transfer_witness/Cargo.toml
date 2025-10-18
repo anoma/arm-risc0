@@ -6,4 +6,5 @@ edition = "2021"
 [dependencies]
 arm = { path = "../../../arm", default-features = false }
 serde = { version = "1.0.197", default-features = false }
+serde_bytes = { version = "0.11.19", default-features = false }
 rand = "0.8"

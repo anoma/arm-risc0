@@ -37,9 +37,9 @@ where
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[cfg_attr(feature = "nif", serde(rename = "Elixir.Anoma.Arm.Delta"))]
 pub enum Delta {
-    #[cfg_attr(feature = "nif", serde(rename = "Elixir.Anoma.Arm.Delta.DeltaWitness"))]
+    #[cfg_attr(feature = "nif", serde(rename = "witness"))]
     Witness(DeltaWitness),
-    #[cfg_attr(feature = "nif", serde(rename = "Elixir.Anoma.Arm.Delta.DeltaProof"))]
+    #[cfg_attr(feature = "nif", serde(rename = "proof"))]
     Proof(DeltaProof),
 }
 

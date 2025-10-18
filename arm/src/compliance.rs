@@ -2,7 +2,7 @@ use crate::{
     merkle_path::MerklePath,
     nullifier_key::NullifierKey,
     resource::Resource,
-    utils::{bytes_to_words, words_to_bytes},
+    utils::{bytes_to_words, vec_u32, words_to_bytes},
 };
 use hex::FromHex;
 use k256::{
@@ -23,12 +23,19 @@ lazy_static! {
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 #[cfg_attr(feature = "nif", serde(rename = "Elixir.Anoma.Arm.ComplianceInstance"))]
 pub struct ComplianceInstance {
+    #[serde(with = "vec_u32")]
     pub consumed_nullifier: Vec<u32>,
+    #[serde(with = "vec_u32")]
     pub consumed_logic_ref: Vec<u32>,
+    #[serde(with = "vec_u32")]
     pub consumed_commitment_tree_root: Vec<u32>,
+    #[serde(with = "vec_u32")]
     pub created_commitment: Vec<u32>,
+    #[serde(with = "vec_u32")]
     pub created_logic_ref: Vec<u32>,
+    #[serde(with = "vec_u32")]
     pub delta_x: Vec<u32>,
+    #[serde(with = "vec_u32")]
     pub delta_y: Vec<u32>,
 }
 
@@ -40,6 +47,7 @@ pub struct ComplianceWitness {
     /// The path from the consumed commitment to the root in the commitment tree
     pub merkle_path: MerklePath,
     /// The existing root for the ephemeral resource
+    #[serde(with = "vec_u32")]
     pub ephemeral_root: Vec<u32>,
     /// Nullifier key of the consumed resource
     pub nf_key: NullifierKey,

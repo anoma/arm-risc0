@@ -10,7 +10,7 @@ use arm::{
     merkle_path::MerklePath,
     nullifier_key::NullifierKey,
     resource::Resource,
-    utils::{bytes_to_words, hash_bytes, words_to_bytes},
+    utils::{bytes_to_words, hash_bytes, vec_u32, words_to_bytes},
 };
 use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -39,24 +39,32 @@ pub struct EncryptionInfo {
     // randomly generated for persistent resource_ciphertext
     pub sender_sk: SecretKey,
     // randomly generated for persistent resource_ciphertext(12 bytes)
+    #[serde(with = "serde_bytes")]
     pub encryption_nonce: Vec<u8>,
     // The discovery ciphertext for the resource
+    #[serde(with = "vec_u32")]
     pub discovery_cipher: Vec<u32>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ForwarderInfo {
     pub call_type: CallType,
+    #[serde(with = "serde_bytes")]
     pub forwarder_addr: Vec<u8>,
+    #[serde(with = "serde_bytes")]
     pub token_addr: Vec<u8>,
+    #[serde(with = "serde_bytes")]
     pub user_addr: Vec<u8>,
     pub permit_info: Option<PermitInfo>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PermitInfo {
+    #[serde(with = "serde_bytes")]
     pub permit_nonce: Vec<u8>,
+    #[serde(with = "serde_bytes")]
     pub permit_deadline: Vec<u8>,
+    #[serde(with = "serde_bytes")]
     pub permit_sig: Vec<u8>,
 }
 

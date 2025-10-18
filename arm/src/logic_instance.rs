@@ -1,10 +1,13 @@
+use crate::utils::vec_u32;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "nif", serde(rename = "Elixir.Anoma.Arm.LogicInstance"))]
 pub struct LogicInstance {
+    #[serde(with = "vec_u32")]
     pub tag: Vec<u32>,
     pub is_consumed: bool,
+    #[serde(with = "vec_u32")]
     pub root: Vec<u32>,
     pub app_data: AppData,
 }
@@ -21,6 +24,7 @@ pub struct AppData {
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "nif", serde(rename = "Elixir.Anoma.Arm.ExpirableBlob"))]
 pub struct ExpirableBlob {
+    #[serde(with = "vec_u32")]
     pub blob: Vec<u32>,
     pub deletion_criterion: u32,
 }
