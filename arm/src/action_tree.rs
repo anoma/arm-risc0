@@ -1,14 +1,40 @@
+use crate::utils::{bytes_to_words, words_to_bytes};
 use crate::{
     merkle_path::{MerklePath, PADDING_LEAF},
     utils::hash_two,
 };
 use risc0_zkvm::sha::Digest;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde_bytes::ByteBuf;
 
 #[derive(Debug, Deserialize, Clone, PartialEq, Eq, Serialize)]
 #[cfg_attr(feature = "nif", serde(rename = "Elixir.Anoma.Arm.MerkleTree"))]
 pub struct MerkleTree {
+    #[serde(
+        deserialize_with = "deserialize_leaves",
+        serialize_with = "serialize_leaves"
+    )]
     pub leaves: Vec<Vec<u32>>,
+}
+
+pub fn serialize_leaves<S>(t: &[Vec<u32>], s: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    t.iter()
+        .map(|t| ByteBuf::from(words_to_bytes(t)))
+        .collect::<Vec<ByteBuf>>()
+        .serialize(s)
+}
+
+pub fn deserialize_leaves<'de, D>(deserializer: D) -> Result<Vec<Vec<u32>>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    Ok(Vec::<ByteBuf>::deserialize(deserializer)?
+        .into_iter()
+        .map(|t| bytes_to_words(&t.into_vec()))
+        .collect())
 }
 
 impl MerkleTree {

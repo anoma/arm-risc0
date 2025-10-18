@@ -8,7 +8,7 @@ use crate::{
     resource::Resource,
     resource_logic::TrivialLogicWitness,
     test_logic::TestLogicWitness,
-    utils::words_to_bytes,
+    utils::{vec_u32, words_to_bytes},
 };
 use rand::Rng;
 use risc0_zkvm::{
@@ -52,6 +52,7 @@ pub struct LogicVerifier {
     pub proof: Vec<u8>,
     #[serde(with = "serde_bytes")]
     pub instance: Vec<u8>,
+    #[serde(with = "vec_u32")]
     pub verifying_key: Vec<u32>,
 }
 
@@ -61,7 +62,9 @@ pub struct LogicVerifier {
     serde(rename = "Elixir.Anoma.Arm.LogicVerifierInputs")
 )]
 pub struct LogicVerifierInputs {
+    #[serde(with = "vec_u32")]
     pub tag: Vec<u32>,
+    #[serde(with = "vec_u32")]
     pub verifying_key: Vec<u32>,
     pub app_data: AppData,
     #[serde(with = "serde_bytes")]
