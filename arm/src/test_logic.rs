@@ -12,12 +12,8 @@ use crate::{
 use k256::AffinePoint;
 use serde::{Deserialize, Serialize};
 
-#[cfg(feature = "nif")]
-use rustler::NifStruct;
-
 #[derive(Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "nif", derive(NifStruct))]
-#[cfg_attr(feature = "nif", module = "Anoma.Arm.TestLogicWitness")]
+#[cfg_attr(feature = "nif", serde(rename = "Elixir.Anoma.Arm.TestLogicWitness"))]
 pub struct TestLogicWitness {
     pub resource: Resource,
     pub receive_existence_path: MerklePath,

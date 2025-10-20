@@ -1,8 +1,9 @@
-use crate::utils::hash_two;
+use crate::utils::{bytes_to_words, hash_two, words_to_bytes};
 use hex::FromHex;
 use lazy_static::lazy_static;
 use risc0_zkvm::sha::{Digest, DIGEST_WORDS};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde_bytes::ByteBuf;
 lazy_static! {
     pub static ref PADDING_LEAF: Digest =
         Digest::from_hex("cc1d2f838445db7aec431df9ee8a871f40e7aa5e064fc056633ef8c60fab7b06")
@@ -11,7 +12,33 @@ lazy_static! {
 
 /// A path from a position in a particular commitment tree to the root of that tree.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct MerklePath(pub Vec<(Vec<u32>, bool)>);
+pub struct MerklePath(
+    #[serde(
+        deserialize_with = "deserialize_merkle_path",
+        serialize_with = "serialize_merkle_path"
+    )]
+    pub Vec<(Vec<u32>, bool)>,
+);
+
+pub fn serialize_merkle_path<S>(t: &[(Vec<u32>, bool)], s: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    t.iter()
+        .map(|(t, b)| (ByteBuf::from(words_to_bytes(t)), *b))
+        .collect::<Vec<(ByteBuf, bool)>>()
+        .serialize(s)
+}
+
+pub fn deserialize_merkle_path<'de, D>(deserializer: D) -> Result<Vec<(Vec<u32>, bool)>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    Ok(Vec::<(ByteBuf, bool)>::deserialize(deserializer)?
+        .into_iter()
+        .map(|(t, b)| (bytes_to_words(&t.into_vec()), b))
+        .collect())
+}
 
 impl MerklePath {
     /// Constructs a Merkle path directly from a path and position.
