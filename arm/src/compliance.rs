@@ -2,7 +2,7 @@ use crate::{
     merkle_path::MerklePath,
     nullifier_key::NullifierKey,
     resource::Resource,
-    utils::{bytes_to_words, words_to_bytes},
+    utils::{bytes_to_words, vec_u32, words_to_bytes},
 };
 use hex::FromHex;
 use k256::{
@@ -21,29 +21,40 @@ lazy_static! {
 }
 
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "nif", serde(rename = "Elixir.Anoma.Arm.ComplianceInstance"))]
 pub struct ComplianceInstance {
+    #[serde(with = "vec_u32")]
     pub consumed_nullifier: Vec<u32>,
+    #[serde(with = "vec_u32")]
     pub consumed_logic_ref: Vec<u32>,
+    #[serde(with = "vec_u32")]
     pub consumed_commitment_tree_root: Vec<u32>,
+    #[serde(with = "vec_u32")]
     pub created_commitment: Vec<u32>,
+    #[serde(with = "vec_u32")]
     pub created_logic_ref: Vec<u32>,
+    #[serde(with = "vec_u32")]
     pub delta_x: Vec<u32>,
+    #[serde(with = "vec_u32")]
     pub delta_y: Vec<u32>,
 }
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "nif", serde(rename = "Elixir.Anoma.Arm.ComplianceWitness"))]
 pub struct ComplianceWitness {
     /// The consumed resource
     pub consumed_resource: Resource,
     /// The path from the consumed commitment to the root in the commitment tree
     pub merkle_path: MerklePath,
     /// The existing root for the ephemeral resource
+    #[serde(with = "vec_u32")]
     pub ephemeral_root: Vec<u32>,
     /// Nullifier key of the consumed resource
     pub nf_key: NullifierKey,
     /// The created resource
     pub created_resource: Resource,
     /// Random scalar for delta commitment
+    #[serde(with = "serde_bytes")]
     pub rcv: Vec<u8>,
     // TODO: If we want to add function privacy, include:
     // pub input_resource_logic_cm_r: [u8; DATA_BYTES],

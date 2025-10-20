@@ -28,6 +28,28 @@ pub fn words_to_bytes(words: &[u32]) -> &[u8] {
     bytemuck::cast_slice(words)
 }
 
+pub mod vec_u32 {
+    use crate::utils::{bytes_to_words, words_to_bytes};
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+    use serde_bytes::ByteBuf;
+
+    pub fn serialize<S>(t: &[u32], s: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        ByteBuf::from(words_to_bytes(t)).serialize(s)
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Vec<u32>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        Ok(bytes_to_words(
+            &ByteBuf::deserialize(deserializer)?.into_vec(),
+        ))
+    }
+}
+
 pub fn hash_two(left: &[u32], right: &[u32]) -> Vec<u32> {
     let mut words = Vec::with_capacity(2 * DIGEST_WORDS);
     words.extend_from_slice(left);

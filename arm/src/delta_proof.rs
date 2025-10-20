@@ -2,19 +2,79 @@ use k256::ecdsa::{Error, RecoveryId, Signature, SigningKey, VerifyingKey};
 use k256::{
     elliptic_curve::PublicKey, elliptic_curve::ScalarPrimitive, ProjectivePoint, Scalar, SecretKey,
 };
-use serde::{Deserialize, Serialize};
+use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 
+use serde_bytes::ByteArray;
 use sha3::{Digest, Keccak256};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[cfg_attr(feature = "nif", serde(rename = "Elixir.Anoma.Arm.DeltaProof"))]
 pub struct DeltaProof {
+    #[serde(
+        deserialize_with = "deserialize_signature",
+        serialize_with = "serialize_signature"
+    )]
     pub signature: Signature,
+    #[serde(
+        deserialize_with = "deserialize_recovery_id",
+        serialize_with = "serialize_recovery_id"
+    )]
     pub recid: RecoveryId,
 }
 
-#[derive(Clone, Debug)]
+fn serialize_signature<S>(t: &Signature, s: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    ByteArray::<64>::new(t.to_bytes().into()).serialize(s)
+}
+
+fn deserialize_signature<'de, D>(deserializer: D) -> Result<Signature, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let b: [u8; 64] = ByteArray::deserialize(deserializer)?.into_array();
+    Signature::from_bytes(&b.into()).map_err(de::Error::custom)
+}
+
+fn serialize_recovery_id<S>(t: &RecoveryId, s: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    s.serialize_u8(t.to_byte())
+}
+
+fn deserialize_recovery_id<'de, D>(d: D) -> Result<RecoveryId, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let s: u8 = de::Deserialize::deserialize(d)?;
+    RecoveryId::try_from(s).map_err(de::Error::custom)
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[cfg_attr(feature = "nif", serde(rename = "Elixir.Anoma.Arm.DeltaWitness"))]
 pub struct DeltaWitness {
+    #[serde(
+        deserialize_with = "deserialize_signing_key",
+        serialize_with = "serialize_signing_key"
+    )]
     pub signing_key: SigningKey,
+}
+
+fn serialize_signing_key<S>(t: &SigningKey, s: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    ByteArray::<32>::new(t.to_bytes().into()).serialize(s)
+}
+
+fn deserialize_signing_key<'de, D>(deserializer: D) -> Result<SigningKey, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let b: [u8; 32] = ByteArray::deserialize(deserializer)?.into_array();
+    SigningKey::from_bytes(&b.into()).map_err(de::Error::custom)
 }
 
 pub struct DeltaInstance {
@@ -120,49 +180,6 @@ impl DeltaInstance {
         let pk = PublicKey::from_affine(sum.to_affine()).unwrap();
         let vk = VerifyingKey::from(&pk);
         Ok(DeltaInstance { verifying_key: vk })
-    }
-}
-
-impl Serialize for DeltaProof {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_bytes(&self.to_bytes())
-    }
-}
-
-impl<'de> Deserialize<'de> for DeltaProof {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let bytes: Vec<u8> = Vec::deserialize(deserializer)?;
-        if bytes.len() != 65 {
-            return Err(serde::de::Error::custom(
-                "Invalid byte length for DeltaProof",
-            ));
-        }
-        Ok(DeltaProof::from_bytes(&bytes))
-    }
-}
-
-impl Serialize for DeltaWitness {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_bytes(&self.to_bytes())
-    }
-}
-
-impl<'de> Deserialize<'de> for DeltaWitness {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let bytes = <[u8; 32]>::deserialize(deserializer)?;
-        Ok(DeltaWitness::from_bytes(&bytes))
     }
 }
 
