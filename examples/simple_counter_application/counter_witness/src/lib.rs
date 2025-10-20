@@ -57,6 +57,9 @@ impl LogicCircuit for CounterWitness {
         let new_counter_root = self.new_counter_existence_path.root(&new_cm);
         assert_eq!(old_counter_root, new_counter_root);
 
+        // Check old_counter.label_ref == new_counter.label_ref
+        assert_eq!(self.old_counter.label_ref, self.new_counter.label_ref);
+
         assert_eq!(self.old_counter.quantity, 1);
         assert_eq!(self.new_counter.quantity, 1);
 
