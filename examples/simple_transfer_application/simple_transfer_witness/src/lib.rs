@@ -95,37 +95,29 @@ impl LogicCircuit for SimpleTransferWitness {
             let value_ref = calculate_value_ref_from_user_addr(user_addr);
             assert_eq!(self.resource.value_ref, value_ref);
 
-            if self.is_consumed {
+            let input = if self.is_consumed {
                 // Minting
                 assert_eq!(forwarder_info.call_type, CallType::Wrap);
+                let permit_info = forwarder_info
+                    .permit_info
+                    .as_ref()
+                    .ok_or(ArmError::MissingField("Permit info"))?;
+                let permit = PermitTransferFrom::from_bytes(
+                    erc20_addr,
+                    self.resource.quantity,
+                    permit_info.permit_nonce.as_ref(),
+                    permit_info.permit_deadline.as_ref(),
+                );
+                encode_permit_witness_transfer_from(
+                    user_addr,
+                    permit,
+                    root_bytes,
+                    permit_info.permit_sig.as_ref(),
+                )
             } else {
                 // Burning
                 assert_eq!(forwarder_info.call_type, CallType::Unwrap);
-            };
-
-            let input = match forwarder_info.call_type {
-                CallType::Unwrap => encode_transfer(erc20_addr, user_addr, self.resource.quantity),
-                CallType::Wrap => {
-                    let permit_info = forwarder_info
-                        .permit_info
-                        .as_ref()
-                        .ok_or(ArmError::MissingField("Permit info"))?;
-                    let permit = PermitTransferFrom::from_bytes(
-                        erc20_addr,
-                        self.resource.quantity,
-                        permit_info.permit_nonce.as_ref(),
-                        permit_info.permit_deadline.as_ref(),
-                    );
-                    encode_permit_witness_transfer_from(
-                        user_addr,
-                        permit,
-                        root_bytes,
-                        permit_info.permit_sig.as_ref(),
-                    )
-                }
-                _ => {
-                    panic!("Unsupported call type");
-                }
+                encode_transfer(erc20_addr, user_addr, self.resource.quantity)
             };
 
             let forwarder_call_data = ForwarderCalldata::from_bytes(forwarder_addr, input, vec![]);
