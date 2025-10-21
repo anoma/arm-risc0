@@ -3,8 +3,9 @@ use crate::{
     simple_receive::SimpleReceiveInfo,
 };
 use arm::{
-    action_tree::MerkleTree,
+    action::Action,
     authorization::{AuthorizationSignature, AuthorizationSigningKey, AuthorizationVerifyingKey},
+    compliance_unit::ComplianceUnit,
     error::ArmError,
     logic_proof::{LogicProver, PaddingResourceLogic},
     nullifier_key::{NullifierKey, NullifierKeyCommitment},
@@ -103,15 +104,18 @@ pub fn build_issue_tx(
     );
     let ephemeral_denomination_resource_cm = ephemeral_denomination_resource.commitment();
 
-    // Construct the action tree
-    let action_tree = MerkleTree::new(vec![
-        ephemeral_kudo_resource_nf,
-        issued_kudo_resource_cm,
-        issued_receive_resource_nf,
-        issued_denomination_resource_cm,
-        padding_resource_nf,
-        ephemeral_denomination_resource_cm,
-    ]);
+    let action_tree = Action::<ComplianceUnit>::construct_action_tree(
+        &[
+            ephemeral_kudo_resource_nf,
+            issued_receive_resource_nf,
+            padding_resource_nf,
+        ],
+        &[
+            issued_kudo_resource_cm,
+            issued_denomination_resource_cm,
+            ephemeral_denomination_resource_cm,
+        ],
+    );
     let root = action_tree.root();
     let root_bytes = root.as_bytes();
 

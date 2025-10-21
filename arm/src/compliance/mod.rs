@@ -30,3 +30,21 @@ pub trait ComplianceCircuit: Serialize {
     /// The code run in the zkVM
     fn constrain(&self) -> Result<Self::Instance, ArmError>;
 }
+
+pub trait CI {
+    /// Returns the logic verifying keys of this compliance instance.
+    fn logic_refs(&self) -> Vec<Digest>;
+
+    /// Returns the list of consumed nullifiers and created commitments of this compliance instance.
+    fn tags(&self) -> Vec<Digest>;
+
+    /// Returns the contribution of this compliance instance to the delta message.
+    /// Namely, the list of tags as bytes.
+    fn delta_msg(&self) -> Vec<u8> {
+        let mut msg = Vec::new();
+        for tag in self.tags().iter() {
+            msg.extend_from_slice(tag.as_bytes());
+        }
+        msg
+    }
+}

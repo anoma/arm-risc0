@@ -2,7 +2,7 @@
 const COMPLIANCE_INSTANCE_SIZE: usize = 56;
 
 use crate::{
-    compliance::{shared_constraints, ComplianceCircuit, INITIAL_ROOT},
+    compliance::{shared_constraints, ComplianceCircuit, CI, INITIAL_ROOT},
     error::ArmError,
     merkle_path::MerklePath,
     nullifier_key::NullifierKey,
@@ -109,6 +109,16 @@ impl ComplianceWitness {
     }
 }
 
+impl CI for ComplianceInstance {
+    fn logic_refs(&self) -> Vec<Digest> {
+        vec![self.consumed_logic_ref, self.created_logic_ref]
+    }
+
+    fn tags(&self) -> Vec<Digest> {
+        vec![self.consumed_logic_ref, self.created_logic_ref]
+    }
+}
+
 impl ComplianceCircuit for ComplianceWitness {
     type Instance = ComplianceInstance;
 
@@ -203,13 +213,6 @@ impl ComplianceInstance {
         ProjectivePoint::from_encoded_point(&encoded_point)
             .into_option()
             .ok_or(ArmError::InvalidDelta)
-    }
-
-    pub fn delta_msg(&self) -> Vec<u8> {
-        let mut msg = Vec::new();
-        msg.extend_from_slice(self.consumed_nullifier.as_bytes());
-        msg.extend_from_slice(self.created_commitment.as_bytes());
-        msg
     }
 }
 

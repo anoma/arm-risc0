@@ -4,7 +4,7 @@ pub const TX_MAX_RESOURCES: usize = 128;
 use crate::{
     compliance::{
         var::{var_constraints::constrain_resources, ConsumedMemorandum, CreatedMemorandum},
-        ComplianceCircuit, ComplianceVarWitness,
+        ComplianceCircuit, ComplianceVarWitness, CI,
     },
     error::ArmError,
     nullifier_key::NullifierKey,
@@ -12,6 +12,7 @@ use crate::{
     sigma::{SigmaProof, SigmaWitness},
 };
 use k256::{elliptic_curve::Field, ProjectivePoint, Scalar};
+use risc0_zkvm::Digest;
 use serde::Serialize;
 
 #[derive(Serialize)]
@@ -136,6 +137,42 @@ pub struct SigmaBusCircuitInstance {
     pub created_memorandums: Vec<CreatedMemorandum>,
     /// Instead of the Delta commitment.
     pub sigma_proof: SigmaProof,
+}
+
+impl CI for SigmaBusCircuitInstance {
+    fn logic_refs(&self) -> Vec<Digest> {
+        let mut logic_refs: Vec<Digest> = self
+            .consumed_memorandums
+            .iter()
+            .map(|memo| memo.resource_logic_ref)
+            .collect();
+        logic_refs.append(
+            &mut self
+                .created_memorandums
+                .iter()
+                .map(|memo| memo.resource_logic_ref)
+                .collect(),
+        );
+
+        logic_refs
+    }
+
+    fn tags(&self) -> Vec<Digest> {
+        let mut tags: Vec<Digest> = self
+            .consumed_memorandums
+            .iter()
+            .map(|memo| memo.resource_nullifier)
+            .collect();
+        tags.append(
+            &mut self
+                .created_memorandums
+                .iter()
+                .map(|memo| memo.resource_commitment)
+                .collect(),
+        );
+
+        tags
+    }
 }
 
 /// Constraints specific to sigmabus compliance units.

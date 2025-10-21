@@ -1,4 +1,4 @@
-use arm::compliance::{ComplianceConstraint,SigmabusCircuitWitness};
+use arm::compliance::{ComplianceCircuit,SigmabusCircuitWitness};
 use risc0_zkvm::guest::env;
 
 // Guest code:

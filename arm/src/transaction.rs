@@ -5,6 +5,7 @@ use crate::aggregation::{
 };
 use crate::{
     action::Action,
+    compliance_unit::ComplianceUnit,
     delta_proof::{DeltaInstance, DeltaProof, DeltaWitness},
     error::ArmError,
 };
@@ -12,7 +13,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Transaction {
-    pub actions: Vec<Action>,
+    pub actions: Vec<Action<ComplianceUnit>>,
     // delta verification is a deterministic process, so we don't need a
     // separate delta_vk here.
     pub delta_proof: Delta,
@@ -32,7 +33,7 @@ impl Transaction {
     // Create a new transaction with the given actions and delta.
     // Delta proof is a deterministic process, no proving key is needed.
     // Delta instance can be constructed from the actions.
-    pub fn create(actions: Vec<Action>, delta: Delta) -> Self {
+    pub fn create(actions: Vec<Action<ComplianceUnit>>, delta: Delta) -> Self {
         Transaction {
             actions,
             delta_proof: delta,

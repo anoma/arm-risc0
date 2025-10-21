@@ -1,9 +1,10 @@
 pub mod increment;
 pub mod init;
 
+use arm::action::Action;
 use arm::{
-    action_tree::MerkleTree, compliance::ComplianceWitness, encryption::AffinePoint,
-    merkle_path::MerklePath, nullifier_key::NullifierKey, resource::Resource,
+    compliance::ComplianceWitness, encryption::AffinePoint, merkle_path::MerklePath,
+    nullifier_key::NullifierKey, resource::Resource,
 };
 use arm::{
     compliance_unit::{ComplianceUnit, CUI},
@@ -100,7 +101,10 @@ pub fn generate_logic_proofs(
     let consumed_counter_nf = consumed_counter.nullifier(&nf_key)?;
     let created_counter_cm = created_counter.commitment();
 
-    let action_tree = MerkleTree::new(vec![consumed_counter_nf, created_counter_cm]);
+    let action_tree = Action::<ComplianceUnit>::construct_action_tree(
+        &[consumed_counter_nf],
+        &[created_counter_cm],
+    );
 
     let consumed_counter_path = action_tree.generate_path(&consumed_counter_nf)?;
     let created_counter_path = action_tree.generate_path(&created_counter_cm)?;

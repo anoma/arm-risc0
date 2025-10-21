@@ -1,6 +1,5 @@
 use arm::{
     action::Action,
-    action_tree::MerkleTree,
     compliance::ComplianceWitness,
     compliance_unit::{ComplianceUnit, CUI},
     delta_proof::DeltaWitness,
@@ -33,7 +32,8 @@ pub fn construct_mint_tx(
     // Action tree
     let consumed_nf = consumed_resource.nullifier(&consumed_nf_key)?;
     let created_cm = created_resource.commitment();
-    let action_tree = MerkleTree::new(vec![consumed_nf, created_cm]);
+    let action_tree =
+        Action::<ComplianceUnit>::construct_action_tree(&[consumed_nf], &[created_cm]);
 
     // Generate compliance units
     let compliance_witness = ComplianceWitness::from_resources(

@@ -6,7 +6,6 @@ use std::time::{Duration, Instant};
 
 use crate::{
     action::Action,
-    action_tree::MerkleTree,
     compliance::{
         ComplianceSigmabusWitness, ComplianceVarWitness, ComplianceWitness, TX_MAX_RESOURCES,
     },
@@ -78,7 +77,7 @@ impl LogicProver for TestLogic {
 pub fn create_an_action_with_multiple_compliances(
     compliance_num: usize,
     nonce: u8,
-) -> (Action, DeltaWitness) {
+) -> (Action<ComplianceUnit>, DeltaWitness) {
     let nf_key = NullifierKey::default();
     let nf_key_cm = nf_key.commit();
 
@@ -102,7 +101,8 @@ pub fn create_an_action_with_multiple_compliances(
 
     let mut compliance_units = Vec::new();
     let mut rcvs = Vec::new();
-    let mut action_tree = MerkleTree::new(vec![]);
+    let mut nullifiers = Vec::new();
+    let mut commitments = Vec::new();
     for i in 0..compliance_num {
         let compliance_witness = ComplianceWitness::with_fixed_rcv(
             consumed_resources[i],
@@ -113,12 +113,14 @@ pub fn create_an_action_with_multiple_compliances(
 
         let consumed_resource_nf = consumed_resources[i].nullifier(&nf_key).unwrap();
         let created_resource_cm = created_resources[i].commitment();
-        action_tree.insert(consumed_resource_nf);
-        action_tree.insert(created_resource_cm);
+
+        nullifiers.push(consumed_resource_nf);
+        commitments.push(created_resource_cm);
 
         compliance_units.push(compliance_receipt);
         rcvs.push(compliance_witness.rcv);
     }
+    let action_tree = Action::<ComplianceUnit>::construct_action_tree(&nullifiers, &commitments);
 
     let logic_verifier_inputs = (0..compliance_num)
         .flat_map(|i| {
@@ -157,7 +159,7 @@ pub fn create_an_action_with_multiple_compliances(
 pub fn create_multiple_actions(
     action_num: usize,
     compliance_num: usize,
-) -> (Vec<Action>, DeltaWitness) {
+) -> (Vec<Action<ComplianceUnit>>, DeltaWitness) {
     let mut actions = Vec::new();
     let mut delta_witnesses = Vec::new();
     for i in 0..action_num {

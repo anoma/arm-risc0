@@ -1,7 +1,7 @@
 use crate::{
     compliance::{
         ComplianceInstance, ComplianceSigmabusWitness, ComplianceVarInstance, ComplianceVarWitness,
-        ComplianceWitness, SigmaBusCircuitInstance, SigmabusCircuitWitness,
+        ComplianceWitness, SigmaBusCircuitInstance, SigmabusCircuitWitness, CI,
     },
     constants::{
         COMPLIANCE_PK, COMPLIANCE_SIGMABUS_PK, COMPLIANCE_SIGMABUS_VK, COMPLIANCE_VAR_PK,
@@ -16,11 +16,9 @@ use risc0_zkvm::Digest;
 use serde::{Deserialize, Serialize};
 
 /// Compliance Unit Interface.
-// It is aligned with the specs. It further exposes convenient functionality.
 pub trait CUI {
     type Witness: Serialize;
-    type Instance: for<'de> Deserialize<'de>;
-    type Delta; // TODO: Can specialize it to a single EC point after adjusting the sigmabus CU.
+    type Instance: CI + for<'de> Deserialize<'de>;
 
     /// Computes the compliance proof and populates the compliance unit.
     fn create(witness: &Self::Witness) -> Result<Self, ArmError>
@@ -49,7 +47,7 @@ pub trait CUI {
     fn consumed(&self) -> Result<Vec<Digest>, ArmError>;
 
     /// Returns the compliance unit's delta.
-    fn delta(&self) -> Result<Self::Delta, ArmError>;
+    fn delta(&self) -> Result<ProjectivePoint, ArmError>;
 
     /// Returns the compliance circuit proving key.
     fn proving_key() -> &'static [u8];
@@ -65,6 +63,10 @@ pub trait CUI {
     /// Returns the bytes of the compliance instance.
     fn instance_bytes(&self) -> Vec<u8>;
 
+    /// Returns the logic verifying keys of the [crate::resource::Resource]s
+    /// implicit in this unit.
+    fn logic_refs(&self) -> Result<Vec<Digest>, ArmError>;
+
     /// Returns the bytes of the compliance proof.
     fn proof_bytes(&self) -> Option<Vec<u8>>;
 
@@ -73,7 +75,7 @@ pub trait CUI {
     fn new(
         instance_bytes: Vec<u8>,
         proof_bytes: Vec<u8>,
-        delta: Option<Self::Delta>,
+        delta: Option<ProjectivePoint>,
     ) -> Result<Self, ArmError>
     where
         Self: Sized;
@@ -88,7 +90,6 @@ pub struct ComplianceUnit {
 impl CUI for ComplianceUnit {
     type Witness = ComplianceWitness;
     type Instance = ComplianceInstance;
-    type Delta = ProjectivePoint;
 
     fn proving_key() -> &'static [u8] {
         COMPLIANCE_PK
@@ -99,19 +100,27 @@ impl CUI for ComplianceUnit {
     }
 
     fn created(&self) -> Result<Vec<Digest>, ArmError> {
-        Ok(vec![self.instance()?.consumed_nullifier])
-    }
-
-    fn consumed(&self) -> Result<Vec<Digest>, ArmError> {
         Ok(vec![self.instance()?.created_commitment])
     }
 
-    fn delta(&self) -> Result<Self::Delta, ArmError> {
+    fn consumed(&self) -> Result<Vec<Digest>, ArmError> {
+        Ok(vec![self.instance()?.consumed_nullifier])
+    }
+
+    fn delta(&self) -> Result<ProjectivePoint, ArmError> {
         self.instance()?.delta_projective()
     }
 
     fn instance_bytes(&self) -> Vec<u8> {
         self.instance.clone()
+    }
+
+    fn logic_refs(&self) -> Result<Vec<Digest>, ArmError> {
+        let instance = self.instance()?;
+        Ok(vec![
+            instance.consumed_logic_ref,
+            instance.created_logic_ref,
+        ])
     }
 
     fn proof_bytes(&self) -> Option<Vec<u8>> {
@@ -121,7 +130,7 @@ impl CUI for ComplianceUnit {
     fn new(
         instance_bytes: Vec<u8>,
         proof_bytes: Vec<u8>,
-        _: Option<Self::Delta>,
+        _: Option<ProjectivePoint>,
     ) -> Result<Self, ArmError> {
         Ok(ComplianceUnit {
             proof: Some(proof_bytes),
@@ -139,7 +148,6 @@ pub struct ComplianceVarUnit {
 impl CUI for ComplianceVarUnit {
     type Witness = ComplianceVarWitness;
     type Instance = ComplianceVarInstance;
-    type Delta = ProjectivePoint;
 
     fn created(&self) -> Result<Vec<Digest>, ArmError> {
         Ok(self
@@ -167,12 +175,30 @@ impl CUI for ComplianceVarUnit {
         *COMPLIANCE_VAR_VK
     }
 
-    fn delta(&self) -> Result<Self::Delta, ArmError> {
+    fn delta(&self) -> Result<ProjectivePoint, ArmError> {
         self.instance()?.delta_projective()
     }
 
     fn instance_bytes(&self) -> Vec<u8> {
         self.instance.clone()
+    }
+
+    fn logic_refs(&self) -> Result<Vec<Digest>, ArmError> {
+        let mut logic_refs: Vec<Digest> = self
+            .instance()?
+            .consumed_memorandums
+            .iter()
+            .map(|memo| memo.resource_logic_ref)
+            .collect();
+        logic_refs.append(
+            &mut self
+                .instance()?
+                .created_memorandums
+                .iter()
+                .map(|memo| memo.resource_logic_ref)
+                .collect(),
+        );
+        Ok(logic_refs)
     }
 
     fn proof_bytes(&self) -> Option<Vec<u8>> {
@@ -182,7 +208,7 @@ impl CUI for ComplianceVarUnit {
     fn new(
         instance_bytes: Vec<u8>,
         proof_bytes: Vec<u8>,
-        _: Option<Self::Delta>,
+        _: Option<ProjectivePoint>,
     ) -> Result<Self, ArmError> {
         Ok(ComplianceVarUnit {
             proof: Some(proof_bytes),
@@ -201,7 +227,6 @@ pub struct ComplianceSigmabusUnit {
 impl CUI for ComplianceSigmabusUnit {
     type Witness = ComplianceSigmabusWitness;
     type Instance = SigmaBusCircuitInstance;
-    type Delta = Vec<ProjectivePoint>;
 
     fn create(witness: &ComplianceSigmabusWitness) -> Result<Self, ArmError> {
         // Prove off the zkVM
@@ -268,12 +293,30 @@ impl CUI for ComplianceSigmabusUnit {
         *COMPLIANCE_SIGMABUS_VK
     }
 
-    fn delta(&self) -> Result<Self::Delta, ArmError> {
-        Ok(self.delta.clone())
+    fn delta(&self) -> Result<ProjectivePoint, ArmError> {
+        todo!()
     }
 
     fn instance_bytes(&self) -> Vec<u8> {
         self.instance.clone()
+    }
+
+    fn logic_refs(&self) -> Result<Vec<Digest>, ArmError> {
+        let mut logic_refs: Vec<Digest> = self
+            .instance()?
+            .consumed_memorandums
+            .iter()
+            .map(|memo| memo.resource_logic_ref)
+            .collect();
+        logic_refs.append(
+            &mut self
+                .instance()?
+                .created_memorandums
+                .iter()
+                .map(|memo| memo.resource_logic_ref)
+                .collect(),
+        );
+        Ok(logic_refs)
     }
 
     fn proof_bytes(&self) -> Option<Vec<u8>> {
@@ -283,8 +326,10 @@ impl CUI for ComplianceSigmabusUnit {
     fn new(
         instance_bytes: Vec<u8>,
         proof_bytes: Vec<u8>,
-        delta: Option<Self::Delta>,
+        delta: Option<ProjectivePoint>,
     ) -> Result<Self, ArmError> {
+        todo!()
+        /* Uncomment above when ready
         if let Some(delta) = delta {
             Ok(ComplianceSigmabusUnit {
                 proof: Some(proof_bytes),
@@ -294,5 +339,6 @@ impl CUI for ComplianceSigmabusUnit {
         } else {
             Err(ArmError::InvalidDelta)
         }
+        */
     }
 }

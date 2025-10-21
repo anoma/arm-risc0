@@ -1,5 +1,5 @@
 use crate::{
-    compliance::{shared_constraints, ComplianceCircuit, INITIAL_ROOT},
+    compliance::{shared_constraints, ComplianceCircuit, CI, INITIAL_ROOT},
     error::ArmError,
     merkle_path::MerklePath,
     nullifier_key::NullifierKey,
@@ -130,9 +130,45 @@ pub struct ConsumedMemorandum {
     /// The nullifier of the consumed [Resource]
     pub resource_nullifier: Digest,
     /// The logic reference of the consumed [Resource]
-    pub logic_ref: Digest,
+    pub resource_logic_ref: Digest,
     /// The root of the Merkle tree where the resource commitment is in.
     pub commitment_tree_root: Digest,
+}
+
+impl CI for ComplianceVarInstance {
+    fn logic_refs(&self) -> Vec<Digest> {
+        let mut logic_refs: Vec<Digest> = self
+            .consumed_memorandums
+            .iter()
+            .map(|memo| memo.resource_logic_ref)
+            .collect();
+        logic_refs.append(
+            &mut self
+                .created_memorandums
+                .iter()
+                .map(|memo| memo.resource_logic_ref)
+                .collect(),
+        );
+
+        logic_refs
+    }
+
+    fn tags(&self) -> Vec<Digest> {
+        let mut tags: Vec<Digest> = self
+            .consumed_memorandums
+            .iter()
+            .map(|memo| memo.resource_nullifier)
+            .collect();
+        tags.append(
+            &mut self
+                .created_memorandums
+                .iter()
+                .map(|memo| memo.resource_commitment)
+                .collect(),
+        );
+
+        tags
+    }
 }
 
 /// Constraints specific to variable-size compliance units.
@@ -140,7 +176,8 @@ pub(crate) mod var_constraints {
     use super::*;
 
     /// Gathers up consumption and creation constraints. Note the
-    /// constraint of the unit's Delta is NOT enforced here.
+    /// constraint of the unit's Delta is NOT enforced here, as it
+    /// depends on the specifics of the compliance unit.
     pub(crate) fn constrain_resources(
         consumed_data: &[ConsumedDatum],
         created_resources: &[Resource],
@@ -163,11 +200,12 @@ pub(crate) mod var_constraints {
                 &resource_commitment,
                 &consumed_datum.nf_key,
             )?;
-            let logic_ref = shared_constraints::read_resource_logic(&consumed_datum.resource);
+            let resource_logic_ref =
+                shared_constraints::read_resource_logic(&consumed_datum.resource);
 
             consumed_memo.push(ConsumedMemorandum {
                 resource_nullifier,
-                logic_ref,
+                resource_logic_ref,
                 commitment_tree_root,
             });
             consumed_nullifiers.push(resource_nullifier);

@@ -14,7 +14,7 @@ pub const PADDING_LOGIC_PK: &[u8] = include_bytes!("../elfs/trivial-logic-guest.
 lazy_static! {
     // compliance verification key / compliance image id
     pub static ref COMPLIANCE_VK: Digest =
-        Digest::from_hex("f68d3e4ec1d37a744297eec7e5c3b1ae6051b113dde2f56a3c32bc41ee0faaa7")
+        Digest::from_hex("2ea230ab141f4025d69a72c461fe4de3400cc36ca5a1cae6d1559f6fc583e56f")
             .unwrap();
 
     // compliance_var verification key / compliance image id

@@ -1,7 +1,7 @@
 use crate::{
     action_tree::MerkleTree,
-    compliance::ComplianceInstance,
-    compliance_unit::{ComplianceUnit, CUI},
+    compliance::CI,
+    compliance_unit::CUI,
     error::ArmError,
     logic_proof::{LogicVerifier, LogicVerifierInputs},
 };
@@ -10,12 +10,12 @@ use risc0_zkvm::Digest;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct Action {
+pub struct Action<ComplianceUnit: CUI> {
     pub compliance_units: Vec<ComplianceUnit>,
     pub logic_verifier_inputs: Vec<LogicVerifierInputs>,
 }
 
-impl Action {
+impl<ComplianceUnit: CUI> Action<ComplianceUnit> {
     pub fn new(
         compliance_units: Vec<ComplianceUnit>,
         logic_verifiers: Vec<LogicVerifier>,
@@ -41,33 +41,62 @@ impl Action {
     pub(crate) fn get_logic_verifiers(&self) -> Result<Vec<LogicVerifier>, ArmError> {
         let mut logic_verifiers = Vec::new();
 
-        let compliance_intances = self
-            .compliance_units
-            .iter()
-            .map(|unit| unit.instance())
-            .collect::<Result<Vec<ComplianceInstance>, ArmError>>()?;
-
-        // Construct the action tree
-        let tags: Vec<Digest> = compliance_intances
-            .iter()
-            .flat_map(|instance| vec![instance.consumed_nullifier, instance.created_commitment])
-            .collect();
-        let logics = compliance_intances
-            .iter()
-            .flat_map(|instance| vec![instance.consumed_logic_ref, instance.created_logic_ref])
-            .collect::<Vec<_>>();
-        let action_tree = MerkleTree::from(tags.clone());
+        // Get the tags from the CUs and construct the action tree
+        let (nullifiers, mut commitments): (Vec<Digest>, Vec<Digest>) = {
+            if let Some(bad_cu) = self
+                .compliance_units
+                .iter()
+                .find(|cu| cu.created().is_err() || cu.consumed().is_err())
+            {
+                match bad_cu.created() {
+                    Err(e) => return Err(e),
+                    Ok(_) => return Err(bad_cu.consumed().unwrap_err()),
+                }
+            }
+            let nfs_comms: (Vec<Vec<Digest>>, Vec<Vec<Digest>>) = self
+                .compliance_units
+                .iter()
+                .map(|cu| (cu.consumed().unwrap(), cu.created().unwrap()))
+                .unzip();
+            (
+                nfs_comms.0.into_iter().flatten().collect(),
+                nfs_comms.1.into_iter().flatten().collect(),
+            )
+        };
+        let action_tree =
+            Action::<ComplianceUnit>::construct_action_tree(&nullifiers, &commitments);
         let root = action_tree.root();
 
-        for input in self.logic_verifier_inputs.iter() {
-            if let Some(index) = tags.iter().position(|tag| *tag == input.tag) {
-                if input.verifying_key != logics[index] {
-                    // The verifying_key doesn't match the resource logic
-                    return Err(ArmError::VerifyingKeyMismatch);
-                }
+        // Match logic verifier inputs with the tags in the action tree
+        let mut tags = nullifiers.clone();
+        tags.append(&mut commitments);
+        if tags.len() != self.logic_verifier_inputs.len() {
+            return Err(ArmError::TagNotFound);
+        }
+        let mut logics_in_cus = Vec::new();
+        for cu in self.compliance_units.iter() {
+            logics_in_cus.append(&mut cu.logic_refs()?.clone());
+        }
+        let mut resource_logics: Vec<Digest> = self
+            .logic_verifier_inputs
+            .iter()
+            .map(|inp| inp.verifying_key)
+            .collect();
+        logics_in_cus.sort();
+        resource_logics.sort();
+        if logics_in_cus != resource_logics {
+            return Err(ArmError::VerifyingKeyMismatch);
+        }
 
-                let is_comsumed = index % 2 == 0;
-                let verifier = input.clone().to_logic_verifier(is_comsumed, root)?;
+        for input in self.logic_verifier_inputs.iter() {
+            if let Some(index_in_atree) = action_tree
+                .leaves
+                .iter()
+                .position(|leave| *leave == input.tag)
+            {
+                // based on the tree position
+                let is_consumed = index_in_atree < nullifiers.len();
+                let verifier = input.clone().to_logic_verifier(is_consumed, root)?;
                 logic_verifiers.push(verifier);
             } else {
                 return Err(ArmError::TagNotFound);
@@ -104,11 +133,26 @@ impl Action {
         let mut msg = Vec::new();
         for unit in &self.compliance_units {
             if let Ok(instance) = unit.instance() {
-                msg.extend_from_slice(&instance.delta_msg());
+                msg.extend_from_slice(&CI::delta_msg(&instance));
             } else {
                 return Err(ArmError::InvalidComplianceInstance);
             }
         }
         Ok(msg)
+    }
+
+    /// Computes the action tree from the passed nullifiers and commitments (the leaves of the tree).
+    /// For consistency, should be used in both, creation and verification of the action.
+    pub fn construct_action_tree(nullifiers: &[Digest], commitments: &[Digest]) -> MerkleTree {
+        let mut ordered_nfs = nullifiers.to_vec();
+        ordered_nfs.sort();
+
+        let mut ordered_comms = commitments.to_vec();
+        ordered_comms.sort();
+
+        let mut leaves = ordered_nfs;
+        leaves.append(&mut ordered_comms);
+
+        MerkleTree::new(leaves)
     }
 }

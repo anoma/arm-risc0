@@ -3,8 +3,9 @@ use crate::{
     simple_receive::SimpleReceiveInfo,
 };
 use arm::{
-    action_tree::MerkleTree,
+    action::Action,
     authorization::{AuthorizationSignature, AuthorizationSigningKey, AuthorizationVerifyingKey},
+    compliance_unit::ComplianceUnit,
     error::ArmError,
     logic_proof::{LogicProver, PaddingResourceLogic},
     merkle_path::MerklePath,
@@ -100,15 +101,18 @@ pub fn build_transfer_tx(
     );
     let receive_resource_cm = receive_resource.commitment();
 
-    // Construct the action tree
-    let action_tree = MerkleTree::new(vec![
-        consumed_kudo_nf,
-        created_kudo_cm,
-        consumed_denomination_resource_nf,
-        created_denomination_resource_cm,
-        padding_resource_nf,
-        receive_resource_cm,
-    ]);
+    let action_tree = Action::<ComplianceUnit>::construct_action_tree(
+        &[
+            consumed_kudo_nf,
+            consumed_denomination_resource_nf,
+            padding_resource_nf,
+        ],
+        &[
+            created_kudo_cm,
+            created_denomination_resource_cm,
+            receive_resource_cm,
+        ],
+    );
     let root = action_tree.root();
     let root_bytes = root.as_bytes();
 

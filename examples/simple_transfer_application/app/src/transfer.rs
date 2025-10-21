@@ -1,7 +1,6 @@
 use crate::TransferLogic;
 use arm::{
     action::Action,
-    action_tree::MerkleTree,
     authorization::{AuthorizationSignature, AuthorizationVerifyingKey},
     compliance::ComplianceWitness,
     compliance_unit::{ComplianceUnit, CUI},
@@ -29,7 +28,8 @@ pub fn construct_transfer_tx(
     // Action tree
     let consumed_nf = consumed_resource.nullifier(&consumed_nf_key)?;
     let created_cm = created_resource.commitment();
-    let action_tree = MerkleTree::new(vec![consumed_nf, created_cm]);
+    let action_tree =
+        Action::<ComplianceUnit>::construct_action_tree(&[consumed_nf], &[created_cm]);
 
     // Generate compliance units
     let compliance_witness = ComplianceWitness::from_resources_with_path(
@@ -78,7 +78,6 @@ pub fn construct_transfer_tx(
 fn simple_transfer_test() {
     use crate::{resource::construct_persistent_resource, utils::authorize_the_action};
     use arm::{
-        action_tree::MerkleTree,
         authorization::{AuthorizationSigningKey, AuthorizationVerifyingKey},
         encryption::{random_keypair, Ciphertext},
         merkle_path::MerklePath,
@@ -121,7 +120,9 @@ fn simple_transfer_test() {
     let created_cm = created_resource.commitment();
 
     // Get the authorization signature, it can be from external signing(e.g. wallet)
-    let action_tree = MerkleTree::new(vec![consumed_nf, created_cm]);
+    let action_tree =
+        Action::<ComplianceUnit>::construct_action_tree(&vec![consumed_nf], &vec![created_cm]);
+
     let auth_sig = authorize_the_action(&consumed_auth_sk, &action_tree);
 
     // Construct the transfer transaction
