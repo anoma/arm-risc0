@@ -65,7 +65,7 @@ impl Action {
         }
 
         for (index, (tag, logic)) in tags.iter().zip(logics.iter()).enumerate() {
-            // look up tag in logic_verifier_inputs
+            // Look up the tag in the `logic_verifier_inputs`.
             if let Some(input) = self
                 .logic_verifier_inputs
                 .iter()
