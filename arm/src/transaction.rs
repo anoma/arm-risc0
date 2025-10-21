@@ -64,8 +64,20 @@ impl Transaction {
                 let msg = self.get_delta_msg()?;
                 let instance = self.delta()?;
                 DeltaProof::verify(&msg, proof, instance)?;
-                for action in self.actions {
-                    action.verify()?;
+
+                if self.aggregation_proof.is_some() {
+                    #[cfg(not(feature = "aggregation"))]
+                    return Err(ArmError::ProofVerificationFailed(
+                        "feature `aggregation` is not enabled".into(),
+                    ));
+
+                    #[cfg(feature = "aggregation")]
+                    self.verify_aggregation()?;
+                } else {
+                    // Try verifying individually.
+                    for action in self.actions {
+                        action.verify()?;
+                    }
                 }
                 Ok(())
             }

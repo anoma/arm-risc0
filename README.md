@@ -163,7 +163,7 @@ If a single transaction bundles too many resources, it is possible to aggregate 
  **Warning:** Bonsai does not support in-circuit verification of Groth16 proofs. You would need to generate succinct compliance and logic proofs instead.
 
 
-### Prove and verify aggregations
+### Prove aggregations
 You need to enable the `aggregation` feature to be able to prove or verify aggregations. 
 
 The type of the aggregation proof is selected via a feature. It defaults to succinct stark proofs. For on-chain verification, you probably want to aggregate with the `groth16_aggregation` feature enabled. See the features table above for more information.
@@ -177,7 +177,6 @@ let mut tx = generate_test_transaction(1); // Just a dummy tx, for illustration.
 
 // Upon succesful aggregation, compliance and resource logic proofs are erased.
 assert!(tx.aggregate().is_ok());
-assert!(tx.verify_aggregation().is_ok());
 ```
 
 The _sequential_ strategy aggregates sequentially, in an IVC style.
@@ -190,14 +189,12 @@ assert!(tx.aggregate_with_strategy(AggregationStrategy::Sequential).is_ok());
 
 **Warning:** Once again, aggregation erases all the individual proofs from `tx` and replaces them with the (single) aggregation proof in a dedicated field. This is why the transaction must be `mut`. This is true independently of the strategy used.
 
+### Verify after aggregation
+Use `tx.verify()`, as when there is no aggregated proof. Feature `aggregation` must be enabled. Otherwise, it will result in an error.
+
 
 ### External verification of the aggregation proof
-Use
-
-```rust
-tx.get_raw_aggregation_proof()
-``` 
-to get the RISC0 `InnerReceipt` (the actual proof). The verifier would also need to derive the aggregation instance from `tx` on its own, and wrap both in a RISC0 `Receipt`.
+Use `tx.get_raw_aggregation_proof()` to get the RISC0 `InnerReceipt` (the actual proof). The verifier would also need to derive the aggregation instance from `tx` on its own, and wrap both in a RISC0 `Receipt`.
 
 ### Comparison
 
