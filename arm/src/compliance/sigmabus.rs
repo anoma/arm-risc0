@@ -9,7 +9,7 @@ use crate::{
     error::ArmError,
     nullifier_key::NullifierKey,
     resource::Resource,
-    sigma::{SigmaProof, SigmaWitness},
+    sigma::{PedersenCommitmentScheme, SigmaProof, SigmaWitness},
 };
 use k256::{elliptic_curve::Field, ProjectivePoint, Scalar};
 use risc0_zkvm::Digest;
@@ -42,11 +42,9 @@ impl ComplianceSigmabusWitness {
             sigmabus_constraints::compute_kinds_quantites(consumed_resources, created_resources);
         let mcv = sigmabus_constraints::compute_inner_products(&kinds, &signed_quantities)?;
 
-        let rcv: Vec<Scalar> = (0..TX_MAX_RESOURCES)
-            .map(|_| Scalar::random(&mut rng))
-            .collect();
+        let rcv = Scalar::random(&mut rng);
 
-        let sigma_witness = SigmaWitness::new(&mcv, &rcv)?;
+        let sigma_witness = SigmaWitness::new(&mcv, &rcv);
 
         Ok(ComplianceSigmabusWitness {
             var_witness,
@@ -56,8 +54,9 @@ impl ComplianceSigmabusWitness {
 
     /// Pedersen commit seperately to the components of the message vector `mcv`.
     /// Uses `rcv` as the commitment randomness.
-    pub fn compute_deltas(&self) -> Vec<ProjectivePoint> {
-        SigmaWitness::pedersen_commit_batch(&self.sigma_witness.mcv, &self.sigma_witness.rcv)
+    pub fn compute_delta(&self) -> ProjectivePoint {
+        PedersenCommitmentScheme::new(TX_MAX_RESOURCES)
+            .commit(&self.sigma_witness.mcv, &self.sigma_witness.rcv)
     }
 }
 
@@ -250,16 +249,16 @@ mod sigmabus_constraints {
         sigma_witness: &SigmaWitness,
         sigma_proof: &SigmaProof,
     ) -> Result<(), ArmError> {
-        let correct_response1 = SigmaWitness::response(
+        let correct_response1 = SigmaWitness::first_response(
             &sigma_witness.mcv,
             &sigma_witness.blinding_mcv,
             &sigma_proof.challenge,
         )?;
-        let correct_response2 = SigmaWitness::response(
+        let correct_response2 = SigmaWitness::second_response(
             &sigma_witness.rcv,
             &sigma_witness.blinding_rcv,
             &sigma_proof.challenge,
-        )?;
+        );
         if sigma_proof.response1 != correct_response1 || sigma_proof.response2 != correct_response2
         {
             Err(ArmError::InvalidMcv)

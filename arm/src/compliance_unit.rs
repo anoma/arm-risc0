@@ -221,7 +221,7 @@ impl CUI for ComplianceVarUnit {
 pub struct ComplianceSigmabusUnit {
     pub proof: Option<Vec<u8>>,
     pub instance: Vec<u8>,
-    pub delta: Vec<ProjectivePoint>,
+    pub delta: ProjectivePoint,
 }
 
 impl CUI for ComplianceSigmabusUnit {
@@ -230,25 +230,24 @@ impl CUI for ComplianceSigmabusUnit {
 
     fn create(witness: &ComplianceSigmabusWitness) -> Result<Self, ArmError> {
         // Prove off the zkVM
-        let sigma_instance = witness.compute_deltas();
-        let sigma_proof = SigmaProtocol::prove(&sigma_instance, &witness.sigma_witness)?;
+        let sp = SigmaProtocol::new(witness.sigma_witness.mcv.len());
+        let sigma_instance = witness.compute_delta();
+        let sigma_proof = sp.prove(&sigma_instance, &witness.sigma_witness)?;
         // Prove on the zkVM
         let circuit_input =
             SigmabusCircuitWitness::from_sigmabus_witness_proof(witness, &sigma_proof);
         let (circuit_proof, circuit_instance) = prove(COMPLIANCE_SIGMABUS_PK, &circuit_input)?;
 
-        Ok(ComplianceSigmabusUnit {
-            proof: Some(circuit_proof),
-            instance: circuit_instance,
-            delta: sigma_instance,
-        })
+        ComplianceSigmabusUnit::new(circuit_instance, circuit_proof, Some(sigma_instance))
     }
 
     fn verify(&self) -> Result<(), ArmError> {
         let circuit_instance = self.instance()?;
         let sigma_proof = circuit_instance.sigma_proof;
 
-        if SigmaProtocol::verify(&self.delta, &sigma_proof).is_err() {
+        let sp = SigmaProtocol::new(sigma_proof.response1.len());
+
+        if sp.verify(&self.delta, &sigma_proof).is_err() {
             return Err(ArmError::ProofVerificationFailed(
                 "Invalid sigma proof".into(),
             ));
@@ -328,8 +327,6 @@ impl CUI for ComplianceSigmabusUnit {
         proof_bytes: Vec<u8>,
         delta: Option<ProjectivePoint>,
     ) -> Result<Self, ArmError> {
-        todo!()
-        /* Uncomment above when ready
         if let Some(delta) = delta {
             Ok(ComplianceSigmabusUnit {
                 proof: Some(proof_bytes),
@@ -339,6 +336,5 @@ impl CUI for ComplianceSigmabusUnit {
         } else {
             Err(ArmError::InvalidDelta)
         }
-        */
     }
 }

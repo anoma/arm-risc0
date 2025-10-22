@@ -76,7 +76,6 @@ pub fn build_burn_tx(
         &[burned_kudo_resource_nf, ephemeral_denomination_resource_nf],
         &[ephemeral_kudo_resource_cm, burned_denomination_resource_cm],
     );
-    println!("[DEBUG] ACTION TREE CREATE: {:?}", action_tree);
     let root = action_tree.root();
     let root_bytes = root.as_bytes();
 
