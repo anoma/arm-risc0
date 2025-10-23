@@ -198,6 +198,17 @@ fn test_unmatched_logic_verifier_inputs_in_action() {
 }
 
 #[test]
+fn test_nullifier_duplication_check() {
+    let mut tx = generate_test_transaction(2, 1);
+    assert!(tx.nf_duplication_check().is_ok());
+
+    // Introduce a duplicate nullifier
+    tx.actions[1] = tx.actions[0].clone();
+
+    assert!(tx.nf_duplication_check().is_err());
+}
+
+#[test]
 fn test_transaction() {
     let _ = generate_test_transaction(2, 2);
 }

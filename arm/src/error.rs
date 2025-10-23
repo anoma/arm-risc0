@@ -68,4 +68,6 @@ pub enum ArmError {
     InvalidResourceNonce,
     #[error("Invalid nullifier commitment")]
     InvalidNullifierCommitment,
+    #[error("Nullifier duplication detected")]
+    NullifierDuplication,
 }
