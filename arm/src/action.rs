@@ -134,7 +134,7 @@ impl<ComplianceUnit: CUInner> Action<ComplianceUnit> {
         let mut msg = Vec::new();
         for unit in &self.compliance_units {
             if let Ok(instance) = unit.instance() {
-                msg.extend_from_slice(&CI::delta_msg(&instance));
+                msg.extend_from_slice(&instance.delta_msg());
             } else {
                 return Err(ArmError::InvalidComplianceInstance);
             }

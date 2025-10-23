@@ -18,8 +18,8 @@ use serde::{Deserialize, Serialize};
 
 /// Compliance Unit Interface.
 pub trait CUI {
-    type Witness: Serialize;
-    type Instance: CI + for<'de> Deserialize<'de>;
+    type Witness;
+    type Instance;
 
     /// Computes the compliance proof and populates the compliance unit.
     fn create(witness: &Self::Witness) -> Result<Self, ArmError>
@@ -48,6 +48,7 @@ pub(crate) mod inner_cui {
     pub trait CUInner {
         type Witness: Serialize;
         type Instance: CI + for<'de> Deserialize<'de>;
+        const BOUNDED_RESOURCES: bool;
 
         fn create_inner(witness: &Self::Witness) -> Result<Self, ArmError>
         where
@@ -87,8 +88,8 @@ pub(crate) mod inner_cui {
         /// Raw constructor. CUs must at least be aware of the instance and compliance proof.
         /// The delta can be either stored or infered.
         fn new(
-            instance_bytes: Vec<u8>,
-            proof_bytes: Vec<u8>,
+            circuit_instance_bytes: Vec<u8>,
+            circuit_proof_bytes: Vec<u8>,
             delta: Option<EncodedPoint>,
         ) -> Result<Self, ArmError>
         where
@@ -136,6 +137,7 @@ pub struct ComplianceUnit {
 impl CUInner for ComplianceUnit {
     type Witness = ComplianceWitness;
     type Instance = ComplianceInstance;
+    const BOUNDED_RESOURCES: bool = false;
 
     fn proving_key() -> &'static [u8] {
         COMPLIANCE_PK
@@ -154,13 +156,13 @@ impl CUInner for ComplianceUnit {
     }
 
     fn new(
-        instance_bytes: Vec<u8>,
-        proof_bytes: Vec<u8>,
+        circuit_instance_bytes: Vec<u8>,
+        circuit_proof_bytes: Vec<u8>,
         _: Option<EncodedPoint>,
     ) -> Result<Self, ArmError> {
         Ok(ComplianceUnit {
-            proof: Some(proof_bytes),
-            instance: instance_bytes,
+            proof: Some(circuit_proof_bytes),
+            instance: circuit_instance_bytes,
         })
     }
 }
@@ -174,6 +176,7 @@ pub struct ComplianceVarUnit {
 impl CUInner for ComplianceVarUnit {
     type Witness = ComplianceVarWitness;
     type Instance = ComplianceVarInstance;
+    const BOUNDED_RESOURCES: bool = false;
 
     fn proving_key() -> &'static [u8] {
         COMPLIANCE_VAR_PK
@@ -192,13 +195,13 @@ impl CUInner for ComplianceVarUnit {
     }
 
     fn new(
-        instance_bytes: Vec<u8>,
-        proof_bytes: Vec<u8>,
+        circuit_instance_bytes: Vec<u8>,
+        circuit_proof_bytes: Vec<u8>,
         _: Option<EncodedPoint>,
     ) -> Result<Self, ArmError> {
         Ok(ComplianceVarUnit {
-            proof: Some(proof_bytes),
-            instance: instance_bytes,
+            proof: Some(circuit_proof_bytes),
+            instance: circuit_instance_bytes,
         })
     }
 }
@@ -213,6 +216,7 @@ pub struct ComplianceSigmabusUnit {
 impl CUInner for ComplianceSigmabusUnit {
     type Witness = ComplianceSigmabusWitness;
     type Instance = ComplianceSigmabusInstance;
+    const BOUNDED_RESOURCES: bool = true;
 
     fn create_inner(witness: &ComplianceSigmabusWitness) -> Result<Self, ArmError> {
         // Prove off the zkVM
@@ -290,14 +294,14 @@ impl CUInner for ComplianceSigmabusUnit {
     }
 
     fn new(
-        instance_bytes: Vec<u8>,
-        proof_bytes: Vec<u8>,
+        circuit_instance_bytes: Vec<u8>,
+        circuit_proof_bytes: Vec<u8>,
         delta: Option<EncodedPoint>,
     ) -> Result<Self, ArmError> {
         if let Some(delta) = delta {
             Ok(ComplianceSigmabusUnit {
-                circuit_proof: Some(proof_bytes),
-                circuit_instance: instance_bytes,
+                circuit_proof: Some(circuit_proof_bytes),
+                circuit_instance: circuit_instance_bytes,
                 delta,
             })
         } else {

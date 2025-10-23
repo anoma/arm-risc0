@@ -5,6 +5,7 @@ use crate::aggregation::{
 };
 use crate::{
     action::Action,
+    compliance::TX_MAX_RESOURCES,
     compliance_unit::{CUInner, CUI},
     delta_proof::{DeltaInstance, DeltaProof, DeltaWitness},
     error::ArmError,
@@ -74,14 +75,30 @@ impl<ComplianceUnit: CUInner> Transaction<ComplianceUnit> {
         }
     }
 
-    // Returns the DeltaInstance constructed from the sum of all actions'
-    // deltas.
-    pub fn delta(&self) -> Result<DeltaInstance, ArmError> {
+    /// Returns the [DeltaInstance] constructed from the sum of all actions'
+    /// deltas.
+    fn delta(&self) -> Result<DeltaInstance, ArmError> {
+        if ComplianceUnit::BOUNDED_RESOURCES && TX_MAX_RESOURCES < self.number_resources()? {
+            // Reached maximum number of resources.
+            return Err(ArmError::DeltaProofVerificationFailed);
+        }
+
         let mut points = Vec::with_capacity(self.actions.len());
         for action in &self.actions {
             points.push(action.delta()?);
         }
         DeltaInstance::from_deltas(&points)
+    }
+
+    /// Returns the number of resources in this [Transaction].
+    fn number_resources(&self) -> Result<usize, ArmError> {
+        let mut n = 1;
+        for a in self.actions.iter() {
+            for cu in a.compliance_units.iter() {
+                n += cu.created()?.len() + cu.consumed()?.len()
+            }
+        }
+        Ok(n)
     }
 
     pub fn get_delta_msg(&self) -> Result<Vec<u8>, ArmError> {

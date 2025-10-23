@@ -239,7 +239,6 @@ impl PedersenCommitmentScheme {
     }
 
     pub fn hiding_generator() -> ProjectivePoint {
-        // TODO: Unify it with delta proof
         ProjectivePoint::GENERATOR
     }
 }
