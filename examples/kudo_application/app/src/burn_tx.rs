@@ -25,7 +25,7 @@ pub fn build_burn_tx(
     burned_kudoresource_nf_key: &NullifierKey,
     burned_kudo_path: MerklePath,
     latest_root: Digest,
-) -> Result<Transaction, ArmError> {
+) -> Result<Transaction<ComplianceUnit>, ArmError> {
     let issuer = AuthorizationVerifyingKey::from_signing_key(issuer_sk);
     let (instant_nk, instant_nk_commitment) = NullifierKey::random_pair();
 

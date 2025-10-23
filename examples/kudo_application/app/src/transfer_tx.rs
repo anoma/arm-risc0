@@ -34,7 +34,7 @@ pub fn build_transfer_tx(
     receiver_signature: &AuthorizationSignature,
     receiver_nk_commitment: &NullifierKeyCommitment,
     latest_root: Digest,
-) -> Result<Transaction, ArmError> {
+) -> Result<Transaction<ComplianceUnit>, ArmError> {
     let (instant_nk, instant_nk_commitment) = NullifierKey::random_pair();
 
     // Construct the consumed kudo resource

@@ -1,6 +1,7 @@
 use crate::{convert_counter_to_value_ref, generate_compliance_proof, generate_logic_proofs};
 use arm::{
     action::Action,
+    compliance_unit::ComplianceUnit,
     delta_proof::DeltaWitness,
     encryption::AffinePoint,
     error::ArmError,
@@ -34,7 +35,7 @@ pub fn create_increment_tx(
     nf_key: NullifierKey,
     consumed_discovery_pk: AffinePoint,
     created_discovery_pk: AffinePoint,
-) -> Result<(Transaction, Resource), ArmError> {
+) -> Result<(Transaction<ComplianceUnit>, Resource), ArmError> {
     let new_counter = increment_counter(&counter_resource, &nf_key)?;
     let (compliance_unit, rcv) = generate_compliance_proof(
         counter_resource,

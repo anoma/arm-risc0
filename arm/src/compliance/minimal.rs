@@ -2,19 +2,19 @@
 const COMPLIANCE_INSTANCE_SIZE: usize = 56;
 
 use crate::{
-    compliance::{shared_constraints, ComplianceCircuit, CI, INITIAL_ROOT},
+    compliance::{
+        shared_constraints, ComplianceCircuit, ConsumedMemorandum, CreatedMemorandum, CI,
+        INITIAL_ROOT,
+    },
     error::ArmError,
     merkle_path::MerklePath,
     nullifier_key::NullifierKey,
     resource::Resource,
-    utils::{bytes_to_words, words_to_bytes},
+    utils::bytes_to_words,
 };
 use k256::{
-    elliptic_curve::{
-        sec1::{FromEncodedPoint, ToEncodedPoint},
-        Field, PrimeField,
-    },
-    EncodedPoint, ProjectivePoint, Scalar,
+    elliptic_curve::{sec1::ToEncodedPoint, Field, PrimeField},
+    ProjectivePoint, Scalar,
 };
 use risc0_zkvm::Digest;
 use serde_with::serde_as;
@@ -110,12 +110,23 @@ impl ComplianceWitness {
 }
 
 impl CI for ComplianceInstance {
-    fn logic_refs(&self) -> Vec<Digest> {
-        vec![self.consumed_logic_ref, self.created_logic_ref]
+    fn consumed_info(&self) -> Vec<ConsumedMemorandum> {
+        vec![ConsumedMemorandum {
+            resource_nullifier: self.consumed_nullifier,
+            resource_logic_ref: self.consumed_logic_ref,
+            commitment_tree_root: self.consumed_commitment_tree_root,
+        }]
     }
 
-    fn tags(&self) -> Vec<Digest> {
-        vec![self.consumed_logic_ref, self.created_logic_ref]
+    fn created_info(&self) -> Vec<CreatedMemorandum> {
+        vec![CreatedMemorandum {
+            resource_commitment: self.created_commitment,
+            resource_logic_ref: self.created_logic_ref,
+        }]
+    }
+
+    fn delta(&self) -> Result<ProjectivePoint, ArmError> {
+        super::to_delta_projective(self.delta_x, self.delta_y)
     }
 }
 
@@ -200,19 +211,6 @@ impl Default for ComplianceWitness {
             rcv,
             nf_key,
         }
-    }
-}
-
-impl ComplianceInstance {
-    pub fn delta_projective(&self) -> Result<ProjectivePoint, ArmError> {
-        let encoded_point = EncodedPoint::from_affine_coordinates(
-            words_to_bytes(&self.delta_x).into(),
-            words_to_bytes(&self.delta_y).into(),
-            false,
-        );
-        ProjectivePoint::from_encoded_point(&encoded_point)
-            .into_option()
-            .ok_or(ArmError::InvalidDelta)
     }
 }
 

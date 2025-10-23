@@ -172,7 +172,10 @@ pub fn create_multiple_actions(
 }
 
 // Create a test transaction with n_actions actions, each with compliance_num compliance units
-pub fn generate_test_transaction(n_actions: usize, compliance_num: usize) -> Transaction {
+pub fn generate_test_transaction(
+    n_actions: usize,
+    compliance_num: usize,
+) -> Transaction<ComplianceUnit> {
     let (actions, delta_witness) = create_multiple_actions(n_actions, compliance_num);
     let tx = Transaction::create(actions, Delta::Witness(delta_witness));
     let balanced_tx = tx.generate_delta_proof().unwrap();

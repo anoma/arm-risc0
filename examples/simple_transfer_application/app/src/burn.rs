@@ -25,7 +25,7 @@ pub fn construct_burn_tx(
     forwarder_addr: Vec<u8>,
     token_addr: Vec<u8>,
     user_addr: Vec<u8>,
-) -> Result<Transaction, ArmError> {
+) -> Result<Transaction<ComplianceUnit>, ArmError> {
     // Action tree
     let consumed_nf = consumed_resource.nullifier(&consumed_nf_key)?;
     let created_cm = created_resource.commitment();

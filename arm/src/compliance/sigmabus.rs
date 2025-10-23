@@ -3,16 +3,18 @@ pub const TX_MAX_RESOURCES: usize = 128;
 
 use crate::{
     compliance::{
-        var::{var_constraints::constrain_resources, ConsumedMemorandum, CreatedMemorandum},
-        ComplianceCircuit, ComplianceVarWitness, CI,
+        var::var_constraints::constrain_resources, ComplianceCircuit, ComplianceVarWitness,
+        ConsumedMemorandum, CreatedMemorandum, CI,
     },
     error::ArmError,
     nullifier_key::NullifierKey,
     resource::Resource,
     sigma::{PedersenCommitmentScheme, SigmaProof, SigmaWitness},
 };
-use k256::{elliptic_curve::Field, ProjectivePoint, Scalar};
-use risc0_zkvm::Digest;
+use k256::{
+    elliptic_curve::{sec1::FromEncodedPoint, Field},
+    EncodedPoint, ProjectivePoint, Scalar,
+};
 use serde::Serialize;
 
 #[derive(Serialize)]
@@ -138,39 +140,25 @@ pub struct SigmaBusCircuitInstance {
     pub sigma_proof: SigmaProof,
 }
 
-impl CI for SigmaBusCircuitInstance {
-    fn logic_refs(&self) -> Vec<Digest> {
-        let mut logic_refs: Vec<Digest> = self
-            .consumed_memorandums
-            .iter()
-            .map(|memo| memo.resource_logic_ref)
-            .collect();
-        logic_refs.append(
-            &mut self
-                .created_memorandums
-                .iter()
-                .map(|memo| memo.resource_logic_ref)
-                .collect(),
-        );
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
+pub struct ComplianceSigmabusInstance {
+    pub circuit_instance: SigmaBusCircuitInstance,
+    pub delta: EncodedPoint,
+}
 
-        logic_refs
+impl CI for ComplianceSigmabusInstance {
+    fn consumed_info(&self) -> Vec<ConsumedMemorandum> {
+        self.circuit_instance.consumed_memorandums.clone()
     }
 
-    fn tags(&self) -> Vec<Digest> {
-        let mut tags: Vec<Digest> = self
-            .consumed_memorandums
-            .iter()
-            .map(|memo| memo.resource_nullifier)
-            .collect();
-        tags.append(
-            &mut self
-                .created_memorandums
-                .iter()
-                .map(|memo| memo.resource_commitment)
-                .collect(),
-        );
+    fn created_info(&self) -> Vec<CreatedMemorandum> {
+        self.circuit_instance.created_memorandums.clone()
+    }
 
-        tags
+    fn delta(&self) -> Result<ProjectivePoint, ArmError> {
+        ProjectivePoint::from_encoded_point(&self.delta)
+            .into_option()
+            .ok_or(ArmError::InvalidDelta)
     }
 }
 

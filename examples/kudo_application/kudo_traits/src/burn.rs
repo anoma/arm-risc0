@@ -25,7 +25,7 @@ where
     K: KudoInfo,
     D: DenominationInfo,
 {
-    pub fn create_tx(&self, latest_root: Digest) -> Result<Transaction, ArmError> {
+    pub fn create_tx(&self, latest_root: Digest) -> Result<Transaction<ComplianceUnit>, ArmError> {
         // Create the action
         let (action, delta_witness) = {
             // Generate compliance units

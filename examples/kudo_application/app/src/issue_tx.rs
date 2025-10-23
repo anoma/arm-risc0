@@ -29,7 +29,7 @@ pub fn build_issue_tx(
     receiver_signature: &AuthorizationSignature,
     receiver_nk_commitment: &NullifierKeyCommitment,
     latest_root: Digest,
-) -> Result<Transaction, ArmError> {
+) -> Result<Transaction<ComplianceUnit>, ArmError> {
     let issuer = AuthorizationVerifyingKey::from_signing_key(issuer_sk);
     let (instant_nk, instant_nk_commitment) = NullifierKey::random_pair();
     let kudo_logic = KudoMainInfo::verifying_key();

@@ -1,7 +1,8 @@
 use crate::{
     compliance::{
-        ComplianceInstance, ComplianceSigmabusWitness, ComplianceVarInstance, ComplianceVarWitness,
-        ComplianceWitness, SigmaBusCircuitInstance, SigmabusCircuitWitness, CI,
+        sigmabus::ComplianceSigmabusInstance, ComplianceInstance, ComplianceSigmabusWitness,
+        ComplianceVarInstance, ComplianceVarWitness, ComplianceWitness, ConsumedMemorandum,
+        CreatedMemorandum, SigmaBusCircuitInstance, SigmabusCircuitWitness, CI,
     },
     constants::{
         COMPLIANCE_PK, COMPLIANCE_SIGMABUS_PK, COMPLIANCE_SIGMABUS_VK, COMPLIANCE_VAR_PK,
@@ -11,7 +12,7 @@ use crate::{
     proving_system::{journal_to_instance, prove, verify as verify_proof},
     sigma::SigmaProtocol,
 };
-use k256::ProjectivePoint;
+use k256::{elliptic_curve::sec1::ToEncodedPoint, EncodedPoint, ProjectivePoint};
 use risc0_zkvm::Digest;
 use serde::{Deserialize, Serialize};
 
@@ -23,62 +24,107 @@ pub trait CUI {
     /// Computes the compliance proof and populates the compliance unit.
     fn create(witness: &Self::Witness) -> Result<Self, ArmError>
     where
-        Self: Sized,
-    {
-        let (proof_bytes, instance_bytes) = prove(Self::proving_key(), witness)?;
-        Self::new(instance_bytes, proof_bytes, None)
-    }
+        Self: Sized;
 
     /// Verifies the compliance proof.
-    fn verify(&self) -> Result<(), ArmError> {
-        if let Some(proof) = &self.proof_bytes() {
-            verify_proof(&Self::verifying_key(), &self.instance_bytes(), proof)
-        } else {
-            Err(ArmError::ProofVerificationFailed(
-                "Missing compliance proof".into(),
-            ))
-        }
-    }
+    fn verify(&self) -> Result<(), ArmError>;
 
-    /// Returns the commitments of the created resources checked in the unit.
-    fn created(&self) -> Result<Vec<Digest>, ArmError>;
+    /// Returns the public information of the created resources checked in this unit.
+    /// (Includes the commitments.)
+    fn created(&self) -> Result<Vec<CreatedMemorandum>, ArmError>;
 
-    /// Returns the nullifiers of the consumed resources checked in the unit.
-    fn consumed(&self) -> Result<Vec<Digest>, ArmError>;
+    /// Returns the public information of the consumed resources checked in this unit.
+    /// (Includes the nullifiers.)
+    fn consumed(&self) -> Result<Vec<ConsumedMemorandum>, ArmError>;
 
     /// Returns the compliance unit's delta.
     fn delta(&self) -> Result<ProjectivePoint, ArmError>;
+}
 
-    /// Returns the compliance circuit proving key.
-    fn proving_key() -> &'static [u8];
+pub(crate) mod inner_cui {
+    use super::*;
+    /// CUs should implement this trait instead of implementing directly the high-level [CUI].
+    // The default implementations of this inner trait are only for CUs fully constrained in RISC0.
+    pub trait CUInner {
+        type Witness: Serialize;
+        type Instance: CI + for<'de> Deserialize<'de>;
 
-    /// Returns the compliance circuit verifying key.
-    fn verifying_key() -> Digest;
+        fn create_inner(witness: &Self::Witness) -> Result<Self, ArmError>
+        where
+            Self: Sized,
+        {
+            let (proof_bytes, circuit_instance_bytes) = prove(Self::proving_key(), witness)?;
+            Self::new(circuit_instance_bytes, proof_bytes, None)
+        }
 
-    /// Returns the instance (public output) of the compliance circuit.
-    fn instance(&self) -> Result<Self::Instance, ArmError> {
-        journal_to_instance(&self.instance_bytes())
+        fn verify_inner(&self) -> Result<(), ArmError> {
+            if let Some(proof) = &self.circuit_proof_bytes() {
+                verify_proof(&Self::verifying_key(), self.circuit_instance_bytes(), proof)
+            } else {
+                Err(ArmError::ProofVerificationFailed(
+                    "Missing compliance proof".into(),
+                ))
+            }
+        }
+
+        /// Returns the proving key of the compliance program enforced in RISC0.
+        fn proving_key() -> &'static [u8];
+
+        /// Returns the verifying key of the compliance program enforced in RISC0.
+        fn verifying_key() -> Digest;
+
+        /// Returns the instance (public output) checked in this unit.
+        fn instance(&self) -> Result<Self::Instance, ArmError> {
+            journal_to_instance(self.circuit_instance_bytes())
+        }
+
+        /// Returns the bytes of the part of the instance checked in RISC0.
+        fn circuit_instance_bytes(&self) -> &[u8];
+
+        /// Returns the bytes of the part of the compliance proof generated in RISC0.
+        fn circuit_proof_bytes(&self) -> Option<&[u8]>;
+
+        /// Raw constructor. CUs must at least be aware of the instance and compliance proof.
+        /// The delta can be either stored or infered.
+        fn new(
+            instance_bytes: Vec<u8>,
+            proof_bytes: Vec<u8>,
+            delta: Option<EncodedPoint>,
+        ) -> Result<Self, ArmError>
+        where
+            Self: Sized;
+    }
+}
+
+pub(crate) use inner_cui::CUInner;
+
+impl<CU: CUInner> CUI for CU {
+    type Witness = <CU as CUInner>::Witness;
+
+    type Instance = <CU as CUInner>::Instance;
+
+    fn create(witness: &Self::Witness) -> Result<Self, ArmError>
+    where
+        Self: Sized,
+    {
+        Self::create_inner(witness)
     }
 
-    /// Returns the bytes of the compliance instance.
-    fn instance_bytes(&self) -> Vec<u8>;
+    fn verify(&self) -> Result<(), ArmError> {
+        self.verify_inner()
+    }
 
-    /// Returns the logic verifying keys of the [crate::resource::Resource]s
-    /// implicit in this unit.
-    fn logic_refs(&self) -> Result<Vec<Digest>, ArmError>;
+    fn created(&self) -> Result<Vec<CreatedMemorandum>, ArmError> {
+        Ok(self.instance()?.created_info())
+    }
 
-    /// Returns the bytes of the compliance proof.
-    fn proof_bytes(&self) -> Option<Vec<u8>>;
+    fn consumed(&self) -> Result<Vec<ConsumedMemorandum>, ArmError> {
+        Ok(self.instance()?.consumed_info())
+    }
 
-    /// Raw constructor. CUs must at least be aware of the instance and compliance proof.
-    /// The delta can be either stored or infered.
-    fn new(
-        instance_bytes: Vec<u8>,
-        proof_bytes: Vec<u8>,
-        delta: Option<ProjectivePoint>,
-    ) -> Result<Self, ArmError>
-    where
-        Self: Sized;
+    fn delta(&self) -> Result<ProjectivePoint, ArmError> {
+        self.instance()?.delta()
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -87,7 +133,7 @@ pub struct ComplianceUnit {
     pub instance: Vec<u8>,
 }
 
-impl CUI for ComplianceUnit {
+impl CUInner for ComplianceUnit {
     type Witness = ComplianceWitness;
     type Instance = ComplianceInstance;
 
@@ -99,38 +145,18 @@ impl CUI for ComplianceUnit {
         *COMPLIANCE_VK
     }
 
-    fn created(&self) -> Result<Vec<Digest>, ArmError> {
-        Ok(vec![self.instance()?.created_commitment])
+    fn circuit_instance_bytes(&self) -> &[u8] {
+        self.instance.as_slice()
     }
 
-    fn consumed(&self) -> Result<Vec<Digest>, ArmError> {
-        Ok(vec![self.instance()?.consumed_nullifier])
-    }
-
-    fn delta(&self) -> Result<ProjectivePoint, ArmError> {
-        self.instance()?.delta_projective()
-    }
-
-    fn instance_bytes(&self) -> Vec<u8> {
-        self.instance.clone()
-    }
-
-    fn logic_refs(&self) -> Result<Vec<Digest>, ArmError> {
-        let instance = self.instance()?;
-        Ok(vec![
-            instance.consumed_logic_ref,
-            instance.created_logic_ref,
-        ])
-    }
-
-    fn proof_bytes(&self) -> Option<Vec<u8>> {
-        self.proof.clone()
+    fn circuit_proof_bytes(&self) -> Option<&[u8]> {
+        self.proof.as_ref().map(Vec::as_ref)
     }
 
     fn new(
         instance_bytes: Vec<u8>,
         proof_bytes: Vec<u8>,
-        _: Option<ProjectivePoint>,
+        _: Option<EncodedPoint>,
     ) -> Result<Self, ArmError> {
         Ok(ComplianceUnit {
             proof: Some(proof_bytes),
@@ -145,27 +171,9 @@ pub struct ComplianceVarUnit {
     pub instance: Vec<u8>,
 }
 
-impl CUI for ComplianceVarUnit {
+impl CUInner for ComplianceVarUnit {
     type Witness = ComplianceVarWitness;
     type Instance = ComplianceVarInstance;
-
-    fn created(&self) -> Result<Vec<Digest>, ArmError> {
-        Ok(self
-            .instance()?
-            .created_memorandums
-            .iter()
-            .map(|memo| memo.resource_commitment)
-            .collect())
-    }
-
-    fn consumed(&self) -> Result<Vec<Digest>, ArmError> {
-        Ok(self
-            .instance()?
-            .consumed_memorandums
-            .iter()
-            .map(|memo| memo.resource_nullifier)
-            .collect())
-    }
 
     fn proving_key() -> &'static [u8] {
         COMPLIANCE_VAR_PK
@@ -175,40 +183,18 @@ impl CUI for ComplianceVarUnit {
         *COMPLIANCE_VAR_VK
     }
 
-    fn delta(&self) -> Result<ProjectivePoint, ArmError> {
-        self.instance()?.delta_projective()
+    fn circuit_instance_bytes(&self) -> &[u8] {
+        self.instance.as_slice()
     }
 
-    fn instance_bytes(&self) -> Vec<u8> {
-        self.instance.clone()
-    }
-
-    fn logic_refs(&self) -> Result<Vec<Digest>, ArmError> {
-        let mut logic_refs: Vec<Digest> = self
-            .instance()?
-            .consumed_memorandums
-            .iter()
-            .map(|memo| memo.resource_logic_ref)
-            .collect();
-        logic_refs.append(
-            &mut self
-                .instance()?
-                .created_memorandums
-                .iter()
-                .map(|memo| memo.resource_logic_ref)
-                .collect(),
-        );
-        Ok(logic_refs)
-    }
-
-    fn proof_bytes(&self) -> Option<Vec<u8>> {
-        self.proof.clone()
+    fn circuit_proof_bytes(&self) -> Option<&[u8]> {
+        self.proof.as_ref().map(Vec::as_ref)
     }
 
     fn new(
         instance_bytes: Vec<u8>,
         proof_bytes: Vec<u8>,
-        _: Option<ProjectivePoint>,
+        _: Option<EncodedPoint>,
     ) -> Result<Self, ArmError> {
         Ok(ComplianceVarUnit {
             proof: Some(proof_bytes),
@@ -219,16 +205,16 @@ impl CUI for ComplianceVarUnit {
 
 #[derive(Clone, Debug)]
 pub struct ComplianceSigmabusUnit {
-    pub proof: Option<Vec<u8>>,
-    pub instance: Vec<u8>,
-    pub delta: ProjectivePoint,
+    pub circuit_proof: Option<Vec<u8>>,
+    pub circuit_instance: Vec<u8>,
+    pub delta: EncodedPoint,
 }
 
-impl CUI for ComplianceSigmabusUnit {
+impl CUInner for ComplianceSigmabusUnit {
     type Witness = ComplianceSigmabusWitness;
-    type Instance = SigmaBusCircuitInstance;
+    type Instance = ComplianceSigmabusInstance;
 
-    fn create(witness: &ComplianceSigmabusWitness) -> Result<Self, ArmError> {
+    fn create_inner(witness: &ComplianceSigmabusWitness) -> Result<Self, ArmError> {
         // Prove off the zkVM
         let sp = SigmaProtocol::new(witness.sigma_witness.mcv.len());
         let sigma_instance = witness.compute_delta();
@@ -238,22 +224,33 @@ impl CUI for ComplianceSigmabusUnit {
             SigmabusCircuitWitness::from_sigmabus_witness_proof(witness, &sigma_proof);
         let (circuit_proof, circuit_instance) = prove(COMPLIANCE_SIGMABUS_PK, &circuit_input)?;
 
-        ComplianceSigmabusUnit::new(circuit_instance, circuit_proof, Some(sigma_instance))
+        ComplianceSigmabusUnit::new(
+            circuit_instance,
+            circuit_proof,
+            Some(sigma_instance.to_encoded_point(true)),
+        )
     }
 
-    fn verify(&self) -> Result<(), ArmError> {
-        let circuit_instance = self.instance()?;
+    fn verify_inner(&self) -> Result<(), ArmError> {
+        let sigmabus_instance = self.instance()?;
+        let circuit_instance = sigmabus_instance.circuit_instance;
         let sigma_proof = circuit_instance.sigma_proof;
 
         let sp = SigmaProtocol::new(sigma_proof.response1.len());
 
-        if sp.verify(&self.delta, &sigma_proof).is_err() {
+        if sp.verify(&self.delta()?, &sigma_proof).is_err() {
             return Err(ArmError::ProofVerificationFailed(
                 "Invalid sigma proof".into(),
             ));
         }
-        if let Some(proof) = &self.proof {
-            if verify_proof(&COMPLIANCE_SIGMABUS_VK, &self.instance, proof).is_err() {
+        if let Some(circuit_proof) = self.circuit_proof_bytes() {
+            if verify_proof(
+                &COMPLIANCE_SIGMABUS_VK,
+                self.circuit_instance_bytes(),
+                circuit_proof,
+            )
+            .is_err()
+            {
                 return Err(ArmError::ProofVerificationFailed(
                     "Invalid compliance circuit proof".into(),
                 ));
@@ -266,24 +263,6 @@ impl CUI for ComplianceSigmabusUnit {
         }
     }
 
-    fn created(&self) -> Result<Vec<Digest>, ArmError> {
-        Ok(self
-            .instance()?
-            .created_memorandums
-            .iter()
-            .map(|memo| memo.resource_commitment)
-            .collect())
-    }
-
-    fn consumed(&self) -> Result<Vec<Digest>, ArmError> {
-        Ok(self
-            .instance()?
-            .consumed_memorandums
-            .iter()
-            .map(|memo| memo.resource_nullifier)
-            .collect())
-    }
-
     fn proving_key() -> &'static [u8] {
         COMPLIANCE_SIGMABUS_PK
     }
@@ -292,45 +271,33 @@ impl CUI for ComplianceSigmabusUnit {
         *COMPLIANCE_SIGMABUS_VK
     }
 
-    fn delta(&self) -> Result<ProjectivePoint, ArmError> {
-        todo!()
+    fn instance(&self) -> Result<ComplianceSigmabusInstance, ArmError> {
+        let circuit_instance: SigmaBusCircuitInstance =
+            journal_to_instance(self.circuit_instance_bytes())?;
+
+        Ok(ComplianceSigmabusInstance {
+            circuit_instance,
+            delta: self.delta,
+        })
     }
 
-    fn instance_bytes(&self) -> Vec<u8> {
-        self.instance.clone()
+    fn circuit_instance_bytes(&self) -> &[u8] {
+        self.circuit_instance.as_slice()
     }
 
-    fn logic_refs(&self) -> Result<Vec<Digest>, ArmError> {
-        let mut logic_refs: Vec<Digest> = self
-            .instance()?
-            .consumed_memorandums
-            .iter()
-            .map(|memo| memo.resource_logic_ref)
-            .collect();
-        logic_refs.append(
-            &mut self
-                .instance()?
-                .created_memorandums
-                .iter()
-                .map(|memo| memo.resource_logic_ref)
-                .collect(),
-        );
-        Ok(logic_refs)
-    }
-
-    fn proof_bytes(&self) -> Option<Vec<u8>> {
-        self.proof.clone()
+    fn circuit_proof_bytes(&self) -> Option<&[u8]> {
+        self.circuit_proof.as_ref().map(Vec::as_ref)
     }
 
     fn new(
         instance_bytes: Vec<u8>,
         proof_bytes: Vec<u8>,
-        delta: Option<ProjectivePoint>,
+        delta: Option<EncodedPoint>,
     ) -> Result<Self, ArmError> {
         if let Some(delta) = delta {
             Ok(ComplianceSigmabusUnit {
-                proof: Some(proof_bytes),
-                instance: instance_bytes,
+                circuit_proof: Some(proof_bytes),
+                circuit_instance: instance_bytes,
                 delta,
             })
         } else {

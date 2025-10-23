@@ -33,7 +33,7 @@ pub fn build_swap_tx(
     created_issuer: &AuthorizationVerifyingKey,
     created_kudo_quantity: u128,
     latest_root: Digest,
-) -> Result<Transaction, ArmError> {
+) -> Result<Transaction<ComplianceUnit>, ArmError> {
     let (instant_nk, instant_nk_commitment) = NullifierKey::random_pair();
 
     // Construct the consumed kudo resource

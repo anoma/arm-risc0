@@ -3,6 +3,7 @@ use crate::{
 };
 use arm::{
     action::Action,
+    compliance_unit::ComplianceUnit,
     delta_proof::DeltaWitness,
     encryption::AffinePoint,
     error::ArmError,
@@ -59,7 +60,7 @@ pub fn init_counter_resource(
 // resource and nullifier key.
 pub fn create_init_counter_tx(
     discovery_pk: AffinePoint,
-) -> Result<(Transaction, Resource, NullifierKey), ArmError> {
+) -> Result<(Transaction<ComplianceUnit>, Resource, NullifierKey), ArmError> {
     let (ephemeral_counter, ephemeral_nf_key) = ephemeral_counter();
     let (counter_resource, counter_nf_key) =
         init_counter_resource(&ephemeral_counter, &ephemeral_nf_key)?;

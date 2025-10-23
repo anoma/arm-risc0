@@ -52,7 +52,7 @@ impl SigmaWitness {
 
         SigmaWitness {
             mcv: mcv.to_vec(),
-            rcv: rcv.clone(),
+            rcv: *rcv,
             blinding_mcv,
             blinding_rcv,
             salt,
@@ -89,10 +89,9 @@ impl SigmaWitness {
 
     /// The second response.
     pub fn second_response(rcv: &Scalar, blinding_rcv: &Scalar, challenge: &Scalar) -> Scalar {
-        Self::compute_response(&[*rcv], &[*blinding_rcv], challenge)
-            .get(0)
+        *Self::compute_response(&[*rcv], &[*blinding_rcv], challenge)
+            .first()
             .unwrap()
-            .clone()
     }
 
     // Compute the first or second responses.

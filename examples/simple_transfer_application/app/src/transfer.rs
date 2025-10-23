@@ -24,7 +24,7 @@ pub fn construct_transfer_tx(
     created_resource: Resource,
     created_discovery_pk: AffinePoint,
     created_encryption_pk: AffinePoint,
-) -> Result<Transaction, ArmError> {
+) -> Result<Transaction<ComplianceUnit>, ArmError> {
     // Action tree
     let consumed_nf = consumed_resource.nullifier(&consumed_nf_key)?;
     let created_cm = created_resource.commitment();
