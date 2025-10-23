@@ -59,15 +59,24 @@ impl Action {
         let action_tree = MerkleTree::from(tags.clone());
         let root = action_tree.root();
 
-        for input in self.logic_verifier_inputs.iter() {
-            if let Some(index) = tags.iter().position(|tag| *tag == input.tag) {
-                if input.verifying_key != logics[index] {
-                    // The verifying_key doesn't match the resource logic
+        // Match logic verifier inputs with the tags in the action tree
+        if tags.len() != self.logic_verifier_inputs.len() {
+            return Err(ArmError::TagNotFound);
+        }
+
+        for (index, (tag, logic)) in tags.iter().zip(logics.iter()).enumerate() {
+            // Look up the tag in the `logic_verifier_inputs`.
+            if let Some(input) = self
+                .logic_verifier_inputs
+                .iter()
+                .find(|input| &input.tag == tag)
+            {
+                if input.verifying_key != *logic {
                     return Err(ArmError::VerifyingKeyMismatch);
                 }
 
-                let is_comsumed = index % 2 == 0;
-                let verifier = input.clone().to_logic_verifier(is_comsumed, root)?;
+                let is_consumed = index % 2 == 0;
+                let verifier = input.clone().to_logic_verifier(is_consumed, root)?;
                 logic_verifiers.push(verifier);
             } else {
                 return Err(ArmError::TagNotFound);

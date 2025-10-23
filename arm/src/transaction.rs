@@ -65,6 +65,9 @@ impl Transaction {
                 let instance = self.delta()?;
                 DeltaProof::verify(&msg, proof, instance)?;
 
+                // Check for nullifier duplication across all compliance units
+                self.nf_duplication_check()?;
+
                 if self.aggregation_proof.is_some() {
                     #[cfg(not(feature = "aggregation"))]
                     return Err(ArmError::ProofVerificationFailed(
@@ -83,6 +86,19 @@ impl Transaction {
             }
             Delta::Witness(_) => Err(ArmError::ExpectedDeltaProof),
         }
+    }
+
+    pub fn nf_duplication_check(&self) -> Result<(), ArmError> {
+        let mut seen_nullifiers = std::collections::HashSet::new();
+        for action in &self.actions {
+            for cu in action.get_compliance_units() {
+                let instance = cu.get_instance()?;
+                if !seen_nullifiers.insert(instance.consumed_nullifier) {
+                    return Err(ArmError::NullifierDuplication);
+                }
+            }
+        }
+        Ok(())
     }
 
     // Returns the DeltaInstance constructed from the sum of all actions'

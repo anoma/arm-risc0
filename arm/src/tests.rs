@@ -184,6 +184,31 @@ fn test_action() {
 }
 
 #[test]
+fn test_unmatched_logic_verifier_inputs_in_action() {
+    let (actions, _) = create_multiple_actions(2, 1);
+    // swap logic verifier inputs to cause mismatch in action0
+    let mut action0 = actions[0].clone();
+    action0.logic_verifier_inputs = actions[1].logic_verifier_inputs.clone();
+    assert!(action0.verify().is_err());
+
+    // empty logic verifier inputs in action1
+    let mut action1 = actions[1].clone();
+    action1.logic_verifier_inputs = vec![];
+    assert!(action1.verify().is_err());
+}
+
+#[test]
+fn test_nullifier_duplication_check() {
+    let mut tx = generate_test_transaction(2, 1);
+    assert!(tx.nf_duplication_check().is_ok());
+
+    // Introduce a duplicate nullifier
+    tx.actions[1] = tx.actions[0].clone();
+
+    assert!(tx.nf_duplication_check().is_err());
+}
+
+#[test]
 fn test_transaction() {
     let _ = generate_test_transaction(2, 2);
 }
