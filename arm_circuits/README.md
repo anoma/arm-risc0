@@ -16,6 +16,10 @@ cargo risczero build --manifest-path arm_circuits/simple_kudo_denomination/metho
 cargo risczero build --manifest-path arm_circuits/simple_kudo_receive/methods/guest/Cargo.toml
 
 cargo risczero build --manifest-path arm_circuits/simple_transfer/methods/guest/Cargo.toml
+
+cargo risczero build --manifest-path arm_circuits/sequential_aggregation/methods/guest/Cargo.toml
+
+cargo risczero build --manifest-path arm_circuits/batch_aggregation/methods/guest/Cargo.toml
 ```
 
 ## Generate and print proving and verifying keys (ELF and ImageID) locally for debugging.
