@@ -68,8 +68,19 @@ impl Transaction {
                 // Check for nullifier duplication across all compliance units
                 self.nf_duplication_check()?;
 
-                for action in self.actions {
-                    action.verify()?;
+                if self.aggregation_proof.is_some() {
+                    #[cfg(not(feature = "aggregation"))]
+                    return Err(ArmError::ProofVerificationFailed(
+                        "feature `aggregation` is not enabled".into(),
+                    ));
+
+                    #[cfg(feature = "aggregation")]
+                    self.verify_aggregation()?;
+                } else {
+                    // Try verifying individually.
+                    for action in self.actions {
+                        action.verify()?;
+                    }
                 }
                 Ok(())
             }
