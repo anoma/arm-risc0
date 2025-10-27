@@ -1,3 +1,5 @@
+#[cfg(feature = "nif")]
+use crate::rustler_util::{bincode_deserialize, bincode_serialize};
 use crate::{
     error::ArmError,
     utils::{bytes_to_words, hash_bytes, words_to_bytes},
@@ -34,8 +36,8 @@ impl SecretKey {
 }
 
 #[cfg(feature = "nif")]
-fn do_encode<'a>(secret_key: &SecretKey, env: Env<'a>) -> Result<Term<'a>, Error> {
-    let bytes = bincode::serialize(&secret_key.0).unwrap();
+fn do_encode<'a>(secret_key: &SecretKey, env: Env<'a>) -> NifResult<Term<'a>> {
+    let bytes = bincode_serialize(&secret_key)?;
 
     let mut erl_bin = OwnedBinary::new(bytes.len()).ok_or(Error::BadArg)?;
     let _ = erl_bin.as_mut_slice().write_all(&bytes);
@@ -46,8 +48,7 @@ fn do_encode<'a>(secret_key: &SecretKey, env: Env<'a>) -> Result<Term<'a>, Error
 #[cfg(feature = "nif")]
 impl Encoder for SecretKey {
     fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
-        let result = do_encode(self, env).expect("failed to encode SecretKey");
-        result
+        do_encode(self, env).unwrap_or_else(|_| env.error_tuple("failed to encode SecretKey"))
     }
 }
 
@@ -55,7 +56,7 @@ impl Encoder for SecretKey {
 impl<'a> Decoder<'a> for SecretKey {
     fn decode(term: Term<'a>) -> NifResult<Self> {
         let binary = term.decode_as_binary()?.as_slice();
-        let scalar: Scalar = bincode::deserialize(binary).expect("failed to decode SecretKey");
+        let scalar: Scalar = bincode_deserialize(binary)?;
         Ok(SecretKey(scalar))
     }
 }
