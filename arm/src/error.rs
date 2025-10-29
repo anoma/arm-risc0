@@ -82,4 +82,6 @@ pub enum ArmError {
     InvalidDeltaProof,
     #[error("Failed to load kind table")]
     KindTableLoadFailed,
+    #[error("Invalid resource index")]
+    InvalidResourceIndex,
 }

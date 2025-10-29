@@ -18,6 +18,7 @@ const RESOURCE_BYTES: usize = DIGEST_BYTES
 
 use crate::{
     error::ArmError,
+    merkle_path::MerklePath,
     nullifier_key::{NullifierKey, NullifierKeyCommitment},
 };
 
@@ -269,6 +270,43 @@ impl Resource {
             Ok(cm)
         }
     }
+
+    /// Derives the nonce based on the passed index and nullifiers.
+    /// The index must fit in a 32-bit integer.
+    pub fn derive_nonce_from_nullifiers(
+        index: usize,
+        nullifiers: &[Digest],
+    ) -> Result<[u8; 32], ArmError> {
+        let nullifiers_digest = Self::hash_nullifiers(nullifiers);
+
+        Self::derive_nonce(index, nullifiers_digest)
+    }
+
+    /// Derives the nonce based on the passed index and digest.
+    /// The index must fit in a 32-bit integer.
+    pub fn derive_nonce(index: usize, nullifiers_digest: Digest) -> Result<[u8; 32], ArmError> {
+        let index_u32: u32 = index
+            .try_into()
+            .map_err(|_| ArmError::InvalidResourceIndex)?;
+        let mut bytes = [0u8; DIGEST_BYTES + 4];
+        bytes[0..4].clone_from_slice(&index_u32.to_le_bytes());
+        bytes[4..DIGEST_BYTES + 4].clone_from_slice(nullifiers_digest.as_ref());
+
+        Impl::hash_bytes(&bytes)
+            .as_bytes()
+            .try_into()
+            .map_err(|_| ArmError::InvalidResourceNonce)
+    }
+
+    /// Hashes the concatenation of the passed nullifier digests.
+    pub fn hash_nullifiers(nullifiers: &[Digest]) -> Digest {
+        let mut bytes = Vec::new();
+        for nf in nullifiers.iter() {
+            bytes.append(&mut nf.as_bytes().to_vec().clone());
+        }
+
+        Impl::hash_bytes(&bytes).as_bytes().try_into().unwrap()
+    }
 }
 
 impl Default for Resource {
@@ -284,4 +322,85 @@ impl Default for Resource {
             rand_seed: [0; DIGEST_BYTES],
         }
     }
+}
+
+/// Private information related to a consumed resource.
+#[derive(Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct ConsumedDatum {
+    /// The consumed resource.
+    pub resource: Resource,
+    /// The path from the consumed commitment to the root of the commitment tree.
+    pub merkle_path: MerklePath,
+    /// Nullifier key of the consumed resource.
+    pub nf_key: NullifierKey,
+}
+
+impl ConsumedDatum {
+    /// Datum constructor for an ephemeral resource.
+    pub fn from_resource(resource: Resource, nf_key: NullifierKey) -> ConsumedDatum {
+        ConsumedDatum {
+            resource,
+            merkle_path: MerklePath::empty(),
+            nf_key: nf_key.clone(),
+        }
+    }
+
+    /// Datum constructor for a persistent resource.
+    pub fn from_resource_with_path(
+        resource: Resource,
+        nf_key: NullifierKey,
+        merkle_path: MerklePath,
+    ) -> ConsumedDatum {
+        ConsumedDatum {
+            resource,
+            merkle_path,
+            nf_key: nf_key.clone(),
+        }
+    }
+}
+
+impl Default for ConsumedDatum {
+    /// The default value is meaningless and only for testing.
+    fn default() -> Self {
+        let nf_key = NullifierKey::default();
+
+        let resource = Resource {
+            logic_ref: Digest::default(),
+            label_ref: Digest::default(),
+            quantity: 1u128,
+            value_ref: Digest::default(),
+            is_ephemeral: false,
+            nonce: [0u8; 32],
+            nk_commitment: nf_key.commit(),
+            rand_seed: [0u8; 32],
+        };
+
+        let merkle_path = MerklePath::default();
+
+        Self {
+            resource,
+            merkle_path,
+            nf_key,
+        }
+    }
+}
+
+/// Public information of consumed resources.
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct ConsumedMemorandum {
+    /// The nullifier of the consumed [Resource].
+    pub resource_nullifier: Digest,
+    /// The logic reference of the consumed [Resource].
+    pub resource_logic_ref: Digest,
+    /// The root of the Merkle tree where the resource commitment is in.
+    pub commitment_tree_root: Digest,
+}
+
+/// Public information of created resources.
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct CreatedMemorandum {
+    /// The commitment to the created [Resource].
+    pub resource_commitment: Digest,
+    /// The logic reference of the created [Resource].
+    pub resource_logic_ref: Digest,
 }

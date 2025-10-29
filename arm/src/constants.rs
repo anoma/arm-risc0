@@ -17,7 +17,7 @@ pub const BATCH_AGGREGATION_PK: &[u8] = include_bytes!("../elfs/batch-aggregatio
 lazy_static! {
     /// compliance verification key / compliance image id
     pub static ref COMPLIANCE_VK: Digest =
-        Digest::from_hex("c1620ce5304d13cd98c87a391fc039ca376dc86fa135ea0c1a9ee186ed4627f0")
+        Digest::from_hex("76fa78e83e89d15dd2ae05a6940c3ed8308476a291c2fa62af37f885587a4ab5")
             .unwrap();
 
     /// padding logic verification key / compliance image id
@@ -29,7 +29,7 @@ lazy_static! {
 #[cfg(feature = "aggregation")]
 lazy_static! {
     /// Batch aggregation verification key / Batch aggregation image id.
-    pub static ref BATCH_AGGREGATION_VK: Digest = Digest::from_hex("367b9aafd56d18652f384e17faa5e4174c14551c4b84847f4dccf3704aa0f00c").unwrap();
+    pub static ref BATCH_AGGREGATION_VK: Digest = Digest::from_hex("8cf1a89e7d977d1024806c63797d30c5677ce8be7975d5484ffdac9acb8815b7").unwrap();
 }
 
 /// Global kind table, loaded once from a JSON file.
