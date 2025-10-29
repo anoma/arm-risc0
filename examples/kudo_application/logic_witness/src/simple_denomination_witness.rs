@@ -189,7 +189,7 @@ impl SimpleDenominationLogicWitness {
     ) -> Self {
         Self {
             denomination_resource,
-            denomination_is_consumed: true,
+            denomination_is_consumed: false,
             denomination_nf_key, // not used
             denomination_existence_path,
             signature,

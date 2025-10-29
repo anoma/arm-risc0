@@ -13,8 +13,8 @@ This is a shielded resource machine implementation based on [Risc0-zkvm](https:/
 - **`arm/`**: The main Anoma Shielded Resource Machine implementation providing the core functionality for Anoma SDK and Validator.
 
 - **`arm_circuits/`**: Demonstration circuits for arms and applications:
-  - **compliance**: Basic compliance checking circuit
-  - **trivial_logic**: Minimal logic circuit example, also used in padding resources
+  - **compliance**: Compliance checking circuit
+  - **trivial_logic**: Minimal logic circuit example
   - **proof aggregation (batch_aggregation, sequential_aggregation)**: Circuits for single-run aggregation and IVC-based aggregation, respectively
   - **logic_test**: The logic circuit contains hardcoded data to cover all instance fields and is used only in tests
   - **counter**: The simple counter logic circuit

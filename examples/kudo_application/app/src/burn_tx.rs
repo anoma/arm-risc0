@@ -1,6 +1,6 @@
 use crate::{kudo_main::KudoMainInfo, simple_denomination::SimpleDenominationInfo};
 use arm::{
-    action_tree::MerkleTree,
+    action::Action,
     authorization::{AuthorizationSigningKey, AuthorizationVerifyingKey},
     error::ArmError,
     merkle_path::MerklePath,
@@ -40,42 +40,52 @@ pub fn build_burn_tx(
     let mut ephemeral_kudo_resource = *burned_kudo_resource;
     ephemeral_kudo_resource.is_ephemeral = true;
     ephemeral_kudo_resource.reset_randomness();
-    ephemeral_kudo_resource.set_nonce(burned_kudo_resource_nf);
-    let ephemeral_kudo_resource_cm = ephemeral_kudo_resource.commitment();
 
     // Construct the ephemeral denomination resource
     let denomination_logic = SimpleDenominationInfo::verifying_key();
     let mut rng = rand::thread_rng();
     let nonce: [u8; 32] = rng.gen(); // Random nonce for the ephemeral resource
-    let ephemeral_denomination_resource = Resource::create(
+    let mut ephemeral_denomination_resource = Resource::create(
         denomination_logic,
-        ephemeral_kudo_resource_cm, // Use the ephemeral kudo commitment as the label
+        Digest::default(), // Will be set below
         0,
         Digest::default(), // Value is not used for ephemeral resources
         true,
         Digest::from(nonce), // Random nonce for the ephemeral resource
         instant_nk_commitment,
     );
-    let ephemeral_denomination_resource_nf =
-        ephemeral_denomination_resource.nullifier(&instant_nk)?;
 
     // Construct the burned denomination resource
-    let burned_denomination_resource = Resource::create(
+    let mut burned_denomination_resource = Resource::create(
         denomination_logic,
         burned_kudo_resource_nf, // Use the burned kudo nullifier as the label
         0,
         Digest::default(), // Value is not used for burned resources
         true,
-        ephemeral_denomination_resource_nf,
+        Digest::default(), // Will be derived below.
         instant_nk_commitment,
     );
+
+    // Derive nonces of created resources
+    let consumed_nullifiers = vec![burned_kudo_resource_nf];
+    ephemeral_kudo_resource.nonce =
+        Resource::derive_nonce_from_nullifiers(0, &consumed_nullifiers)?;
+    burned_denomination_resource.nonce =
+        Resource::derive_nonce_from_nullifiers(1, &consumed_nullifiers)?;
+    ephemeral_denomination_resource.nonce =
+        Resource::derive_nonce_from_nullifiers(2, &consumed_nullifiers)?;
+
+    // Compute created commitments
+    let ephemeral_kudo_resource_cm = ephemeral_kudo_resource.commitment();
     let burned_denomination_resource_cm = burned_denomination_resource.commitment();
+    ephemeral_denomination_resource.label_ref = ephemeral_kudo_resource_cm; // Use the ephemeral kudo commitment as the label
+    let ephemeral_denomination_resource_cm = ephemeral_denomination_resource.commitment();
 
     // Construct the action tree
-    let action_tree = MerkleTree::new(vec![
+    let action_tree = Action::construct_action_tree(&[
         burned_kudo_resource_nf,
         ephemeral_kudo_resource_cm,
-        ephemeral_denomination_resource_nf,
+        ephemeral_denomination_resource_cm,
         burned_denomination_resource_cm,
     ]);
     let root = action_tree.root();
@@ -86,9 +96,8 @@ pub fn build_burn_tx(
     let burned_denomination_existence_path =
         action_tree.generate_path(&burned_denomination_resource_cm)?;
     let ephemeral_denomination_existence_path =
-        action_tree.generate_path(&ephemeral_denomination_resource_nf)?;
+        action_tree.generate_path(&ephemeral_denomination_resource_cm)?;
     let ephemeral_kudo_existence_path = action_tree.generate_path(&ephemeral_kudo_resource_cm)?;
-
     // Construct the burned kudo witness: consume the kudo resource
     let burned_kudo_logic_witness =
         KudoMainWitness::generate_persistent_resource_consumption_witness(

@@ -1,9 +1,11 @@
 pub mod increment;
 pub mod init;
 
+use arm::action::Action;
+use arm::resource::ConsumedDatum;
 use arm::{
-    action_tree::MerkleTree, compliance::ComplianceWitness, encryption::AffinePoint,
-    merkle_path::MerklePath, nullifier_key::NullifierKey, resource::Resource,
+    compliance::ComplianceWitness, encryption::AffinePoint, merkle_path::MerklePath,
+    nullifier_key::NullifierKey, resource::Resource,
 };
 use arm::{
     compliance_unit::ComplianceUnit,
@@ -80,12 +82,10 @@ pub fn generate_compliance_proof(
     merkle_path: MerklePath,
     created_counter: Resource,
 ) -> Result<(ComplianceUnit, Vec<u8>), ArmError> {
-    let compliance_witness = ComplianceWitness::from_resources_with_path(
-        consumed_counter,
-        nf_key,
-        merkle_path,
-        created_counter,
-    );
+    let consumed_info =
+        ConsumedDatum::from_resource_with_path(consumed_counter, nf_key, merkle_path);
+    let compliance_witness =
+        ComplianceWitness::from_resources_info(&[consumed_info], &[created_counter]);
     let compliance_unit = ComplianceUnit::create(&compliance_witness)?;
     Ok((compliance_unit, compliance_witness.rcv))
 }
@@ -100,7 +100,7 @@ pub fn generate_logic_proofs(
     let consumed_counter_nf = consumed_counter.nullifier(&nf_key)?;
     let created_counter_cm = created_counter.commitment();
 
-    let action_tree = MerkleTree::new(vec![consumed_counter_nf, created_counter_cm]);
+    let action_tree = Action::construct_action_tree(&[consumed_counter_nf, created_counter_cm]);
 
     let consumed_counter_path = action_tree.generate_path(&consumed_counter_nf)?;
     let created_counter_path = action_tree.generate_path(&created_counter_cm)?;

@@ -16,6 +16,7 @@ pub fn increment_counter(
     old_counter: &Resource,
     old_counter_nf_key: &NullifierKey,
 ) -> Result<Resource, ArmError> {
+    let old_counter_nf = old_counter.nullifier(old_counter_nf_key)?;
     let mut new_counter = *old_counter;
     let current_value = u128::from_le_bytes(
         new_counter.value_ref.as_bytes()[0..16]
@@ -24,7 +25,7 @@ pub fn increment_counter(
     );
     new_counter.set_value_ref(convert_counter_to_value_ref(current_value + 1));
     new_counter.reset_randomness();
-    new_counter.set_nonce_from_nf(old_counter, old_counter_nf_key)?;
+    new_counter.nonce = Resource::derive_nonce_from_nullifiers(0, &[old_counter_nf])?;
     Ok(new_counter)
 }
 
@@ -50,7 +51,7 @@ pub fn create_increment_tx(
         created_discovery_pk,
     )?;
 
-    let action = Action::new(vec![compliance_unit], logic_verifier_inputs)?;
+    let action = Action::new(compliance_unit, logic_verifier_inputs)?;
     let delta_witness = DeltaWitness::from_bytes(&rcv)?;
     let tx = Transaction::create(vec![action], Delta::Witness(delta_witness));
     let balanced_tx = tx.generate_delta_proof().unwrap();

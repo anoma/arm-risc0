@@ -1,6 +1,5 @@
 use arm::{
     action::Action,
-    action_tree::MerkleTree,
     compliance::ComplianceWitness,
     compliance_unit::ComplianceUnit,
     delta_proof::DeltaWitness,
@@ -8,7 +7,7 @@ use arm::{
     error::ArmError,
     logic_proof::LogicProver,
     nullifier_key::NullifierKey,
-    resource::Resource,
+    resource::{ConsumedDatum, Resource},
     transaction::{Delta, Transaction},
     Digest,
 };
@@ -33,14 +32,14 @@ pub fn construct_mint_tx(
     // Action tree
     let consumed_nf = consumed_resource.nullifier(&consumed_nf_key)?;
     let created_cm = created_resource.commitment();
-    let action_tree = MerkleTree::new(vec![consumed_nf, created_cm]);
+    let action_tree = Action::construct_action_tree(&[consumed_nf, created_cm]);
 
-    // Generate compliance units
-    let compliance_witness = ComplianceWitness::from_resources(
-        consumed_resource,
+    // Generate compliance unit
+    let consumed_info = ConsumedDatum::from_resource(consumed_resource, consumed_nf_key.clone());
+    let compliance_witness = ComplianceWitness::from_resources_info_with_eph_root(
+        &[consumed_info],
+        &[created_resource],
         latest_cm_tree_root,
-        consumed_nf_key.clone(),
-        created_resource,
     );
     let compliance_unit = ComplianceUnit::create(&compliance_witness)?;
 
@@ -70,7 +69,7 @@ pub fn construct_mint_tx(
 
     // Construct the action
     let action = Action::new(
-        vec![compliance_unit],
+        compliance_unit,
         vec![consumed_logic_proof, created_logic_proof],
     )?;
 
@@ -123,7 +122,7 @@ fn simple_mint_test() {
         &forwarder_addr,
         &token_addr,
         quantity,
-        consumed_nf.as_bytes().try_into().unwrap(), // nonce
+        Resource::derive_nonce_from_nullifiers(0, &[consumed_nf]).unwrap(), // nonce
         created_nf_cm,
         [6u8; 32], // rand_seed
         &created_auth_pk,

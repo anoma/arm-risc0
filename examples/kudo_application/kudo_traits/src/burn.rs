@@ -3,6 +3,7 @@ use arm::{
     action::Action,
     compliance_unit::ComplianceUnit,
     error::ArmError,
+    resource::ConsumedDatum,
     transaction::{Delta, Transaction},
     Digest,
 };
@@ -28,41 +29,33 @@ where
     pub fn create_tx(&self, latest_root: Digest) -> Result<Transaction, ArmError> {
         // Create the action
         let (action, delta_witness) = {
-            // Generate compliance units
-            // Compliance unit 1: the ephemeral_kudo_resource and the issued_kudo_resource
+            // Create the compliance unit
+            println!("Generating compliance unit");
+            let (compliance_unit, delta_witness) = {
+                let mut consumed_data = Vec::new();
+                let mut created_resources = Vec::new();
 
-            println!("Generating compliance unit 1");
-            let (compliance_unit_1, delta_witness_1) = {
-                let compliance_witness: ComplianceWitness =
-                    ComplianceWitness::from_resources_with_path(
-                        self.burned_kudo.resource(),
-                        self.burned_kudo
-                            .nf_key()
-                            .ok_or(ArmError::MissingField("Burned kudo nullifier key"))?,
-                        self.burned_kudo
-                            .merkle_path()
-                            .ok_or(ArmError::MissingField("Burned kudo merkle path"))?,
-                        self.ephemeral_kudo.resource(),
-                    );
-
-                (
-                    ComplianceUnit::create(&compliance_witness)?,
-                    compliance_witness.rcv,
-                )
-            };
-
-            // Compliance unit 2: the issued_receive_resource and the issued_denomination_resource
-            println!("Generating compliance unit 2");
-            let (compliance_unit_2, delta_witness_2) = {
-                let compliance_witness: ComplianceWitness = ComplianceWitness::from_resources(
-                    self.ephemeral_denomination.resource(),
-                    latest_root,
-                    self.ephemeral_denomination
+                // 1. the ephemeral_kudo_resource and the issued_kudo_resource
+                let consumed_datum = ConsumedDatum::from_resource_with_path(
+                    self.burned_kudo.resource(),
+                    self.burned_kudo
                         .nf_key()
-                        .ok_or(ArmError::MissingField(
-                            "Ephemeral denomination nullifier key",
-                        ))?,
-                    self.burned_denomination.resource(),
+                        .ok_or(ArmError::MissingField("Burned kudo nullifier key"))?,
+                    self.burned_kudo
+                        .merkle_path()
+                        .ok_or(ArmError::MissingField("Burned kudo merkle path"))?,
+                );
+                consumed_data.push(consumed_datum);
+                created_resources.push(self.ephemeral_kudo.resource());
+
+                // 2. the issued_receive_resource and the issued_denomination_resource
+                created_resources.push(self.burned_denomination.resource());
+                created_resources.push(self.ephemeral_denomination.resource());
+
+                let compliance_witness = ComplianceWitness::from_resources_info_with_eph_root(
+                    &consumed_data,
+                    &created_resources,
+                    latest_root,
                 );
 
                 (
@@ -82,13 +75,12 @@ where
 
             println!("Generating the ephemeral kudo logic proof");
             let ephemeral_kudo_proof = self.ephemeral_kudo.prove()?;
-
             println!("Generating the denomination logic proof corresponding to the ephemeral kudo resource");
             let ephemeral_denomination_proof = self.ephemeral_denomination.prove()?;
 
             (
                 Action::new(
-                    vec![compliance_unit_1, compliance_unit_2],
+                    compliance_unit,
                     vec![
                         burned_kudo_proof,
                         ephemeral_kudo_proof,
@@ -96,7 +88,7 @@ where
                         burned_denomination_proof,
                     ],
                 )?,
-                DeltaWitness::from_bytes_vec(&[delta_witness_1, delta_witness_2])?,
+                DeltaWitness::from_bytes(&delta_witness)?,
             )
         };
 

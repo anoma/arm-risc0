@@ -5,7 +5,7 @@ use arm::{
     compliance_unit::ComplianceUnit,
     delta_proof::DeltaWitness,
     error::ArmError,
-    logic_proof::{LogicProver, PaddingResourceLogic},
+    resource::ConsumedDatum,
     transaction::{Delta, Transaction},
     Digest,
 };
@@ -17,12 +17,11 @@ where
     D: DenominationInfo,
     R: ReceiveInfo,
 {
-    pub ephemeral_kudo: K,     // consumed resource - compliance unit 1
-    pub issue_kudo: K,         // created resource - compliance unit 1
-    pub issue_receive: R,      // consumed resource - compliance unit 2
-    pub issue_denomination: D, // created resource - compliance unit 2
-    pub padding_resource_logic: PaddingResourceLogic, // consumed resource - compliance unit 3
-    pub ephemeral_denomination: D, // created resource - compliance unit 3
+    pub ephemeral_kudo: K,         // consumed resource
+    pub issue_kudo: K,             // created resource
+    pub issue_receive: R,          // created resource
+    pub issue_denomination: D,     // created resource
+    pub ephemeral_denomination: D, // created resource
 }
 
 impl<K, D, R> Issue<K, D, R>
@@ -34,52 +33,32 @@ where
     pub fn create_tx(&self, latest_root: Digest) -> Result<Transaction, ArmError> {
         // Create the action
         let (action, delta_witness) = {
-            // Generate compliance units
-            // Compliance unit 1: the ephemeral_kudo_resource and the issued_kudo_resource
+            println!("Generating compliance unit");
+            let (compliance_unit, delta_witness) = {
+                let mut consumed_data = Vec::new();
+                let mut created_resources = Vec::new();
 
-            println!("Generating compliance unit 1");
-            let (compliance_unit_1, delta_witness_1) = {
-                let compliance_witness: ComplianceWitness = ComplianceWitness::from_resources(
+                // 1. the ephemeral_kudo_resource and the issued_kudo_resource
+                let consumed_datum = ConsumedDatum::from_resource(
                     self.ephemeral_kudo.resource(),
-                    latest_root,
                     self.ephemeral_kudo
                         .nf_key()
                         .ok_or(ArmError::MissingField("Ephemeral kudo nullifier key"))?,
-                    self.issue_kudo.resource(),
                 );
+                consumed_data.push(consumed_datum);
+                created_resources.push(self.issue_kudo.resource());
 
-                (
-                    ComplianceUnit::create(&compliance_witness)?,
-                    compliance_witness.rcv,
-                )
-            };
+                // 2. the issued_receive_resource and the issued_denomination_resource
+                created_resources.push(self.issue_receive.resource());
+                created_resources.push(self.issue_denomination.resource());
 
-            // Compliance unit 2: the issued_receive_resource and the issued_denomination_resource
-            println!("Generating compliance unit 2");
-            let (compliance_unit_2, delta_witness_2) = {
-                let compliance_witness: ComplianceWitness = ComplianceWitness::from_resources(
-                    self.issue_receive.resource(),
+                // 3. the ephemeral_denomination_resource
+                created_resources.push(self.ephemeral_denomination.resource());
+
+                let compliance_witness = ComplianceWitness::from_resources_info_with_eph_root(
+                    &consumed_data,
+                    &created_resources,
                     latest_root,
-                    self.issue_receive
-                        .nf_key()
-                        .ok_or(ArmError::MissingField("Issued receive nullifier key"))?,
-                    self.issue_denomination.resource(),
-                );
-
-                (
-                    ComplianceUnit::create(&compliance_witness)?,
-                    compliance_witness.rcv,
-                )
-            };
-
-            // Compliance unit 3: a padding resource and the ephemeral_denomination_resource
-            println!("Generating compliance unit 3");
-            let (compliance_unit_3, delta_witness_3) = {
-                let compliance_witness: ComplianceWitness = ComplianceWitness::from_resources(
-                    self.padding_resource_logic.witness().resource,
-                    latest_root,
-                    self.padding_resource_logic.witness().nf_key.clone(),
-                    self.ephemeral_denomination.resource(),
                 );
 
                 (
@@ -104,22 +83,18 @@ where
             println!("Generating the ephemeral denomination logic proof");
             let ephemeral_denomination_proof = self.ephemeral_denomination.prove()?;
 
-            println!("Generating the padding resource logic proof");
-            let padding_resource_proof = self.padding_resource_logic.prove()?;
-
             (
                 Action::new(
-                    vec![compliance_unit_1, compliance_unit_2, compliance_unit_3],
+                    compliance_unit,
                     vec![
                         issued_kudo_proof,
                         issue_denomination_proof,
                         issued_receive_logic_proof,
                         ephemeral_kudo_proof,
                         ephemeral_denomination_proof,
-                        padding_resource_proof,
                     ],
                 )?,
-                DeltaWitness::from_bytes_vec(&[delta_witness_1, delta_witness_2, delta_witness_3])?,
+                DeltaWitness::from_bytes(&delta_witness)?,
             )
         };
 

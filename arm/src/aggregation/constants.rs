@@ -14,5 +14,5 @@ lazy_static! {
         Digest::from_hex("394cb1135c1434ad1e0c866da77d5c3eaa8692cb56848c573ac98907570b6815").unwrap();
 
     // Batch aggregation verification key / Batch aggregation image id.
-    pub static ref BATCH_AGGREGATION_VK: Digest = Digest::from_hex("6927c46ff70ab6ea4000928c831515fdb735babfb59e07a7843606d98c62a5c9").unwrap();
+    pub static ref BATCH_AGGREGATION_VK: Digest = Digest::from_hex("cd075be94411c1f98c7524e16fca2b88c96ca6f3811c9a8a18ccde076e9110b6").unwrap();
 }

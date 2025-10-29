@@ -6,7 +6,6 @@ use crate::aggregation::{
     constants::{BATCH_AGGREGATION_PK, BATCH_AGGREGATION_VK},
     BatchCU, BatchLP,
 };
-use crate::compliance::ComplianceInstanceWords;
 use crate::constants::COMPLIANCE_VK;
 use crate::error::ArmError;
 use crate::transaction::Transaction;
@@ -32,16 +31,11 @@ impl BatchAggregation {
             receipts: lp_receipts,
         } = tx.get_batch_lp()?;
 
-        let mut cu_instances_u32: Vec<ComplianceInstanceWords> = Vec::new();
-        for ci in cu_instances.iter() {
-            cu_instances_u32.push(ComplianceInstanceWords {
-                u32_words: bytes_to_words(ci).try_into().map_err(|_| {
-                    ArmError::ProveFailed(
-                        "Error converting compliance instance into fixed-size u32 words".into(),
-                    )
-                })?,
-            });
-        }
+        let cu_instances_u32: Vec<Vec<u32>> = cu_instances
+            .iter()
+            .map(|bytes| bytes_to_words(bytes))
+            .collect();
+
         let lp_instances_u32: Vec<Vec<u32>> = lp_instances
             .iter()
             .map(|bytes| bytes_to_words(bytes))
@@ -117,16 +111,11 @@ impl BatchAggregation {
             receipts: _,
         } = tx.get_batch_lp()?;
 
-        let mut compliance_instances_u32: Vec<ComplianceInstanceWords> = Vec::new();
-        for ci in compliance_instances.iter() {
-            compliance_instances_u32.push(ComplianceInstanceWords {
-                u32_words: bytes_to_words(ci).try_into().map_err(|_| {
-                    ArmError::ProofVerificationFailed(
-                        "Error converting compliance instance into fixed-size u32 words".into(),
-                    )
-                })?,
-            });
-        }
+        let compliance_instances_u32: Vec<Vec<u32>> = compliance_instances
+            .iter()
+            .map(|bytes| bytes_to_words(bytes))
+            .collect();
+
         let logic_instances_u32: Vec<Vec<u32>> = logic_instances
             .iter()
             .map(|bytes| bytes_to_words(bytes))

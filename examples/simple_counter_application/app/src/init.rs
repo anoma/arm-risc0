@@ -44,10 +44,11 @@ pub fn init_counter_resource(
     ephemeral_counter_nf_key: &NullifierKey,
 ) -> Result<(Resource, NullifierKey), ArmError> {
     let (nf_key, nf_key_cm) = NullifierKey::random_pair();
+    let ephemeral_counter_nf = ephemeral_counter.nullifier(ephemeral_counter_nf_key)?;
     let mut init_counter = *ephemeral_counter;
     init_counter.is_ephemeral = false;
     init_counter.reset_randomness();
-    init_counter.set_nonce_from_nf(ephemeral_counter, ephemeral_counter_nf_key)?;
+    init_counter.nonce = Resource::derive_nonce_from_nullifiers(0, &[ephemeral_counter_nf])?;
     init_counter.set_value_ref(convert_counter_to_value_ref(1u128));
     init_counter.set_nf_commitment(nf_key_cm);
     Ok((init_counter, nf_key))
@@ -77,7 +78,7 @@ pub fn create_init_counter_tx(
         discovery_pk,
     )?;
 
-    let action = Action::new(vec![compliance_unit], logic_verifier_inputs)?;
+    let action = Action::new(compliance_unit, logic_verifier_inputs)?;
     let delta_witness = DeltaWitness::from_bytes(&rcv)?;
     let tx = Transaction::create(vec![action], Delta::Witness(delta_witness));
     let balanced_tx = tx.generate_delta_proof().unwrap();

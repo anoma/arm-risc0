@@ -252,7 +252,7 @@ impl KudoMainWitness {
             encryption_nonce: [0u8; 12],
             denomination_resource,
             denomination_existence_path,
-            denomination_is_consumed: true,
+            denomination_is_consumed: false,
             denomination_nf_key,
             receive_resource: Resource::default(),   // not used
             receive_nf_key: NullifierKey::default(), // not used

@@ -3,10 +3,10 @@ use crate::{
     simple_receive::SimpleReceiveInfo,
 };
 use arm::{
-    action_tree::MerkleTree,
+    action::Action,
     authorization::{AuthorizationSigningKey, AuthorizationVerifyingKey},
     error::ArmError,
-    logic_proof::{LogicProver, PaddingResourceLogic},
+    logic_proof::LogicProver,
     merkle_path::MerklePath,
     nullifier_key::NullifierKey,
     resource::Resource,
@@ -47,16 +47,15 @@ pub fn build_swap_tx(
     // Construct the created kudo resource: same ownership(kudo_value and
     // nk_commitment) as the consumed kudo resource
     let created_kudo_lable = compute_kudo_label(&kudo_logic, created_issuer);
-    let created_kudo_resource = Resource::create(
+    let mut created_kudo_resource = Resource::create(
         kudo_logic,
         created_kudo_lable,
         created_kudo_quantity,
         kudo_value, // use the same kudo value as the consumed kudo resource
         false,
-        consumed_kudo_nf,
+        Digest::default(),                    // will be derived later//
         consumed_kudo_resource.nk_commitment, // use the same nk_commitment as the consumed kudo resource
     );
-    let created_kudo_value_cm = created_kudo_resource.commitment();
 
     // Construct the denomination resource corresponding to the consumed kudo resource
     let denomination_logic = SimpleDenominationInfo::verifying_key();
@@ -75,40 +74,50 @@ pub fn build_swap_tx(
         consumed_denomination_resource.nullifier(&instant_nk)?;
 
     // Construct the denomination resource corresponding to the created kudo resource
-    let created_denomination_resource = Resource::create(
+    let mut created_denomination_resource = Resource::create(
         denomination_logic,
-        created_kudo_value_cm, // Use the created kudo commitment as the label
+        Digest::default(), // will be set below
         0,
         Digest::default(),
         true,
         consumed_denomination_resource_nf,
         instant_nk_commitment,
     );
-    let created_denomination_resource_cm = created_denomination_resource.commitment();
-
-    // Construct the padding resource
-    let padding_resource = PaddingResourceLogic::create_padding_resource(instant_nk_commitment);
-    let padding_resource_nf = padding_resource.nullifier(&instant_nk)?;
 
     // Construct the receive logic resource
-    let receive_resource = Resource::create(
+    let mut receive_resource = Resource::create(
         SimpleReceiveInfo::verifying_key(),
-        created_kudo_value_cm,
+        Digest::default(), // will be set below
         0,
         Digest::default(),
         true,
-        padding_resource_nf,
+        Digest::default(), // will be derived below
         instant_nk_commitment,
     );
+
+    // Derive created nonces and compute created commitments in the proper order
+    let consumed_nullifiers = vec![consumed_kudo_nf, consumed_denomination_resource_nf];
+    let created_nonce_0 = Resource::derive_nonce_from_nullifiers(0, &consumed_nullifiers)?;
+    let created_nonce_1 = Resource::derive_nonce_from_nullifiers(1, &consumed_nullifiers)?;
+    let created_nonce_2 = Resource::derive_nonce_from_nullifiers(2, &consumed_nullifiers)?;
+
+    created_kudo_resource.nonce = created_nonce_0;
+    created_denomination_resource.nonce = created_nonce_1;
+    receive_resource.nonce = created_nonce_2;
+
+    let created_kudo_value_cm = created_kudo_resource.commitment();
+    created_denomination_resource.label_ref = created_kudo_value_cm;
+    receive_resource.label_ref = created_kudo_value_cm;
+
+    let created_denomination_resource_cm = created_denomination_resource.commitment();
     let receive_resource_cm = receive_resource.commitment();
 
     // Construct the action tree
-    let action_tree = MerkleTree::new(vec![
+    let action_tree = Action::construct_action_tree(&[
         consumed_kudo_nf,
         created_kudo_value_cm,
         consumed_denomination_resource_nf,
         created_denomination_resource_cm,
-        padding_resource_nf,
         receive_resource_cm,
     ]);
     let root = action_tree.root();
@@ -121,7 +130,6 @@ pub fn build_swap_tx(
     let created_denomination_existence_path =
         action_tree.generate_path(&created_denomination_resource_cm)?;
     let created_kudo_existence_path = action_tree.generate_path(&created_kudo_value_cm)?;
-    let padding_resource_existence_path = action_tree.generate_path(&padding_resource_nf)?;
     let receive_existence_path = action_tree.generate_path(&receive_resource_cm)?;
 
     // Construct the consumed kudo witness
@@ -202,20 +210,11 @@ pub fn build_swap_tx(
     );
     let created_receive = SimpleReceiveInfo::new(created_receive_logic_witness, None);
 
-    // Construct the padding logic witness
-    let padding_resource_logic = PaddingResourceLogic::new(
-        padding_resource,
-        padding_resource_existence_path,
-        instant_nk,
-        true,
-    );
-
     let swap = Swap {
         consumed_kudo,
         consumed_denomination,
         created_kudo,
         created_denomination,
-        padding_resource_logic,
         created_receive,
     };
 
