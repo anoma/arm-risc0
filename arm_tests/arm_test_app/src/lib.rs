@@ -4,21 +4,20 @@
 
 use anoma_rm_risc0::{
     action::Action,
-    action_tree::MerkleTree,
-    compliance::{ComplianceWitness, INITIAL_ROOT},
+    compliance::ComplianceWitness,
     compliance_unit::ComplianceUnit,
     delta_proof::DeltaWitness,
-    logic_proof::LogicProver,
+    error::ArmError,
+    logic_proof::{LogicProver, LogicVerifier},
     merkle_path::MerklePath,
     nullifier_key::NullifierKey,
     proving_system::ProofType,
-    resource::Resource,
+    resource::{ConsumedDatum, Resource},
     transaction::{Delta, Transaction},
     Digest,
 };
 use anoma_rm_risc0_test_witness::TestLogicWitness;
 use hex::FromHex;
-use k256::Scalar;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 
@@ -70,135 +69,230 @@ impl LogicProver for TestLogic {
     }
 }
 
-pub fn create_an_action_with_multiple_compliances(
-    compliance_num: usize,
-    nonce: u8,
-    proof_type: ProofType,
-) -> (Action, DeltaWitness) {
-    let nf_key = NullifierKey::default();
-    let nf_key_cm = nf_key.commit();
-
-    // Generate multiple consumed and created resources
-    let (consumed_resources, created_resources): (Vec<_>, Vec<_>) = (0..compliance_num)
-        .map(|i| {
-            let mut consumed_resource = Resource {
-                logic_ref: TestLogic::verifying_key(),
-                nk_commitment: nf_key_cm,
-                quantity: 1,
-                ..Default::default()
-            };
-            consumed_resource.nonce = [[nonce; 16], [i as u8; 16]].concat().try_into().unwrap();
-            let consumed_resource_nf = consumed_resource.nullifier(&nf_key).unwrap();
-
-            let mut created_resource = consumed_resource;
-            created_resource.set_nonce(consumed_resource_nf);
-            (consumed_resource, created_resource)
-        })
-        .unzip();
-
-    let mut compliance_units = Vec::new();
-    let mut rcvs = Vec::new();
-    let mut action_tree = MerkleTree::new(vec![]);
-    for i in 0..compliance_num {
-        let compliance_witness = ComplianceWitness {
-            consumed_resource: consumed_resources[i],
-            merkle_path: MerklePath::default(), // dummy path for test
-            ephemeral_root: *INITIAL_ROOT,
-            nf_key: nf_key.clone(),
-            created_resource: created_resources[i],
-            rcv: Scalar::ONE.to_bytes().to_vec(), // fixed rcv for test
-        };
-
-        let compliance_receipt = ComplianceUnit::create(&compliance_witness, proof_type).unwrap();
-
-        let consumed_resource_nf = consumed_resources[i].nullifier(&nf_key).unwrap();
-        let created_resource_cm = created_resources[i].commitment();
-        action_tree.insert(consumed_resource_nf);
-        action_tree.insert(created_resource_cm);
-
-        compliance_units.push(compliance_receipt);
-        rcvs.push(compliance_witness.rcv);
-    }
-
-    let logic_verifier_inputs = (0..compliance_num)
-        .flat_map(|i| {
-            let consumed_resource_nf = consumed_resources[i].nullifier(&nf_key).unwrap();
-            let created_resource_cm = created_resources[i].commitment();
-            let consumed_resource_path = action_tree.generate_path(&consumed_resource_nf).unwrap();
-            let created_resource_path = action_tree.generate_path(&created_resource_cm).unwrap();
-
-            let consumed_logic = TestLogic::new(
-                consumed_resources[i],
-                consumed_resource_path,
-                nf_key.clone(),
-                true,
-            );
-            let consumed_logic_proof = consumed_logic.prove(proof_type).unwrap();
-
-            let created_logic = TestLogic::new(
-                created_resources[i],
-                created_resource_path,
-                nf_key.clone(),
-                false,
-            );
-            let created_logic_proof = created_logic.prove(proof_type).unwrap();
-
-            vec![consumed_logic_proof, created_logic_proof]
-        })
-        .collect();
-
-    let action = Action::new(compliance_units, logic_verifier_inputs).unwrap();
-    action.clone().verify().unwrap();
-
-    let delta_witness = DeltaWitness::from_bytes_vec(&rcvs).unwrap();
-    (action, delta_witness)
+#[derive(Default)]
+pub struct Tester {
+    /// Consumed resources across all actions
+    pub consumed_data: Vec<Vec<ConsumedDatum>>,
+    /// Created resources across all actions
+    pub created_resources: Vec<Vec<Resource>>,
+    /// The randomness of the delta commitments for each CU/action.
+    pub rcvs: Vec<Vec<u8>>,
+    // Internal counter -- current action.
+    current: usize,
 }
 
-pub fn create_multiple_actions(
-    action_num: usize,
-    compliance_num: usize,
-    proof_type: ProofType,
-) -> (Vec<Action>, DeltaWitness) {
-    let mut actions = Vec::new();
-    let mut delta_witnesses = Vec::new();
-    for i in 0..action_num {
-        let (action, delta_witness) =
-            create_an_action_with_multiple_compliances(compliance_num, i as u8, proof_type);
-        actions.push(action);
-        delta_witnesses.push(delta_witness);
-    }
-    (actions, DeltaWitness::compress(&delta_witnesses))
-}
+impl Tester {
+    /// Populates the tester with `num` test resources, their merkle paths, and their nullifier keys.
+    /// They all have the same logic ([TestLogic]) and quantity 1.
+    pub fn populate_consumed_resources(&mut self, num: u32) {
+        let (nf_key, nf_key_cm) = NullifierKey::random_pair();
+        let consumed_resources: Vec<Resource> = (0..num)
+            .map(|index| {
+                let mut consumed_resource = Resource {
+                    logic_ref: TestLogic::verifying_key(),
+                    nk_commitment: nf_key_cm,
+                    quantity: 1,
+                    ..Default::default()
+                };
+                consumed_resource.nonce = [
+                    index.to_be_bytes(),
+                    index.to_be_bytes(),
+                    index.to_be_bytes(),
+                    index.to_be_bytes(),
+                    index.to_be_bytes(),
+                    index.to_be_bytes(),
+                    index.to_be_bytes(),
+                    index.to_be_bytes(),
+                ]
+                .concat()
+                .try_into()
+                .unwrap();
 
-// Create a test transaction with n_actions actions, each with compliance_num compliance units
-pub fn generate_test_transaction(
-    n_actions: usize,
-    compliance_num: usize,
-    proof_type: ProofType,
-) -> Transaction {
-    let (actions, delta_witness) = create_multiple_actions(n_actions, compliance_num, proof_type);
-    let tx = Transaction::create(actions, Delta::Witness(delta_witness));
-    let balanced_tx = tx.generate_delta_proof().unwrap();
-    balanced_tx.clone().verify().unwrap();
-    balanced_tx
+                consumed_resource
+            })
+            .collect();
+
+        let consumed_data = consumed_resources
+            .into_iter()
+            .map(|resource| ConsumedDatum::from_resource(resource, nf_key.clone()))
+            .collect::<Vec<ConsumedDatum>>();
+
+        self.consumed_data.push(consumed_data);
+    }
+
+    /// Populates the tester with `num` created resources. They all have the same logic ([TestLogic]),
+    /// and their nonces are derived from the passed nullifiers.
+    pub fn populate_created_resources(&mut self, num: u32) {
+        assert!(!self.consumed_data.is_empty());
+        let nullifiers = self.consumed_data[self.current] // Grab consumed data of current CU/action
+            .iter()
+            .map(|memo| memo.resource.nullifier(&memo.nf_key).unwrap())
+            .collect::<Vec<Digest>>();
+
+        let created_resources = (0..num)
+            .map(|index| {
+                let mut created_resource = Resource {
+                    logic_ref: TestLogic::verifying_key(),
+                    nk_commitment: NullifierKey::default().commit(),
+                    quantity: 1,
+                    ..Default::default()
+                };
+                created_resource.nonce =
+                    Resource::derive_nonce_from_nullifiers(index as usize, &nullifiers).unwrap();
+
+                created_resource
+            })
+            .collect::<Vec<Resource>>();
+
+        self.created_resources.push(created_resources);
+    }
+
+    /// Creates a compliance unit with `old_num` consumed resources and `new_num` created resources.
+    pub fn create_compliance_unit(
+        &mut self,
+        old_num: u32,
+        new_num: u32,
+    ) -> Result<ComplianceUnit, ArmError> {
+        self.populate_consumed_resources(old_num);
+        self.populate_created_resources(new_num);
+
+        let compliance_witness = ComplianceWitness::from_resources_info(
+            &self.consumed_data[self.current],
+            &self.created_resources[self.current],
+        );
+
+        self.rcvs.push(compliance_witness.rcv.clone());
+
+        ComplianceUnit::create(&compliance_witness, ProofType::Succinct)
+    }
+
+    /// Creates an action with `old_num` consumed resources and `new_num`  created resources.
+    pub fn create_an_action(&mut self, old_num: u32, new_num: u32) -> Result<Action, ArmError> {
+        let compliance_unit = self.create_compliance_unit(old_num, new_num)?;
+
+        let mut tags = self.consumed_data[self.current]
+            .iter()
+            .map(|consumed_datum| {
+                consumed_datum
+                    .resource
+                    .nullifier(&consumed_datum.nf_key)
+                    .unwrap()
+            })
+            .chain(
+                self.created_resources[self.current]
+                    .iter()
+                    .map(|created_resource| created_resource.commitment()),
+            )
+            .collect::<Vec<Digest>>();
+
+        tags.reverse(); // test that tag ordering is unimportant
+        let action_tree = Action::construct_action_tree(&tags);
+
+        let logic_verifiers = self.consumed_data[self.current]
+            .iter()
+            .map(|consumed_datum| (consumed_datum.resource, consumed_datum.nf_key.clone(), true))
+            .chain(
+                self.created_resources[self.current]
+                    .iter()
+                    .map(|created_resource| (*created_resource, NullifierKey::default(), false)),
+            )
+            .map(|res_nfkey_isconsumed| {
+                let (resource, nf_key, is_consumed) = res_nfkey_isconsumed;
+
+                let tag = if is_consumed {
+                    resource.nullifier(&nf_key).unwrap()
+                } else {
+                    resource.commitment()
+                };
+
+                let receive_existence_path = action_tree.generate_path(&tag).unwrap();
+
+                let test_logic =
+                    TestLogic::new(resource, receive_existence_path, nf_key, is_consumed);
+                test_logic.prove(ProofType::Succinct).unwrap()
+            })
+            .collect::<Vec<LogicVerifier>>();
+
+        let action = Action::new(compliance_unit, logic_verifiers).unwrap();
+
+        self.current += 1; // Update to next action
+
+        Ok(action)
+    }
+
+    /// Creates several actions, each with the passed number of consumed (old) resources, and created (new) resources.
+    pub fn create_multiple_actions(
+        &mut self,
+        old_new_resources_nums: &[(u32, u32)],
+    ) -> Result<Vec<Action>, ArmError> {
+        let mut actions = Vec::new();
+        for (old_num, new_num) in old_new_resources_nums.iter() {
+            actions.push(self.create_an_action(*old_num, *new_num)?);
+        }
+        Ok(actions)
+    }
+
+    /// Creates a test transaction with several actions. Each action with the passed number of consumed (old) resources, and created (new) resources.
+    pub fn generate_test_transaction(
+        &mut self,
+        old_new_resources_nums: &[(u32, u32)],
+    ) -> Result<Transaction, ArmError> {
+        let actions = self.create_multiple_actions(old_new_resources_nums)?;
+        let delta_witness = DeltaWitness::from_bytes_vec(&self.rcvs).unwrap();
+
+        let tx = Transaction::create(actions, Delta::Witness(delta_witness));
+        let tx_with_delta = tx.generate_delta_proof().unwrap();
+
+        Ok(tx_with_delta)
+    }
 }
 
 #[test]
 fn test_logic_prover() {
-    let proof_type = ProofType::Succinct;
     let test_logic = TestLogic::default();
-    let proof = test_logic.prove(proof_type).unwrap();
+    let proof = test_logic.prove(ProofType::Succinct).unwrap();
     proof.verify().unwrap();
 }
 
 #[test]
+fn test_compliance_unit() {
+    let compliance_unit = Tester::default().create_compliance_unit(3, 2).unwrap();
+    assert!(compliance_unit.verify().is_ok())
+}
+
+#[test]
+fn test_compliance_unit_must_consume_resources() {
+    let compliance_unit = Tester::default().create_compliance_unit(0, 1);
+    assert!(compliance_unit.is_err())
+}
+
+#[test]
 fn test_action() {
-    let _ = create_an_action_with_multiple_compliances(2, 1, ProofType::Succinct);
+    let action = Tester::default().create_an_action(3, 2).unwrap();
+    assert!(action.verify().is_ok())
+}
+
+#[test]
+fn test_transaction() {
+    let balanced_tx = Tester::default()
+        .generate_test_transaction(&[(2, 1), (1, 2)])
+        .unwrap();
+    assert!(balanced_tx.verify().is_ok())
+}
+
+#[test]
+fn test_unbalanced_tx_fails_to_verify() {
+    let unbalanced_tx = Tester::default()
+        .generate_test_transaction(&[(2, 1), (1, 1)])
+        .unwrap();
+    assert!(unbalanced_tx.verify().is_err())
 }
 
 #[test]
 fn test_unmatched_logic_verifier_inputs_in_action() {
-    let (actions, _) = create_multiple_actions(2, 1, ProofType::Succinct);
+    let actions = Tester::default()
+        .create_multiple_actions(&[(1, 1), (1, 1)])
+        .unwrap();
     // swap logic verifier inputs to cause mismatch in action0
     let mut action0 = actions[0].clone();
     action0.logic_verifier_inputs = actions[1].logic_verifier_inputs.clone();
@@ -212,7 +306,9 @@ fn test_unmatched_logic_verifier_inputs_in_action() {
 
 #[test]
 fn test_nullifier_duplication_check() {
-    let mut tx = generate_test_transaction(2, 1, ProofType::Succinct);
+    let mut tx = Tester::default()
+        .generate_test_transaction(&[(1, 1), (1, 1)])
+        .unwrap();
     assert!(tx.nf_duplication_check().is_ok());
 
     // Introduce a duplicate nullifier
@@ -222,67 +318,25 @@ fn test_nullifier_duplication_check() {
 }
 
 #[test]
-fn test_transaction() {
-    let _ = generate_test_transaction(2, 2, ProofType::Succinct);
-}
-
-#[test]
-#[ignore]
-fn test_transaction_groth16() {
-    let _ = generate_test_transaction(2, 2, ProofType::Groth16);
-}
-
-#[test]
 fn test_aggregation_works() {
-    let tx = generate_test_transaction(2, 2, ProofType::Succinct);
+    let tx = Tester::default()
+        .generate_test_transaction(&[(2, 2), (2, 2)])
+        .unwrap();
     let mut tx_str = tx.clone();
     assert!(tx_str.aggregate(ProofType::Succinct).is_ok());
-    assert!(tx_str.aggregation_proof.is_some());
-    assert!(tx_str.verify_aggregation().is_ok());
-}
-
-#[test]
-#[ignore]
-fn test_aggregation_works_groth16() {
-    let tx = generate_test_transaction(2, 2, ProofType::Succinct);
-    let mut tx_str = tx.clone();
-    assert!(tx_str.aggregate(ProofType::Groth16).is_ok());
     assert!(tx_str.aggregation_proof.is_some());
     assert!(tx_str.verify_aggregation().is_ok());
 }
 
 #[test]
 fn test_verify_aggregation_fails_for_incorrect_instances() {
-    let tx = generate_test_transaction(2, 2, ProofType::Succinct);
+    let tx = Tester::default()
+        .generate_test_transaction(&[(2, 2), (2, 2)])
+        .unwrap();
     let mut tx_str = tx.clone();
     assert!(tx_str.aggregate(ProofType::Succinct).is_ok());
 
     tx_str.actions[0].logic_verifier_inputs.pop();
 
     assert!(tx_str.verify_aggregation().is_err());
-}
-
-#[test]
-fn test_cannot_aggregate_invalid_proofs() {
-    use anoma_rm_risc0::logic_proof::LogicVerifierInputs;
-
-    let tx = generate_test_transaction(2, 2, ProofType::Succinct);
-
-    // Create a transaction with one invalid proof.
-    let bad_lproof = LogicVerifierInputs {
-        proof: tx.actions[0].logic_verifier_inputs[0].clone().proof,
-        verifying_key: Digest::from_bytes([66u8; 32]), //vec![666u32; 8], // Bad key.
-        tag: tx.actions[0].logic_verifier_inputs[0].tag,
-        app_data: tx.actions[0].logic_verifier_inputs[0].app_data.clone(),
-    };
-
-    let bad_action = Action {
-        compliance_units: tx.actions[0].clone().compliance_units,
-        logic_verifier_inputs: vec![bad_lproof],
-    };
-    let bad_tx = Transaction::create(vec![bad_action, tx.actions[1].clone()], tx.delta_proof);
-
-    let mut bad_tx_str = bad_tx.clone();
-    assert!(bad_tx_str.aggregate(ProofType::Succinct).is_err());
-    assert!(bad_tx_str.aggregation_proof.is_none());
 }

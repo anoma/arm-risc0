@@ -80,4 +80,6 @@ pub enum ArmError {
     TreeTooLarge,
     #[error("Invalid delta proof: pls regenerate the proof")]
     InvalidDeltaProof,
+    #[error("Invalid resource index")]
+    InvalidResourceIndex,
 }

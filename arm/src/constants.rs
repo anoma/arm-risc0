@@ -15,7 +15,7 @@ pub const BATCH_AGGREGATION_PK: &[u8] = include_bytes!("../elfs/batch-aggregatio
 lazy_static! {
     /// compliance verification key / compliance image id
     pub static ref COMPLIANCE_VK: Digest =
-        Digest::from_hex("919e13001cd3319be5a5a7cb189203be083674acb3fff23d05aae9c3ed86314d")
+        Digest::from_hex("76fa78e83e89d15dd2ae05a6940c3ed8308476a291c2fa62af37f885587a4ab5")
             .unwrap();
 
     /// padding logic verification key / compliance image id
@@ -27,5 +27,5 @@ lazy_static! {
 #[cfg(feature = "aggregation")]
 lazy_static! {
     /// Batch aggregation verification key / Batch aggregation image id.
-    pub static ref BATCH_AGGREGATION_VK: Digest = Digest::from_hex("213b3f40d7c113c1a012072fcd791fa44bf5166a2300121630bd3228e2b00827").unwrap();
+    pub static ref BATCH_AGGREGATION_VK: Digest = Digest::from_hex("8cf1a89e7d977d1024806c63797d30c5677ce8be7975d5484ffdac9acb8815b7").unwrap();
 }
