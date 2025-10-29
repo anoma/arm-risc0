@@ -24,7 +24,7 @@ lazy_static! {
 
     // compliance_sigmabus verification key / compliance image id
     pub static ref COMPLIANCE_SIGMABUS_VK: Digest =
-        Digest::from_hex("f8a70f42d00ad057526d1328ed54a9416349c42334a41b18178deb4787dd2cfa")
+        Digest::from_hex("486fd620227d367b69abcc583944e545f497adff222c77f6e0f354583720e16e")
             .unwrap();
 
     // padding logic verification key / compliance image id

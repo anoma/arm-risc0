@@ -7,6 +7,7 @@ use crate::{
     action::Action,
     compliance::TX_MAX_RESOURCES,
     compliance_unit::{CUInner, CUI},
+    constants::COMPLIANCE_SIGMABUS_VK,
     delta_proof::{DeltaInstance, DeltaProof, DeltaWitness},
     error::ArmError,
 };
@@ -78,7 +79,9 @@ impl<ComplianceUnit: CUInner> Transaction<ComplianceUnit> {
     /// Returns the [DeltaInstance] constructed from the sum of all actions'
     /// deltas.
     fn delta(&self) -> Result<DeltaInstance, ArmError> {
-        if ComplianceUnit::BOUNDED_RESOURCES && TX_MAX_RESOURCES < self.number_resources()? {
+        if ComplianceUnit::verifying_key() == *COMPLIANCE_SIGMABUS_VK
+            && TX_MAX_RESOURCES < self.number_resources()?
+        {
             // Reached maximum number of resources.
             return Err(ArmError::DeltaProofVerificationFailed);
         }
@@ -126,7 +129,7 @@ impl<ComplianceUnit: CUInner> Transaction<ComplianceUnit> {
 }
 
 #[cfg(feature = "aggregation")]
-impl Transaction {
+impl<ComplianceUnit: CUInner> Transaction<ComplianceUnit> {
     /// Aggregates all the transaction proofs with the default strategy.
     pub fn aggregate(&mut self) -> Result<(), ArmError> {
         self.aggregate_with_strategy(AggregationStrategy::Batch)
@@ -190,7 +193,7 @@ impl Transaction {
     fn erase_base_proofs(&mut self) {
         for a in self.actions.iter_mut() {
             for cu in a.compliance_units.iter_mut() {
-                cu.proof = None;
+                cu.unset_circuit_proof();
             }
             for lp in a.logic_verifier_inputs.iter_mut() {
                 lp.proof = None;

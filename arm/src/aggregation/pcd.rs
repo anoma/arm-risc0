@@ -1,4 +1,5 @@
 use crate::aggregation::{BatchCU, BatchLP};
+use crate::compliance_unit::{CUInner, ComplianceUnit};
 use crate::constants::COMPLIANCE_VK;
 use crate::error::ArmError;
 use crate::proving_system;
@@ -197,29 +198,17 @@ pub struct StepInstance {
     pub output: Vec<u32>,
 }
 
-impl StepInstance {
-    /// Generic constructor.
-    pub fn new<I, VK>(output: I, image_id: VK) -> Result<StepInstance, ArmError>
-    where
-        I: serde::Serialize,
-        VK: Into<Digest>,
-    {
-        Ok(StepInstance {
-            program: image_id.into(),
-            output: risc0_zkvm::serde::to_vec(&output).map_err(|_| ArmError::SerializationError)?,
-        })
-    }
-}
-
 impl TryFrom<BatchCU> for Vec<StepInstance> {
     type Error = ArmError;
 
     fn try_from(value: BatchCU) -> Result<Self, Self::Error> {
         let mut step_instances = Vec::new();
         for cu_instance in value.instances.into_iter() {
-            let output: ComplianceInstance = proving_system::journal_to_instance(&cu_instance)?;
-            let image_id = *COMPLIANCE_VK;
-            step_instances.push(StepInstance::new(output, image_id)?);
+            let image_id = value.compliance_vk;
+            step_instances.push(StepInstance {
+                program: image_id,
+                output: cu_instance.get_words_as_ref().to_vec(),
+            });
         }
         Ok(step_instances)
     }
@@ -231,15 +220,16 @@ impl TryFrom<BatchLP> for Vec<StepInstance> {
     fn try_from(value: BatchLP) -> Result<Self, Self::Error> {
         let mut step_instances = Vec::new();
         for (lp_instance, lp_key) in value.instances.into_iter().zip(value.keys.into_iter()) {
-            let output: LogicInstance = proving_system::journal_to_instance(&lp_instance)?;
-            let image_id = lp_key;
-            step_instances.push(StepInstance::new(output, image_id)?);
+            step_instances.push(StepInstance {
+                program: lp_key,
+                output: lp_instance,
+            });
         }
         Ok(step_instances)
     }
 }
 
-/// A proof attesting to the correctness of an [PcdMessage].
+/// A proof attesting to the correctness of a [PcdMessage].
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PcdProof(pub InnerReceipt);
 

@@ -7,7 +7,8 @@ use std::time::{Duration, Instant};
 use crate::{
     action::Action,
     compliance::{
-        ComplianceSigmabusWitness, ComplianceVarWitness, ComplianceWitness, TX_MAX_RESOURCES,
+        ComplianceSigmabusWitness, ComplianceVarWitness, ComplianceWitness, ConsumedDatum,
+        TX_MAX_RESOURCES,
     },
     compliance_unit::{ComplianceSigmabusUnit, ComplianceUnit, ComplianceVarUnit, CUI},
     delta_proof::DeltaWitness,
@@ -338,8 +339,13 @@ pub fn create_compliance_var_unit(old_num: u32, new_num: u32) -> ComplianceVarUn
     let created_resources = dummy_created_resources(new_num, &consumed_nullifiers);
 
     // Set the witness to the compliance var circuit
+    let consumed_data = consumed_resources
+        .into_iter()
+        .zip(nf_keys.into_iter())
+        .map(|res_nfkeys| ConsumedDatum::from_resource(res_nfkeys.0, res_nfkeys.1))
+        .collect::<Vec<ConsumedDatum>>();
     let compliance_witness =
-        ComplianceVarWitness::with_fixed_rcv(&consumed_resources, &nf_keys, &created_resources);
+        ComplianceVarWitness::with_fixed_rcv(&consumed_data, &created_resources);
 
     // Prove compliance
     let prove_timer = Instant::now();
@@ -368,12 +374,13 @@ pub fn create_compliance_sigmabus_unit(old_num: u32, new_num: u32) -> Compliance
     let created_resources = dummy_created_resources(new_num, &consumed_nullifiers);
 
     // Set the witness to the compliance var circuit
-    let compliance_witness = ComplianceSigmabusWitness::from_resources_with_fixed_path(
-        &consumed_resources,
-        &nf_keys,
-        &created_resources,
-    )
-    .unwrap();
+    let consumed_data = consumed_resources
+        .into_iter()
+        .zip(nf_keys.into_iter())
+        .map(|res_nfkey| ConsumedDatum::from_resource(res_nfkey.0, res_nfkey.1))
+        .collect::<Vec<ConsumedDatum>>();
+    let compliance_witness =
+        ComplianceSigmabusWitness::from_resources_info(&consumed_data, &created_resources).unwrap();
 
     // Prove compliance
     let prove_timer = Instant::now();

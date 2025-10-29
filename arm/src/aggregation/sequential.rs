@@ -1,7 +1,12 @@
 use risc0_zkvm::Digest;
 
 use crate::{
-    aggregation::constants::{SEQUENTIAL_AGGREGATION_PK, SEQUENTIAL_AGGREGATION_VK},
+    aggregation::{
+        constants::{SEQUENTIAL_AGGREGATION_PK, SEQUENTIAL_AGGREGATION_VK},
+        BatchCU,
+    },
+    compliance_unit::{CUInner, ComplianceSigmabusUnit},
+    constants::COMPLIANCE_SIGMABUS_VK,
     error::ArmError,
     transaction::Transaction,
 };
@@ -57,7 +62,9 @@ impl SequentialAggregation {
     }
 
     /// Prove correctness of the transcript induced by a transaction.
-    pub fn prove_transaction_aggregation(tx: &Transaction) -> Result<PcdProof, ArmError> {
+    pub fn prove_transaction_aggregation<ComplianceUnit: CUInner>(
+        tx: &Transaction<ComplianceUnit>,
+    ) -> Result<PcdProof, ArmError> {
         if let (instances, Some(proofs)) = &SequentialAggregation::transaction_transcript(tx)? {
             SequentialAggregation::prove_transcript_aggregation(instances, proofs)
         } else {
@@ -79,19 +86,20 @@ impl SequentialAggregation {
     }
 
     /// Verifies the correctness of the transcript induced by the transaction.
-    pub fn verify_transaction_aggregation(
-        tx: &Transaction,
+    pub fn verify_transaction_aggregation<ComplianceUnit: CUInner>(
+        tx: &Transaction<ComplianceUnit>,
         proof: &PcdProof,
     ) -> Result<(), ArmError> {
         let (instances, _) = SequentialAggregation::transaction_transcript(tx)?;
-        SequentialAggregation::verify_transcript_aggregation(&instances, proof)
+        SequentialAggregation::verify_transcript_aggregation(&instances, proof)?;
+        tx.verify_sigmas_maybe()
     }
 
     /// Derives the transcript induced by the transaction.
-    pub fn transaction_transcript(
-        tx: &Transaction,
+    pub fn transaction_transcript<ComplianceUnit: CUInner>(
+        tx: &Transaction<ComplianceUnit>,
     ) -> Result<(Vec<StepInstance>, Option<Vec<StepProof>>), ArmError> {
-        let batch_cu = tx.get_batch_cu();
+        let batch_cu = tx.get_batch_cu()?;
         let batch_lp = tx.get_batch_lp()?;
         let mut step_instances: Vec<StepInstance> = batch_cu.clone().try_into()?;
         step_instances.append(

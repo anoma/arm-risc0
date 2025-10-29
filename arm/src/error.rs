@@ -48,6 +48,8 @@ pub enum ArmError {
     ProveFailed(String),
     #[error("Proof verification failed with return code {0}")]
     ProofVerificationFailed(String),
+    #[error("Invalid compliance witness")]
+    InvalidComplianceWitness,
     #[error("Invalid compliance instance")]
     InvalidComplianceInstance,
     #[error("Delta proof generation failed")]

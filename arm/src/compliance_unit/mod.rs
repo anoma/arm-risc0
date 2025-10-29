@@ -1,18 +1,22 @@
+pub(crate) mod sigma;
+
 use crate::{
     compliance::{
-        sigmabus::ComplianceSigmabusInstance, ComplianceInstance, ComplianceSigmabusWitness,
-        ComplianceVarInstance, ComplianceVarWitness, ComplianceWitness, ConsumedMemorandum,
-        CreatedMemorandum, SigmaBusCircuitInstance, SigmabusCircuitWitness, CI,
+        minimal::ComplianceInstanceWords, sigmabus::ComplianceSigmabusInstance, CIWords,
+        ComplianceInstance, ComplianceSigmabusWitness, ComplianceVarInstance, ComplianceVarWitness,
+        ComplianceWitness, ConsumedMemorandum, CreatedMemorandum, SigmaBusCircuitInstance,
+        SigmabusCircuitWitness, CI,
     },
+    compliance_unit::sigma::{SigmaProof, SigmaProofShort, SigmaProtocol},
     constants::{
         COMPLIANCE_PK, COMPLIANCE_SIGMABUS_PK, COMPLIANCE_SIGMABUS_VK, COMPLIANCE_VAR_PK,
         COMPLIANCE_VAR_VK, COMPLIANCE_VK,
     },
     error::ArmError,
     proving_system::{journal_to_instance, prove, verify as verify_proof},
-    sigma::SigmaProtocol,
+    utils::bytes_to_words,
 };
-use k256::{elliptic_curve::sec1::ToEncodedPoint, EncodedPoint, ProjectivePoint};
+use k256::{elliptic_curve::sec1::FromEncodedPoint, EncodedPoint, ProjectivePoint};
 use risc0_zkvm::Digest;
 use serde::{Deserialize, Serialize};
 
@@ -45,17 +49,16 @@ pub(crate) mod inner_cui {
     use super::*;
     /// CUs should implement this trait instead of implementing directly the high-level [CUI].
     // The default implementations of this inner trait are only for CUs fully constrained in RISC0.
-    pub trait CUInner {
+    pub trait CUInner: Clone {
         type Witness: Serialize;
         type Instance: CI + for<'de> Deserialize<'de>;
-        const BOUNDED_RESOURCES: bool;
 
         fn create_inner(witness: &Self::Witness) -> Result<Self, ArmError>
         where
             Self: Sized,
         {
             let (proof_bytes, circuit_instance_bytes) = prove(Self::proving_key(), witness)?;
-            Self::new(circuit_instance_bytes, proof_bytes, None)
+            Ok(Self::new(circuit_instance_bytes, proof_bytes))
         }
 
         fn verify_inner(&self) -> Result<(), ArmError> {
@@ -82,18 +85,26 @@ pub(crate) mod inner_cui {
         /// Returns the bytes of the part of the instance checked in RISC0.
         fn circuit_instance_bytes(&self) -> &[u8];
 
+        /// Returns the u32 words of the part of the instance checked in RISC0.
+        /// This is useful for aggregation, where the instance is passed as input
+        /// to the aggregation circuit.
+        fn circuit_instance_words(&self) -> Result<CIWords, ArmError>;
+
         /// Returns the bytes of the part of the compliance proof generated in RISC0.
         fn circuit_proof_bytes(&self) -> Option<&[u8]>;
 
+        /// Sets the circuit proof to `None`.  
+        fn unset_circuit_proof(&mut self);
+
+        /// Returns the instance/proof of the sigma protocol. Used only in [ComplianceSigmabusUnit]
+        fn get_sigma_verifier_inputs(&self) -> Result<(ProjectivePoint, SigmaProof), ArmError> {
+            Err(ArmError::MissingField(
+                "the unit does not use a sigma protocol",
+            ))
+        }
+
         /// Raw constructor. CUs must at least be aware of the instance and compliance proof.
-        /// The delta can be either stored or infered.
-        fn new(
-            circuit_instance_bytes: Vec<u8>,
-            circuit_proof_bytes: Vec<u8>,
-            delta: Option<EncodedPoint>,
-        ) -> Result<Self, ArmError>
-        where
-            Self: Sized;
+        fn new(circuit_instance_bytes: Vec<u8>, circuit_proof_bytes: Vec<u8>) -> Self;
     }
 }
 
@@ -137,7 +148,6 @@ pub struct ComplianceUnit {
 impl CUInner for ComplianceUnit {
     type Witness = ComplianceWitness;
     type Instance = ComplianceInstance;
-    const BOUNDED_RESOURCES: bool = false;
 
     fn proving_key() -> &'static [u8] {
         COMPLIANCE_PK
@@ -151,19 +161,27 @@ impl CUInner for ComplianceUnit {
         self.instance.as_slice()
     }
 
+    fn circuit_instance_words(&self) -> Result<CIWords, ArmError> {
+        Ok(CIWords::FixedSize(ComplianceInstanceWords {
+            u32_words: bytes_to_words(&self.instance)
+                .try_into()
+                .map_err(|_| ArmError::InstanceSerializationFailed)?,
+        }))
+    }
+
     fn circuit_proof_bytes(&self) -> Option<&[u8]> {
         self.proof.as_ref().map(Vec::as_ref)
     }
 
-    fn new(
-        circuit_instance_bytes: Vec<u8>,
-        circuit_proof_bytes: Vec<u8>,
-        _: Option<EncodedPoint>,
-    ) -> Result<Self, ArmError> {
-        Ok(ComplianceUnit {
+    fn unset_circuit_proof(&mut self) {
+        self.proof = None;
+    }
+
+    fn new(circuit_instance_bytes: Vec<u8>, circuit_proof_bytes: Vec<u8>) -> Self {
+        ComplianceUnit {
             proof: Some(circuit_proof_bytes),
             instance: circuit_instance_bytes,
-        })
+        }
     }
 }
 
@@ -176,7 +194,6 @@ pub struct ComplianceVarUnit {
 impl CUInner for ComplianceVarUnit {
     type Witness = ComplianceVarWitness;
     type Instance = ComplianceVarInstance;
-    const BOUNDED_RESOURCES: bool = false;
 
     fn proving_key() -> &'static [u8] {
         COMPLIANCE_VAR_PK
@@ -190,59 +207,64 @@ impl CUInner for ComplianceVarUnit {
         self.instance.as_slice()
     }
 
+    fn circuit_instance_words(&self) -> Result<CIWords, ArmError> {
+        Ok(CIWords::VariableSize(bytes_to_words(&self.instance)))
+    }
+
     fn circuit_proof_bytes(&self) -> Option<&[u8]> {
         self.proof.as_ref().map(Vec::as_ref)
     }
 
-    fn new(
-        circuit_instance_bytes: Vec<u8>,
-        circuit_proof_bytes: Vec<u8>,
-        _: Option<EncodedPoint>,
-    ) -> Result<Self, ArmError> {
-        Ok(ComplianceVarUnit {
+    fn unset_circuit_proof(&mut self) {
+        self.proof = None;
+    }
+
+    fn new(circuit_instance_bytes: Vec<u8>, circuit_proof_bytes: Vec<u8>) -> Self {
+        ComplianceVarUnit {
             proof: Some(circuit_proof_bytes),
             instance: circuit_instance_bytes,
-        })
+        }
     }
 }
 
 #[derive(Clone, Debug)]
 pub struct ComplianceSigmabusUnit {
+    /// The RISC0 proof
     pub circuit_proof: Option<Vec<u8>>,
+    /// The RISC0 instance
     pub circuit_instance: Vec<u8>,
+    // The first message of the sigma proof.
+    pub sp_first_message: EncodedPoint,
+    // The delta of the unit.
     pub delta: EncodedPoint,
 }
 
 impl CUInner for ComplianceSigmabusUnit {
     type Witness = ComplianceSigmabusWitness;
     type Instance = ComplianceSigmabusInstance;
-    const BOUNDED_RESOURCES: bool = true;
 
     fn create_inner(witness: &ComplianceSigmabusWitness) -> Result<Self, ArmError> {
         // Prove off the zkVM
-        let sp = SigmaProtocol::new(witness.sigma_witness.mcv.len());
         let sigma_instance = witness.compute_delta();
-        let sigma_proof = sp.prove(&sigma_instance, &witness.sigma_witness)?;
+        let sigma_proof = SigmaProtocol::prove(&sigma_instance, &witness.sigma_witness)?;
         // Prove on the zkVM
-        let circuit_input =
-            SigmabusCircuitWitness::from_sigmabus_witness_proof(witness, &sigma_proof);
+        let circuit_input = SigmabusCircuitWitness::from_sigmabus_witness_proof(
+            witness,
+            &SigmaProofShort::from_sigmaproof(&sigma_proof),
+        );
         let (circuit_proof, circuit_instance) = prove(COMPLIANCE_SIGMABUS_PK, &circuit_input)?;
 
-        ComplianceSigmabusUnit::new(
+        Ok(ComplianceSigmabusUnit {
+            circuit_proof: Some(circuit_proof),
             circuit_instance,
-            circuit_proof,
-            Some(sigma_instance.to_encoded_point(true)),
-        )
+            sp_first_message: sigma_proof.first_message,
+            delta: sigma_instance,
+        })
     }
 
     fn verify_inner(&self) -> Result<(), ArmError> {
-        let sigmabus_instance = self.instance()?;
-        let circuit_instance = sigmabus_instance.circuit_instance;
-        let sigma_proof = circuit_instance.sigma_proof;
-
-        let sp = SigmaProtocol::new(sigma_proof.response1.len());
-
-        if sp.verify(&self.delta()?, &sigma_proof).is_err() {
+        let (sigma_instance, sigma_proof) = self.get_sigma_verifier_inputs()?;
+        if SigmaProtocol::verify(&sigma_instance, &sigma_proof).is_err() {
             return Err(ArmError::ProofVerificationFailed(
                 "Invalid sigma proof".into(),
             ));
@@ -289,23 +311,35 @@ impl CUInner for ComplianceSigmabusUnit {
         self.circuit_instance.as_slice()
     }
 
+    fn circuit_instance_words(&self) -> Result<CIWords, ArmError> {
+        Ok(CIWords::VariableSize(bytes_to_words(
+            &self.circuit_instance,
+        )))
+    }
+
     fn circuit_proof_bytes(&self) -> Option<&[u8]> {
         self.circuit_proof.as_ref().map(Vec::as_ref)
     }
 
-    fn new(
-        circuit_instance_bytes: Vec<u8>,
-        circuit_proof_bytes: Vec<u8>,
-        delta: Option<EncodedPoint>,
-    ) -> Result<Self, ArmError> {
-        if let Some(delta) = delta {
-            Ok(ComplianceSigmabusUnit {
-                circuit_proof: Some(circuit_proof_bytes),
-                circuit_instance: circuit_instance_bytes,
-                delta,
-            })
-        } else {
-            Err(ArmError::InvalidDelta)
-        }
+    fn unset_circuit_proof(&mut self) {
+        self.circuit_proof = None;
+    }
+
+    fn get_sigma_verifier_inputs(&self) -> Result<(ProjectivePoint, SigmaProof), ArmError> {
+        let sigma_proof_short = self.instance()?.circuit_instance.sigma_proof;
+        let sigma_proof = SigmaProof::from_first_message_and_sigmaproof_short(
+            &self.sp_first_message,
+            &sigma_proof_short,
+        );
+        Ok((
+            ProjectivePoint::from_encoded_point(&self.delta)
+                .into_option()
+                .ok_or(ArmError::ProofVerificationFailed("Bad delta format".into()))?,
+            sigma_proof,
+        ))
+    }
+
+    fn new(_: Vec<u8>, _: Vec<u8>) -> Self {
+        unimplemented!()
     }
 }

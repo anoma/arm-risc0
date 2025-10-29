@@ -4,17 +4,17 @@ pub const TX_MAX_RESOURCES: usize = 128;
 use crate::{
     compliance::{
         var::var_constraints::constrain_resources, ComplianceCircuit, ComplianceVarWitness,
-        ConsumedMemorandum, CreatedMemorandum, CI,
+        ConsumedDatum, ConsumedMemorandum, CreatedMemorandum, CI, INITIAL_ROOT,
     },
+    compliance_unit::sigma::{PedersenCommitmentScheme, SigmaProofShort, SigmaWitness},
     error::ArmError,
-    nullifier_key::NullifierKey,
     resource::Resource,
-    sigma::{PedersenCommitmentScheme, SigmaProof, SigmaWitness},
 };
 use k256::{
-    elliptic_curve::{sec1::FromEncodedPoint, Field},
+    elliptic_curve::sec1::{FromEncodedPoint, ToEncodedPoint},
     EncodedPoint, ProjectivePoint, Scalar,
 };
+use risc0_zkvm::Digest;
 use serde::Serialize;
 
 #[derive(Serialize)]
@@ -26,27 +26,34 @@ pub struct ComplianceSigmabusWitness {
 }
 
 impl ComplianceSigmabusWitness {
-    /// Useful for tests.
-    pub fn from_resources_with_fixed_path(
-        consumed_resources: &[Resource],
-        nf_keys: &[NullifierKey],
+    pub fn from_resources_info(
+        consumed_data: &[ConsumedDatum],
         created_resources: &[Resource],
-    ) -> Result<ComplianceSigmabusWitness, ArmError> {
-        if consumed_resources.len() + created_resources.len() > TX_MAX_RESOURCES {
-            return Err(ArmError::InvalidMcv);
+    ) -> Result<Self, ArmError> {
+        Self::from_resources_info_with_eph_root(consumed_data, created_resources, *INITIAL_ROOT)
+    }
+    pub fn from_resources_info_with_eph_root(
+        consumed_data: &[ConsumedDatum],
+        created_resources: &[Resource],
+        latest_root: Digest,
+    ) -> Result<Self, ArmError> {
+        if consumed_data.len() + created_resources.len() > TX_MAX_RESOURCES {
+            return Err(ArmError::InvalidComplianceWitness);
         }
-        let var_witness =
-            ComplianceVarWitness::with_fixed_rcv(consumed_resources, nf_keys, created_resources);
+        let var_witness = ComplianceVarWitness::from_resources_info_with_eph_root(
+            consumed_data,
+            created_resources,
+            latest_root,
+        );
 
         // Generate the sigma witness.
-        let mut rng = rand::thread_rng();
+        let consumed_resources: Vec<Resource> =
+            consumed_data.iter().map(|datum| datum.resource).collect();
         let (kinds, signed_quantities) =
-            sigmabus_constraints::compute_kinds_quantites(consumed_resources, created_resources);
+            sigmabus_constraints::compute_kinds_quantites(&consumed_resources, created_resources);
         let mcv = sigmabus_constraints::compute_inner_products(&kinds, &signed_quantities)?;
 
-        let rcv = Scalar::random(&mut rng);
-
-        let sigma_witness = SigmaWitness::new(&mcv, &rcv);
+        let sigma_witness = SigmaWitness::new(&mcv, &var_witness.rcv_scalar);
 
         Ok(ComplianceSigmabusWitness {
             var_witness,
@@ -54,11 +61,11 @@ impl ComplianceSigmabusWitness {
         })
     }
 
-    /// Pedersen commit seperately to the components of the message vector `mcv`.
+    /// Pedersen commit to the message vector `mcv`.
     /// Uses `rcv` as the commitment randomness.
-    pub fn compute_delta(&self) -> ProjectivePoint {
-        PedersenCommitmentScheme::new(TX_MAX_RESOURCES)
-            .commit(&self.sigma_witness.mcv, &self.sigma_witness.rcv)
+    pub fn compute_delta(&self) -> EncodedPoint {
+        PedersenCommitmentScheme::commit(&self.sigma_witness.mcv, &self.sigma_witness.rcv)
+            .to_encoded_point(true)
     }
 }
 
@@ -69,13 +76,13 @@ pub struct SigmabusCircuitWitness {
     /// The witness of the sigma protocol
     pub sigma_witness: SigmaWitness,
     /// The proof of the sigma protocol
-    pub sigma_proof: SigmaProof,
+    pub sigma_proof: SigmaProofShort,
 }
 
 impl SigmabusCircuitWitness {
     pub fn from_sigmabus_witness_proof(
         witness: &ComplianceSigmabusWitness,
-        sigma_proof: &SigmaProof,
+        sigma_proof: &SigmaProofShort,
     ) -> Self {
         SigmabusCircuitWitness {
             var_witness: witness.var_witness.clone(),
@@ -137,7 +144,7 @@ pub struct SigmaBusCircuitInstance {
     /// Public information of created resources
     pub created_memorandums: Vec<CreatedMemorandum>,
     /// Instead of the Delta commitment.
-    pub sigma_proof: SigmaProof,
+    pub sigma_proof: SigmaProofShort,
 }
 
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
@@ -223,7 +230,7 @@ mod sigmabus_constraints {
 
     pub(super) fn enforce_correct_sigmabus_commitment(
         sigma_witness: &SigmaWitness,
-        sigma_proof: &SigmaProof,
+        sigma_proof: &SigmaProofShort,
     ) -> Result<(), ArmError> {
         let correct_commitment = sigma_witness.commit();
         if sigma_proof.commitment_to_witness != correct_commitment {
@@ -235,7 +242,7 @@ mod sigmabus_constraints {
 
     pub(super) fn enforce_consistent_sigma_responses(
         sigma_witness: &SigmaWitness,
-        sigma_proof: &SigmaProof,
+        sigma_proof: &SigmaProofShort,
     ) -> Result<(), ArmError> {
         let correct_response1 = SigmaWitness::first_response(
             &sigma_witness.mcv,

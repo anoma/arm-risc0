@@ -2,13 +2,18 @@ pub mod minimal;
 mod shared_constraints;
 pub mod sigmabus;
 pub mod var;
+use crate::compliance::minimal::ComplianceInstanceWords;
 use crate::error::ArmError;
+use crate::merkle_path::MerklePath;
+use crate::nullifier_key::NullifierKey;
+use crate::resource::Resource;
 use crate::utils::words_to_bytes;
 
 use k256::{elliptic_curve::sec1::FromEncodedPoint, EncodedPoint, ProjectivePoint};
 pub use minimal::ComplianceInstance;
 pub use minimal::ComplianceWitness;
 use serde::Serialize;
+use serde_with::serde_as;
 pub use sigmabus::ComplianceSigmabusWitness;
 pub use sigmabus::SigmaBusCircuitInstance;
 pub use sigmabus::SigmabusCircuitWitness;
@@ -23,6 +28,39 @@ lazy_static! {
     pub static ref INITIAL_ROOT: Digest =
         Digest::from_hex("cc1d2f838445db7aec431df9ee8a871f40e7aa5e064fc056633ef8c60fab7b06")
             .unwrap();
+}
+
+/// Private information related to a consumed resource
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+pub struct ConsumedDatum {
+    /// The consumed resource.
+    pub resource: Resource,
+    /// The path from the consumed commitment to the root of the commitment tree
+    pub merkle_path: MerklePath,
+    /// Nullifier key of the consumed resource
+    pub nf_key: NullifierKey,
+}
+
+impl ConsumedDatum {
+    pub fn from_resource(resource: Resource, nf_key: NullifierKey) -> ConsumedDatum {
+        ConsumedDatum {
+            resource,
+            merkle_path: MerklePath::empty(),
+            nf_key: nf_key.clone(),
+        }
+    }
+
+    pub fn from_resource_with_path(
+        resource: Resource,
+        nf_key: NullifierKey,
+        merkle_path: MerklePath,
+    ) -> ConsumedDatum {
+        ConsumedDatum {
+            resource,
+            merkle_path,
+            nf_key: nf_key.clone(),
+        }
+    }
 }
 
 /// Public information of consumed resources.
@@ -83,6 +121,23 @@ pub trait CI {
             msg.extend_from_slice(tag.as_bytes());
         }
         msg
+    }
+}
+
+/// The u32 words of a compliance instance.
+#[serde_as]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub enum CIWords {
+    VariableSize(Vec<u32>),
+    FixedSize(ComplianceInstanceWords),
+}
+
+impl CIWords {
+    pub fn get_words_as_ref(&self) -> &[u32] {
+        match self {
+            CIWords::VariableSize(words) => words.as_slice(),
+            CIWords::FixedSize(wrappper) => wrappper.u32_words.as_slice(),
+        }
     }
 }
 

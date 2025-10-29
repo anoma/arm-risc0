@@ -1,5 +1,5 @@
 // Size hard-coded to two resources per unit
-const COMPLIANCE_INSTANCE_SIZE: usize = 56;
+pub(crate) const COMPLIANCE_INSTANCE_SIZE: usize = 56;
 
 use crate::{
     compliance::{
@@ -32,7 +32,7 @@ pub struct ComplianceInstance {
 }
 
 #[serde_as]
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ComplianceInstanceWords {
     #[serde_as(as = "[_; COMPLIANCE_INSTANCE_SIZE]")]
     pub u32_words: [u32; COMPLIANCE_INSTANCE_SIZE],

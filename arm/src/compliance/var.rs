@@ -1,16 +1,14 @@
 use crate::{
     compliance::{
-        shared_constraints, ComplianceCircuit, ConsumedMemorandum, CreatedMemorandum, CI,
-        INITIAL_ROOT,
+        shared_constraints, ComplianceCircuit, ConsumedDatum, ConsumedMemorandum,
+        CreatedMemorandum, CI, INITIAL_ROOT,
     },
     error::ArmError,
-    merkle_path::MerklePath,
-    nullifier_key::NullifierKey,
     resource::Resource,
     utils::bytes_to_words,
 };
 use k256::{
-    elliptic_curve::{sec1::ToEncodedPoint, PrimeField},
+    elliptic_curve::{sec1::ToEncodedPoint, Field, PrimeField},
     ProjectivePoint, Scalar,
 };
 use risc0_zkvm::sha::{Impl, Sha256};
@@ -24,42 +22,45 @@ pub struct ComplianceVarWitness {
     pub created_resources: Vec<Resource>,
     /// The existing root for ephemeral resources
     pub ephemeral_root: Digest,
-    /// Random scalar for delta commitment
+    /// Bytes of randommness for the delta commitments `rcv`
     pub rcv: Vec<u8>,
-}
-
-/// Private information related to a consumed resource
-#[derive(Clone, serde::Serialize, serde::Deserialize)]
-pub struct ConsumedDatum {
-    /// The consumed resource.
-    pub resource: Resource,
-    /// The path from the consumed commitment to the root of the commitment tree
-    pub merkle_path: MerklePath,
-    /// Nullifier key of the consumed resource
-    pub nf_key: NullifierKey,
+    /// `rcv` as a scalar.
+    pub rcv_scalar: Scalar,
 }
 
 impl ComplianceVarWitness {
-    // Only for tests
-    pub fn with_fixed_rcv(
-        consumed_resources: &[Resource],
-        nf_keys: &[NullifierKey],
+    pub fn from_resources_info(
+        consumed_data: &[ConsumedDatum],
         created_resources: &[Resource],
     ) -> Self {
-        assert_eq!(consumed_resources.len(), nf_keys.len());
+        Self::from_resources_info_with_eph_root(consumed_data, created_resources, *INITIAL_ROOT)
+    }
+
+    pub fn from_resources_info_with_eph_root(
+        consumed_data: &[ConsumedDatum],
+        created_resources: &[Resource],
+        latest_root: Digest,
+    ) -> Self {
+        let mut rng = rand::thread_rng();
+        let rcv_scalar = Scalar::random(&mut rng);
+        let rcv = rcv_scalar.to_bytes().to_vec();
         ComplianceVarWitness {
-            consumed_data: consumed_resources
-                .iter()
-                .zip(nf_keys)
-                .map(|(resource, nf_key)| ConsumedDatum {
-                    resource: *resource,
-                    merkle_path: MerklePath::default(),
-                    nf_key: nf_key.clone(),
-                })
-                .collect(),
+            consumed_data: consumed_data.to_vec(),
+            created_resources: created_resources.to_vec(),
+            ephemeral_root: latest_root,
+            rcv,
+            rcv_scalar,
+        }
+    }
+
+    // Only for tests
+    pub fn with_fixed_rcv(consumed_data: &[ConsumedDatum], created_resources: &[Resource]) -> Self {
+        ComplianceVarWitness {
+            consumed_data: consumed_data.to_vec(),
             created_resources: created_resources.to_vec(),
             ephemeral_root: *INITIAL_ROOT,
             rcv: Scalar::ONE.to_bytes().to_vec(),
+            rcv_scalar: Scalar::ONE,
         }
     }
 }
