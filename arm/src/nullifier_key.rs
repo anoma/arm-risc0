@@ -5,11 +5,11 @@ use serde::{Deserialize, Serialize};
 
 /// Nullifier key
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct NullifierKey(Vec<u8>);
+pub struct NullifierKey([u8; DIGEST_BYTES]);
 
 impl NullifierKey {
-    pub fn new(nf_key: &[u8]) -> NullifierKey {
-        NullifierKey(nf_key.to_vec())
+    pub fn new(nf_key: [u8; DIGEST_BYTES]) -> NullifierKey {
+        NullifierKey::from_bytes(nf_key)
     }
     /// Compute the commitment to the nullifier key
     pub fn commit(&self) -> NullifierKeyCommitment {
@@ -20,14 +20,14 @@ impl NullifierKey {
         &self.0
     }
 
-    pub fn from_bytes(bytes: &[u8]) -> NullifierKey {
-        NullifierKey(bytes.to_vec())
+    pub fn from_bytes(bytes: [u8; DIGEST_BYTES]) -> NullifierKey {
+        NullifierKey(bytes)
     }
 
     pub fn random_pair() -> (NullifierKey, NullifierKeyCommitment) {
         let mut rng = rand::thread_rng();
         let rng_bytes: [u8; DIGEST_BYTES] = rng.gen();
-        let nf_key = NullifierKey(rng_bytes.to_vec());
+        let nf_key = NullifierKey::from_bytes(rng_bytes);
         let nk_commitment = nf_key.commit();
         (nf_key, nk_commitment)
     }
@@ -35,7 +35,7 @@ impl NullifierKey {
 
 impl Default for NullifierKey {
     fn default() -> Self {
-        NullifierKey(vec![0u8; DIGEST_BYTES])
+        NullifierKey([0u8; DIGEST_BYTES])
     }
 }
 
