@@ -14,6 +14,7 @@ use rustler::{Decoder, Encoder, Env, Error, NifResult, OwnedBinary, Term};
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "nif")]
 use std::io::Write;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct SecretKey(Scalar);
@@ -32,6 +33,20 @@ impl SecretKey {
         &self.0
     }
 }
+
+impl Zeroize for SecretKey {
+    fn zeroize(&mut self) {
+        // Manually zero the Scalar's inner U256
+        // Use volatile write to prevent compiler optimization
+        unsafe {
+            let ptr = &mut self.0 as *mut Scalar as *mut [u8; 32];
+            core::ptr::write_volatile(ptr, [0u8; 32]);
+        }
+    }
+}
+
+// Mark as ZeroizeOnDrop - auto-generates Drop impl that calls zeroize()
+impl ZeroizeOnDrop for SecretKey {}
 
 #[cfg(feature = "nif")]
 fn do_encode<'a>(secret_key: &SecretKey, env: Env<'a>) -> Result<Term<'a>, Error> {
@@ -104,7 +119,7 @@ impl Ciphertext {
         ))
     }
 
-    pub fn decrypt(&self, sk: &SecretKey) -> Result<Vec<u8>, ArmError> {
+    pub fn decrypt(&self, sk: &SecretKey) -> Result<SecurePlaintext, ArmError> {
         if self.inner().is_empty() {
             return Err(ArmError::DecryptionFailed);
         }
@@ -117,9 +132,11 @@ impl Ciphertext {
         let aes_gcm = Aes256Gcm::new(&inner_secret_key.inner());
 
         // Decrypt with AES-256-GCM
-        aes_gcm
+        let plaintext = aes_gcm
             .decrypt(&cipher.nonce.into(), cipher.cipher.as_ref())
-            .map_err(|_| ArmError::DecryptionFailed)
+            .map_err(|_| ArmError::DecryptionFailed)?;
+
+        Ok(SecurePlaintext::new(plaintext))
     }
 }
 
@@ -135,6 +152,18 @@ struct InnerCiphert {
 
 #[derive(Debug, Clone)]
 struct InnerSecretKey(Key<Aes256Gcm>);
+
+// implement Zeroize manually
+impl Zeroize for InnerSecretKey {
+    fn zeroize(&mut self) {
+        // Zero the Key's bytes
+        // Key<Aes256Gcm> is GenericArray<u8, U32>
+        self.0.as_mut_slice().zeroize();
+    }
+}
+
+// Mark as ZeroizeOnDrop - auto-generates Drop impl that calls zeroize()
+impl ZeroizeOnDrop for InnerSecretKey {}
 
 impl InnerSecretKey {
     pub fn from_encryption(pk: &AffinePoint, sk: &Scalar) -> Self {
@@ -152,7 +181,12 @@ impl InnerSecretKey {
     fn generate_shared_key(shared_point: &ProjectivePoint, pk: &ProjectivePoint) -> Self {
         let pk_bytes = pk.to_bytes();
         let key_bytes = shared_point.to_bytes();
-        let hash = hash_bytes(&[&pk_bytes[..], &key_bytes[..]].concat());
+        let mut concat = [&pk_bytes[..], &key_bytes[..]].concat();
+        let hash = hash_bytes(&concat);
+
+        // Zero intermediate concatenated bytes containing shared secret
+        concat.zeroize();
+
         let shared_key = hash.as_bytes();
         let key = Key::<Aes256Gcm>::from_slice(&shared_key[..32]);
         InnerSecretKey(*key)
@@ -160,6 +194,22 @@ impl InnerSecretKey {
 
     pub fn inner(&self) -> Key<Aes256Gcm> {
         self.0
+    }
+}
+
+/// Wrapper for plaintext that automatically zeros on drop
+pub struct SecurePlaintext(Vec<u8>);
+
+// Vec<u8> already implements Zeroize, so we can implement ZeroizeOnDrop
+impl ZeroizeOnDrop for SecurePlaintext {}
+
+impl SecurePlaintext {
+    pub fn new(data: Vec<u8>) -> Self {
+        SecurePlaintext(data)
+    }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.0
     }
 }
 
@@ -192,10 +242,10 @@ fn test_encryption() {
 
     // Decryption
     let decryption = cipher.decrypt(&receiver_sk).unwrap();
-    assert_eq!(message, decryption);
+    assert_eq!(message, decryption.as_bytes());
 
     let cipher_words = cipher.as_words();
     let cipher_from_words = Ciphertext::from_words(&cipher_words);
     let decrypted_from_words = cipher_from_words.decrypt(&receiver_sk).unwrap();
-    assert_eq!(message, decrypted_from_words);
+    assert_eq!(message, decrypted_from_words.as_bytes());
 }

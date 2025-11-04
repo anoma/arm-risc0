@@ -160,7 +160,10 @@ fn simple_transfer_test() {
     let decrypted_resource = encryption_ciphertext
         .decrypt(&created_encryption_sk)
         .unwrap();
-    assert_eq!(decrypted_resource, created_resource.to_bytes().unwrap());
+    assert_eq!(
+        decrypted_resource.as_bytes(),
+        created_resource.to_bytes().unwrap()
+    );
 
     // Verify the transaction
     tx.verify().unwrap();
