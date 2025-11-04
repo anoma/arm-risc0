@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 pub const DENOMINATION_ELF: &[u8] = include_bytes!("../elfs/simple-kudo-denomination-guest.bin");
 lazy_static! {
     pub static ref DENOMINATION_ID: Digest =
-        Digest::from_hex("806a863ab295c94af8483838e7b31b485f09ac155be7855afa69aed3e0287b7a")
+        Digest::from_hex("d96cbdd6f00877ff7c5c32bdb9b123c139c4af650e44e6d8a55d5f6beb0fe01a")
             .unwrap();
 }
 

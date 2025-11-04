@@ -546,6 +546,7 @@ dependencies = [
  "slab",
  "thiserror",
  "tracing-subscriber 0.3.20",
+ "zeroize",
 ]
 
 [[package]]
