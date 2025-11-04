@@ -1,4 +1,4 @@
-use crate::utils::compute_kudo_label;
+use crate::{utils::compute_kudo_label, AUTH_SIGNATURE_DOMAIN};
 pub use arm::resource_logic::LogicCircuit;
 use arm::{
     authorization::{AuthorizationSignature, AuthorizationVerifyingKey},
@@ -95,7 +95,11 @@ impl LogicCircuit for KudoMainWitness {
             receive_logic_and_owner_bytes.extend_from_slice(&owner_bytes);
             assert!(self
                 .owner
-                .verify(&receive_logic_and_owner_bytes, &self.receiver_signature)
+                .verify(
+                    AUTH_SIGNATURE_DOMAIN,
+                    &receive_logic_and_owner_bytes,
+                    &self.receiver_signature
+                )
                 .is_ok());
         }
 

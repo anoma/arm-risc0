@@ -15,6 +15,7 @@ use arm::{
     Digest,
 };
 use serde::{Deserialize, Serialize};
+pub const AUTH_SIGNATURE_DOMAIN: &[u8] = b"SimpleTransferAuthorization";
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct SimpleTransferWitness {
     pub resource: Resource,
@@ -157,7 +158,9 @@ impl LogicCircuit for SimpleTransferWitness {
                     calculate_value_ref_from_auth(&auth_pk)
                 );
                 // Verify the authorization signature
-                assert!(auth_pk.verify(root_bytes, &auth_info.auth_sig).is_ok());
+                assert!(auth_pk
+                    .verify(AUTH_SIGNATURE_DOMAIN, root_bytes, &auth_info.auth_sig)
+                    .is_ok());
 
                 // empty payloads for consumed persistent resource
                 (vec![], vec![], vec![])

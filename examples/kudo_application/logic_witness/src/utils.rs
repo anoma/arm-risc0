@@ -4,6 +4,8 @@ use arm::{
 };
 use risc0_zkvm::sha::{Impl, Sha256};
 
+use crate::AUTH_SIGNATURE_DOMAIN;
+
 pub fn compute_kudo_label(
     denomination_logic: &Digest,
     issuer: &AuthorizationVerifyingKey,
@@ -28,5 +30,5 @@ pub fn generate_receive_signature(
     let mut msg = Vec::new();
     msg.extend_from_slice(receive_logic);
     msg.extend_from_slice(&pk.to_bytes());
-    sk.sign(&msg)
+    sk.sign(AUTH_SIGNATURE_DOMAIN, &msg)
 }

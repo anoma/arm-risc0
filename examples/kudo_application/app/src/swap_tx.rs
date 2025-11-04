@@ -18,6 +18,7 @@ use kudo_logic_witness::{
     simple_denomination_witness::SimpleDenominationLogicWitness,
     simple_receive_witness::SimpleReceiveLogicWitness,
     utils::{compute_kudo_label, compute_kudo_value, generate_receive_signature},
+    AUTH_SIGNATURE_DOMAIN,
 };
 use kudo_traits::swap::Swap;
 use rand::Rng;
@@ -139,7 +140,7 @@ pub fn build_swap_tx(
     let consumed_kudo = KudoMainInfo::new(consumed_kudo_logic_witness, Some(consumed_kudo_path));
 
     // Construct the denomination witness corresponding to the consumed kudo resource
-    let consumption_signature = owner_sk.sign(root_bytes);
+    let consumption_signature = owner_sk.sign(AUTH_SIGNATURE_DOMAIN, root_bytes);
     let consumed_denomination_logic_witness =
         SimpleDenominationLogicWitness::generate_denomimation_witness(
             consumed_denomination_resource,

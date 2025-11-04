@@ -24,8 +24,16 @@ impl AuthorizationSigningKey {
         AuthorizationSigningKey(signing_key)
     }
 
-    pub fn sign(&self, message: &[u8]) -> AuthorizationSignature {
-        AuthorizationSignature(self.0.sign(message))
+    pub fn sign(&self, domain: &[u8], message: &[u8]) -> AuthorizationSignature {
+        let mut msg_with_domain =
+            Vec::with_capacity(b"ARM_AUTH_V1".len() + domain.len() + message.len());
+
+        // Protocol version prefix
+        msg_with_domain.extend_from_slice(b"ARM_AUTH_V1");
+
+        msg_with_domain.extend_from_slice(domain);
+        msg_with_domain.extend_from_slice(message);
+        AuthorizationSignature(self.0.sign(&msg_with_domain))
     }
 
     pub fn to_bytes(&self) -> [u8; 32] {
@@ -72,12 +80,22 @@ impl AuthorizationVerifyingKey {
 
     pub fn verify(
         &self,
+        domain: &[u8],
         message: &[u8],
         signature: &AuthorizationSignature,
     ) -> Result<(), ArmError> {
+        let mut msg_with_domain =
+            Vec::with_capacity(b"ARM_AUTH_V1".len() + domain.len() + message.len());
+
+        // Protocol version prefix
+        msg_with_domain.extend_from_slice(b"ARM_AUTH_V1");
+
+        msg_with_domain.extend_from_slice(domain);
+        msg_with_domain.extend_from_slice(message);
+
         VerifyingKey::from_affine(self.0)
             .map_err(|_| ArmError::InvalidPublicKey)?
-            .verify(message, signature.inner())
+            .verify(&msg_with_domain, signature.inner())
             .map_err(|_| ArmError::InvalidSignature)
     }
 
@@ -127,9 +145,10 @@ fn test_authorization() {
     let signing_key = AuthorizationSigningKey::new();
     let verifying_key = AuthorizationVerifyingKey::from_signing_key(&signing_key);
 
+    let domain = b"test_domain";
     let message = b"Hello, world!";
-    let signature = signing_key.sign(message);
+    let signature = signing_key.sign(domain, message);
     // println!("Signature: {:?}", signature.to_bytes());
 
-    assert!(verifying_key.verify(message, &signature).is_ok());
+    assert!(verifying_key.verify(domain, message, &signature).is_ok());
 }
