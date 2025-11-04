@@ -167,7 +167,7 @@ impl LogicCircuit for SimpleTransferWitness {
                     .encryption_info
                     .as_ref()
                     .ok_or(ArmError::MissingField("Encryption info"))?;
-                let cipher = Ciphertext::encrypt(
+                let cipher = Ciphertext::encrypt_with_nonce(
                     &self.resource.to_bytes()?,
                     &encryption_info.encryption_pk,
                     &encryption_info.sender_sk,
@@ -252,19 +252,10 @@ pub fn calculate_label_ref(forwarder_add: &[u8], erc20_add: &[u8]) -> Digest {
 
 impl EncryptionInfo {
     pub fn new(encryption_pk: AffinePoint, discovery_pk: &AffinePoint) -> Self {
-        let discovery_nonce: [u8; 12] = rand::random();
         let discovery_sk = SecretKey::random();
-        let discovery_cipher = Ciphertext::encrypt(
-            &vec![0u8],
-            discovery_pk,
-            &discovery_sk,
-            discovery_nonce
-                .as_slice()
-                .try_into()
-                .expect("Failed to convert discovery nonce, it cannot fail"),
-        )
-        .unwrap()
-        .as_words();
+        let discovery_cipher = Ciphertext::encrypt(&vec![0u8], discovery_pk, &discovery_sk)
+            .unwrap()
+            .as_words();
         let sender_sk = SecretKey::random();
         let encryption_nonce: [u8; 12] = rand::random();
         Self {

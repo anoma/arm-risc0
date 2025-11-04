@@ -9,6 +9,7 @@ use k256::{
     ProjectivePoint, Scalar,
 };
 use rand::rngs::OsRng;
+use rand::Rng;
 #[cfg(feature = "nif")]
 use rustler::{Decoder, Encoder, Env, Error, NifResult, OwnedBinary, Term};
 use serde::{Deserialize, Serialize};
@@ -96,6 +97,16 @@ impl Ciphertext {
     }
 
     pub fn encrypt(
+        message: &Vec<u8>,
+        receiver_pk: &AffinePoint,
+        sender_sk: &SecretKey,
+    ) -> Result<Self, ArmError> {
+        let nonce: [u8; 12] = OsRng.gen();
+        Self::encrypt_with_nonce(message, receiver_pk, sender_sk, nonce)
+    }
+
+    // used in circuits where nonce is provided
+    pub fn encrypt_with_nonce(
         message: &Vec<u8>,
         receiver_pk: &AffinePoint,
         sender_sk: &SecretKey,
@@ -238,7 +249,7 @@ fn test_encryption() {
     let nonce: [u8; 12] = rand::random();
 
     // Encryption
-    let cipher = Ciphertext::encrypt(&message, &receiver_pk, &sender_sk, nonce).unwrap();
+    let cipher = Ciphertext::encrypt_with_nonce(&message, &receiver_pk, &sender_sk, nonce).unwrap();
 
     // Decryption
     let decryption = cipher.decrypt(&receiver_sk).unwrap();
