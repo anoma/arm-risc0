@@ -3,10 +3,10 @@ use crate::{
     simple_receive::SimpleReceiveInfo,
 };
 use arm::{
-    action_tree::MerkleTree,
+    action::Action,
     authorization::{AuthorizationSignature, AuthorizationSigningKey, AuthorizationVerifyingKey},
     error::ArmError,
-    logic_proof::{LogicProver, PaddingResourceLogic},
+    logic_proof::LogicProver,
     merkle_path::MerklePath,
     nullifier_key::{NullifierKey, NullifierKeyCommitment},
     resource::Resource,
@@ -53,8 +53,6 @@ pub fn build_transfer_tx(
     created_kudo_resource.set_value_ref(created_kudo_value);
     // Reset the randomness and nonce
     created_kudo_resource.reset_randomness();
-    created_kudo_resource.set_nonce(consumed_kudo_nf);
-    let created_kudo_cm = created_kudo_resource.commitment();
 
     // Construct the denomination resource corresponding to the consumed kudo resource
     let denomination_logic = SimpleDenominationInfo::verifying_key();
@@ -73,40 +71,47 @@ pub fn build_transfer_tx(
         consumed_denomination_resource.nullifier(&instant_nk)?;
 
     // Construct the denomination resource corresponding to the created kudo resource
-    let created_denomination_resource = Resource::create(
+    let mut created_denomination_resource = Resource::create(
         denomination_logic,
-        created_kudo_cm, // Use the created kudo commitment as the label
+        Digest::default(), // Will be set below.
         0,
         Digest::default(),
         true,
-        consumed_denomination_resource_nf,
+        Digest::default(), // Will be derived below.
         instant_nk_commitment,
     );
-    let created_denomination_resource_cm = created_denomination_resource.commitment();
-
-    // Construct the padding resource
-    let padding_resource = PaddingResourceLogic::create_padding_resource(instant_nk_commitment);
-    let padding_resource_nf = padding_resource.nullifier(&instant_nk)?;
 
     // Construct the receive logic resource
-    let receive_resource = Resource::create(
+    let mut receive_resource = Resource::create(
         SimpleReceiveInfo::verifying_key(),
-        created_kudo_cm,
+        Digest::default(), // Will be set below.
         0,
         Digest::default(),
         true,
-        padding_resource_nf,
+        Digest::default(), // Will be derived below.
         instant_nk_commitment,
     );
+
+    // Derive nonces of created resources
+    let consumed_nullifiers = vec![consumed_kudo_nf, consumed_denomination_resource_nf];
+    created_kudo_resource.nonce = Resource::derive_nonce_from_nullifiers(0, &consumed_nullifiers)?;
+    created_denomination_resource.nonce =
+        Resource::derive_nonce_from_nullifiers(1, &consumed_nullifiers)?;
+    receive_resource.nonce = Resource::derive_nonce_from_nullifiers(2, &consumed_nullifiers)?;
+
+    // Compute created commitments
+    let created_kudo_cm = created_kudo_resource.commitment();
+    created_denomination_resource.label_ref = created_kudo_cm; // Use the created kudo commitment as the label
+    let created_denomination_resource_cm = created_denomination_resource.commitment();
+    receive_resource.label_ref = created_kudo_cm;
     let receive_resource_cm = receive_resource.commitment();
 
     // Construct the action tree
-    let action_tree = MerkleTree::new(vec![
+    let action_tree = Action::construct_action_tree(&[
         consumed_kudo_nf,
         created_kudo_cm,
         consumed_denomination_resource_nf,
         created_denomination_resource_cm,
-        padding_resource_nf,
         receive_resource_cm,
     ]);
     let root = action_tree.root();
@@ -119,7 +124,6 @@ pub fn build_transfer_tx(
     let created_denomination_existence_path =
         action_tree.generate_path(&created_denomination_resource_cm)?;
     let created_kudo_existence_path = action_tree.generate_path(&created_kudo_cm)?;
-    let padding_resource_existence_path = action_tree.generate_path(&padding_resource_nf)?;
     let receive_existence_path = action_tree.generate_path(&receive_resource_cm)?;
 
     // Construct the consumed kudo witness
@@ -198,20 +202,11 @@ pub fn build_transfer_tx(
     );
     let created_receive = SimpleReceiveInfo::new(created_receive_logic_witness, None);
 
-    // Construct the padding logic witness
-    let padding_resource_logic = PaddingResourceLogic::new(
-        padding_resource,
-        padding_resource_existence_path,
-        instant_nk,
-        true,
-    );
-
     let transfer = Transfer {
         consumed_kudo,
         consumed_denomination,
         created_kudo,
         created_denomination,
-        padding_resource_logic,
         created_receive,
     };
 

@@ -51,7 +51,7 @@ impl Transaction {
         let cus: Vec<ComplianceUnit> = self
             .actions
             .iter()
-            .flat_map(|a| a.get_compliance_units().clone())
+            .map(|a| a.get_compliance_unit().clone())
             .collect();
 
         let cu_instances: Vec<Vec<u8>> = cus.iter().map(|cu| cu.instance.clone()).collect();
@@ -144,7 +144,7 @@ impl Transaction {
     /// Returns `true` if any compliance or resource logic proof is `None`.
     fn base_proofs_are_empty(&self) -> bool {
         for a in self.actions.iter() {
-            if a.get_compliance_units().iter().any(|cu| cu.proof.is_none()) {
+            if a.get_compliance_unit().proof.is_none() {
                 return true;
             }
             if a.get_logic_verifier_inputs()

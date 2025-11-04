@@ -1,10 +1,14 @@
 use crate::error::ArmError;
-use risc0_zkvm::{
-    default_prover, sha::Digest, ExecutorEnv, InnerReceipt, ProverOpts, Receipt, VerifierContext,
-};
-use serde::{de::DeserializeOwned, Serialize};
+use risc0_zkvm::{sha::Digest, InnerReceipt, Receipt};
+use serde::de::DeserializeOwned;
+
+#[cfg(feature = "prove")]
+use risc0_zkvm::{default_prover, ExecutorEnv, ProverOpts, VerifierContext};
+#[cfg(feature = "prove")]
+use serde::Serialize;
 
 // It takes a proving key and a witness, and returns the proof and the instance
+#[cfg(feature = "prove")]
 pub fn prove<T: Serialize>(
     proving_key: &[u8],
     witness: &T,
@@ -52,6 +56,7 @@ pub fn encode_seal(proof: &[u8]) -> Result<Vec<u8>, ArmError> {
     Ok(seal)
 }
 
+#[cfg(feature = "prove")]
 fn prove_inner<T: Serialize>(witness: &T, proving_key: &[u8]) -> Result<Receipt, ArmError> {
     let env = ExecutorEnv::builder()
         .write(witness)

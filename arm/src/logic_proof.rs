@@ -1,11 +1,11 @@
 use crate::{
-    constants::{PADDING_LOGIC_PK, PADDING_LOGIC_VK},
+    constants::{TRIVIAL_LOGIC_PK, TRIVIAL_LOGIC_VK},
     error::ArmError,
     logic_instance::AppData,
     logic_instance::LogicInstance,
     merkle_path::MerklePath,
     nullifier_key::{NullifierKey, NullifierKeyCommitment},
-    proving_system::{journal_to_instance, prove, verify as verify_proof},
+    proving_system::{journal_to_instance, verify as verify_proof},
     resource::Resource,
     resource_logic::TrivialLogicWitness,
     utils::words_to_bytes,
@@ -13,6 +13,9 @@ use crate::{
 use rand::Rng;
 use risc0_zkvm::{serde::to_vec, sha::Digest};
 use serde::{Deserialize, Serialize};
+
+#[cfg(feature = "prove")]
+use crate::proving_system::prove;
 
 pub trait LogicProver: Default + Clone + Serialize + for<'de> Deserialize<'de> {
     type Witness: Default + Clone + Serialize + for<'de> Deserialize<'de>;
@@ -27,6 +30,7 @@ pub trait LogicProver: Default + Clone + Serialize + for<'de> Deserialize<'de> {
 
     fn witness(&self) -> &Self::Witness;
 
+    #[cfg(feature = "prove")]
     fn prove(&self) -> Result<LogicVerifier, ArmError> {
         let (proof, instance) = prove(Self::proving_key(), self.witness())?;
         Ok(LogicVerifier {
@@ -109,19 +113,19 @@ impl TryFrom<LogicVerifier> for LogicVerifierInputs {
 }
 
 #[derive(Clone, Deserialize, Serialize)]
-pub struct PaddingResourceLogic {
+pub struct TrivialResourceLogic {
     witness: TrivialLogicWitness,
 }
 
-impl LogicProver for PaddingResourceLogic {
+impl LogicProver for TrivialResourceLogic {
     type Witness = TrivialLogicWitness;
 
     fn proving_key() -> &'static [u8] {
-        PADDING_LOGIC_PK
+        TRIVIAL_LOGIC_PK
     }
 
     fn verifying_key() -> Digest {
-        *PADDING_LOGIC_VK
+        *TRIVIAL_LOGIC_VK
     }
 
     fn witness(&self) -> &Self::Witness {
@@ -129,7 +133,7 @@ impl LogicProver for PaddingResourceLogic {
     }
 }
 
-impl PaddingResourceLogic {
+impl TrivialResourceLogic {
     pub fn new(
         resource: Resource,
         receive_existence_path: MerklePath,
@@ -142,9 +146,9 @@ impl PaddingResourceLogic {
             is_consumed,
             nf_key,
         };
-        PaddingResourceLogic { witness }
+        TrivialResourceLogic { witness }
     }
-    pub fn create_padding_resource(nk_commitment: NullifierKeyCommitment) -> Resource {
+    pub fn create_trivial_resource(nk_commitment: NullifierKeyCommitment) -> Resource {
         let mut rng = rand::thread_rng();
         Resource {
             logic_ref: Self::verifying_key(),
@@ -159,10 +163,10 @@ impl PaddingResourceLogic {
     }
 }
 
-impl Default for PaddingResourceLogic {
+impl Default for TrivialResourceLogic {
     fn default() -> Self {
         let (nf_key, nk_commitment) = NullifierKey::random_pair();
-        let resource = Self::create_padding_resource(nk_commitment);
+        let resource = Self::create_trivial_resource(nk_commitment);
         let receive_existence_path =
             MerklePath::from_path(vec![(Digest::default(), false); 3].as_slice());
         let witness = TrivialLogicWitness {
@@ -171,7 +175,7 @@ impl Default for PaddingResourceLogic {
             is_consumed: false,
             nf_key,
         };
-        PaddingResourceLogic { witness }
+        TrivialResourceLogic { witness }
     }
 }
 
@@ -179,11 +183,11 @@ impl LogicProver for TrivialLogicWitness {
     type Witness = TrivialLogicWitness;
 
     fn proving_key() -> &'static [u8] {
-        PADDING_LOGIC_PK
+        TRIVIAL_LOGIC_PK
     }
 
     fn verifying_key() -> Digest {
-        *PADDING_LOGIC_VK
+        *TRIVIAL_LOGIC_VK
     }
 
     fn witness(&self) -> &Self::Witness {
@@ -192,8 +196,8 @@ impl LogicProver for TrivialLogicWitness {
 }
 
 #[test]
-fn test_padding_logic_prover() {
-    let trivial_logic = PaddingResourceLogic::default();
+fn test_trivial_logic_prover() {
+    let trivial_logic = TrivialResourceLogic::default();
     let proof = trivial_logic.prove().unwrap();
     proof.verify().unwrap();
 }

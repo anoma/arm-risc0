@@ -1,7 +1,6 @@
 use crate::TransferLogic;
 use arm::{
     action::Action,
-    action_tree::MerkleTree,
     authorization::{AuthorizationSignature, AuthorizationVerifyingKey},
     compliance::ComplianceWitness,
     compliance_unit::ComplianceUnit,
@@ -11,7 +10,7 @@ use arm::{
     logic_proof::LogicProver,
     merkle_path::MerklePath,
     nullifier_key::NullifierKey,
-    resource::Resource,
+    resource::{ConsumedDatum, Resource},
     transaction::{Delta, Transaction},
 };
 
@@ -29,15 +28,16 @@ pub fn construct_transfer_tx(
     // Action tree
     let consumed_nf = consumed_resource.nullifier(&consumed_nf_key)?;
     let created_cm = created_resource.commitment();
-    let action_tree = MerkleTree::new(vec![consumed_nf, created_cm]);
+    let action_tree = Action::construct_action_tree(&[consumed_nf, created_cm]);
 
-    // Generate compliance units
-    let compliance_witness = ComplianceWitness::from_resources_with_path(
+    // Generate compliance unit
+    let consumed_info = ConsumedDatum::from_resource_with_path(
         consumed_resource,
         consumed_nf_key.clone(),
         consumed_resource_path,
-        created_resource,
     );
+    let compliance_witness =
+        ComplianceWitness::from_resources_info(&[consumed_info], &[created_resource]);
     let compliance_unit = ComplianceUnit::create(&compliance_witness)?;
 
     // Generate logic proofs
@@ -62,7 +62,7 @@ pub fn construct_transfer_tx(
 
     // Construct the action
     let action = Action::new(
-        vec![compliance_unit],
+        compliance_unit,
         vec![consumed_logic_proof, created_logic_proof],
     )?;
 
@@ -78,7 +78,6 @@ pub fn construct_transfer_tx(
 fn simple_transfer_test() {
     use crate::{resource::construct_persistent_resource, utils::authorize_the_action};
     use arm::{
-        action_tree::MerkleTree,
         authorization::{AuthorizationSigningKey, AuthorizationVerifyingKey},
         encryption::{random_keypair, Ciphertext},
         merkle_path::MerklePath,
@@ -113,7 +112,7 @@ fn simple_transfer_test() {
         &forwarder_addr, // forwarder_addr
         &token_addr,     // token_addr
         quantity,
-        consumed_nf.as_bytes().try_into().unwrap(), // nonce
+        Resource::derive_nonce_from_nullifiers(0, &[consumed_nf]).unwrap(), // nonce
         created_nf_cm,
         [7u8; 32], // rand_seed
         &created_auth_pk,
@@ -121,7 +120,7 @@ fn simple_transfer_test() {
     let created_cm = created_resource.commitment();
 
     // Get the authorization signature, it can be from external signing(e.g. wallet)
-    let action_tree = MerkleTree::new(vec![consumed_nf, created_cm]);
+    let action_tree = Action::construct_action_tree(&[consumed_nf, created_cm]);
     let auth_sig = authorize_the_action(&consumed_auth_sk, &action_tree);
 
     // Construct the transfer transaction

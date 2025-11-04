@@ -58,7 +58,7 @@ impl Transaction {
         }
     }
 
-    pub fn verify(self) -> Result<(), ArmError> {
+    pub fn verify(&self) -> Result<(), ArmError> {
         match &self.delta_proof {
             Delta::Proof(ref proof) => {
                 let msg = self.get_delta_msg()?;
@@ -78,7 +78,7 @@ impl Transaction {
                     self.verify_aggregation()?;
                 } else {
                     // Try verifying individually.
-                    for action in self.actions {
+                    for action in self.actions.iter() {
                         action.verify()?;
                     }
                 }
@@ -91,9 +91,13 @@ impl Transaction {
     pub fn nf_duplication_check(&self) -> Result<(), ArmError> {
         let mut seen_nullifiers = std::collections::HashSet::new();
         for action in &self.actions {
-            for cu in action.get_compliance_units() {
-                let instance = cu.get_instance()?;
-                if !seen_nullifiers.insert(instance.consumed_nullifier) {
+            let compliance_instance = action.compliance_unit.get_instance()?;
+            for consumed_nullifier in compliance_instance
+                .consumed_memorandums
+                .iter()
+                .map(|memo| memo.resource_nullifier)
+            {
+                if !seen_nullifiers.insert(consumed_nullifier) {
                     return Err(ArmError::NullifierDuplication);
                 }
             }
@@ -196,9 +200,7 @@ impl Transaction {
     // Replaces all compliance and resource logic proofs with `None`.
     fn erase_base_proofs(&mut self) {
         for a in self.actions.iter_mut() {
-            for cu in a.compliance_units.iter_mut() {
-                cu.proof = None;
-            }
+            a.compliance_unit.proof = None;
             for lp in a.logic_verifier_inputs.iter_mut() {
                 lp.proof = None;
             }
