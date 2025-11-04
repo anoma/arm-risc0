@@ -5,7 +5,10 @@ use crate::{
 use aes_gcm::{aead::Aead, Aes256Gcm, Key, KeyInit};
 pub use k256::AffinePoint;
 use k256::{
-    elliptic_curve::{group::GroupEncoding, Field},
+    elliptic_curve::{
+        group::{prime::PrimeCurveAffine, Group, GroupEncoding},
+        Field,
+    },
     ProjectivePoint, Scalar,
 };
 use rand::rngs::OsRng;
@@ -17,7 +20,7 @@ use serde::{Deserialize, Serialize};
 use std::io::Write;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SecretKey(Scalar);
 
 impl SecretKey {
@@ -32,6 +35,12 @@ impl SecretKey {
 
     pub fn inner(&self) -> &Scalar {
         &self.0
+    }
+}
+
+impl Default for SecretKey {
+    fn default() -> Self {
+        SecretKey(Scalar::ONE)
     }
 }
 
@@ -113,7 +122,7 @@ impl Ciphertext {
         nonce: [u8; 12],
     ) -> Result<Self, ArmError> {
         // Generate the secret key using Diffie-Hellman exchange
-        let inner_secret_key = InnerSecretKey::from_encryption(receiver_pk, sender_sk.inner());
+        let inner_secret_key = InnerSecretKey::from_encryption(receiver_pk, sender_sk.inner())?;
 
         // Derive AES-256 key and nonce
         let aes_gcm = Aes256Gcm::new(&inner_secret_key.inner());
@@ -137,7 +146,7 @@ impl Ciphertext {
         let cipher: InnerCiphert =
             bincode::deserialize(self.inner()).map_err(|_| ArmError::DeserializationError)?;
         // Generate the secret key using Diffie-Hellman exchange
-        let inner_secret_key = InnerSecretKey::from_decryption(&cipher.pk, sk.inner());
+        let inner_secret_key = InnerSecretKey::from_decryption(&cipher.pk, sk.inner())?;
 
         // Derive AES-256 key and nonce
         let aes_gcm = Aes256Gcm::new(&inner_secret_key.inner());
@@ -177,19 +186,42 @@ impl Zeroize for InnerSecretKey {
 impl ZeroizeOnDrop for InnerSecretKey {}
 
 impl InnerSecretKey {
-    pub fn from_encryption(pk: &AffinePoint, sk: &Scalar) -> Self {
+    pub fn from_encryption(pk: &AffinePoint, sk: &Scalar) -> Result<Self, ArmError> {
+        // Reject identity point
+        if bool::from(pk.is_identity()) {
+            return Err(ArmError::InvalidPublicKey);
+        }
+
         let pk = ProjectivePoint::from(*pk);
         let shared_point = pk * sk;
         Self::generate_shared_key(&shared_point, &pk)
     }
 
-    pub fn from_decryption(pk: &AffinePoint, sk: &Scalar) -> Self {
+    pub fn from_decryption(pk: &AffinePoint, sk: &Scalar) -> Result<Self, ArmError> {
+        // Reject identity point
+        if bool::from(pk.is_identity()) {
+            return Err(ArmError::InvalidPublicKey);
+        }
+
         let shared_point = ProjectivePoint::from(*pk) * sk;
         let pk = ProjectivePoint::GENERATOR * sk;
         Self::generate_shared_key(&shared_point, &pk)
     }
 
-    fn generate_shared_key(shared_point: &ProjectivePoint, pk: &ProjectivePoint) -> Self {
+    fn generate_shared_key(
+        shared_point: &ProjectivePoint,
+        pk: &ProjectivePoint,
+    ) -> Result<Self, ArmError> {
+        // Reject identity point
+        if bool::from(shared_point.is_identity()) {
+            return Err(ArmError::InvalidSharedSecret);
+        }
+
+        // Reject identity point
+        if bool::from(pk.is_identity()) {
+            return Err(ArmError::InvalidPublicKey);
+        }
+
         let pk_bytes = pk.to_bytes();
         let key_bytes = shared_point.to_bytes();
         let mut concat = [&pk_bytes[..], &key_bytes[..]].concat();
@@ -200,7 +232,7 @@ impl InnerSecretKey {
 
         let shared_key = hash.as_bytes();
         let key = Key::<Aes256Gcm>::from_slice(&shared_key[..32]);
-        InnerSecretKey(*key)
+        Ok(InnerSecretKey(*key))
     }
 
     pub fn inner(&self) -> Key<Aes256Gcm> {

@@ -72,4 +72,6 @@ pub enum ArmError {
     NullifierDuplication,
     #[error("Empty tree")]
     EmptyTree,
+    #[error("Invalid shared secret")]
+    InvalidSharedSecret,
 }
