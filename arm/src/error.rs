@@ -74,4 +74,6 @@ pub enum ArmError {
     EmptyTree,
     #[error("Invalid shared secret")]
     InvalidSharedSecret,
+    #[error("Tree too large")]
+    TreeTooLarge,
 }

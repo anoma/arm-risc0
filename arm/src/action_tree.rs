@@ -24,7 +24,11 @@ impl MerkleTree {
             return Err(ArmError::EmptyTree);
         }
 
-        let len = self.leaves.len().next_power_of_two();
+        let len = self
+            .leaves
+            .len()
+            .checked_next_power_of_two()
+            .ok_or(ArmError::TreeTooLarge)?;
         let mut cur_layer = self.leaves.clone();
         cur_layer.resize(len, *PADDING_LEAF);
         while cur_layer.len() > 1 {
@@ -60,7 +64,11 @@ impl MerkleTree {
             return Err(ArmError::InvalidLeaf);
         }
 
-        let len = self.leaves.len().next_power_of_two();
+        let len = self
+            .leaves
+            .len()
+            .checked_next_power_of_two()
+            .ok_or(ArmError::TreeTooLarge)?;
         let mut cur_layer = self.leaves.clone();
         cur_layer.resize(len, *PADDING_LEAF);
         if let Some(position) = cur_layer.iter().position(|v| v == cur_leave) {
