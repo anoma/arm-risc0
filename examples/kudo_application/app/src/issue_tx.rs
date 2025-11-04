@@ -112,7 +112,7 @@ pub fn build_issue_tx(
         padding_resource_nf,
         ephemeral_denomination_resource_cm,
     ]);
-    let root = action_tree.root();
+    let root = action_tree.root()?;
     let root_bytes = root.as_bytes();
 
     // Generate paths

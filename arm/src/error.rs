@@ -70,4 +70,6 @@ pub enum ArmError {
     InvalidNullifierCommitment,
     #[error("Nullifier duplication detected")]
     NullifierDuplication,
+    #[error("Empty tree")]
+    EmptyTree,
 }

@@ -19,7 +19,11 @@ impl MerkleTree {
         self.leaves.push(value)
     }
 
-    pub fn root(&self) -> Digest {
+    pub fn root(&self) -> Result<Digest, ArmError> {
+        if self.is_empty() {
+            return Err(ArmError::EmptyTree);
+        }
+
         let len = self.leaves.len().next_power_of_two();
         let mut cur_layer = self.leaves.clone();
         cur_layer.resize(len, *PADDING_LEAF);
@@ -29,7 +33,7 @@ impl MerkleTree {
                 .map(|pair| hash_two(&pair[0], &pair[1]))
                 .collect();
         }
-        cur_layer[0]
+        Ok(cur_layer[0])
     }
 
     // Generate the merkle path for the current leave
@@ -46,8 +50,16 @@ impl MerkleTree {
     /// - A `Digest` representing the sibling node's hash.
     /// - A `bool` indicating whether the sibling is on the left (`true`) or right (`false`).
     ///
-    /// Returns `None` if the leaf is not found in the tree.
+    /// Returns `ArmError::InvalidLeaf` if the leaf is not found in the tree.
     pub fn generate_path(&self, cur_leave: &Digest) -> Result<MerklePath, ArmError> {
+        if self.is_empty() {
+            return Err(ArmError::EmptyTree);
+        }
+
+        if *cur_leave == *PADDING_LEAF {
+            return Err(ArmError::InvalidLeaf);
+        }
+
         let len = self.leaves.len().next_power_of_two();
         let mut cur_layer = self.leaves.clone();
         cur_layer.resize(len, *PADDING_LEAF);
@@ -83,6 +95,10 @@ impl MerkleTree {
         } else {
             Err(ArmError::InvalidLeaf)
         }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.leaves.is_empty()
     }
 }
 

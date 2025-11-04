@@ -122,7 +122,7 @@ fn simple_transfer_test() {
 
     // Get the authorization signature, it can be from external signing(e.g. wallet)
     let action_tree = MerkleTree::new(vec![consumed_nf, created_cm]);
-    let auth_sig = authorize_the_action(&consumed_auth_sk, &action_tree);
+    let auth_sig = authorize_the_action(&consumed_auth_sk, &action_tree).unwrap();
 
     // Construct the transfer transaction
     let merkle_path = MerklePath::default(); // mock a path

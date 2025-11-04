@@ -109,7 +109,7 @@ pub fn build_transfer_tx(
         padding_resource_nf,
         receive_resource_cm,
     ]);
-    let root = action_tree.root();
+    let root = action_tree.root()?;
     let root_bytes = root.as_bytes();
 
     // Generate paths
