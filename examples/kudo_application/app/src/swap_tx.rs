@@ -21,7 +21,7 @@ use kudo_logic_witness::{
     AUTH_SIGNATURE_DOMAIN,
 };
 use kudo_traits::swap::Swap;
-use rand::Rng;
+use rand::{rngs::OsRng, Rng};
 
 #[allow(clippy::too_many_arguments)]
 pub fn build_swap_tx(
@@ -61,8 +61,7 @@ pub fn build_swap_tx(
 
     // Construct the denomination resource corresponding to the consumed kudo resource
     let denomination_logic = SimpleDenominationInfo::verifying_key();
-    let mut rng = rand::thread_rng();
-    let nonce: [u8; 32] = rng.gen(); // Random nonce for the ephemeral resource
+    let nonce: [u8; 32] = OsRng.gen(); // Random nonce for the ephemeral resource
     let consumed_denomination_resource = Resource::create(
         denomination_logic,
         consumed_kudo_nf, // Use the consumed kudo nullifier as the label

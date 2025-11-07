@@ -10,6 +10,7 @@ use crate::{
     resource_logic::TrivialLogicWitness,
     utils::words_to_bytes,
 };
+use rand::rngs::OsRng;
 use rand::Rng;
 use risc0_zkvm::{serde::to_vec, sha::Digest};
 use serde::{Deserialize, Serialize};
@@ -149,16 +150,15 @@ impl PaddingResourceLogic {
         PaddingResourceLogic { witness }
     }
     pub fn create_padding_resource(nk_commitment: NullifierKeyCommitment) -> Resource {
-        let mut rng = rand::thread_rng();
         Resource {
             logic_ref: Self::verifying_key(),
             label_ref: Digest::default(),
             quantity: 0,
             value_ref: Digest::default(),
             is_ephemeral: true,
-            nonce: rng.gen(),
+            nonce: OsRng.gen(),
             nk_commitment,
-            rand_seed: rng.gen(),
+            rand_seed: OsRng.gen(),
         }
     }
 }

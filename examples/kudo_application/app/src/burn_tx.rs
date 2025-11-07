@@ -16,7 +16,7 @@ use kudo_logic_witness::{
     AUTH_SIGNATURE_DOMAIN,
 };
 use kudo_traits::burn::Burn;
-use rand::Rng;
+use rand::{rngs::OsRng, Rng};
 
 pub fn build_burn_tx(
     issuer_sk: &AuthorizationSigningKey,
@@ -46,8 +46,7 @@ pub fn build_burn_tx(
 
     // Construct the ephemeral denomination resource
     let denomination_logic = SimpleDenominationInfo::verifying_key();
-    let mut rng = rand::thread_rng();
-    let nonce: [u8; 32] = rng.gen(); // Random nonce for the ephemeral resource
+    let nonce: [u8; 32] = OsRng.gen(); // Random nonce for the ephemeral resource
     let ephemeral_denomination_resource = Resource::create(
         denomination_logic,
         ephemeral_kudo_resource_cm, // Use the ephemeral kudo commitment as the label
