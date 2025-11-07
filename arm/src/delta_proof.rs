@@ -34,6 +34,11 @@ impl DeltaProof {
             .sign_digest_recoverable(digest)
             .map_err(|_| ArmError::DeltaProofGenerationFailed)?;
 
+        // On-chain signatures are not supported when recid is 2 or 3.
+        if recid.to_byte() > 1 {
+            return Err(ArmError::InvalidDeltaProof);
+        }
+
         Ok(DeltaProof { signature, recid })
     }
 
@@ -42,6 +47,11 @@ impl DeltaProof {
         proof: &DeltaProof,
         instance: DeltaInstance,
     ) -> Result<(), ArmError> {
+        // handle recid
+        if proof.recid.to_byte() > 1 {
+            return Err(ArmError::InvalidDeltaProof);
+        }
+
         // Hash the message using Keccak256
         let mut digest = Keccak256::new();
         digest.update(message);
