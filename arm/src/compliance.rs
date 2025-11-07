@@ -184,8 +184,8 @@ impl ComplianceWitness {
             .ok_or(ArmError::InvalidRcv)?;
         let consumed_kind = self.consumed_resource.kind()?;
         let created_kind = self.created_resource.kind()?;
-        let delta = consumed_kind * self.consumed_resource.quantity_scalar()
-            - created_kind * self.created_resource.quantity_scalar()
+        let delta = created_kind * self.created_resource.quantity_scalar()
+            - consumed_kind * self.consumed_resource.quantity_scalar()
             + ProjectivePoint::GENERATOR * rcv_scalar;
 
         let encoded_delta = delta.to_encoded_point(false);

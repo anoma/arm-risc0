@@ -57,7 +57,7 @@ impl Action {
             .flat_map(|instance| vec![instance.consumed_logic_ref, instance.created_logic_ref])
             .collect::<Vec<_>>();
         let action_tree = MerkleTree::from(tags.clone());
-        let root = action_tree.root();
+        let root = action_tree.root()?;
 
         // Match logic verifier inputs with the tags in the action tree
         if tags.len() != self.logic_verifier_inputs.len() {

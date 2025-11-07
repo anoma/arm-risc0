@@ -3,16 +3,15 @@ const PRF_EXPAND_PERSONALIZATION_LEN: usize = 16;
 const PRF_EXPAND_PERSONALIZATION: &[u8; PRF_EXPAND_PERSONALIZATION_LEN] = b"RISC0_ExpandSeed";
 const PRF_EXPAND_PSI: u8 = 0;
 const PRF_EXPAND_RCM: u8 = 1;
-const DEFAULT_BYTES: usize = 32;
 const QUANTITY_BYTES: usize = 16;
 const RESOURCE_BYTES: usize = DIGEST_BYTES
-    + DEFAULT_BYTES
-    + DEFAULT_BYTES
+    + DIGEST_BYTES
+    + DIGEST_BYTES
     + QUANTITY_BYTES
     + 1
     + DIGEST_BYTES
     + DIGEST_BYTES
-    + DEFAULT_BYTES;
+    + DIGEST_BYTES;
 
 use crate::{
     error::ArmError,
@@ -42,11 +41,11 @@ pub struct Resource {
     // flag that reflects the resource ephemerality
     pub is_ephemeral: bool,
     // guarantees the uniqueness of the resource computable components
-    pub nonce: [u8; 32],
+    pub nonce: [u8; DIGEST_BYTES],
     // commitment to nullifier key
     pub nk_commitment: NullifierKeyCommitment,
     // randomness seed used to derive whatever randomness needed
-    pub rand_seed: [u8; 32],
+    pub rand_seed: [u8; DIGEST_BYTES],
 }
 
 impl Resource {
@@ -144,15 +143,15 @@ impl Resource {
         bytes[offset..offset + DIGEST_BYTES].clone_from_slice(self.logic_ref.as_ref());
         offset += DIGEST_BYTES;
         // Write the label_ref bytes
-        bytes[offset..offset + DEFAULT_BYTES].clone_from_slice(self.label_ref.as_ref());
-        offset += DEFAULT_BYTES;
+        bytes[offset..offset + DIGEST_BYTES].clone_from_slice(self.label_ref.as_ref());
+        offset += DIGEST_BYTES;
         // Write the quantity bytes
         bytes[offset..offset + QUANTITY_BYTES]
             .clone_from_slice(self.quantity.to_be_bytes().as_ref());
         offset += QUANTITY_BYTES;
         // Write the fungible value_ref bytes
-        bytes[offset..offset + DEFAULT_BYTES].clone_from_slice(self.value_ref.as_ref());
-        offset += DEFAULT_BYTES;
+        bytes[offset..offset + DIGEST_BYTES].clone_from_slice(self.value_ref.as_ref());
+        offset += DIGEST_BYTES;
         // Write the ephemeral flag
         bytes[offset..offset + 1].clone_from_slice(&[self.is_ephemeral as u8]);
         offset += 1;
@@ -163,8 +162,8 @@ impl Resource {
         bytes[offset..offset + DIGEST_BYTES].clone_from_slice(self.nk_commitment.inner().as_ref());
         offset += DIGEST_BYTES;
         // Write the randomness seed bytes
-        bytes[offset..offset + DEFAULT_BYTES].clone_from_slice(self.rcm().as_ref());
-        offset += DEFAULT_BYTES;
+        bytes[offset..offset + DIGEST_BYTES].clone_from_slice(self.rcm().as_ref());
+        offset += DIGEST_BYTES;
         assert_eq!(offset, RESOURCE_BYTES);
         // Now produce the hash
         *Impl::hash_bytes(&bytes)
@@ -265,9 +264,9 @@ impl Default for Resource {
             quantity: 0,
             value_ref: Digest::default(),
             is_ephemeral: true,
-            nonce: [0; 32],
+            nonce: [0; DIGEST_BYTES],
             nk_commitment: NullifierKeyCommitment::default(),
-            rand_seed: [0; 32],
+            rand_seed: [0; DIGEST_BYTES],
         }
     }
 }

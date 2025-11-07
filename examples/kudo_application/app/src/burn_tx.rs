@@ -13,6 +13,7 @@ use kudo_logic_witness::{
     kudo_main_witness::KudoMainWitness,
     simple_denomination_witness::SimpleDenominationLogicWitness,
     utils::{compute_kudo_label, compute_kudo_value},
+    AUTH_SIGNATURE_DOMAIN,
 };
 use kudo_traits::burn::Burn;
 use rand::Rng;
@@ -78,7 +79,7 @@ pub fn build_burn_tx(
         ephemeral_denomination_resource_nf,
         burned_denomination_resource_cm,
     ]);
-    let root = action_tree.root();
+    let root = action_tree.root()?;
     let root_bytes = root.as_bytes();
 
     // Generate paths
@@ -104,7 +105,7 @@ pub fn build_burn_tx(
     let burned_kudo_info = KudoMainInfo::new(burned_kudo_logic_witness, Some(burned_kudo_path));
 
     // Construct the denomination witness corresponding to the consumed kudo resource
-    let consumption_signature = owner_sk.sign(root_bytes);
+    let consumption_signature = owner_sk.sign(AUTH_SIGNATURE_DOMAIN, root_bytes);
     let burned_denomination_logic_witness =
         SimpleDenominationLogicWitness::generate_denomimation_witness(
             burned_denomination_resource,
@@ -134,7 +135,7 @@ pub fn build_burn_tx(
     let ephemeral_kudo_info = KudoMainInfo::new(ephemeral_kudo_logic_witness, None);
 
     // Construct the denomination witness, corresponding to the ephemeral kudo resource
-    let burn_signature = issuer_sk.sign(root_bytes);
+    let burn_signature = issuer_sk.sign(AUTH_SIGNATURE_DOMAIN, root_bytes);
     let ephemeral_denomination_logic_witness =
         SimpleDenominationLogicWitness::generate_burned_ephemeral_witness(
             ephemeral_denomination_resource,

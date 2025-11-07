@@ -17,6 +17,7 @@ use kudo_logic_witness::{
     simple_denomination_witness::SimpleDenominationLogicWitness,
     simple_receive_witness::SimpleReceiveLogicWitness,
     utils::{compute_kudo_label, compute_kudo_value},
+    AUTH_SIGNATURE_DOMAIN,
 };
 use kudo_traits::issue::Issue;
 use rand::Rng;
@@ -112,7 +113,7 @@ pub fn build_issue_tx(
         padding_resource_nf,
         ephemeral_denomination_resource_cm,
     ]);
-    let root = action_tree.root();
+    let root = action_tree.root()?;
     let root_bytes = root.as_bytes();
 
     // Generate paths
@@ -179,7 +180,7 @@ pub fn build_issue_tx(
     let ephemeral_kudo = KudoMainInfo::new(ephemeral_kudo_logic_witness, None);
 
     // Construct the ephemeral denomination witness
-    let signature = issuer_sk.sign(root_bytes);
+    let signature = issuer_sk.sign(AUTH_SIGNATURE_DOMAIN, root_bytes);
     let ephemeral_denomination_logic_witness =
         SimpleDenominationLogicWitness::generate_issued_ephemeral_witness(
             ephemeral_denomination_resource,

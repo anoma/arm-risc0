@@ -83,7 +83,7 @@ impl LogicCircuit for CounterWitness {
         let tag = if self.is_consumed { old_nf } else { new_cm };
 
         let discovery_payload = {
-            let cipher = Ciphertext::encrypt(
+            let cipher = Ciphertext::encrypt_with_nonce(
                 &vec![0u8],
                 &self.discovery_pk,
                 &self.discovery_sk,

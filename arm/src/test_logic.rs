@@ -51,7 +51,7 @@ impl LogicCircuit for TestLogicWitness {
         };
 
         let discovery_payload = {
-            let cipher = Ciphertext::encrypt(
+            let cipher = Ciphertext::encrypt_with_nonce(
                 &vec![0u8],
                 &AffinePoint::GENERATOR,
                 &SecretKey::default(),

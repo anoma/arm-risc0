@@ -1,4 +1,4 @@
-use crate::utils::compute_kudo_label;
+use crate::{utils::compute_kudo_label, AUTH_SIGNATURE_DOMAIN};
 pub use arm::resource_logic::LogicCircuit;
 use arm::{
     authorization::{AuthorizationSignature, AuthorizationVerifyingKey},
@@ -73,7 +73,10 @@ impl LogicCircuit for SimpleDenominationLogicWitness {
             // Both insurance and burn should verify the issuer's signature. It
             // implies that only the issuer can burn resouces in this example.
             // It makes more sense to let the owner burn resources in practice?
-            assert!(self.kudo_issuer.verify(root_bytes, &self.signature).is_ok());
+            assert!(self
+                .kudo_issuer
+                .verify(AUTH_SIGNATURE_DOMAIN, root_bytes, &self.signature)
+                .is_ok());
 
             // The issuer must be the owner when burning the resource.
             if !self.kudo_is_consumed {
@@ -82,7 +85,10 @@ impl LogicCircuit for SimpleDenominationLogicWitness {
         } else if self.kudo_is_consumed {
             // Constrain persistent kudo resource consumption
             // Verify the owner's signature
-            assert!(self.kudo_owner.verify(root_bytes, &self.signature).is_ok());
+            assert!(self
+                .kudo_owner
+                .verify(AUTH_SIGNATURE_DOMAIN, root_bytes, &self.signature)
+                .is_ok());
         }
 
         Ok(LogicInstance {
