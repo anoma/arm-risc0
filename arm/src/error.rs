@@ -76,4 +76,6 @@ pub enum ArmError {
     InvalidSharedSecret,
     #[error("Tree too large")]
     TreeTooLarge,
+    #[error("Invalid delta proof: pls regenerate the proof")]
+    InvalidDeltaProof,
 }
