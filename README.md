@@ -109,23 +109,22 @@ We have the following feature flags in arm lib:
 
 ```toml
 # Default configuration (succinct proofs + transaction support)
-arm = "0.8.2"
+arm = "0.9.0"
 
 # Blockchain deployment with Groth16 proofs
-arm = { version = "0.8.2", default-features = false, features = ["groth16_prover", "transaction"] }
+arm = { version = "0.9.0", default-features = false, features = ["groth16_prover", "transaction"] }
 
 # Proof aggregation (a single succinct proof per transaction)
-arm = { version = "0.8.2", features = ["aggregation"] }
+arm = { version = "0.9.0", features = ["aggregation"] }
 
 # Blockchain deployment with a Groth16 aggregation proof
-arm = { version = "0.8.2", features = ["groth16_aggregation"] }
+arm = { version = "0.9.0", features = ["groth16_aggregation"] }
 
 # Logic-circuit-only usage
-arm = { version = "0.8.2", default-features = false }
+arm = { version = "0.9.0", default-features = false }
 
 # Elixir Anoma SDK
-arm = { version = "0.8.2", features = ["nif"] }
-arm = { version = "0.8.2", features = ["nif"] }
+arm = { version = "0.9.0", features = ["nif"] }
 ```
 
 
