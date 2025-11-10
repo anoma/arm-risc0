@@ -9,7 +9,13 @@ fn main() {
     let compliance_instances: Vec<ComplianceInstanceWords> = env::read();
     let compliance_key: Digest = env::read();
     let logic_instances: Vec<Vec<u32>> = env::read();
-    let logic_keys: Vec<Digest> = env::read(); // Assume same length as `logic_instances`. Else will panic.
+    let logic_keys: Vec<Digest> = env::read();
+
+    assert_eq!(
+        logic_instances.len(),
+        logic_keys.len(),
+        "Mismatched logic instances and keys lengths"
+    );
 
     // Verify the proofs.
     for ci in compliance_instances.iter() {
