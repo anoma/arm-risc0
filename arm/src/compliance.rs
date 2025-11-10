@@ -17,8 +17,10 @@ use k256::{
     EncodedPoint, ProjectivePoint, Scalar,
 };
 use lazy_static::lazy_static;
+use rand::rngs::OsRng;
 use risc0_zkvm::Digest;
 use serde_with::serde_as;
+
 lazy_static! {
     pub static ref INITIAL_ROOT: Digest =
         Digest::from_hex("cc1d2f838445db7aec431df9ee8a871f40e7aa5e064fc056633ef8c60fab7b06")
@@ -70,12 +72,11 @@ impl ComplianceWitness {
         nf_key: NullifierKey,
         created_resource: Resource,
     ) -> Self {
-        let mut rng = rand::thread_rng();
         ComplianceWitness {
             consumed_resource,
             created_resource,
             merkle_path: MerklePath::empty(),
-            rcv: Scalar::random(&mut rng).to_bytes().to_vec(),
+            rcv: Scalar::random(&mut OsRng).to_bytes().to_vec(),
             nf_key,
             ephemeral_root: latest_root,
         }
@@ -87,12 +88,11 @@ impl ComplianceWitness {
         merkle_path: MerklePath,
         created_resource: Resource,
     ) -> Self {
-        let mut rng = rand::thread_rng();
         ComplianceWitness {
             consumed_resource,
             created_resource,
             merkle_path,
-            rcv: Scalar::random(&mut rng).to_bytes().to_vec(),
+            rcv: Scalar::random(&mut OsRng).to_bytes().to_vec(),
             nf_key,
             ephemeral_root: *INITIAL_ROOT,
         }

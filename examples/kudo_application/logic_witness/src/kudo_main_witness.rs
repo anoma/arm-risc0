@@ -9,7 +9,7 @@ use arm::{
     nullifier_key::NullifierKey,
     resource::Resource,
 };
-use rand::Rng;
+use rand::{rngs::OsRng, Rng};
 use risc0_zkvm::sha::{Impl, Sha256};
 use serde::{Deserialize, Serialize};
 
@@ -155,7 +155,6 @@ impl KudoMainWitness {
         owner: AuthorizationVerifyingKey,
         receiver_signature: AuthorizationSignature,
     ) -> Self {
-        let mut rng = rand::thread_rng();
         Self {
             kudo_resource,
             kudo_existence_path,
@@ -163,7 +162,7 @@ impl KudoMainWitness {
             kudo_nf_key: NullifierKey::default(), // not used
             issuer,
             encryption_sk: SecretKey::random(),
-            encryption_nonce: rng.gen(),
+            encryption_nonce: OsRng.gen(),
             denomination_resource,
             denomination_existence_path,
             denomination_is_consumed,

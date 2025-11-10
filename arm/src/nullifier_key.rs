@@ -1,5 +1,5 @@
 use crate::error::ArmError;
-use rand::Rng;
+use rand::{rngs::OsRng, Rng};
 use risc0_zkvm::sha::{Digest, Impl, Sha256, DIGEST_BYTES};
 use serde::{Deserialize, Serialize};
 
@@ -25,8 +25,7 @@ impl NullifierKey {
     }
 
     pub fn random_pair() -> (NullifierKey, NullifierKeyCommitment) {
-        let mut rng = rand::thread_rng();
-        let rng_bytes: [u8; DIGEST_BYTES] = rng.gen();
+        let rng_bytes: [u8; DIGEST_BYTES] = OsRng.gen();
         let nf_key = NullifierKey::from_bytes(rng_bytes);
         let nk_commitment = nf_key.commit();
         (nf_key, nk_commitment)

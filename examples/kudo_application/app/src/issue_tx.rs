@@ -20,7 +20,7 @@ use kudo_logic_witness::{
     AUTH_SIGNATURE_DOMAIN,
 };
 use kudo_traits::issue::Issue;
-use rand::Rng;
+use rand::{rngs::OsRng, Rng};
 
 pub fn build_issue_tx(
     issuer_sk: &AuthorizationSigningKey,
@@ -37,8 +37,7 @@ pub fn build_issue_tx(
     let kudo_value = compute_kudo_value(receiver_pk);
 
     // Construct the ephemeral kudo resource
-    let mut rng = rand::thread_rng();
-    let nonce: [u8; 32] = rng.gen(); // Random nonce for the ephemeral resource
+    let nonce: [u8; 32] = OsRng.gen(); // Random nonce for the ephemeral resource
     let ephemeral_kudo_resource = Resource::create(
         kudo_logic,
         kudo_lable,
@@ -63,7 +62,7 @@ pub fn build_issue_tx(
     let issued_kudo_resource_cm = issued_kudo_resource.commitment();
 
     // Construct the issued receive logic resource
-    let nonce: [u8; 32] = rng.gen(); // Random nonce for the ephemeral resource
+    let nonce: [u8; 32] = OsRng.gen(); // Random nonce for the ephemeral resource
     let issued_receive_resource = Resource::create(
         SimpleReceiveInfo::verifying_key(),
         issued_kudo_resource_cm,

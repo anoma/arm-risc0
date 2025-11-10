@@ -22,6 +22,7 @@ use k256::{
     elliptic_curve::hash2curve::{ExpandMsgXmd, GroupDigest},
     ProjectivePoint, Scalar, Secp256k1,
 };
+use rand::rngs::OsRng;
 use rand::Rng;
 use risc0_zkvm::sha::{rust_crypto::Sha256 as Sha256Type, Impl, Sha256, DIGEST_BYTES};
 use risc0_zkvm::Digest;
@@ -58,7 +59,6 @@ impl Resource {
         nonce: Digest,
         nk_commitment: NullifierKeyCommitment,
     ) -> Self {
-        let mut rng = rand::thread_rng();
         Self {
             logic_ref,
             label_ref,
@@ -70,7 +70,7 @@ impl Resource {
                 .try_into()
                 .expect("it can not fail since the digest length is always 32 bytes"),
             nk_commitment,
-            rand_seed: rng.gen(),
+            rand_seed: OsRng.gen(),
         }
     }
 
@@ -222,8 +222,7 @@ impl Resource {
     }
 
     pub fn reset_randomness(&mut self) {
-        let mut rng = rand::thread_rng();
-        self.rand_seed = rng.gen();
+        self.rand_seed = OsRng.gen();
     }
 
     pub fn set_nonce(&mut self, nf: Digest) {
