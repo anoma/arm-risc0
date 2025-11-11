@@ -1,6 +1,7 @@
 use k256::ecdsa::{RecoveryId, Signature, SigningKey, VerifyingKey};
 use k256::{
-    elliptic_curve::PublicKey, elliptic_curve::ScalarPrimitive, ProjectivePoint, Scalar, SecretKey,
+    elliptic_curve::{scalar::IsHigh, PublicKey, ScalarPrimitive},
+    ProjectivePoint, Scalar, SecretKey,
 };
 use serde::{Deserialize, Serialize};
 
@@ -49,6 +50,13 @@ impl DeltaProof {
     ) -> Result<(), ArmError> {
         // handle recid
         if proof.recid.to_byte() > 1 {
+            return Err(ArmError::InvalidDeltaProof);
+        }
+
+        // Explicitly check for malleable signatures(s >
+        // 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0),
+        // even though it prevents the case in the prove above.
+        if proof.signature.s().is_high().into() {
             return Err(ArmError::InvalidDeltaProof);
         }
 
