@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 use std::io::Write;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct SecretKey(Scalar);
 
 impl SecretKey {

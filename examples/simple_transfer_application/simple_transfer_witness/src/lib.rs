@@ -16,7 +16,7 @@ use arm::{
 };
 use serde::{Deserialize, Serialize};
 pub const AUTH_SIGNATURE_DOMAIN: &[u8] = b"SimpleTransferAuthorization";
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Default, Serialize, Deserialize)]
 pub struct SimpleTransferWitness {
     pub resource: Resource,
     pub is_consumed: bool,
@@ -35,7 +35,7 @@ pub struct AuthorizationInfo {
     pub auth_sig: AuthorizationSignature,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct EncryptionInfo {
     // Obtain from the receiver for persistent resource_ciphertext
     pub encryption_pk: AffinePoint,
