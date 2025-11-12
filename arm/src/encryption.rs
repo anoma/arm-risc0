@@ -59,7 +59,7 @@ impl Zeroize for SecretKey {
 impl ZeroizeOnDrop for SecretKey {}
 
 #[cfg(feature = "nif")]
-fn do_encode<'a>(secret_key: &SecretKey, env: Env<'a>) -> Result<Term<'a>, Error> {
+fn do_encode<'a>(secret_key: &SecretKey, env: Env<'a>) -> NifResult<Term<'a>> {
     let bytes = bincode::serialize(&secret_key.0).unwrap();
 
     let mut erl_bin = OwnedBinary::new(bytes.len()).ok_or(Error::BadArg)?;
