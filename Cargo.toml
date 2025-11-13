@@ -2,13 +2,6 @@
 resolver = "2"
 members = [
     "arm",
-    "examples/kudo_application/app",
-    "examples/simple_counter_application/app",
-    "examples/kudo_application/logic_witness",
-    "examples/kudo_application/kudo_traits",
-    "examples/simple_counter_application/counter_witness",
-    "examples/simple_transfer_application/simple_transfer_witness",
-    "examples/simple_transfer_application/app"
 ]
 
 [profile.bench]
