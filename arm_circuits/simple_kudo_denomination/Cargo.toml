@@ -1,8 +1,0 @@
-[package]
-name = "simple-kudo-denomination"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-risc0-zkvm = "3.0.3"
-simple-kudo-denomination-methods = { path = "methods" }

@@ -1116,21 +1116,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "counter"
-version = "0.1.0"
-dependencies = [
- "counter-methods",
- "risc0-zkvm",
-]
-
-[[package]]
-name = "counter-methods"
-version = "0.1.0"
-dependencies = [
- "risc0-build",
-]
-
-[[package]]
 name = "cpp_demangle"
 version = "0.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2618,21 +2603,6 @@ checksum = "505d1856a39b200489082f90d897c3f07c455563880bc5952e38eabf731c83b6"
 dependencies = [
  "digest 0.10.7",
  "sha3-asm",
-]
-
-[[package]]
-name = "kudo-main"
-version = "0.1.0"
-dependencies = [
- "kudo-main-methods",
- "risc0-zkvm",
-]
-
-[[package]]
-name = "kudo-main-methods"
-version = "0.1.0"
-dependencies = [
- "risc0-build",
 ]
 
 [[package]]
@@ -4699,36 +4669,6 @@ name = "simd-adler32"
 version = "0.3.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d66dc143e6b11c1eddc06d5c423cfc97062865baf299914ab64caa38182078fe"
-
-[[package]]
-name = "simple-kudo-denomination"
-version = "0.1.0"
-dependencies = [
- "risc0-zkvm",
- "simple-kudo-denomination-methods",
-]
-
-[[package]]
-name = "simple-kudo-denomination-methods"
-version = "0.1.0"
-dependencies = [
- "risc0-build",
-]
-
-[[package]]
-name = "simple-kudo-receive"
-version = "0.1.0"
-dependencies = [
- "risc0-zkvm",
- "simple-kudo-receive-methods",
-]
-
-[[package]]
-name = "simple-kudo-receive-methods"
-version = "0.1.0"
-dependencies = [
- "risc0-build",
-]
 
 [[package]]
 name = "slab"

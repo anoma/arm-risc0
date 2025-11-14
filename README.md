@@ -16,14 +16,10 @@ This is a shielded resource machine implementation based on [Risc0-zkvm](https:/
   - **compliance**: Basic compliance checking circuit
   - **trivial_logic**: Minimal logic circuit example, also used in padding resources
   - **proof aggregation (batch_aggregation, sequential_aggregation)**: Circuits for single-run aggregation and IVC-based aggregation, respectively
-  - **logic_test**: The logic circuit contains hardcoded data to cover all instance fields and is used only in tests
-  - **counter**: The simple counter logic circuit
-  - **kudo circuits(kudo_main, simple_kudo_denomination, simple_kudo_receive)**: kudo application circuits
 
-- **`examples/`**: Demonstration application examples:
-  - **kudo_application**: A simple counter increment example
-  - **simple_counter_application**: A relatively complex example; more detailed descriptions can be found [here](https://research.anoma.net/t/shielded-kudos-revised-no-authorisation-abstraction/1522)
-  - **simple_transfer_application**: A simplified transfer application for use in the Protocol Adapter; more detailed descriptions can be found [here](https://forum.anoma.net/t/simple-transfer-application-for-ethereum/2193)
+## ARM-RISC0 Application Examples
+
+Several application examples are available at [here](https://github.com/anoma/arm-risc0-examples), including the simple counter application, token transfer application, and the kudo application.
 
 ## Getting Started
 
@@ -52,20 +48,6 @@ RISC0_DEV_MODE=1 cargo test
 cargo test --release
 ```
 
-* Run examples
-
-For example, test the simple counter example:
-
-```bash
-cd simple_counter
-
-# Run the counter initialization test
-cargo test test_create_init_counter_tx
-
-# Run the counter increment test
-cargo test test_create_increment_tx
-```
-
 ### Run tests and examples on Bonsai
 
 [Bonsai](https://risczero.com/bonsai) is a remote and high-performance service provided by RISC0 for generating proofs. To use Bonsai, you can request an API key [here](https://docs.google.com/forms/d/e/1FAIpQLSf9mu18V65862GS4PLYd7tFTEKrl90J5GTyzw_d14ASxrruFQ/viewform), and then set the environment variables. Once set up, your proof generation tasks will be automatically offloaded to Bonsai.
@@ -78,7 +60,6 @@ export BONSAI_API_KEY=<YOUR_API_KEY>
 ### Benchmark
 
 * [Compliance circuit benchmark](./arm_circuits/compliance/README.md)
-* [Kudo example benchmark](./examples/kudo_application/README.md)
 
 ## Feature flags
 

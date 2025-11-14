@@ -1102,28 +1102,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "counter-app"
-version = "0.1.0"
-dependencies = [
- "arm",
- "counter-witness",
- "hex",
- "lazy_static",
- "rand 0.8.5",
- "risc0-zkvm",
- "serde",
-]
-
-[[package]]
-name = "counter-witness"
-version = "0.1.0"
-dependencies = [
- "arm",
- "rand 0.8.5",
- "serde",
-]
-
-[[package]]
 name = "cpp_demangle"
 version = "0.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2611,41 +2589,6 @@ checksum = "505d1856a39b200489082f90d897c3f07c455563880bc5952e38eabf731c83b6"
 dependencies = [
  "digest 0.10.7",
  "sha3-asm",
-]
-
-[[package]]
-name = "kudo-app"
-version = "0.1.0"
-dependencies = [
- "arm",
- "hex",
- "k256",
- "kudo-logic-witness",
- "kudo-traits",
- "lazy_static",
- "rand 0.8.5",
- "risc0-zkvm",
- "serde",
-]
-
-[[package]]
-name = "kudo-logic-witness"
-version = "0.1.0"
-dependencies = [
- "arm",
- "rand 0.8.5",
- "risc0-zkvm",
- "serde",
-]
-
-[[package]]
-name = "kudo-traits"
-version = "0.1.0"
-dependencies = [
- "arm",
- "rand 0.8.5",
- "risc0-zkvm",
- "serde",
 ]
 
 [[package]]
@@ -4727,28 +4670,6 @@ name = "simd-adler32"
 version = "0.3.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d66dc143e6b11c1eddc06d5c423cfc97062865baf299914ab64caa38182078fe"
-
-[[package]]
-name = "simple-transfer-app"
-version = "0.1.0"
-dependencies = [
- "arm",
- "hex",
- "lazy_static",
- "rand 0.8.5",
- "risc0-zkvm",
- "serde",
- "simple-transfer-witness",
-]
-
-[[package]]
-name = "simple-transfer-witness"
-version = "0.1.0"
-dependencies = [
- "arm",
- "rand 0.8.5",
- "serde",
-]
 
 [[package]]
 name = "slab"
