@@ -4,16 +4,32 @@ use arm::{
     encryption::{AffinePoint, Ciphertext, SecretKey},
     error::ArmError,
     evm::{
-        encode_permit_witness_transfer_from, encode_transfer, CallType, ForwarderCalldata,
-        PermitTransferFrom,
+        encode_migrate, encode_permit_witness_transfer_from, encode_transfer, CallType,
+        ForwarderCalldata, PermitTransferFrom,
     },
     logic_instance::{AppData, ExpirableBlob, LogicInstance},
+    merkle_path::MerklePath,
     nullifier_key::NullifierKey,
     resource::Resource,
     utils::{bytes_to_words, hash_bytes},
     Digest,
 };
+use hex::FromHex;
+use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
+
+lazy_static! {
+    pub static ref ROOT_V1: Digest =
+        Digest::from_hex("c14edf4cb99988b690d94516864e220d5bf6bde294aad5b6dbf385830f2c3135")
+            .unwrap();
+    pub static ref FORWARDER_ADDRESS_V1: Digest =
+        Digest::from_hex("cc1d2f838445db7aec431df9ee8a871f40e7aa5e064fc056633ef8c60fab7b06")
+            .unwrap();
+    pub static ref LOGIC_V1: Digest =
+        Digest::from_hex("cc1d2f838445db7aec431df9ee8a871f40e7aa5e064fc056633ef8c60fab7b06")
+            .unwrap();
+}
+
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct SimpleTransferWitness {
     pub resource: Resource,
@@ -52,6 +68,7 @@ pub struct ForwarderInfo {
     pub token_addr: Vec<u8>,
     pub user_addr: Vec<u8>,
     pub permit_info: Option<PermitInfo>,
+    pub migrate_info: Option<MigrateInfo>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -59,6 +76,13 @@ pub struct PermitInfo {
     pub permit_nonce: Vec<u8>,
     pub permit_deadline: Vec<u8>,
     pub permit_sig: Vec<u8>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct MigrateInfo {
+    pub resource: Resource,
+    pub nf_key: NullifierKey,
+    pub path: MerklePath,
 }
 
 impl LogicCircuit for SimpleTransferWitness {
@@ -95,29 +119,71 @@ impl LogicCircuit for SimpleTransferWitness {
             let value_ref = calculate_value_ref_from_user_addr(user_addr);
             assert_eq!(self.resource.value_ref, value_ref);
 
-            let input = if self.is_consumed {
-                // Minting
-                assert_eq!(forwarder_info.call_type, CallType::Wrap);
-                let permit_info = forwarder_info
-                    .permit_info
-                    .as_ref()
-                    .ok_or(ArmError::MissingField("Permit info"))?;
-                let permit = PermitTransferFrom::from_bytes(
-                    erc20_addr,
-                    self.resource.quantity,
-                    permit_info.permit_nonce.as_ref(),
-                    permit_info.permit_deadline.as_ref(),
-                );
-                encode_permit_witness_transfer_from(
-                    user_addr,
-                    permit,
-                    root_bytes,
-                    permit_info.permit_sig.as_ref(),
-                )
-            } else {
-                // Burning
-                assert_eq!(forwarder_info.call_type, CallType::Unwrap);
-                encode_transfer(erc20_addr, user_addr, self.resource.quantity)
+            let input = match forwarder_info.call_type {
+                CallType::Unwrap => {
+                    // Burning
+                    assert!(!self.is_consumed);
+                    encode_transfer(erc20_addr, user_addr, self.resource.quantity)
+                }
+                CallType::Wrap => {
+                    // Minting
+                    assert!(self.is_consumed);
+                    let permit_info = forwarder_info
+                        .permit_info
+                        .as_ref()
+                        .ok_or(ArmError::MissingField("Permit info"))?;
+                    let permit = PermitTransferFrom::from_bytes(
+                        erc20_addr,
+                        self.resource.quantity,
+                        permit_info.permit_nonce.as_ref(),
+                        permit_info.permit_deadline.as_ref(),
+                    );
+                    encode_permit_witness_transfer_from(
+                        user_addr,
+                        permit,
+                        root_bytes,
+                        permit_info.permit_sig.as_ref(),
+                    )
+                }
+                CallType::Migrate => {
+                    assert!(self.is_consumed);
+
+                    let migrate_info = forwarder_info
+                        .migrate_info
+                        .as_ref()
+                        .ok_or(ArmError::MissingField("Migrate info"))?;
+
+                    // check existence of migrate_resource
+                    let migrate_cm = migrate_info.resource.commitment();
+                    let migrate_root = migrate_info.path.root(&migrate_cm);
+                    assert_eq!(*ROOT_V1, migrate_root);
+
+                    // check migrate_resource logic_ref
+                    assert_eq!(
+                        migrate_info.resource.logic_ref.as_words(),
+                        LOGIC_V1.as_words()
+                    );
+
+                    // check migrate_resource label_ref_v1
+                    let migrate_label_ref_v1 =
+                        calculate_label_ref(FORWARDER_ADDRESS_V1.as_bytes(), erc20_addr);
+                    assert_eq!(migrate_info.resource.label_ref, migrate_label_ref_v1);
+
+                    // check migrate_resource quantity
+                    assert_eq!(migrate_info.resource.quantity, self.resource.quantity);
+
+                    // compute migrate resource nullifier
+                    let migrate_nf = migrate_info
+                        .resource
+                        .nullifier_from_commitment(&migrate_info.nf_key, &migrate_cm)?;
+
+                    encode_migrate(erc20_addr, self.resource.quantity, migrate_nf.as_bytes())
+                }
+                _ => {
+                    return Err(ArmError::MissingField(
+                        "Invalid call type for ephemeral resource",
+                    ));
+                }
             };
 
             let forwarder_call_data = ForwarderCalldata::from_bytes(forwarder_addr, input, vec![]);

@@ -4745,6 +4745,8 @@ name = "simple-transfer-witness"
 version = "0.1.0"
 dependencies = [
  "arm",
+ "hex",
+ "lazy_static",
  "rand 0.8.5",
  "serde",
 ]

@@ -116,6 +116,7 @@ impl TransferLogic {
             token_addr,
             user_addr,
             permit_info: Some(permit_info),
+            migrate_info: None,
         };
 
         Self::new(
@@ -142,6 +143,7 @@ impl TransferLogic {
             token_addr,
             user_addr,
             permit_info: None,
+            migrate_info: None,
         };
 
         Self::new(

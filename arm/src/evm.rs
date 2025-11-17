@@ -93,7 +93,8 @@ sol! {
     #[derive(Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
     enum CallType {
         Unwrap, // burn
-        Wrap // mint with permit info
+        Wrap, // mint with permit info
+        Migrate, // migrate to a new version
     }
 
     /// @notice The token and amount details for a transfer signed in the permit transfer signature
@@ -135,6 +136,7 @@ pub fn encode_transfer(token: &[u8], to: &[u8], value: u128) -> Vec<u8> {
     // Encode as (CallType, token, to, value)
     let token: Address = token.try_into().expect("Invalid address bytes");
     let to: Address = to.try_into().expect("Invalid address bytes");
+    // NOTE: u128 is padded to u256, this can be fixed if we extend the value to 248 bits in ARM
     let value = U256::from(value);
     (CallType::Unwrap, token, to, value).abi_encode_params()
 }
@@ -155,6 +157,14 @@ pub fn encode_permit_witness_transfer_from(
         signature,
     )
         .abi_encode_params()
+}
+
+pub fn encode_migrate(token: &[u8], quantity: u128, nf: &[u8]) -> Vec<u8> {
+    let token: Address = token.try_into().expect("Invalid address bytes");
+    let nf = B256::from_slice(nf);
+    // NOTE: u128 is padded to u256, this can be fixed if we extend the value to 248 bits in ARM
+    let quantity_value = U256::from(quantity);
+    (CallType::Migrate, token, quantity_value, nf).abi_encode_params()
 }
 
 #[test]
