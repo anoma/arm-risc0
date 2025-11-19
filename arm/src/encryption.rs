@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 use std::io::Write;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]
 pub struct SecretKey(Scalar);
 
 impl SecretKey {
@@ -43,20 +43,6 @@ impl Default for SecretKey {
         SecretKey(Scalar::ONE)
     }
 }
-
-impl Zeroize for SecretKey {
-    fn zeroize(&mut self) {
-        // Manually zero the Scalar's inner U256
-        // Use volatile write to prevent compiler optimization
-        unsafe {
-            let ptr = &mut self.0 as *mut Scalar as *mut [u8; 32];
-            core::ptr::write_volatile(ptr, [0u8; 32]);
-        }
-    }
-}
-
-// Mark as ZeroizeOnDrop - auto-generates Drop impl that calls zeroize()
-impl ZeroizeOnDrop for SecretKey {}
 
 #[cfg(feature = "nif")]
 fn do_encode<'a>(secret_key: &SecretKey, env: Env<'a>) -> Result<Term<'a>, Error> {
@@ -240,11 +226,8 @@ impl InnerSecretKey {
     }
 }
 
-/// Wrapper for plaintext that automatically zeros on drop
+#[derive(Zeroize, ZeroizeOnDrop)]
 pub struct SecurePlaintext(Vec<u8>);
-
-// Vec<u8> already implements Zeroize, so we can implement ZeroizeOnDrop
-impl ZeroizeOnDrop for SecurePlaintext {}
 
 impl SecurePlaintext {
     pub fn new(data: Vec<u8>) -> Self {
