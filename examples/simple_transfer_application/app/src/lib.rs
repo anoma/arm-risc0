@@ -1,4 +1,5 @@
 pub mod burn;
+pub mod migrate;
 pub mod mint;
 pub mod resource;
 pub mod transfer;
@@ -9,6 +10,7 @@ use arm::{
     encryption::AffinePoint,
     evm::CallType,
     logic_proof::LogicProver,
+    merkle_path::MerklePath,
     nullifier_key::NullifierKey,
     resource::Resource,
     Digest,
@@ -17,13 +19,14 @@ use hex::FromHex;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use simple_transfer_witness::{
-    AuthorizationInfo, EncryptionInfo, ForwarderInfo, PermitInfo, SimpleTransferWitness,
+    AuthorizationInfo, EncryptionInfo, ForwarderInfo, MigrateInfo, PermitInfo,
+    SimpleTransferWitness,
 };
 
 pub const SIMPLE_TRANSFER_ELF: &[u8] = include_bytes!("../elf/simple-transfer-guest.bin");
 lazy_static! {
     pub static ref SIMPLE_TRANSFER_ID: Digest =
-        Digest::from_hex("e7808cc11d051113d0d5b947ebdf9d3dd88c9373e42761a4eea73164bdcce7e5")
+        Digest::from_hex("c751f1439528fd7cff79027a823a53c409ba86b70e0a789671b984e7032c1956")
             .unwrap();
 }
 
@@ -151,6 +154,44 @@ impl TransferLogic {
             false,
             action_tree_root,
             None,
+            None,
+            None,
+            Some(forwarder_info),
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn migrate_resource_logic(
+        self_resource: Resource,
+        action_tree_root: Digest,
+        self_nf_key: NullifierKey,
+        forwarder_addr: Vec<u8>,
+        token_addr: Vec<u8>,
+        user_addr: Vec<u8>,
+        migrated_resource: Resource,
+        migrated_nf_key: NullifierKey,
+        migrated_resource_path: MerklePath,
+    ) -> Self {
+        let migrate_info = MigrateInfo {
+            resource: migrated_resource,
+            nf_key: migrated_nf_key.clone(),
+            path: migrated_resource_path,
+        };
+
+        let forwarder_info = ForwarderInfo {
+            call_type: CallType::Migrate,
+            forwarder_addr,
+            token_addr,
+            user_addr,
+            permit_info: None,
+            migrate_info: Some(migrate_info),
+        };
+
+        Self::new(
+            self_resource,
+            true,
+            action_tree_root,
+            Some(self_nf_key),
             None,
             None,
             Some(forwarder_info),
