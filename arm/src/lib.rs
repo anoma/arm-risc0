@@ -3,7 +3,6 @@ pub mod action;
 pub mod action_tree;
 #[cfg(feature = "aggregation")]
 pub mod aggregation;
-pub mod authorization;
 #[cfg(any(feature = "compliance_circuit", feature = "aggregation_circuit"))]
 pub mod compliance;
 #[cfg(feature = "transaction")]
