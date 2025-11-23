@@ -1,4 +1,4 @@
-use crate::{
+use arm::{
     encryption::{Ciphertext, SecretKey},
     error::ArmError,
     evm::Resource as EvmResource,

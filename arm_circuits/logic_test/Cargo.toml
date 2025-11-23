@@ -6,7 +6,8 @@ edition = "2021"
 [dependencies]
 logic-test-methods = { path = "methods" }
 risc0-zkvm = "3.0.3"
-arm = { path = "../../arm", features = ["test_circuit"], default-features = false }
+arm = { path = "../../arm", default-features = false }
+arm-test-witness = { path = "../../arm_tests/arm_test_witness" }
 
 [features]
 default = []

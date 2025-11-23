@@ -624,6 +624,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "arm-test-app"
+version = "0.1.0"
+dependencies = [
+ "arm",
+ "arm-test-witness",
+ "hex",
+ "lazy_static",
+ "serde",
+]
+
+[[package]]
+name = "arm-test-witness"
+version = "0.1.0"
+dependencies = [
+ "arm",
+ "k256",
+ "rustler",
+ "serde",
+]
+
+[[package]]
 name = "arraydeque"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

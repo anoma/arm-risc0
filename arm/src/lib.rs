@@ -27,10 +27,6 @@ pub mod proving_system;
 pub mod resource;
 pub mod resource_logic;
 mod rustler_util;
-#[cfg(feature = "test_circuit")]
-pub mod test_logic;
-#[cfg(feature = "test")]
-pub mod tests;
 #[cfg(feature = "transaction")]
 pub mod transaction;
 pub mod utils;

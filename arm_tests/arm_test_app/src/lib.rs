@@ -2,7 +2,7 @@
 // The functions here are also used in the elixir sdk and binding libraries to
 // ensure that the ARM crate's transaction functionalities work as expected.
 
-use crate::{
+use arm::{
     action::Action,
     action_tree::MerkleTree,
     compliance::ComplianceWitness,
@@ -12,16 +12,16 @@ use crate::{
     merkle_path::MerklePath,
     nullifier_key::NullifierKey,
     resource::Resource,
-    test_logic::TestLogicWitness,
     transaction::{Delta, Transaction},
+    Digest,
 };
+use arm_test_witness::TestLogicWitness;
 use hex::FromHex;
 use lazy_static::lazy_static;
-use risc0_zkvm::Digest;
 use serde::{Deserialize, Serialize};
 
 // Test logic proving key / test logic guest ELF binary
-pub const TEST_LOGIC_PK: &[u8] = include_bytes!("../elfs/logic-test-guest.bin");
+pub const TEST_LOGIC_PK: &[u8] = include_bytes!("../elf/logic-test-guest.bin");
 
 lazy_static! {
     // test logic verification key / compliance image id
@@ -214,9 +214,8 @@ fn test_transaction() {
 }
 
 #[test]
-#[cfg(feature = "aggregation")]
 fn test_aggregation_works() {
-    use crate::aggregation::AggregationStrategy;
+    use arm::aggregation::AggregationStrategy;
 
     let tx = generate_test_transaction(2, 2);
 
@@ -229,9 +228,8 @@ fn test_aggregation_works() {
 }
 
 #[test]
-#[cfg(feature = "aggregation")]
 fn test_verify_aggregation_fails_for_incorrect_instances() {
-    use crate::aggregation::AggregationStrategy;
+    use arm::aggregation::AggregationStrategy;
 
     let tx = generate_test_transaction(2, 2);
 
@@ -246,9 +244,8 @@ fn test_verify_aggregation_fails_for_incorrect_instances() {
 }
 
 #[test]
-#[cfg(feature = "aggregation")]
 fn test_cannot_aggregate_invalid_proofs() {
-    use crate::{aggregation::AggregationStrategy, logic_proof::LogicVerifierInputs};
+    use arm::{aggregation::AggregationStrategy, logic_proof::LogicVerifierInputs};
 
     let tx = generate_test_transaction(2, 2);
 

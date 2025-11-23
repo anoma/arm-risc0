@@ -1,0 +1,11 @@
+[package]
+name = "arm-test-app"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+arm ={ path = "../../arm", features = ["aggregation"] }
+arm-test-witness ={ path = "../arm_test_witness" }
+serde = { version = "1.0.197", default-features = false }
+hex = "0.4"
+lazy_static = "1.5.0"

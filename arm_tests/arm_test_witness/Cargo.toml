@@ -1,0 +1,14 @@
+[package]
+name = "arm-test-witness"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+arm ={ path = "../../arm", default-features = false }
+serde = { version = "1.0.197", default-features = false }
+k256 = { version = "=0.13.3", features = ["arithmetic", "serde", "expose-field", "std", "ecdsa", "hash2curve"], default-features = false }
+rustler = { version = "0.36.2", optional = true }
+
+[features]
+default = []
+nif = ["dep:rustler"]
