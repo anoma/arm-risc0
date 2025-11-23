@@ -555,7 +555,6 @@ dependencies = [
 name = "arm"
 version = "0.12.0"
 dependencies = [
- "aes-gcm",
  "bincode",
  "bytemuck",
  "hex",
@@ -575,11 +574,16 @@ dependencies = [
 name = "arm-gadgets"
 version = "0.1.0"
 dependencies = [
+ "aes-gcm",
  "alloy-primitives",
  "alloy-sol-types",
  "arm",
+ "bincode",
  "hex",
+ "k256",
+ "rand 0.8.5",
  "serde",
+ "zeroize",
 ]
 
 [[package]]

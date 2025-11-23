@@ -12,7 +12,6 @@ pub mod compliance_unit;
 pub mod constants;
 #[cfg(feature = "transaction")]
 pub mod delta_proof;
-pub mod encryption;
 pub mod error;
 #[cfg(feature = "aggregation_circuit")]
 pub mod hash;

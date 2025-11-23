@@ -1,5 +1,4 @@
 use arm::{
-    encryption::{Ciphertext, SecretKey},
     error::ArmError,
     logic_instance::AppData,
     logic_instance::{ExpirableBlob, LogicInstance},
@@ -9,7 +8,10 @@ use arm::{
     resource_logic::LogicCircuit,
     utils::bytes_to_words,
 };
-use arm_gadgets::evm::Resource as EvmResource;
+use arm_gadgets::{
+    encryption::{Ciphertext, SecretKey},
+    evm::Resource as EvmResource,
+};
 use k256::AffinePoint;
 use serde::{Deserialize, Serialize};
 
