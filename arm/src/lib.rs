@@ -14,7 +14,6 @@ pub mod constants;
 pub mod delta_proof;
 pub mod encryption;
 pub mod error;
-pub mod evm;
 #[cfg(feature = "aggregation_circuit")]
 pub mod hash;
 pub mod logic_instance;

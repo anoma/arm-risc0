@@ -3,7 +3,8 @@ resolver = "2"
 members = [
     "arm",
     "arm_tests/arm_test_witness",
-    "arm_tests/arm_test_app"
+    "arm_tests/arm_test_app",
+    "arm_gadgets"
 ]
 
 [profile.bench]

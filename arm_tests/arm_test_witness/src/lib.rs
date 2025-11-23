@@ -1,7 +1,6 @@
 use arm::{
     encryption::{Ciphertext, SecretKey},
     error::ArmError,
-    evm::Resource as EvmResource,
     logic_instance::AppData,
     logic_instance::{ExpirableBlob, LogicInstance},
     merkle_path::MerklePath,
@@ -10,6 +9,7 @@ use arm::{
     resource_logic::LogicCircuit,
     utils::bytes_to_words,
 };
+use arm_gadgets::evm::Resource as EvmResource;
 use k256::AffinePoint;
 use serde::{Deserialize, Serialize};
 
