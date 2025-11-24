@@ -222,6 +222,12 @@ fn test_transaction() {
 }
 
 #[test]
+#[ignore]
+fn test_transaction_groth16() {
+    let _ = generate_test_transaction(2, 2, ProofType::Groth16);
+}
+
+#[test]
 fn test_aggregation_works() {
     use arm::aggregation::AggregationStrategy;
 
@@ -231,6 +237,23 @@ fn test_aggregation_works() {
         let mut tx_str = tx.clone();
         assert!(tx_str
             .aggregate_with_strategy(strategy.clone(), ProofType::Succinct)
+            .is_ok());
+        assert!(tx_str.aggregation_proof.is_some());
+        assert!(tx_str.verify_aggregation().is_ok());
+    }
+}
+
+#[test]
+#[ignore]
+fn test_aggregation_works_groth16() {
+    use arm::aggregation::AggregationStrategy;
+
+    let tx = generate_test_transaction(2, 2, ProofType::Succinct);
+
+    for strategy in [AggregationStrategy::Sequential, AggregationStrategy::Batch] {
+        let mut tx_str = tx.clone();
+        assert!(tx_str
+            .aggregate_with_strategy(strategy.clone(), ProofType::Groth16)
             .is_ok());
         assert!(tx_str.aggregation_proof.is_some());
         assert!(tx_str.verify_aggregation().is_ok());
