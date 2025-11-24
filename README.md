@@ -73,12 +73,11 @@ We have the following feature flags in arm lib:
 | Feature                  | Implies                   | Description                                                                                                                     |
 | ------------------------ | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | `compliance_circuit`       |                           | A specific feature for compliance circuit                                                                                       |
-| `transaction (default)`     | `compliance_circuit`, `client` | It provides full transaction processing capabilities and will be in the Anoma SDK and validator with a selected prover feature. Succinct prover is used by default. |
+| `transaction (default)`     | `compliance_circuit`, `client` | It provides full transaction processing capabilities and supports Succinct(STARK) and Groth16 proof types. Groth16 proofs require x86_64 machines. |
 | `prove`                    |                           | Enables RISC0 proving capabilities (required for actual proof generation)                                                       |
 | `bonsai`                    |                           | Enables RISC0 bonsai sdk                                                       |
 | `client`                    |                           | Enables RISC0 client sdk                                                       |
 | `cuda`                    |                           | Enables CUDA GPU acceleration for the prover. Requires CUDA toolkit to be installed.                                                       |
-| `groth16_prover`           |                           | Generates groth16 proofs(requires x86_64 machines)                                                                              |
 | `nif`                      |                           | Enables Erlang/Elixir NIF (Native Implemented Function) bindings                                                                |
 | `aggregation_circuit`      |                           | A specific feature for (pcd-based) aggregation circuits |
 | `aggregation`              | `aggregation_circuit`, `transaction`       | Enables proof aggregation (with constant-sized proofs by default) |
@@ -88,11 +87,8 @@ We have the following feature flags in arm lib:
 ### Usage Examples
 
 ```toml
-# Default configuration (succinct proofs + transaction support)
+# Default configuration
 arm = "0.12.0"
-
-# Blockchain deployment with Groth16 proofs
-arm = { version = "0.12.0", default-features = false, features = ["groth16_prover", "transaction"] }
 
 # Proof aggregation (a single succinct proof per transaction)
 arm = { version = "0.12.0", features = ["aggregation"] }

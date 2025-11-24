@@ -16,7 +16,7 @@ use risc0_zkvm::{serde::to_vec, sha::Digest};
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "prove")]
-use crate::proving_system::prove;
+use crate::proving_system::{prove, ProofType};
 
 pub trait LogicProver: Default + Clone + Serialize + for<'de> Deserialize<'de> {
     type Witness: Default + Clone + Serialize + for<'de> Deserialize<'de>;
@@ -32,8 +32,8 @@ pub trait LogicProver: Default + Clone + Serialize + for<'de> Deserialize<'de> {
     fn witness(&self) -> &Self::Witness;
 
     #[cfg(feature = "prove")]
-    fn prove(&self) -> Result<LogicVerifier, ArmError> {
-        let (proof, instance) = prove(Self::proving_key(), self.witness())?;
+    fn prove(&self, proof_type: ProofType) -> Result<LogicVerifier, ArmError> {
+        let (proof, instance) = prove(Self::proving_key(), self.witness(), proof_type)?;
         Ok(LogicVerifier {
             proof: Some(proof),
             instance,
@@ -198,6 +198,6 @@ impl LogicProver for TrivialLogicWitness {
 #[test]
 fn test_padding_logic_prover() {
     let trivial_logic = PaddingResourceLogic::default();
-    let proof = trivial_logic.prove().unwrap();
+    let proof = trivial_logic.prove(ProofType::Succinct).unwrap();
     proof.verify().unwrap();
 }

@@ -7,13 +7,20 @@ use risc0_zkvm::{default_prover, ExecutorEnv, ProverOpts, VerifierContext};
 #[cfg(feature = "prove")]
 use serde::Serialize;
 
+#[derive(Debug, Clone, Copy)]
+pub enum ProofType {
+    Succinct,
+    Groth16,
+}
+
 // It takes a proving key and a witness, and returns the proof and the instance
 #[cfg(feature = "prove")]
 pub fn prove<T: Serialize>(
     proving_key: &[u8],
     witness: &T,
+    proof_type: ProofType,
 ) -> Result<(Vec<u8>, Vec<u8>), ArmError> {
-    let receipt = prove_inner(witness, proving_key)?;
+    let receipt = prove_inner(witness, proving_key, proof_type)?;
 
     let proof = bincode::serialize(&receipt.inner).map_err(|_| ArmError::SerializationError)?;
     let instance = receipt.journal.bytes;
@@ -57,19 +64,25 @@ pub fn encode_seal(proof: &[u8]) -> Result<Vec<u8>, ArmError> {
 }
 
 #[cfg(feature = "prove")]
-fn prove_inner<T: Serialize>(witness: &T, proving_key: &[u8]) -> Result<Receipt, ArmError> {
+fn prove_inner<T: Serialize>(
+    witness: &T,
+    proving_key: &[u8],
+    proof_type: ProofType,
+) -> Result<Receipt, ArmError> {
     let env = ExecutorEnv::builder()
         .write(witness)
         .map_err(|_| ArmError::WriteWitnessFailed)?
         .build()
         .map_err(|_| ArmError::BuildProverEnvFailed)?;
 
-    #[cfg(feature = "groth16_prover")]
-    let prover_opts = ProverOpts::groth16(); // Groth16 receipts, constant size, blockchain-friendly.
-
-    // If no specific prover feature is enabled, default to succinct prover.
-    #[cfg(not(feature = "groth16_prover"))]
-    let prover_opts = ProverOpts::succinct(); // Succinct receipts, constant size.
+    let prover_opts = match proof_type {
+        ProofType::Succinct => {
+            ProverOpts::succinct() // Succinct receipts, constant size.
+        }
+        ProofType::Groth16 => {
+            ProverOpts::groth16() // Groth16 receipts, constant size, blockchain-friendly.
+        }
+    };
 
     let prove_info = default_prover()
         .prove_with_ctx(env, &VerifierContext::default(), proving_key, &prover_opts)
