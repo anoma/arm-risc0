@@ -17,6 +17,10 @@ This is a shielded resource machine implementation based on [Risc0-zkvm](https:/
   - **trivial_logic**: Minimal logic circuit example, also used in padding resources
   - **proof aggregation (batch_aggregation, sequential_aggregation)**: Circuits for single-run aggregation and IVC-based aggregation, respectively
 
+- **`arm_gadgets/`**: It provides a range of commonly used components for resource logic circuits, such as verifiable encryption and ECDSA signature authentication.
+
+- **`arm_tests/`**: It encompasses a basic resource logic instantiation and transaction tests.
+
 ## ARM-RISC0 Application Examples
 
 Several application examples are available at [here](https://github.com/anoma/arm-risc0-examples), including the simple counter application, token transfer application, and the kudo application.
@@ -32,7 +36,7 @@ Note: The installation of the Risc0 toolchain is required only if you intend to 
 
 ### Build and Test
 
-* Compile `arm` lib
+* Compile `arm` libs
 
 ```bash
 cargo build
@@ -78,8 +82,6 @@ We have the following feature flags in arm lib:
 | `composite_prover`         |                           | Fastest option producing linear-size proofs, and supports compression via recursion                                                                 |
 | `groth16_prover`           |                           | Generates groth16 proofs(requires x86_64 machines)                                                                              |
 | `nif`                      |                           | Enables Erlang/Elixir NIF (Native Implemented Function) bindings                                                                |
-| `test_circuit`             |                           | A simple circuit implementation for testing |
-| `test`                     |                           | Includes tx and action tests; some test APIs are available outside the arm lib(Binding lib and Elixir SDK). |
 | `aggregation_circuit`      |                           | A specific feature for (pcd-based) aggregation circuits |
 | `aggregation`              | `aggregation_circuit`, `transaction`       | Enables proof aggregation (with constant-sized proofs by default) |
 |`fast_aggregation`          | `aggregation`               | Faster aggregation with linear-sized proofs without compression
@@ -165,7 +167,7 @@ The _sequential_ strategy aggregates sequentially, in an IVC style.
 use arm::aggregation::AggregationStrategy;
 
 assert!(tx.aggregate_with_strategy(AggregationStrategy::Sequential).is_ok());
-``` 
+```
 
 **Warning:** Once again, aggregation erases all the individual proofs from `tx` and replaces them with the (single) aggregation proof in a dedicated field. This is why the transaction must be `mut`. This is true independently of the strategy used.
 
