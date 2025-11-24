@@ -92,8 +92,8 @@ impl ForwarderCalldata {
 sol! {
     #[derive(Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
     enum CallType {
-        Unwrap, // burn
-        Wrap // mint with permit info
+        Wrap, // mint with permit info
+        Unwrap // burn
     }
 
     /// @notice The token and amount details for a transfer signed in the permit transfer signature
