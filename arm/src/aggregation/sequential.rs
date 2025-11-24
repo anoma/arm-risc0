@@ -3,6 +3,7 @@ use risc0_zkvm::Digest;
 use crate::{
     aggregation::constants::{SEQUENTIAL_AGGREGATION_PK, SEQUENTIAL_AGGREGATION_VK},
     error::ArmError,
+    proving_system::ProofType,
     transaction::Transaction,
 };
 
@@ -29,6 +30,7 @@ impl SequentialAggregation {
     pub fn prove_transcript_aggregation(
         instances: &[StepInstance],
         proofs: &[StepProof],
+        proof_type: ProofType,
     ) -> Result<PcdProof, ArmError> {
         if instances.len() != proofs.len() {
             // Can't aggregate.
@@ -46,6 +48,7 @@ impl SequentialAggregation {
                 instance,
                 proof,
                 pos == instances.len() - 1,
+                proof_type,
             )?;
 
             agg = <SequentialAggregation as PCDAggregation>::aggregate_step(&[agg], instance);
@@ -57,9 +60,12 @@ impl SequentialAggregation {
     }
 
     /// Prove correctness of the transcript induced by a transaction.
-    pub fn prove_transaction_aggregation(tx: &Transaction) -> Result<PcdProof, ArmError> {
+    pub fn prove_transaction_aggregation(
+        tx: &Transaction,
+        proof_type: ProofType,
+    ) -> Result<PcdProof, ArmError> {
         if let (instances, Some(proofs)) = &SequentialAggregation::transaction_transcript(tx)? {
-            SequentialAggregation::prove_transcript_aggregation(instances, proofs)
+            SequentialAggregation::prove_transcript_aggregation(instances, proofs, proof_type)
         } else {
             Err(ArmError::ProveFailed(
                 "Error deriving transcript for proving (individual instances and proofs)".into(),

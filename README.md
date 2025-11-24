@@ -80,9 +80,7 @@ We have the following feature flags in arm lib:
 | `cuda`                    |                           | Enables CUDA GPU acceleration for the prover. Requires CUDA toolkit to be installed.                                                       |
 | `nif`                      |                           | Enables Erlang/Elixir NIF (Native Implemented Function) bindings                                                                |
 | `aggregation_circuit`      |                           | A specific feature for (pcd-based) aggregation circuits |
-| `aggregation`              | `aggregation_circuit`, `transaction`       | Enables proof aggregation (with constant-sized proofs by default) |
-|`groth16_aggregation`       | `aggregation`               | Generates groth16 aggregation proofs (requires x86_64 machines)
-
+| `aggregation`              | `aggregation_circuit`, `transaction`       | Enables proof aggregation (only succinct proofs can be aggregated) |
 
 ### Usage Examples
 
@@ -92,9 +90,6 @@ arm = "0.12.0"
 
 # Proof aggregation (a single succinct proof per transaction)
 arm = { version = "0.12.0", features = ["aggregation"] }
-
-# Blockchain deployment with a Groth16 aggregation proof
-arm = { version = "0.12.0", features = ["groth16_aggregation"] }
 
 # Logic-circuit-only usage
 arm = { version = "0.12.0", default-features = false }
@@ -130,28 +125,30 @@ cargo install --force --git https://github.com/risc0/risc0 --tag v3.0.3 -Fexperi
 ```
 
 ## Proof aggregation
-If a single transaction bundles too many resources, it is possible to aggregate all compliance and logic proofs into a single aggregation proof, attesting to the validity of them all. This reduces overall verification time and transaction size. 
+If a single transaction bundles too many resources, it is possible to aggregate all compliance and logic proofs into a single aggregation proof, attesting to the validity of them all. This reduces overall verification time and transaction size.
 
 ### Before aggregation
- Generate the transaction in the normal way in your workflow. But note that succinct proofs will yield faster aggregation. 
+ Generate the transaction in the normal way in your workflow. But note that succinct proofs will yield faster aggregation.
 
- **Warning:** Bonsai does not support in-circuit verification of Groth16 proofs. You would need to generate succinct compliance and logic proofs instead.
+ **Warning:** It does not support in-circuit verification of Groth16 proofs. You would need to generate succinct compliance and logic proofs instead.
 
 
 ### Prove aggregations
-You need to enable the `aggregation` feature to be able to prove or verify aggregations. 
+You need to enable the `aggregation` feature to be able to prove or verify aggregations.
 
-The type of the aggregation proof is selected via a feature. It defaults to succinct stark proofs. For on-chain verification, you probably want to aggregate with the `groth16_aggregation` feature enabled. See the features table above for more information.
+The aggregation proof type is specified by the ProofType argument. The inner proofs must be Succinct.
 
 We currently support two different aggregation strategies. The _batch_ strategy aggregates all proofs in the transaction in a single run. It is the default aggregation.
 
 ```rust
 use arm::transaction;
 
-let mut tx = generate_test_transaction(1); // Just a dummy tx, for illustration.
+// Just a dummy tx, for illustration. The inner proofs must be Succinct.
+let mut tx = generate_test_transaction(1, 1, ProofType::Succinct);
 
 // Upon succesful aggregation, compliance and resource logic proofs are erased.
-assert!(tx.aggregate().is_ok());
+// The aggregated proof_type can be ProofType::Succinct or ProofType::Groth16
+assert!(tx.aggregate(proof_type).is_ok());
 ```
 
 The _sequential_ strategy aggregates sequentially, in an IVC style.
@@ -159,7 +156,7 @@ The _sequential_ strategy aggregates sequentially, in an IVC style.
 ```rust
 use arm::aggregation::AggregationStrategy;
 
-assert!(tx.aggregate_with_strategy(AggregationStrategy::Sequential).is_ok());
+assert!(tx.aggregate_with_strategy(AggregationStrategy::Sequential, proof_type).is_ok());
 ```
 
 **Warning:** Once again, aggregation erases all the individual proofs from `tx` and replaces them with the (single) aggregation proof in a dedicated field. This is why the transaction must be `mut`. This is true independently of the strategy used.

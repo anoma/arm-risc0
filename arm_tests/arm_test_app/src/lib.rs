@@ -229,7 +229,9 @@ fn test_aggregation_works() {
 
     for strategy in [AggregationStrategy::Sequential, AggregationStrategy::Batch] {
         let mut tx_str = tx.clone();
-        assert!(tx_str.aggregate_with_strategy(strategy.clone()).is_ok());
+        assert!(tx_str
+            .aggregate_with_strategy(strategy.clone(), ProofType::Succinct)
+            .is_ok());
         assert!(tx_str.aggregation_proof.is_some());
         assert!(tx_str.verify_aggregation().is_ok());
     }
@@ -243,7 +245,9 @@ fn test_verify_aggregation_fails_for_incorrect_instances() {
 
     for strategy in [AggregationStrategy::Sequential, AggregationStrategy::Batch] {
         let mut tx_str = tx.clone();
-        assert!(tx_str.aggregate_with_strategy(strategy).is_ok());
+        assert!(tx_str
+            .aggregate_with_strategy(strategy, ProofType::Succinct)
+            .is_ok());
 
         tx_str.actions[0].logic_verifier_inputs.pop();
 
@@ -273,7 +277,9 @@ fn test_cannot_aggregate_invalid_proofs() {
 
     for strategy in [AggregationStrategy::Sequential, AggregationStrategy::Batch] {
         let mut bad_tx_str = bad_tx.clone();
-        assert!(bad_tx_str.aggregate_with_strategy(strategy).is_err());
+        assert!(bad_tx_str
+            .aggregate_with_strategy(strategy, ProofType::Succinct)
+            .is_err());
         assert!(bad_tx_str.aggregation_proof.is_none());
     }
 }
