@@ -64,25 +64,11 @@ fn prove_inner<T: Serialize>(witness: &T, proving_key: &[u8]) -> Result<Receipt,
         .build()
         .map_err(|_| ArmError::BuildProverEnvFailed)?;
 
-    #[cfg(feature = "fast_prover")]
-    let prover_opts = ProverOpts::fast(); // Fastest, linear size, no recursion.
-
-    #[cfg(all(not(feature = "fast_prover"), feature = "composite_prover"))]
-    let prover_opts = ProverOpts::composite(); // Composite receipts, linear size, supports recursion.
-
-    #[cfg(all(
-        not(feature = "fast_prover"),
-        not(feature = "composite_prover"),
-        feature = "groth16_prover"
-    ))]
+    #[cfg(feature = "groth16_prover")]
     let prover_opts = ProverOpts::groth16(); // Groth16 receipts, constant size, blockchain-friendly.
 
     // If no specific prover feature is enabled, default to succinct prover.
-    #[cfg(all(
-        not(feature = "fast_prover"),
-        not(feature = "composite_prover"),
-        not(feature = "groth16_prover")
-    ))]
+    #[cfg(not(feature = "groth16_prover"))]
     let prover_opts = ProverOpts::succinct(); // Succinct receipts, constant size.
 
     let prove_info = default_prover()

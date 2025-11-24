@@ -78,13 +78,10 @@ We have the following feature flags in arm lib:
 | `bonsai`                    |                           | Enables RISC0 bonsai sdk                                                       |
 | `client`                    |                           | Enables RISC0 client sdk                                                       |
 | `cuda`                    |                           | Enables CUDA GPU acceleration for the prover. Requires CUDA toolkit to be installed.                                                       |
-| `fast_prover`         |                           | Fastest option producing linear-size proofs, and does not support compression via recursion |
-| `composite_prover`         |                           | Fastest option producing linear-size proofs, and supports compression via recursion                                                                 |
 | `groth16_prover`           |                           | Generates groth16 proofs(requires x86_64 machines)                                                                              |
 | `nif`                      |                           | Enables Erlang/Elixir NIF (Native Implemented Function) bindings                                                                |
 | `aggregation_circuit`      |                           | A specific feature for (pcd-based) aggregation circuits |
 | `aggregation`              | `aggregation_circuit`, `transaction`       | Enables proof aggregation (with constant-sized proofs by default) |
-|`fast_aggregation`          | `aggregation`               | Faster aggregation with linear-sized proofs without compression
 |`groth16_aggregation`       | `aggregation`               | Generates groth16 aggregation proofs (requires x86_64 machines)
 
 

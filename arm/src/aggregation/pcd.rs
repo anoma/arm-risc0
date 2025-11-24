@@ -110,20 +110,12 @@ pub trait PCDAggregation {
 
         // If not an output node, prove fast.
         let prover_opts = if output_node {
-            #[cfg(feature = "fast_aggregation")]
-            {
-                ProverOpts::fast()
-            }
-
-            #[cfg(all(not(feature = "fast_aggregation"), feature = "groth16_aggregation"))]
+            #[cfg(feature = "groth16_aggregation")]
             {
                 ProverOpts::groth16()
             }
 
-            #[cfg(all(
-                not(feature = "fast_aggregation"),
-                not(feature = "groth16_aggregation")
-            ))]
+            #[cfg(not(feature = "groth16_aggregation"))]
             {
                 ProverOpts::succinct()
             }

@@ -74,16 +74,10 @@ impl BatchAggregation {
             .build()
             .map_err(|_| ArmError::BuildProverEnvFailed)?;
 
-        #[cfg(feature = "fast_aggregation")]
-        let prover_opts = ProverOpts::fast();
-
-        #[cfg(all(not(feature = "fast_aggregation"), feature = "groth16_aggregation"))]
+        #[cfg(feature = "groth16_aggregation")]
         let prover_opts = ProverOpts::groth16();
 
-        #[cfg(all(
-            not(feature = "fast_aggregation"),
-            not(feature = "groth16_aggregation")
-        ))]
+        #[cfg(not(feature = "groth16_aggregation"))]
         let prover_opts = ProverOpts::succinct();
 
         let prover = default_prover();
