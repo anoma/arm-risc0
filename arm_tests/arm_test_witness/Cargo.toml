@@ -12,4 +12,3 @@ rustler = { version = "0.36.2", optional = true }
 
 [features]
 default = []
-nif = ["dep:rustler"]

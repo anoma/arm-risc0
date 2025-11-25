@@ -78,7 +78,6 @@ We have the following feature flags in arm lib:
 | `bonsai`                    |                           | Enables RISC0 bonsai sdk                                                       |
 | `client`                    |                           | Enables RISC0 client sdk                                                       |
 | `cuda`                    |                           | Enables CUDA GPU acceleration for the prover. Requires CUDA toolkit to be installed.                                                       |
-| `nif`                      |                           | Enables Erlang/Elixir NIF (Native Implemented Function) bindings                                                                |
 | `aggregation_circuit`      |                           | A specific feature for (pcd-based) aggregation circuits |
 | `aggregation`              | `aggregation_circuit`, `transaction`       | Enables proof aggregation (only succinct proofs can be aggregated) |
 
@@ -93,9 +92,6 @@ arm = { version = "0.12.0", features = ["aggregation"] }
 
 # Logic-circuit-only usage
 arm = { version = "0.12.0", default-features = false }
-
-# Elixir Anoma SDK
-arm = { version = "0.12.0", features = ["nif"] }
 ```
 
 

@@ -610,7 +610,6 @@ dependencies = [
  "lazy_static",
  "rand 0.8.5",
  "risc0-zkvm",
- "rustler",
  "serde",
  "serde_with",
  "sha3",
