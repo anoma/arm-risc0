@@ -1,9 +1,7 @@
 use crate::{
     constants::{PADDING_LOGIC_PK, PADDING_LOGIC_VK},
     error::ArmError,
-    logic_instance::AppData,
-    logic_instance::LogicInstance,
-    merkle_path::MerklePath,
+    logic_instance::{AppData, LogicInstance},
     nullifier_key::{NullifierKey, NullifierKeyCommitment},
     proving_system::{journal_to_instance, verify as verify_proof},
     resource::Resource,
@@ -137,13 +135,13 @@ impl LogicProver for PaddingResourceLogic {
 impl PaddingResourceLogic {
     pub fn new(
         resource: Resource,
-        receive_existence_path: MerklePath,
+        action_tree_root: Digest,
         nf_key: NullifierKey,
         is_consumed: bool,
     ) -> Self {
         let witness = TrivialLogicWitness {
             resource,
-            receive_existence_path,
+            action_tree_root,
             is_consumed,
             nf_key,
         };
@@ -167,11 +165,9 @@ impl Default for PaddingResourceLogic {
     fn default() -> Self {
         let (nf_key, nk_commitment) = NullifierKey::random_pair();
         let resource = Self::create_padding_resource(nk_commitment);
-        let receive_existence_path =
-            MerklePath::from_path(vec![(Digest::default(), false); 3].as_slice());
         let witness = TrivialLogicWitness {
             resource,
-            receive_existence_path,
+            action_tree_root: Digest::default(),
             is_consumed: false,
             nf_key,
         };

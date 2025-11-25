@@ -1,7 +1,8 @@
 use crate::{
     error::ArmError, logic_instance::AppData, logic_instance::LogicInstance,
-    merkle_path::MerklePath, nullifier_key::NullifierKey, resource::Resource,
+    nullifier_key::NullifierKey, resource::Resource,
 };
+use risc0_zkvm::Digest;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "nif")]
@@ -23,7 +24,7 @@ pub trait LogicCircuit: Default + Clone + Serialize + for<'de> Deserialize<'de> 
 #[cfg_attr(feature = "nif", module = "Anoma.Arm.TrivialLogicWitness")]
 pub struct TrivialLogicWitness {
     pub resource: Resource,
-    pub receive_existence_path: MerklePath,
+    pub action_tree_root: Digest,
     pub is_consumed: bool,
     pub nf_key: NullifierKey,
 }
@@ -32,7 +33,6 @@ impl LogicCircuit for TrivialLogicWitness {
     fn constrain(&self) -> Result<LogicInstance, ArmError> {
         // Load the self resource
         let tag = self.resource.tag(self.is_consumed, &self.nf_key)?;
-        let root = self.receive_existence_path.root(&tag);
 
         // The trivial resource is ephemeral and has zero quantity
         assert_eq!(self.resource.quantity, 0);
@@ -41,7 +41,7 @@ impl LogicCircuit for TrivialLogicWitness {
         Ok(LogicInstance {
             tag,
             is_consumed: self.is_consumed, // It can be either consumed or created to reduce padding resources
-            root,
+            root: self.action_tree_root,
             app_data: AppData::default(), // No app data for trivial logic
         })
     }
@@ -50,13 +50,13 @@ impl LogicCircuit for TrivialLogicWitness {
 impl TrivialLogicWitness {
     pub fn new(
         resource: Resource,
-        receive_existence_path: MerklePath,
+        action_tree_root: Digest,
         nf_key: NullifierKey,
         is_consumed: bool,
     ) -> Self {
         Self {
             resource,
-            receive_existence_path,
+            action_tree_root,
             is_consumed,
             nf_key,
         }
