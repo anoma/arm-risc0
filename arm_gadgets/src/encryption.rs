@@ -1,15 +1,14 @@
-use crate::{
+use aes_gcm::{aead::Aead, Aes256Gcm, Key, KeyInit};
+use arm::{
     error::ArmError,
     utils::{bytes_to_words, hash_bytes, words_to_bytes},
 };
-use aes_gcm::{aead::Aead, Aes256Gcm, Key, KeyInit};
-pub use k256::AffinePoint;
 use k256::{
     elliptic_curve::{
         group::{prime::PrimeCurveAffine, Group, GroupEncoding},
         Field,
     },
-    ProjectivePoint, Scalar,
+    AffinePoint, ProjectivePoint, Scalar,
 };
 use rand::rngs::OsRng;
 use rand::Rng;

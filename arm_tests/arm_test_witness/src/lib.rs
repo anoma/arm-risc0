@@ -1,7 +1,5 @@
-use crate::{
-    encryption::{Ciphertext, SecretKey},
+use arm::{
     error::ArmError,
-    evm::Resource as EvmResource,
     logic_instance::AppData,
     logic_instance::{ExpirableBlob, LogicInstance},
     merkle_path::MerklePath,
@@ -9,6 +7,10 @@ use crate::{
     resource::Resource,
     resource_logic::LogicCircuit,
     utils::bytes_to_words,
+};
+use arm_gadgets::{
+    encryption::{Ciphertext, SecretKey},
+    evm::Resource as EvmResource,
 };
 use k256::AffinePoint;
 use serde::{Deserialize, Serialize};

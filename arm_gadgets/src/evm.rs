@@ -1,6 +1,6 @@
-use crate::resource::Resource as ArmResource;
 use alloy_primitives::{Address, B256, U256};
 use alloy_sol_types::{sol, SolValue};
+use arm::resource::Resource as ArmResource;
 
 sol! {
     struct Resource {

@@ -119,7 +119,7 @@ jobs:
             .
 
       - name: Run tests (main workspace)
-        run: cargo test --workspace --features test
+        run: cargo test --workspace
 
   test-release:
     name: Test Release
@@ -138,5 +138,5 @@ jobs:
             .
 
       - name: Run release tests (main workspace)
-        run: cargo test --workspace --release --features test
+        run: cargo test --workspace --release
         timeout-minutes: 60

@@ -3,7 +3,6 @@ pub mod action;
 pub mod action_tree;
 #[cfg(feature = "aggregation")]
 pub mod aggregation;
-pub mod authorization;
 #[cfg(any(feature = "compliance_circuit", feature = "aggregation_circuit"))]
 pub mod compliance;
 #[cfg(feature = "transaction")]
@@ -12,9 +11,7 @@ pub mod compliance_unit;
 pub mod constants;
 #[cfg(feature = "transaction")]
 pub mod delta_proof;
-pub mod encryption;
 pub mod error;
-pub mod evm;
 #[cfg(feature = "aggregation_circuit")]
 pub mod hash;
 pub mod logic_instance;
@@ -27,10 +24,6 @@ pub mod proving_system;
 pub mod resource;
 pub mod resource_logic;
 mod rustler_util;
-#[cfg(feature = "test_circuit")]
-pub mod test_logic;
-#[cfg(feature = "test")]
-pub mod tests;
 #[cfg(feature = "transaction")]
 pub mod transaction;
 pub mod utils;

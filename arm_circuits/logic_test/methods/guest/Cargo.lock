@@ -555,9 +555,6 @@ dependencies = [
 name = "arm"
 version = "0.12.0"
 dependencies = [
- "aes-gcm",
- "alloy-primitives",
- "alloy-sol-types",
  "bincode",
  "bytemuck",
  "hex",
@@ -570,7 +567,32 @@ dependencies = [
  "slab",
  "thiserror",
  "tracing-subscriber 0.3.20",
+]
+
+[[package]]
+name = "arm-gadgets"
+version = "0.1.0"
+dependencies = [
+ "aes-gcm",
+ "alloy-primitives",
+ "alloy-sol-types",
+ "arm",
+ "bincode",
+ "hex",
+ "k256",
+ "rand 0.8.5",
+ "serde",
  "zeroize",
+]
+
+[[package]]
+name = "arm-test-witness"
+version = "0.1.0"
+dependencies = [
+ "arm",
+ "arm-gadgets",
+ "k256",
+ "serde",
 ]
 
 [[package]]
@@ -2134,6 +2156,7 @@ name = "logic-test-guest"
 version = "0.1.0"
 dependencies = [
  "arm",
+ "arm-test-witness",
  "risc0-zkvm",
 ]
 

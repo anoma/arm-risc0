@@ -1,4 +1,4 @@
-use crate::error::ArmError;
+use arm::error::ArmError;
 use k256::{
     ecdsa::{
         signature::{Signer, Verifier},
