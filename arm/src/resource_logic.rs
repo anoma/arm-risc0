@@ -5,9 +5,6 @@ use crate::{
 use risc0_zkvm::Digest;
 use serde::{Deserialize, Serialize};
 
-#[cfg(feature = "nif")]
-use rustler::NifStruct;
-
 /// This is a trait for logic constraints implementation.
 pub trait LogicCircuit: Default + Clone + Serialize + for<'de> Deserialize<'de> {
     // In general, it's implemented as `Self::default()`
@@ -20,8 +17,6 @@ pub trait LogicCircuit: Default + Clone + Serialize + for<'de> Deserialize<'de> 
 }
 
 #[derive(Clone, Default, Serialize, Deserialize)]
-#[cfg_attr(feature = "nif", derive(NifStruct))]
-#[cfg_attr(feature = "nif", module = "Anoma.Arm.TrivialLogicWitness")]
 pub struct TrivialLogicWitness {
     pub resource: Resource,
     pub action_tree_root: Digest,

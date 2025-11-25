@@ -12,11 +12,7 @@ use k256::{
 };
 use rand::rngs::OsRng;
 use rand::Rng;
-#[cfg(feature = "nif")]
-use rustler::{Decoder, Encoder, Env, Error, NifResult, OwnedBinary, Term};
 use serde::{Deserialize, Serialize};
-#[cfg(feature = "nif")]
-use std::io::Write;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 #[derive(Clone, Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]
@@ -40,33 +36,6 @@ impl SecretKey {
 impl Default for SecretKey {
     fn default() -> Self {
         SecretKey(Scalar::ONE)
-    }
-}
-
-#[cfg(feature = "nif")]
-fn do_encode<'a>(secret_key: &SecretKey, env: Env<'a>) -> Result<Term<'a>, Error> {
-    let bytes = bincode::serialize(&secret_key.0).unwrap();
-
-    let mut erl_bin = OwnedBinary::new(bytes.len()).ok_or(Error::BadArg)?;
-    let _ = erl_bin.as_mut_slice().write_all(&bytes);
-
-    Ok(erl_bin.release(env).to_term(env))
-}
-
-#[cfg(feature = "nif")]
-impl Encoder for SecretKey {
-    fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
-        let result = do_encode(self, env).expect("failed to encode SecretKey");
-        result
-    }
-}
-
-#[cfg(feature = "nif")]
-impl<'a> Decoder<'a> for SecretKey {
-    fn decode(term: Term<'a>) -> NifResult<Self> {
-        let binary = term.decode_as_binary()?.as_slice();
-        let scalar: Scalar = bincode::deserialize(binary).expect("failed to decode SecretKey");
-        Ok(SecretKey(scalar))
     }
 }
 

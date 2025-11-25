@@ -16,7 +16,6 @@ rand = "0.8"
 bincode = "1.3.3"
 hex = "0.4"
 lazy_static = "1.5.0"
-rustler = { version = "0.36.2", optional = true }
 bytemuck = { version = "1.12", features = ["derive"] }
 thiserror = "2.0.6"
 
@@ -28,7 +27,6 @@ slab = "0.4.11"
 default = ["transaction", "prove"]
 transaction = ["compliance_circuit", "dep:sha3"]
 compliance_circuit = []
-nif = ["dep:rustler"]
 prove = ["risc0-zkvm/prove"]
 bonsai = ["risc0-zkvm/bonsai"]
 cuda = ["risc0-zkvm/cuda"]
