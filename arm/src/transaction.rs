@@ -1,12 +1,15 @@
-#[cfg(feature = "aggregation")]
-use crate::aggregation::{
-    batch::BatchAggregation, sequential::SequentialAggregation, AggregationProof,
-    AggregationStrategy,
-};
 use crate::{
     action::Action,
     delta_proof::{DeltaInstance, DeltaProof, DeltaWitness},
     error::ArmError,
+};
+#[cfg(feature = "aggregation")]
+use crate::{
+    aggregation::{
+        batch::BatchAggregation, sequential::SequentialAggregation, AggregationProof,
+        AggregationStrategy,
+    },
+    proving_system::ProofType,
 };
 use serde::{Deserialize, Serialize};
 
@@ -135,8 +138,8 @@ impl Transaction {
 #[cfg(feature = "aggregation")]
 impl Transaction {
     /// Aggregates all the transaction proofs with the default strategy.
-    pub fn aggregate(&mut self) -> Result<(), ArmError> {
-        self.aggregate_with_strategy(AggregationStrategy::Batch)
+    pub fn aggregate(&mut self, proof_type: ProofType) -> Result<(), ArmError> {
+        self.aggregate_with_strategy(AggregationStrategy::Batch, proof_type)
     }
 
     /// Aggregates all the transaction proofs using the passed aggregation strategy.
@@ -145,14 +148,17 @@ impl Transaction {
     pub fn aggregate_with_strategy(
         &mut self,
         strategy: AggregationStrategy,
+        proof_type: ProofType,
     ) -> Result<(), ArmError> {
         let agg_proof = match strategy {
             AggregationStrategy::Sequential => {
-                SequentialAggregation::prove_transaction_aggregation(self)
+                SequentialAggregation::prove_transaction_aggregation(self, proof_type)
                     .map(AggregationProof::Sequential)?
             }
-            AggregationStrategy::Batch => BatchAggregation::prove_transaction_aggregation(self)
-                .map(AggregationProof::Batch)?,
+            AggregationStrategy::Batch => {
+                BatchAggregation::prove_transaction_aggregation(self, proof_type)
+                    .map(AggregationProof::Batch)?
+            }
         };
 
         self.aggregation_proof =

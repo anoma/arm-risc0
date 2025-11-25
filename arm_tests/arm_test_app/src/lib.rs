@@ -11,6 +11,7 @@ use arm::{
     logic_proof::LogicProver,
     merkle_path::MerklePath,
     nullifier_key::NullifierKey,
+    proving_system::ProofType,
     resource::Resource,
     transaction::{Delta, Transaction},
     Digest,
@@ -71,6 +72,7 @@ impl LogicProver for TestLogic {
 pub fn create_an_action_with_multiple_compliances(
     compliance_num: usize,
     nonce: u8,
+    proof_type: ProofType,
 ) -> (Action, DeltaWitness) {
     let nf_key = NullifierKey::default();
     let nf_key_cm = nf_key.commit();
@@ -102,7 +104,7 @@ pub fn create_an_action_with_multiple_compliances(
             nf_key.clone(),
             created_resources[i],
         );
-        let compliance_receipt = ComplianceUnit::create(&compliance_witness).unwrap();
+        let compliance_receipt = ComplianceUnit::create(&compliance_witness, proof_type).unwrap();
 
         let consumed_resource_nf = consumed_resources[i].nullifier(&nf_key).unwrap();
         let created_resource_cm = created_resources[i].commitment();
@@ -126,7 +128,7 @@ pub fn create_an_action_with_multiple_compliances(
                 nf_key.clone(),
                 true,
             );
-            let consumed_logic_proof = consumed_logic.prove().unwrap();
+            let consumed_logic_proof = consumed_logic.prove(proof_type).unwrap();
 
             let created_logic = TestLogic::new(
                 created_resources[i],
@@ -134,7 +136,7 @@ pub fn create_an_action_with_multiple_compliances(
                 nf_key.clone(),
                 false,
             );
-            let created_logic_proof = created_logic.prove().unwrap();
+            let created_logic_proof = created_logic.prove(proof_type).unwrap();
 
             vec![consumed_logic_proof, created_logic_proof]
         })
@@ -150,12 +152,13 @@ pub fn create_an_action_with_multiple_compliances(
 pub fn create_multiple_actions(
     action_num: usize,
     compliance_num: usize,
+    proof_type: ProofType,
 ) -> (Vec<Action>, DeltaWitness) {
     let mut actions = Vec::new();
     let mut delta_witnesses = Vec::new();
     for i in 0..action_num {
         let (action, delta_witness) =
-            create_an_action_with_multiple_compliances(compliance_num, i as u8);
+            create_an_action_with_multiple_compliances(compliance_num, i as u8, proof_type);
         actions.push(action);
         delta_witnesses.push(delta_witness);
     }
@@ -163,8 +166,12 @@ pub fn create_multiple_actions(
 }
 
 // Create a test transaction with n_actions actions, each with compliance_num compliance units
-pub fn generate_test_transaction(n_actions: usize, compliance_num: usize) -> Transaction {
-    let (actions, delta_witness) = create_multiple_actions(n_actions, compliance_num);
+pub fn generate_test_transaction(
+    n_actions: usize,
+    compliance_num: usize,
+    proof_type: ProofType,
+) -> Transaction {
+    let (actions, delta_witness) = create_multiple_actions(n_actions, compliance_num, proof_type);
     let tx = Transaction::create(actions, Delta::Witness(delta_witness));
     let balanced_tx = tx.generate_delta_proof().unwrap();
     balanced_tx.clone().verify().unwrap();
@@ -173,19 +180,20 @@ pub fn generate_test_transaction(n_actions: usize, compliance_num: usize) -> Tra
 
 #[test]
 fn test_logic_prover() {
+    let proof_type = ProofType::Succinct;
     let test_logic = TestLogic::default();
-    let proof = test_logic.prove().unwrap();
+    let proof = test_logic.prove(proof_type).unwrap();
     proof.verify().unwrap();
 }
 
 #[test]
 fn test_action() {
-    let _ = create_an_action_with_multiple_compliances(2, 1);
+    let _ = create_an_action_with_multiple_compliances(2, 1, ProofType::Succinct);
 }
 
 #[test]
 fn test_unmatched_logic_verifier_inputs_in_action() {
-    let (actions, _) = create_multiple_actions(2, 1);
+    let (actions, _) = create_multiple_actions(2, 1, ProofType::Succinct);
     // swap logic verifier inputs to cause mismatch in action0
     let mut action0 = actions[0].clone();
     action0.logic_verifier_inputs = actions[1].logic_verifier_inputs.clone();
@@ -199,7 +207,7 @@ fn test_unmatched_logic_verifier_inputs_in_action() {
 
 #[test]
 fn test_nullifier_duplication_check() {
-    let mut tx = generate_test_transaction(2, 1);
+    let mut tx = generate_test_transaction(2, 1, ProofType::Succinct);
     assert!(tx.nf_duplication_check().is_ok());
 
     // Introduce a duplicate nullifier
@@ -210,18 +218,43 @@ fn test_nullifier_duplication_check() {
 
 #[test]
 fn test_transaction() {
-    let _ = generate_test_transaction(2, 2);
+    let _ = generate_test_transaction(2, 2, ProofType::Succinct);
+}
+
+#[test]
+#[ignore]
+fn test_transaction_groth16() {
+    let _ = generate_test_transaction(2, 2, ProofType::Groth16);
 }
 
 #[test]
 fn test_aggregation_works() {
     use arm::aggregation::AggregationStrategy;
 
-    let tx = generate_test_transaction(2, 2);
+    let tx = generate_test_transaction(2, 2, ProofType::Succinct);
 
     for strategy in [AggregationStrategy::Sequential, AggregationStrategy::Batch] {
         let mut tx_str = tx.clone();
-        assert!(tx_str.aggregate_with_strategy(strategy.clone()).is_ok());
+        assert!(tx_str
+            .aggregate_with_strategy(strategy.clone(), ProofType::Succinct)
+            .is_ok());
+        assert!(tx_str.aggregation_proof.is_some());
+        assert!(tx_str.verify_aggregation().is_ok());
+    }
+}
+
+#[test]
+#[ignore]
+fn test_aggregation_works_groth16() {
+    use arm::aggregation::AggregationStrategy;
+
+    let tx = generate_test_transaction(2, 2, ProofType::Succinct);
+
+    for strategy in [AggregationStrategy::Sequential, AggregationStrategy::Batch] {
+        let mut tx_str = tx.clone();
+        assert!(tx_str
+            .aggregate_with_strategy(strategy.clone(), ProofType::Groth16)
+            .is_ok());
         assert!(tx_str.aggregation_proof.is_some());
         assert!(tx_str.verify_aggregation().is_ok());
     }
@@ -231,11 +264,13 @@ fn test_aggregation_works() {
 fn test_verify_aggregation_fails_for_incorrect_instances() {
     use arm::aggregation::AggregationStrategy;
 
-    let tx = generate_test_transaction(2, 2);
+    let tx = generate_test_transaction(2, 2, ProofType::Succinct);
 
     for strategy in [AggregationStrategy::Sequential, AggregationStrategy::Batch] {
         let mut tx_str = tx.clone();
-        assert!(tx_str.aggregate_with_strategy(strategy).is_ok());
+        assert!(tx_str
+            .aggregate_with_strategy(strategy, ProofType::Succinct)
+            .is_ok());
 
         tx_str.actions[0].logic_verifier_inputs.pop();
 
@@ -247,7 +282,7 @@ fn test_verify_aggregation_fails_for_incorrect_instances() {
 fn test_cannot_aggregate_invalid_proofs() {
     use arm::{aggregation::AggregationStrategy, logic_proof::LogicVerifierInputs};
 
-    let tx = generate_test_transaction(2, 2);
+    let tx = generate_test_transaction(2, 2, ProofType::Succinct);
 
     // Create a transaction with one invalid proof.
     let bad_lproof = LogicVerifierInputs {
@@ -265,7 +300,9 @@ fn test_cannot_aggregate_invalid_proofs() {
 
     for strategy in [AggregationStrategy::Sequential, AggregationStrategy::Batch] {
         let mut bad_tx_str = bad_tx.clone();
-        assert!(bad_tx_str.aggregate_with_strategy(strategy).is_err());
+        assert!(bad_tx_str
+            .aggregate_with_strategy(strategy, ProofType::Succinct)
+            .is_err());
         assert!(bad_tx_str.aggregation_proof.is_none());
     }
 }

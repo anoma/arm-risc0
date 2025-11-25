@@ -9,6 +9,7 @@ use crate::aggregation::{
 use crate::compliance::ComplianceInstanceWords;
 use crate::constants::COMPLIANCE_VK;
 use crate::error::ArmError;
+use crate::proving_system::ProofType;
 use crate::transaction::Transaction;
 use crate::utils::{bytes_to_words, words_to_bytes};
 
@@ -19,7 +20,10 @@ pub struct BatchProof(pub InnerReceipt);
 pub struct BatchAggregation;
 
 impl BatchAggregation {
-    pub fn prove_transaction_aggregation(tx: &Transaction) -> Result<BatchProof, ArmError> {
+    pub fn prove_transaction_aggregation(
+        tx: &Transaction,
+        proof_type: ProofType,
+    ) -> Result<BatchProof, ArmError> {
         // Collect instances, proofs, and keys.
         let BatchCU {
             instances: cu_instances,
@@ -74,17 +78,14 @@ impl BatchAggregation {
             .build()
             .map_err(|_| ArmError::BuildProverEnvFailed)?;
 
-        #[cfg(feature = "fast_aggregation")]
-        let prover_opts = ProverOpts::fast();
-
-        #[cfg(all(not(feature = "fast_aggregation"), feature = "groth16_aggregation"))]
-        let prover_opts = ProverOpts::groth16();
-
-        #[cfg(all(
-            not(feature = "fast_aggregation"),
-            not(feature = "groth16_aggregation")
-        ))]
-        let prover_opts = ProverOpts::succinct();
+        let prover_opts = match proof_type {
+            ProofType::Succinct => {
+                ProverOpts::succinct() // Succinct receipts, constant size.
+            }
+            ProofType::Groth16 => {
+                ProverOpts::groth16() // Groth16 receipts, constant size, blockchain-friendly.
+            }
+        };
 
         let prover = default_prover();
 

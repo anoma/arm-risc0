@@ -2,6 +2,7 @@ use crate::aggregation::{BatchCU, BatchLP};
 use crate::constants::COMPLIANCE_VK;
 use crate::error::ArmError;
 use crate::proving_system;
+use crate::proving_system::ProofType;
 use crate::utils::words_to_bytes;
 use crate::{compliance::ComplianceInstance, logic_instance::LogicInstance};
 use risc0_zkvm::{
@@ -58,6 +59,7 @@ pub trait PCDAggregation {
         step_instance: &StepInstance,
         step_proof: &StepProof,
         output_node: bool,
+        proof_type: ProofType,
     ) -> Result<PcdProof, ArmError> {
         // Sanity check
         if input_aggregations.len() != <Self as PCDAggregation>::INPUT_ARITY {
@@ -110,22 +112,13 @@ pub trait PCDAggregation {
 
         // If not an output node, prove fast.
         let prover_opts = if output_node {
-            #[cfg(feature = "fast_aggregation")]
-            {
-                ProverOpts::fast()
-            }
-
-            #[cfg(all(not(feature = "fast_aggregation"), feature = "groth16_aggregation"))]
-            {
-                ProverOpts::groth16()
-            }
-
-            #[cfg(all(
-                not(feature = "fast_aggregation"),
-                not(feature = "groth16_aggregation")
-            ))]
-            {
-                ProverOpts::succinct()
+            match proof_type {
+                ProofType::Succinct => {
+                    ProverOpts::succinct() // Succinct receipts, constant size.
+                }
+                ProofType::Groth16 => {
+                    ProverOpts::groth16() // Groth16 receipts, constant size, blockchain-friendly.
+                }
             }
         } else {
             ProverOpts::fast()
