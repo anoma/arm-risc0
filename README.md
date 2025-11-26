@@ -85,13 +85,13 @@ We have the following feature flags in arm lib:
 
 ```toml
 # Default configuration
-arm = "0.12.0"
+arm = "0.13.0"
 
 # Proof aggregation (a single succinct proof per transaction)
-arm = { version = "0.12.0", features = ["aggregation"] }
+arm = { version = "0.13.0", features = ["aggregation"] }
 
 # Logic-circuit-only usage
-arm = { version = "0.12.0", default-features = false }
+arm = { version = "0.13.0", default-features = false }
 ```
 
 
