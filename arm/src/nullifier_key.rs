@@ -4,7 +4,7 @@ use risc0_zkvm::sha::{Digest, Impl, Sha256, DIGEST_BYTES};
 use serde::{Deserialize, Serialize};
 
 /// Nullifier key
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, PartialEq)]
 pub struct NullifierKey([u8; DIGEST_BYTES]);
 
 impl NullifierKey {
