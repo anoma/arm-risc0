@@ -158,6 +158,9 @@ impl LogicCircuit for SimpleTransferWitness {
                     let migrate_root = migrate_info.path.root(&migrate_cm);
                     assert_eq!(*ROOT_V1, migrate_root);
 
+                    // check migrate_resource is non-ephemeral
+                    assert!(!migrate_info.resource.is_ephemeral);
+
                     // check migrate_resource logic_ref
                     assert_eq!(
                         migrate_info.resource.logic_ref.as_words(),
