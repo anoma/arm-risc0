@@ -26,7 +26,7 @@ use simple_transfer_witness::{
 pub const SIMPLE_TRANSFER_ELF: &[u8] = include_bytes!("../elf/simple-transfer-guest.bin");
 lazy_static! {
     pub static ref SIMPLE_TRANSFER_ID: Digest =
-        Digest::from_hex("c751f1439528fd7cff79027a823a53c409ba86b70e0a789671b984e7032c1956")
+        Digest::from_hex("a4937d7e0db125f180de53a528d1c889d4dd5bd81c363b6de3b3851b4cee82ec")
             .unwrap();
 }
 
@@ -171,11 +171,19 @@ impl TransferLogic {
         migrated_resource: Resource,
         migrated_nf_key: NullifierKey,
         migrated_resource_path: MerklePath,
+        migrated_auth_pk: AuthorizationVerifyingKey,
+        migrated_auth_sig: AuthorizationSignature,
     ) -> Self {
+        let migrate_auto_info = AuthorizationInfo {
+            auth_pk: migrated_auth_pk,
+            auth_sig: migrated_auth_sig,
+        };
+
         let migrate_info = MigrateInfo {
             resource: migrated_resource,
             nf_key: migrated_nf_key.clone(),
             path: migrated_resource_path,
+            auth_info: migrate_auto_info,
         };
 
         let forwarder_info = ForwarderInfo {

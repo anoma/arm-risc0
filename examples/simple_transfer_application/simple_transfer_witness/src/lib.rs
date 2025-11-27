@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 
 lazy_static! {
     pub static ref ROOT_V1: Digest =
-        Digest::from_hex("c14edf4cb99988b690d94516864e220d5bf6bde294aad5b6dbf385830f2c3135")
+        Digest::from_hex("62d05824eb22abb15d8505fe91bc5ecf56245f34f7d60137214e09af15275365")
             .unwrap();
     pub static ref FORWARDER_ADDRESS_V1: Digest =
         Digest::from_hex("cc1d2f838445db7aec431df9ee8a871f40e7aa5e064fc056633ef8c60fab7b06")
@@ -83,6 +83,7 @@ pub struct MigrateInfo {
     pub resource: Resource,
     pub nf_key: NullifierKey,
     pub path: MerklePath,
+    pub auth_info: AuthorizationInfo,
 }
 
 impl LogicCircuit for SimpleTransferWitness {
@@ -160,6 +161,16 @@ impl LogicCircuit for SimpleTransferWitness {
 
                     // check migrate_resource is non-ephemeral
                     assert!(!migrate_info.resource.is_ephemeral);
+
+                    // check migrate_resource authorization
+                    let auth_pk = &migrate_info.auth_info.auth_pk;
+                    assert_eq!(
+                        migrate_info.resource.value_ref,
+                        calculate_value_ref_from_auth(auth_pk)
+                    );
+                    assert!(auth_pk
+                        .verify(root_bytes, &migrate_info.auth_info.auth_sig)
+                        .is_ok());
 
                     // check migrate_resource logic_ref
                     assert_eq!(

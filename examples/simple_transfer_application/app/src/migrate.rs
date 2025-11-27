@@ -1,6 +1,7 @@
 use arm::{
     action::Action,
     action_tree::MerkleTree,
+    authorization::{AuthorizationSignature, AuthorizationVerifyingKey},
     compliance::ComplianceWitness,
     compliance_unit::ComplianceUnit,
     delta_proof::DeltaWitness,
@@ -30,6 +31,8 @@ pub fn construct_migrate_tx(
     migrated_resource: Resource,
     migrated_nf_key: NullifierKey,
     migrated_resource_path: MerklePath,
+    migrated_auth_pk: AuthorizationVerifyingKey,
+    migrated_auth_sig: AuthorizationSignature,
 
     // Parameters for the created resource
     created_resource: Resource,
@@ -61,6 +64,8 @@ pub fn construct_migrate_tx(
         migrated_resource,
         migrated_nf_key,
         migrated_resource_path,
+        migrated_auth_pk,
+        migrated_auth_sig,
     );
     let consumed_logic_proof = consumed_resource_logic.prove()?;
 
@@ -88,13 +93,16 @@ pub fn construct_migrate_tx(
 #[test]
 fn simple_migrate_test() {
     use crate::resource::{construct_ephemeral_resource, construct_persistent_resource};
+    use crate::utils::authorize_the_action;
     use arm::{
         authorization::{AuthorizationSigningKey, AuthorizationVerifyingKey},
         compliance::INITIAL_ROOT,
         encryption::random_keypair,
         nullifier_key::NullifierKey,
     };
-    use simple_transfer_witness::{calculate_label_ref, FORWARDER_ADDRESS_V1, LOGIC_V1};
+    use simple_transfer_witness::{
+        calculate_label_ref, calculate_value_ref_from_auth, FORWARDER_ADDRESS_V1, LOGIC_V1,
+    };
 
     // Common parameters
     let forwarder_addr_v2 = vec![1u8; 20];
@@ -104,19 +112,23 @@ fn simple_migrate_test() {
     let label_ref = calculate_label_ref(FORWARDER_ADDRESS_V1.as_bytes(), &token_addr);
 
     // Construct the migrated resource
+    let migrated_resource_sk = AuthorizationSigningKey::from_bytes(&[9u8; 32]).unwrap();
+    let migrated_resource_pk = AuthorizationVerifyingKey::from_signing_key(&migrated_resource_sk);
+    let migrated_value_ref = calculate_value_ref_from_auth(&migrated_resource_pk);
     let migrated_nf_key = NullifierKey::default();
     let migrated_nf_cm = migrated_nf_key.commit();
     let migrated_resource = Resource {
         logic_ref: *LOGIC_V1,
         nk_commitment: migrated_nf_cm,
         label_ref,
+        value_ref: migrated_value_ref,
         quantity,
+        is_ephemeral: false,
         ..Default::default()
     };
 
     let migrated_cm = migrated_resource.commitment();
-
-    println!("Migrated Resource cm: {:?}", migrated_cm);
+    println!("Migrated resource cm: {:?}", migrated_cm);
 
     // Construct the consumed resource
     let (consumed_nf_key, consumed_nf_cm) = NullifierKey::random_pair();
@@ -148,6 +160,11 @@ fn simple_migrate_test() {
         [6u8; 32], // rand_seed
         &created_auth_pk,
     );
+    let created_cm = created_resource.commitment();
+
+    // Generate the authorization signature
+    let action_tree = MerkleTree::new(vec![consumed_nf, created_cm]);
+    let migrated_auth_sig = authorize_the_action(&migrated_resource_sk, &action_tree);
 
     // Construct the migration transaction
     let tx_start_timer = std::time::Instant::now();
@@ -161,6 +178,8 @@ fn simple_migrate_test() {
         migrated_resource,
         migrated_nf_key,
         MerklePath::from_path(&[]), // dummy path
+        migrated_resource_pk,
+        migrated_auth_sig,
         created_resource,
         created_discovery_pk,
         created_encryption_pk,
