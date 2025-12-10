@@ -23,6 +23,7 @@ pub mod nullifier_key;
 pub mod proving_system;
 pub mod resource;
 pub mod resource_logic;
+pub mod secp256k1;
 #[cfg(feature = "transaction")]
 pub mod transaction;
 pub mod utils;
