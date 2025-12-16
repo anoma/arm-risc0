@@ -5,7 +5,7 @@
 use arm::{
     action::Action,
     action_tree::MerkleTree,
-    compliance::ComplianceWitness,
+    compliance::{ComplianceWitness, INITIAL_ROOT},
     compliance_unit::ComplianceUnit,
     delta_proof::DeltaWitness,
     logic_proof::LogicProver,
@@ -18,6 +18,7 @@ use arm::{
 };
 use arm_test_witness::TestLogicWitness;
 use hex::FromHex;
+use k256::Scalar;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 
@@ -99,11 +100,15 @@ pub fn create_an_action_with_multiple_compliances(
     let mut rcvs = Vec::new();
     let mut action_tree = MerkleTree::new(vec![]);
     for i in 0..compliance_num {
-        let compliance_witness = ComplianceWitness::with_fixed_rcv(
-            consumed_resources[i],
-            nf_key.clone(),
-            created_resources[i],
-        );
+        let compliance_witness = ComplianceWitness {
+            consumed_resource: consumed_resources[i],
+            merkle_path: MerklePath::default(), // dummy path for test
+            ephemeral_root: *INITIAL_ROOT,
+            nf_key: nf_key.clone(),
+            created_resource: created_resources[i],
+            rcv: Scalar::ONE.to_bytes().to_vec(), // fixed rcv for test
+        };
+
         let compliance_receipt = ComplianceUnit::create(&compliance_witness, proof_type).unwrap();
 
         let consumed_resource_nf = consumed_resources[i].nullifier(&nf_key).unwrap();
