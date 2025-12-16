@@ -98,22 +98,6 @@ impl ComplianceWitness {
         }
     }
 
-    // Only for tests
-    pub fn with_fixed_rcv(
-        consumed_resource: Resource,
-        nf_key: NullifierKey,
-        created_resource: Resource,
-    ) -> Self {
-        ComplianceWitness {
-            consumed_resource,
-            created_resource,
-            merkle_path: MerklePath::default(),
-            rcv: Scalar::ONE.to_bytes().to_vec(),
-            nf_key,
-            ephemeral_root: *INITIAL_ROOT,
-        }
-    }
-
     pub fn constrain(&self) -> Result<ComplianceInstance, ArmError> {
         let consumed_cm = self.consumed_commitment();
         let consumed_logic_ref = self.consumed_resource_logic();
