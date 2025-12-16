@@ -7,7 +7,7 @@ use risc0_zkvm::{default_prover, ExecutorEnv, ProverOpts, VerifierContext};
 #[cfg(feature = "prove")]
 use serde::Serialize;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ProofType {
     Succinct,
     Groth16,

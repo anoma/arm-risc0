@@ -8,13 +8,13 @@ use serde::{Deserialize, Serialize};
 use crate::error::ArmError;
 use sha3::{Digest, Keccak256};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DeltaProof {
     pub signature: Signature,
     pub recid: RecoveryId,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DeltaWitness {
     pub signing_key: SigningKey,
 }

@@ -29,7 +29,7 @@ use risc0_zkvm::Digest;
 use serde::{Deserialize, Serialize};
 
 /// A resource that can be created and consumed
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Resource {
     // a succinct representation of the predicate associated with the resource
     pub logic_ref: Digest,

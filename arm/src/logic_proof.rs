@@ -40,14 +40,14 @@ pub trait LogicProver: Default + Clone + Serialize + for<'de> Deserialize<'de> {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct LogicVerifier {
     pub proof: Option<Vec<u8>>,
     pub instance: Vec<u8>,
     pub verifying_key: Digest,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct LogicVerifierInputs {
     pub tag: Digest,
     pub verifying_key: Digest,

@@ -12,10 +12,10 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone)]
 pub struct AuthorizationSigningKey(SigningKey);
 
-#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct AuthorizationVerifyingKey(AffinePoint);
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct AuthorizationSignature(Signature);
 
 impl AuthorizationSigningKey {

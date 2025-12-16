@@ -14,7 +14,7 @@ use crate::{
     proving_system::{prove, ProofType},
 };
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct ComplianceUnit {
     // vk is a constant in the compliance unit, so we don't place it here.
     pub proof: Option<Vec<u8>>,

@@ -9,7 +9,7 @@ use k256::ProjectivePoint;
 use risc0_zkvm::Digest;
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct Action {
     pub compliance_units: Vec<ComplianceUnit>,
     pub logic_verifier_inputs: Vec<LogicVerifierInputs>,
