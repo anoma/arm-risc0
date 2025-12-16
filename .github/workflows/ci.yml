@@ -12,6 +12,19 @@ env:
   RISC0_TOOLCHAIN_VERSION: 3.0.3
 
 jobs:
+  taplo:
+    name: Taplo Format Check
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: taplo-cli
+      - name: Install just
+        uses: extractions/setup-just@v3
+      - name: Run Taplo format check
+        run: taplo fmt --check
+
   fmt:
     name: Format
     runs-on: ubuntu-latest
