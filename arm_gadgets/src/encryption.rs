@@ -15,7 +15,7 @@ use rand::Rng;
 use serde::{Deserialize, Serialize};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
-#[derive(Clone, Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]
+#[derive(Clone, Serialize, Deserialize, Zeroize, ZeroizeOnDrop, PartialEq, Eq)]
 pub struct SecretKey(Scalar);
 
 impl SecretKey {
@@ -39,7 +39,7 @@ impl Default for SecretKey {
     }
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Ciphertext(Vec<u8>);
 
 impl Ciphertext {
@@ -114,7 +114,7 @@ impl Ciphertext {
     }
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 struct InnerCiphert {
     // AES GCM encrypted message
     pub cipher: Vec<u8>,
@@ -194,7 +194,7 @@ impl InnerSecretKey {
     }
 }
 
-#[derive(Zeroize, ZeroizeOnDrop)]
+#[derive(Zeroize, ZeroizeOnDrop, PartialEq, Eq)]
 pub struct SecurePlaintext(Vec<u8>);
 
 impl SecurePlaintext {

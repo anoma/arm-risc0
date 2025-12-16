@@ -27,7 +27,7 @@ lazy_static! {
             .unwrap();
 }
 
-#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct ComplianceInstance {
     pub consumed_nullifier: Digest,
     pub consumed_logic_ref: Digest,

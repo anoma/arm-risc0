@@ -13,7 +13,7 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct Transaction {
     pub actions: Vec<Action>,
     // delta verification is a deterministic process, so we don't need a
@@ -25,7 +25,7 @@ pub struct Transaction {
     pub aggregation_proof: Option<Vec<u8>>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub enum Delta {
     Witness(DeltaWitness),
     Proof(DeltaProof),

@@ -1,7 +1,7 @@
 use risc0_zkvm::Digest;
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct LogicInstance {
     pub tag: Digest,
     pub is_consumed: bool,
@@ -9,7 +9,7 @@ pub struct LogicInstance {
     pub app_data: AppData,
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct AppData {
     pub resource_payload: Vec<ExpirableBlob>,
     pub discovery_payload: Vec<ExpirableBlob>,
@@ -17,7 +17,7 @@ pub struct AppData {
     pub application_payload: Vec<ExpirableBlob>,
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ExpirableBlob {
     pub blob: Vec<u32>,
     pub deletion_criterion: u32,
