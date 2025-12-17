@@ -29,10 +29,6 @@ lazy_static = "1.5.0"
 bytemuck = { version = "1.12", features = ["derive"] }
 thiserror = "2.0.6"
 
-# To fix the dependency warnings
-tracing-subscriber = "0.3.20"
-slab = "0.4.11"
-
 [features]
 default = ["transaction", "prove"]
 transaction = ["compliance_circuit", "dep:sha3"]
