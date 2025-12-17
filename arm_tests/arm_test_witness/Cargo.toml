@@ -15,7 +15,6 @@ k256 = { version = "=0.13.3", features = [
   "ecdsa",
   "hash2curve",
 ], default-features = false }
-rustler = { version = "0.36.2", optional = true }
 
 [features]
 default = []
