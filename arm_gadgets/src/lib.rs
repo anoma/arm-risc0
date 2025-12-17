@@ -1,3 +1,3 @@
-pub mod authorization;
+pub mod authority;
 pub mod encryption;
 pub mod evm;

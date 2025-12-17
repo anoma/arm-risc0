@@ -10,21 +10,21 @@ use k256::{
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone)]
-pub struct AuthorizationSigningKey(SigningKey);
+pub struct AuthoritySigningKey(SigningKey);
 
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
-pub struct AuthorizationVerifyingKey(AffinePoint);
+pub struct AuthorityVerifyingKey(AffinePoint);
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
-pub struct AuthorizationSignature(Signature);
+pub struct AuthoritySignature(Signature);
 
-impl AuthorizationSigningKey {
+impl AuthoritySigningKey {
     pub fn new() -> Self {
         let signing_key = SigningKey::random(&mut OsRng);
-        AuthorizationSigningKey(signing_key)
+        AuthoritySigningKey(signing_key)
     }
 
-    pub fn sign(&self, domain: &[u8], message: &[u8]) -> AuthorizationSignature {
+    pub fn sign(&self, domain: &[u8], message: &[u8]) -> AuthoritySignature {
         let mut msg_with_domain =
             Vec::with_capacity(b"ARM_AUTH_V1".len() + domain.len() + message.len());
 
@@ -33,7 +33,7 @@ impl AuthorizationSigningKey {
 
         msg_with_domain.extend_from_slice(domain);
         msg_with_domain.extend_from_slice(message);
-        AuthorizationSignature(self.0.sign(&msg_with_domain))
+        AuthoritySignature(self.0.sign(&msg_with_domain))
     }
 
     pub fn to_bytes(&self) -> [u8; 32] {
@@ -43,17 +43,17 @@ impl AuthorizationSigningKey {
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, ArmError> {
         let signing_key =
             SigningKey::from_bytes(bytes.into()).map_err(|_| ArmError::InvalidSigningKey)?;
-        Ok(AuthorizationSigningKey(signing_key))
+        Ok(AuthoritySigningKey(signing_key))
     }
 }
 
-impl Default for AuthorizationSigningKey {
+impl Default for AuthoritySigningKey {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl Serialize for AuthorizationSigningKey {
+impl Serialize for AuthoritySigningKey {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -62,18 +62,18 @@ impl Serialize for AuthorizationSigningKey {
     }
 }
 
-impl<'de> Deserialize<'de> for AuthorizationSigningKey {
+impl<'de> Deserialize<'de> for AuthoritySigningKey {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
         let bytes = <[u8; 32]>::deserialize(deserializer)?;
-        AuthorizationSigningKey::from_bytes(&bytes).map_err(serde::de::Error::custom)
+        AuthoritySigningKey::from_bytes(&bytes).map_err(serde::de::Error::custom)
     }
 }
 
-impl AuthorizationVerifyingKey {
-    pub fn from_signing_key(signing_key: &AuthorizationSigningKey) -> Self {
+impl AuthorityVerifyingKey {
+    pub fn from_signing_key(signing_key: &AuthoritySigningKey) -> Self {
         let verifying_key = signing_key.0.verifying_key();
         Self::from_affine(*verifying_key.as_affine())
     }
@@ -82,7 +82,7 @@ impl AuthorizationVerifyingKey {
         &self,
         domain: &[u8],
         message: &[u8],
-        signature: &AuthorizationSignature,
+        signature: &AuthoritySignature,
     ) -> Result<(), ArmError> {
         let mut msg_with_domain =
             Vec::with_capacity(b"ARM_AUTH_V1".len() + domain.len() + message.len());
@@ -100,7 +100,7 @@ impl AuthorizationVerifyingKey {
     }
 
     pub fn from_affine(point: AffinePoint) -> Self {
-        AuthorizationVerifyingKey(point)
+        AuthorityVerifyingKey(point)
     }
 
     pub fn as_affine(&self) -> &AffinePoint {
@@ -112,7 +112,7 @@ impl AuthorizationVerifyingKey {
     }
 }
 
-impl AuthorizationSignature {
+impl AuthoritySignature {
     pub fn inner(&self) -> &Signature {
         &self.0
     }
@@ -123,14 +123,14 @@ impl AuthorizationSignature {
 
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, ArmError> {
         let sig = Signature::from_bytes(bytes.into()).map_err(|_| ArmError::InvalidSignature)?;
-        Ok(AuthorizationSignature(sig))
+        Ok(AuthoritySignature(sig))
     }
 }
 
-impl Default for AuthorizationSignature {
+impl Default for AuthoritySignature {
     // The default value is only for testing
     fn default() -> Self {
-        AuthorizationSignature::from_bytes(&[
+        AuthoritySignature::from_bytes(&[
             101, 32, 148, 79, 63, 230, 254, 97, 75, 207, 23, 50, 92, 222, 89, 100, 165, 2, 71, 210,
             167, 103, 91, 93, 211, 153, 136, 146, 203, 184, 95, 179, 16, 14, 183, 214, 102, 89,
             239, 106, 34, 243, 48, 39, 100, 175, 157, 236, 122, 31, 161, 83, 8, 27, 17, 33, 145,
@@ -142,8 +142,8 @@ impl Default for AuthorizationSignature {
 
 #[test]
 fn test_authorization() {
-    let signing_key = AuthorizationSigningKey::new();
-    let verifying_key = AuthorizationVerifyingKey::from_signing_key(&signing_key);
+    let signing_key = AuthoritySigningKey::new();
+    let verifying_key = AuthorityVerifyingKey::from_signing_key(&signing_key);
 
     let domain = b"test_domain";
     let message = b"Hello, world!";
