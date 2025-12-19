@@ -612,6 +612,7 @@ dependencies = [
  "risc0-zkvm",
  "serde",
  "serde_with",
+ "sha2",
  "sha3",
  "slab",
  "thiserror 2.0.17",
