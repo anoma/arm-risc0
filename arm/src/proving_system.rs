@@ -1,3 +1,5 @@
+//! Proving system interface for generating and verifying proofs.
+
 use crate::error::ArmError;
 use risc0_zkvm::{sha::Digest, InnerReceipt, Receipt};
 use serde::de::DeserializeOwned;
@@ -7,13 +9,16 @@ use risc0_zkvm::{default_prover, ExecutorEnv, ProverOpts, VerifierContext};
 #[cfg(feature = "prove")]
 use serde::Serialize;
 
+/// Types of proofs supported.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ProofType {
+    /// Succinct(STARK) proof type.
     Succinct,
+    /// Groth16 proof type.
     Groth16,
 }
 
-// It takes a proving key and a witness, and returns the proof and the instance
+/// Proves a statement given a proving key and a witness, returning the proof and the instance.
 #[cfg(feature = "prove")]
 pub fn prove<T: Serialize>(
     proving_key: &[u8],
@@ -27,7 +32,7 @@ pub fn prove<T: Serialize>(
     Ok((proof, instance))
 }
 
-// Receipt contains the proof and the public inputs
+/// Verifies a proof against the given verifying key and instance.
 pub fn verify(verifying_key: &Digest, instance: &[u8], proof: &[u8]) -> Result<(), ArmError> {
     let inner: InnerReceipt =
         bincode::deserialize(proof).map_err(|_| ArmError::InnerReceiptDeserializationError)?;
@@ -38,6 +43,7 @@ pub fn verify(verifying_key: &Digest, instance: &[u8], proof: &[u8]) -> Result<(
     })
 }
 
+/// Converts a serialized journal into an instance of the specified type.
 pub fn journal_to_instance<T: DeserializeOwned>(journal: &[u8]) -> Result<T, ArmError> {
     let journal = risc0_zkvm::Journal {
         bytes: journal.to_vec(),
@@ -45,7 +51,7 @@ pub fn journal_to_instance<T: DeserializeOwned>(journal: &[u8]) -> Result<T, Arm
     journal.decode().map_err(|_| ArmError::JournalDecodingError)
 }
 
-// Encode the seal of the given proof for use with EVM smart contract verifiers.
+/// Encode the seal of the given proof for use with EVM smart contract verifiers.
 pub fn encode_seal(proof: &[u8]) -> Result<Vec<u8>, ArmError> {
     let inner: InnerReceipt =
         bincode::deserialize(proof).map_err(|_| ArmError::InnerReceiptDeserializationError)?;
@@ -63,6 +69,7 @@ pub fn encode_seal(proof: &[u8]) -> Result<Vec<u8>, ArmError> {
     Ok(seal)
 }
 
+/// Internal function to prove a statement using the given witness and proving key.
 #[cfg(feature = "prove")]
 fn prove_inner<T: Serialize>(
     witness: &T,

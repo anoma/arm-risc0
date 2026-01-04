@@ -1,9 +1,14 @@
+//! A Merkle path from a leaf to a root in a commitment/action tree.
+
 use crate::utils::hash_two;
 use hex::FromHex;
 use lazy_static::lazy_static;
 use risc0_zkvm::sha::Digest;
 use serde::{Deserialize, Serialize};
+
 lazy_static! {
+    /// A constant padding leaf used in Merkle trees.
+    /// This is the hash of an empty string.
     pub static ref PADDING_LEAF: Digest =
         Digest::from_hex("cc1d2f838445db7aec431df9ee8a871f40e7aa5e064fc056633ef8c60fab7b06")
             .unwrap();
@@ -30,14 +35,17 @@ impl MerklePath {
         )
     }
 
+    /// Returns the length of the Merkle path.
     pub fn len(&self) -> usize {
         self.0.len()
     }
 
+    /// Checks if the Merkle path is empty.
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
 
+    /// Creates an empty Merkle path.
     pub fn empty() -> Self {
         MerklePath(vec![])
     }

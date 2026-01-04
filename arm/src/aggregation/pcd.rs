@@ -1,3 +1,5 @@
+//! A module defining traits and structures for Proof-Carrying Data (PCD) aggregation.
+
 use crate::aggregation::{BatchCU, BatchLP};
 use crate::constants::COMPLIANCE_VK;
 use crate::error::ArmError;

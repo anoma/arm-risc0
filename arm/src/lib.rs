@@ -1,3 +1,7 @@
+//! ARM (Anoma Resource Machine) library for resource management and transaction processing
+
+#![deny(missing_docs)]
+
 #[cfg(feature = "transaction")]
 pub mod action;
 pub mod action_tree;

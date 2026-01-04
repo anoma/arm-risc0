@@ -1,3 +1,6 @@
+//! Resource representation and related operations.
+
+/// DST constant for hashing to curve in RFC 9380.
 const DST: &[u8] = b"QUUX-V01-CS02-with-secp256k1_XMD:SHA-256_SSWU_RO_";
 const PRF_EXPAND_PERSONALIZATION_LEN: usize = 16;
 const PRF_EXPAND_PERSONALIZATION: &[u8; PRF_EXPAND_PERSONALIZATION_LEN] = b"RISC0_ExpandSeed";
@@ -28,28 +31,29 @@ use risc0_zkvm::sha::{rust_crypto::Sha256 as Sha256Type, Impl, Sha256, DIGEST_BY
 use risc0_zkvm::Digest;
 use serde::{Deserialize, Serialize};
 
-/// A resource that can be created and consumed
+/// Resource representation in the ARM system.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Resource {
-    // a succinct representation of the predicate associated with the resource
+    /// a succinct representation of the predicate associated with the resource
     pub logic_ref: Digest,
-    // specifies the fungibility domain for the resource
+    /// specifies the fungibility domain for the resource
     pub label_ref: Digest,
-    // number representing the quantity of the resource
+    /// number representing the quantity of the resource
     pub quantity: u128,
-    // the fungible value reference of the resource
+    /// the fungible value reference of the resource
     pub value_ref: Digest,
-    // flag that reflects the resource ephemerality
+    /// flag that reflects the resource ephemerality
     pub is_ephemeral: bool,
-    // guarantees the uniqueness of the resource computable components
+    /// guarantees the uniqueness of the resource computable components
     pub nonce: [u8; DIGEST_BYTES],
-    // commitment to nullifier key
+    /// commitment to nullifier key
     pub nk_commitment: NullifierKeyCommitment,
-    // randomness seed used to derive whatever randomness needed
+    /// randomness seed used to derive whatever randomness needed
     pub rand_seed: [u8; DIGEST_BYTES],
 }
 
 impl Resource {
+    /// Create a new resource
     pub fn create(
         logic_ref: Digest,
         label_ref: Digest,
@@ -74,12 +78,12 @@ impl Resource {
         }
     }
 
-    // Convert the quantity to a field element
+    /// Convert the quantity to a field element
     pub fn quantity_scalar(&self) -> Scalar {
         Scalar::from(self.quantity)
     }
 
-    // Compute the kind of the resource
+    /// Compute the kind of the resource
     pub fn kind(&self) -> Result<ProjectivePoint, ArmError> {
         // Concatenate the logic_ref and label_ref
         let mut bytes = [0u8; DIGEST_BYTES * 2];
@@ -90,6 +94,7 @@ impl Resource {
             .map_err(|_| ArmError::InvalidResourceKind)
     }
 
+    /// Compute the inner psi for the resource
     fn psi(&self) -> Vec<u8> {
         let mut bytes = [0u8; PRF_EXPAND_PERSONALIZATION_LEN + 1 + 2 * DIGEST_BYTES];
         let mut offset: usize = 0;
@@ -112,6 +117,7 @@ impl Resource {
         Impl::hash_bytes(&bytes).as_bytes().to_vec()
     }
 
+    /// Compute the randomness to commit the resource
     fn rcm(&self) -> Vec<u8> {
         let mut bytes = [0u8; PRF_EXPAND_PERSONALIZATION_LEN + 1 + 2 * DIGEST_BYTES];
         let mut offset: usize = 0;
@@ -134,7 +140,7 @@ impl Resource {
         Impl::hash_bytes(&bytes).as_bytes().to_vec()
     }
 
-    // Compute the commitment to the resource
+    /// Compute the commitment to the resource
     pub fn commitment(&self) -> Digest {
         // Concatenate all the components of this resource
         let mut bytes = [0u8; RESOURCE_BYTES];
@@ -169,12 +175,13 @@ impl Resource {
         *Impl::hash_bytes(&bytes)
     }
 
-    // Compute the nullifier of the resource
+    /// Compute the nullifier of the resource
     pub fn nullifier(&self, nf_key: &NullifierKey) -> Result<Digest, ArmError> {
         let cm = self.commitment();
         self.nullifier_from_commitment(nf_key, &cm)
     }
 
+    /// Compute the nullifier of the resource from its commitment
     pub fn nullifier_from_commitment(
         &self,
         nf_key: &NullifierKey,
@@ -205,26 +212,32 @@ impl Resource {
         }
     }
 
+    /// Serialize the resource to bytes
     pub fn to_bytes(&self) -> Result<Vec<u8>, ArmError> {
         bincode::serialize(self).map_err(|_| ArmError::InvalidResourceSerialization)
     }
 
+    /// Create a resource from bytes
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, ArmError> {
         bincode::deserialize(bytes).map_err(|_| ArmError::InvalidResourceDeserialization)
     }
 
+    /// Set the value reference of the resource
     pub fn set_value_ref(&mut self, value_ref: Digest) {
         self.value_ref = value_ref;
     }
 
+    /// Set the nullifier key commitment of the resource
     pub fn set_nf_commitment(&mut self, nf_commitment: NullifierKeyCommitment) {
         self.nk_commitment = nf_commitment;
     }
 
+    /// Reset the randomness seed of the resource
     pub fn reset_randomness(&mut self) {
         self.rand_seed = OsRng.gen();
     }
 
+    /// Set the nonce of the resource
     pub fn set_nonce(&mut self, nf: Digest) {
         self.nonce = nf
             .as_bytes()
@@ -232,6 +245,7 @@ impl Resource {
             .expect("it can not fail since the digest length is always 32 bytes");
     }
 
+    /// Set the nonce of the resource from consumed nullifier
     pub fn set_nonce_from_nf(
         &mut self,
         resource: &Resource,
@@ -245,6 +259,8 @@ impl Resource {
         Ok(())
     }
 
+    /// Compute the tag of the resource, which is either the commitment or the nullifier
+    /// depending on whether the resource is consumed.
     pub fn tag(&self, is_consumed: bool, nf_key: &NullifierKey) -> Result<Digest, ArmError> {
         let cm = self.commitment();
         if is_consumed {

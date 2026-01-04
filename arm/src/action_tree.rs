@@ -1,3 +1,5 @@
+//! Merkle tree implementation for the action tree.
+
 use crate::{
     error::ArmError,
     merkle_path::{MerklePath, PADDING_LEAF},
@@ -5,20 +7,25 @@ use crate::{
 };
 use risc0_zkvm::sha::Digest;
 
+/// A Merkle tree structure.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MerkleTree {
+    /// The leaves of the Merkle tree.
     pub leaves: Vec<Digest>,
 }
 
 impl MerkleTree {
+    /// Creates a new Merkle tree from the given leaves.
     pub fn new(leaves: Vec<Digest>) -> Self {
         MerkleTree { leaves }
     }
 
+    /// Inserts a new leaf into the Merkle tree.
     pub fn insert(&mut self, value: Digest) {
         self.leaves.push(value)
     }
 
+    /// Computes the root of the Merkle tree.
     pub fn root(&self) -> Result<Digest, ArmError> {
         if self.is_empty() {
             return Err(ArmError::EmptyTree);
@@ -49,7 +56,7 @@ impl MerkleTree {
     ///
     /// # Returns
     ///
-    /// Returns an `Option` containing a `MerklePath` of depth `ACTION_TREE_DEPTH` if the leaf exists in the tree.
+    /// Returns an `Option` containing a `MerklePath` if the leaf exists in the tree.
     /// The `MerklePath` is a vector of tuples, where each tuple contains:
     /// - A `Digest` representing the sibling node's hash.
     /// - A `bool` indicating whether the sibling is on the left (`true`) or right (`false`).
@@ -105,6 +112,7 @@ impl MerkleTree {
         }
     }
 
+    /// Checks if the Merkle tree is empty.
     pub fn is_empty(&self) -> bool {
         self.leaves.is_empty()
     }

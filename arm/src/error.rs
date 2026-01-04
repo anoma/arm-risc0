@@ -1,3 +1,5 @@
+//! Arm-specific error types.
+#![allow(missing_docs)]
 use thiserror::Error;
 
 #[derive(Debug, Error, Clone, PartialEq, Eq)]

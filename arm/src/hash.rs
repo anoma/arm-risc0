@@ -1,8 +1,11 @@
+//! Hashing utilities for the aggregation circuits.
+
 use risc0_zkvm::sha::{Impl, Sha256, DIGEST_BYTES};
 use risc0_zkvm::Digest;
 
 use crate::utils::words_to_bytes;
 
+/// Commits the step output together with the previous hashes using SHA256.
 pub fn commit_step_output_with_sha(prev_hashes: &[Digest], step_output_serde: &[u32]) -> Digest {
     sha_digest(
         &flatten_prev_hashes(prev_hashes),
@@ -10,6 +13,7 @@ pub fn commit_step_output_with_sha(prev_hashes: &[Digest], step_output_serde: &[
     )
 }
 
+/// Commits the step program together with the previous hashes using SHA256.
 pub fn commit_step_program_with_sha(prev_hashes: &[Digest], step_program: &Digest) -> Digest {
     sha_digest(&flatten_prev_hashes(prev_hashes), step_program.as_bytes())
 }

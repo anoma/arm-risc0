@@ -1,3 +1,5 @@
+//! Aggregation of base proofs into batch proofs.
+
 use risc0_zkvm::{default_prover, Digest, ExecutorEnv, Receipt, VerifierContext};
 use risc0_zkvm::{InnerReceipt, ProverOpts};
 use serde::{Deserialize, Serialize};
@@ -13,6 +15,7 @@ use crate::proving_system::ProofType;
 use crate::transaction::Transaction;
 use crate::utils::{bytes_to_words, words_to_bytes};
 
+/// The batch aggregation proof.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BatchProof(pub InnerReceipt);
 
@@ -20,6 +23,7 @@ pub struct BatchProof(pub InnerReceipt);
 pub struct BatchAggregation;
 
 impl BatchAggregation {
+    /// Proves the aggregation of a transaction's base proofs into a batch proof.
     pub fn prove_transaction_aggregation(
         tx: &Transaction,
         proof_type: ProofType,
@@ -103,6 +107,7 @@ impl BatchAggregation {
         Ok(BatchProof(receipt.inner))
     }
 
+    /// Verifies the aggregated batch proof of a transaction.
     pub fn verify_transaction_aggregation(
         tx: &Transaction,
         proof: &BatchProof,

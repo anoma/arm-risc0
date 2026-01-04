@@ -1,3 +1,5 @@
+//! Logic proof structures and traits for proving and verifying logic statements.
+
 use crate::{
     constants::{PADDING_LOGIC_PK, PADDING_LOGIC_VK},
     error::ArmError,
@@ -16,19 +18,26 @@ use serde::{Deserialize, Serialize};
 #[cfg(feature = "prove")]
 use crate::proving_system::{prove, ProofType};
 
+/// Trait for logic provers, defining the necessary methods and associated types.
 pub trait LogicProver: Default + Clone + Serialize + for<'de> Deserialize<'de> {
+    /// The type of witness used for proving.
     type Witness: Default + Clone + Serialize + for<'de> Deserialize<'de>;
 
+    /// Returns the proving key for the logic prover.
     fn proving_key() -> &'static [u8];
 
+    /// Returns the verifying key for the logic prover.
     fn verifying_key() -> Digest;
 
+    /// Returns the verifying key as bytes.
     fn verifying_key_as_bytes() -> Vec<u8> {
         Self::verifying_key().as_bytes().to_vec()
     }
 
+    /// Returns a reference to the witness.
     fn witness(&self) -> &Self::Witness;
 
+    /// Proves the logic statement using the provided witness and proof type.
     #[cfg(feature = "prove")]
     fn prove(&self, proof_type: ProofType) -> Result<LogicVerifier, ArmError> {
         let (proof, instance) = prove(Self::proving_key(), self.witness(), proof_type)?;
@@ -40,22 +49,32 @@ pub trait LogicProver: Default + Clone + Serialize + for<'de> Deserialize<'de> {
     }
 }
 
+/// Represents a logic verifier with its proof, instance, and verifying key.
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct LogicVerifier {
+    /// The logic proof (optional, would be absent when aggregation is enabled).
     pub proof: Option<Vec<u8>>,
+    /// The serialized logic instance.
     pub instance: Vec<u8>,
+    /// The verifying key for the logic proof.
     pub verifying_key: Digest,
 }
 
+/// Inputs required to create a logic verifier.
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct LogicVerifierInputs {
+    /// The tag (either commitment or nullifier) for the logic instance.
     pub tag: Digest,
+    /// The verifying key for the logic proof.
     pub verifying_key: Digest,
+    /// The application data associated with the logic instance.
     pub app_data: AppData,
+    /// The logic proof (optional, would be absent when aggregation is enabled).
     pub proof: Option<Vec<u8>>,
 }
 
 impl LogicVerifier {
+    /// Verifies the logic proof against the instance using the provided verifying key.
     pub fn verify(&self) -> Result<(), ArmError> {
         if let Some(proof) = &self.proof {
             verify_proof(&self.verifying_key, &self.instance, proof)
@@ -67,12 +86,14 @@ impl LogicVerifier {
         }
     }
 
+    /// Retrieves the logic instance from the serialized instance data.
     pub fn get_instance(&self) -> Result<LogicInstance, ArmError> {
         journal_to_instance(&self.instance)
     }
 }
 
 impl LogicVerifierInputs {
+    /// Converts the LogicVerifierInputs into a LogicVerifier.
     pub fn to_logic_verifier(
         self,
         is_consumed: bool,
@@ -87,6 +108,7 @@ impl LogicVerifierInputs {
         })
     }
 
+    /// Converts the LogicVerifierInputs into a LogicInstance.
     fn to_instance(&self, is_consumed: bool, root: Digest) -> LogicInstance {
         LogicInstance {
             tag: self.tag,
@@ -111,6 +133,7 @@ impl TryFrom<LogicVerifier> for LogicVerifierInputs {
     }
 }
 
+/// A padding resource logic prover for generating trivial logic proofs.
 #[derive(Clone, Deserialize, Serialize)]
 pub struct PaddingResourceLogic {
     witness: TrivialLogicWitness,
@@ -133,6 +156,7 @@ impl LogicProver for PaddingResourceLogic {
 }
 
 impl PaddingResourceLogic {
+    /// Creates a new PaddingResourceLogic with the given parameters.
     pub fn new(
         resource: Resource,
         action_tree_root: Digest,
@@ -147,6 +171,8 @@ impl PaddingResourceLogic {
         };
         PaddingResourceLogic { witness }
     }
+
+    /// Creates a padding resource with the given nullifier key commitment.
     pub fn create_padding_resource(nk_commitment: NullifierKeyCommitment) -> Resource {
         Resource {
             logic_ref: Self::verifying_key(),
