@@ -1,3 +1,5 @@
+//! Authority signing and verification using ECDSA over secp256k1.
+
 use arm::error::ArmError;
 use k256::{
     ecdsa::{
@@ -9,21 +11,26 @@ use k256::{
 };
 use serde::{Deserialize, Serialize};
 
+/// The authority's signing key.
 #[derive(Clone)]
 pub struct AuthoritySigningKey(SigningKey);
 
+/// The authority's verifying key.
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct AuthorityVerifyingKey(AffinePoint);
 
+/// The authority's signature.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct AuthoritySignature(Signature);
 
 impl AuthoritySigningKey {
+    /// Generates a new random authority signing key.
     pub fn new() -> Self {
         let signing_key = SigningKey::random(&mut OsRng);
         AuthoritySigningKey(signing_key)
     }
 
+    /// Signs a message with the authority signing key, including a domain separator.
     pub fn sign(&self, domain: &[u8], message: &[u8]) -> AuthoritySignature {
         let mut msg_with_domain =
             Vec::with_capacity(b"ARM_AUTH_V1".len() + domain.len() + message.len());
@@ -36,10 +43,12 @@ impl AuthoritySigningKey {
         AuthoritySignature(self.0.sign(&msg_with_domain))
     }
 
+    /// Serializes the signing key to a byte array.
     pub fn to_bytes(&self) -> [u8; 32] {
         self.0.to_bytes().into()
     }
 
+    /// Deserializes the signing key from a byte array.
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, ArmError> {
         let signing_key =
             SigningKey::from_bytes(bytes.into()).map_err(|_| ArmError::InvalidSigningKey)?;
@@ -73,11 +82,13 @@ impl<'de> Deserialize<'de> for AuthoritySigningKey {
 }
 
 impl AuthorityVerifyingKey {
+    /// Creates an AuthorityVerifyingKey from a given AuthoritySigningKey.
     pub fn from_signing_key(signing_key: &AuthoritySigningKey) -> Self {
         let verifying_key = signing_key.0.verifying_key();
         Self::from_affine(*verifying_key.as_affine())
     }
 
+    /// Verifies a signature against the given domain and message.
     pub fn verify(
         &self,
         domain: &[u8],
@@ -99,28 +110,34 @@ impl AuthorityVerifyingKey {
             .map_err(|_| ArmError::InvalidSignature)
     }
 
+    /// Creates an AuthorityVerifyingKey from an AffinePoint.
     pub fn from_affine(point: AffinePoint) -> Self {
         AuthorityVerifyingKey(point)
     }
 
+    /// Returns a reference to the inner AffinePoint.
     pub fn as_affine(&self) -> &AffinePoint {
         &self.0
     }
 
+    /// Serializes the verifying key to bytes.
     pub fn to_bytes(&self) -> Vec<u8> {
         self.0.to_encoded_point(false).as_bytes().to_vec()
     }
 }
 
 impl AuthoritySignature {
+    /// Returns a reference to the inner Signature.
     pub fn inner(&self) -> &Signature {
         &self.0
     }
 
+    /// Serializes the signature to bytes.
     pub fn to_bytes(&self) -> Vec<u8> {
         self.0.to_bytes().to_vec()
     }
 
+    /// Deserializes the signature from bytes.
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, ArmError> {
         let sig = Signature::from_bytes(bytes.into()).map_err(|_| ArmError::InvalidSignature)?;
         Ok(AuthoritySignature(sig))

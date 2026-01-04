@@ -1,3 +1,5 @@
+//! ARM encryption gadgets for resource logics(applications).
+
 use aes_gcm::{aead::Aead, Aes256Gcm, Key, KeyInit};
 use arm::{
     error::ArmError,
@@ -15,19 +17,23 @@ use rand::Rng;
 use serde::{Deserialize, Serialize};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
+/// The secret key used for encryption and decryption.
 #[derive(Clone, Serialize, Deserialize, Zeroize, ZeroizeOnDrop, PartialEq, Eq)]
 pub struct SecretKey(Scalar);
 
 impl SecretKey {
+    /// Creates a new SecretKey from a given Scalar.
     pub fn new(sk: Scalar) -> Self {
         SecretKey(sk)
     }
 
+    /// Generates a random SecretKey.
     pub fn random() -> Self {
         let sk = Scalar::random(&mut OsRng);
         SecretKey(sk)
     }
 
+    /// Returns a reference to the inner Scalar.
     pub fn inner(&self) -> &Scalar {
         &self.0
     }
@@ -39,26 +45,32 @@ impl Default for SecretKey {
     }
 }
 
+/// The ciphertext produced by encryption.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Ciphertext(Vec<u8>);
 
 impl Ciphertext {
+    /// Creates a Ciphertext from a byte vector.
     pub fn from_bytes(cipher: Vec<u8>) -> Self {
         Ciphertext(cipher)
     }
 
+    /// Creates a Ciphertext from an array of u32 words.
     pub fn from_words(words: &[u32]) -> Self {
         Ciphertext(words_to_bytes(words).to_vec())
     }
 
+    /// Returns a reference to the inner byte vector.
     pub fn inner(&self) -> &[u8] {
         &self.0
     }
 
+    /// Returns the ciphertext as an array of u32 words.
     pub fn as_words(&self) -> Vec<u32> {
         bytes_to_words(self.inner())
     }
 
+    /// Encrypts a message using the receiver's public key and the sender's secret key.
     pub fn encrypt(
         message: &Vec<u8>,
         receiver_pk: &AffinePoint,
@@ -68,7 +80,7 @@ impl Ciphertext {
         Self::encrypt_with_nonce(message, receiver_pk, sender_sk, nonce)
     }
 
-    // used in circuits where nonce is provided
+    /// Encrypts a message using the receiver's public key, the sender's secret key, and a provided nonce.
     pub fn encrypt_with_nonce(
         message: &Vec<u8>,
         receiver_pk: &AffinePoint,
@@ -93,6 +105,7 @@ impl Ciphertext {
         ))
     }
 
+    /// Decrypts the ciphertext using the receiver's secret key.
     pub fn decrypt(&self, sk: &SecretKey) -> Result<SecurePlaintext, ArmError> {
         if self.inner().is_empty() {
             return Err(ArmError::DecryptionFailed);
@@ -194,19 +207,23 @@ impl InnerSecretKey {
     }
 }
 
+/// The plaintext produced by decryption.
 #[derive(Zeroize, ZeroizeOnDrop, PartialEq, Eq)]
 pub struct SecurePlaintext(Vec<u8>);
 
 impl SecurePlaintext {
+    /// Creates a new SecurePlaintext from a byte vector.
     pub fn new(data: Vec<u8>) -> Self {
         SecurePlaintext(data)
     }
 
+    /// Returns a reference to the inner byte vector.
     pub fn as_bytes(&self) -> &[u8] {
         &self.0
     }
 }
 
+/// Generates a public key (AffinePoint) from a given private key (Scalar).
 pub fn generate_public_key(sk: &Scalar) -> AffinePoint {
     // Compute public key as generator * private key
     (ProjectivePoint::GENERATOR * sk).to_affine()
