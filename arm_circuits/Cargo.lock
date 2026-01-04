@@ -601,7 +601,7 @@ dependencies = [
 
 [[package]]
 name = "arm"
-version = "0.13.0"
+version = "1.0.0"
 dependencies = [
  "bincode",
  "bytemuck",
@@ -617,7 +617,7 @@ dependencies = [
 
 [[package]]
 name = "arm-gadgets"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "aes-gcm",
  "alloy-primitives",
@@ -633,7 +633,7 @@ dependencies = [
 
 [[package]]
 name = "arm-test-witness"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "arm",
  "arm-gadgets",
@@ -1043,7 +1043,7 @@ dependencies = [
 
 [[package]]
 name = "compliance"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "arm",
  "compliance-methods",
@@ -1052,7 +1052,7 @@ dependencies = [
 
 [[package]]
 name = "compliance-methods"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "risc0-build",
 ]
@@ -2745,7 +2745,7 @@ checksum = "34080505efa8e45a4b816c349525ebe327ceaa8559756f0356cba97ef3bf7432"
 
 [[package]]
 name = "logic-test"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "arm",
  "arm-test-witness",
@@ -2755,7 +2755,7 @@ dependencies = [
 
 [[package]]
 name = "logic-test-methods"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "risc0-build",
 ]
@@ -5166,7 +5166,7 @@ dependencies = [
 
 [[package]]
 name = "trivial-logic"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "arm",
  "risc0-zkvm",
@@ -5175,7 +5175,7 @@ dependencies = [
 
 [[package]]
 name = "trivial-logic-methods"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "risc0-build",
 ]
