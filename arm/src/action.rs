@@ -1,3 +1,5 @@
+//! An action represents a set of compliance units and logic verifiers.
+
 use crate::{
     action_tree::MerkleTree,
     compliance::ComplianceInstance,
@@ -9,13 +11,17 @@ use k256::ProjectivePoint;
 use risc0_zkvm::Digest;
 use serde::{Deserialize, Serialize};
 
+/// An action consists of compliance units and logic verifier inputs.
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct Action {
+    /// The compliance units in this action.
     pub compliance_units: Vec<ComplianceUnit>,
+    /// The logic verifier inputs in this action.
     pub logic_verifier_inputs: Vec<LogicVerifierInputs>,
 }
 
 impl Action {
+    /// Creates a new Action from compliance units and logic verifiers.
     pub fn new(
         compliance_units: Vec<ComplianceUnit>,
         logic_verifiers: Vec<LogicVerifier>,
@@ -30,14 +36,18 @@ impl Action {
         })
     }
 
+    /// Returns a reference to the compliance units.
     pub fn get_compliance_units(&self) -> &Vec<ComplianceUnit> {
         &self.compliance_units
     }
 
+    /// Returns a reference to the logic verifier inputs.
     pub fn get_logic_verifier_inputs(&self) -> &Vec<LogicVerifierInputs> {
         &self.logic_verifier_inputs
     }
 
+    /// Constructs logic verifiers from the action's compliance units and logic verifier inputs.
+    /// It also checks consistency between compliance instances and logic verifier inputs.
     pub(crate) fn get_logic_verifiers(&self) -> Result<Vec<LogicVerifier>, ArmError> {
         let mut logic_verifiers = Vec::new();
 
@@ -86,6 +96,7 @@ impl Action {
         Ok(logic_verifiers)
     }
 
+    /// Verifies all proofs and consistencies in the action.
     pub fn verify(self) -> Result<(), ArmError> {
         for unit in &self.compliance_units {
             unit.verify()?;
@@ -99,8 +110,8 @@ impl Action {
         Ok(())
     }
 
-    // This function computes the delta of the action by summing up the deltas
-    // of each compliance unit.
+    /// This function computes the delta of the action by summing up the deltas
+    /// of each compliance unit.
     pub fn delta(&self) -> Result<ProjectivePoint, ArmError> {
         self.compliance_units
             .iter()
@@ -109,6 +120,8 @@ impl Action {
             })
     }
 
+    /// Constructs the delta message by concatenating the delta messages
+    /// of each compliance unit.
     pub fn get_delta_msg(&self) -> Result<Vec<u8>, ArmError> {
         let mut msg = Vec::new();
         for unit in &self.compliance_units {

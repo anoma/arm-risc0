@@ -1,4 +1,6 @@
-// Size hard-coded to two resources per unit
+//! Compliance module containing the compliance instance and witness.
+
+/// Size hard-coded to two resources per unit
 const COMPLIANCE_INSTANCE_SIZE: usize = 56;
 
 use crate::{
@@ -22,30 +24,42 @@ use risc0_zkvm::Digest;
 use serde_with::serde_as;
 
 lazy_static! {
+    /// The initial root of the empty commitment tree is the hash of an empty string.
     pub static ref INITIAL_ROOT: Digest =
         Digest::from_hex("cc1d2f838445db7aec431df9ee8a871f40e7aa5e064fc056633ef8c60fab7b06")
             .unwrap();
 }
 
+/// The compliance instance contains all public inputs to the compliance proof.
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct ComplianceInstance {
+    /// The nullifier of the consumed resource.
     pub consumed_nullifier: Digest,
+    /// The logic ref of the consumed resource.
     pub consumed_logic_ref: Digest,
+    /// The commitment tree root for the consumed resource.
     pub consumed_commitment_tree_root: Digest,
+    /// The commitment of the created resource.
     pub created_commitment: Digest,
+    /// The logic ref of the created resource.
     pub created_logic_ref: Digest,
-    // Use u32 array to avoid padding issues in risc0
+    /// The delta x coordinate of the created resource(use u32 array to avoid padding issues in risc0).
     pub delta_x: [u32; 8],
+    /// The delta y coordinate of the created resource(use u32 array to avoid padding issues in risc0).
     pub delta_y: [u32; 8],
 }
 
+/// The compliance instance represented as an array of u32 words for
+/// serialization(used in the aggregation circuit).
 #[serde_as]
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct ComplianceInstanceWords {
+    /// The compliance instance as an array of u32 words.
     #[serde_as(as = "[_; COMPLIANCE_INSTANCE_SIZE]")]
     pub u32_words: [u32; COMPLIANCE_INSTANCE_SIZE],
 }
 
+/// The compliance witness contains all private inputs to the compliance proof.
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub struct ComplianceWitness {
     /// The consumed resource
@@ -66,6 +80,8 @@ pub struct ComplianceWitness {
 }
 
 impl ComplianceWitness {
+    /// Creates a new compliance witness from the given resources and latest
+    /// root when consuming an ephemeral resource.
     pub fn from_resources(
         consumed_resource: Resource,
         latest_root: Digest,
@@ -82,6 +98,8 @@ impl ComplianceWitness {
         }
     }
 
+    /// Creates a new compliance witness from the given resources and merkle
+    /// path when consuming a non-ephemeral resource.
     pub fn from_resources_with_path(
         consumed_resource: Resource,
         nf_key: NullifierKey,
@@ -98,6 +116,7 @@ impl ComplianceWitness {
         }
     }
 
+    /// Compliance constraints
     pub fn constrain(&self) -> Result<ComplianceInstance, ArmError> {
         let consumed_cm = self.consumed_commitment();
         let consumed_logic_ref = self.consumed_resource_logic();
@@ -127,27 +146,33 @@ impl ComplianceWitness {
         })
     }
 
+    /// Get the logic ref of consumed resource
     pub fn consumed_resource_logic(&self) -> Digest {
         self.consumed_resource.logic_ref
     }
 
+    /// Get the logic ref of created resource
     pub fn created_resource_logic(&self) -> Digest {
         self.created_resource.logic_ref
     }
 
+    /// Compute the commitment of created resource
     pub fn consumed_commitment(&self) -> Digest {
         self.consumed_resource.commitment()
     }
 
+    /// Compute the commitment of created resource
     pub fn created_commitment(&self) -> Digest {
         self.created_resource.commitment()
     }
 
+    /// Compute the nullifier of consumed resource
     pub fn consumed_nullifier(&self, cm: &Digest) -> Result<Digest, ArmError> {
         self.consumed_resource
             .nullifier_from_commitment(&self.nf_key, cm)
     }
 
+    /// Compute the commitment tree root for consumed resource
     pub fn consumed_commitment_tree_root(&self, cm: &Digest) -> Digest {
         if self.consumed_resource.is_ephemeral {
             self.ephemeral_root
@@ -156,6 +181,7 @@ impl ComplianceWitness {
         }
     }
 
+    /// Compute the delta commitment
     pub fn delta(&self) -> Result<([u32; 8], [u32; 8]), ArmError> {
         // Compute delta and make delta commitment public
         let rcv_array: [u8; 32] = self
@@ -186,7 +212,6 @@ impl ComplianceWitness {
 }
 
 impl Default for ComplianceWitness {
-    // The default value is meaningless and only for testing
     fn default() -> Self {
         let nf_key = NullifierKey::default();
 
@@ -230,6 +255,7 @@ impl Default for ComplianceWitness {
 }
 
 impl ComplianceInstance {
+    /// Converts the delta commitment from affine coordinates to a ProjectivePoint.
     pub fn delta_projective(&self) -> Result<ProjectivePoint, ArmError> {
         let encoded_point = EncodedPoint::from_affine_coordinates(
             words_to_bytes(&self.delta_x).into(),
@@ -241,6 +267,7 @@ impl ComplianceInstance {
             .ok_or(ArmError::InvalidDelta)
     }
 
+    /// Retrieves the delta message used for signing.
     pub fn delta_msg(&self) -> Vec<u8> {
         let mut msg = Vec::new();
         msg.extend_from_slice(self.consumed_nullifier.as_bytes());

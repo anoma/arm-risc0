@@ -1,3 +1,4 @@
+//! Aggregation module for ARM proofs.
 use risc0_zkvm::{Digest, InnerReceipt, Receipt};
 use serde::{Deserialize, Serialize};
 
@@ -17,7 +18,9 @@ pub mod sequential;
 /// Supported strategies to aggregate.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum AggregationStrategy {
+    /// Sequential aggregation strategy.
     Sequential,
+    /// Batch aggregation strategy.
     Batch,
 }
 

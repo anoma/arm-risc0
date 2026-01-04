@@ -1,3 +1,5 @@
+//! ARM EVM gadgets for resource logics(applications).
+
 use alloy_primitives::B256;
 use alloy_sol_types::{sol, SolValue};
 use arm::resource::Resource as ArmResource;
@@ -16,10 +18,12 @@ sol! {
 }
 
 impl Resource {
+    /// Encodes the Resource struct into a byte vector using ABI encoding.
     pub fn encode(&self) -> Vec<u8> {
         self.abi_encode_params()
     }
 
+    /// Decodes a byte slice into a Resource struct using ABI decoding.
     pub fn decode(encoded: &[u8]) -> Option<Self> {
         Self::abi_decode_params(encoded).ok()
     }
@@ -49,6 +53,7 @@ sol! {
 }
 
 impl ForwarderCalldata {
+    /// Creates a new ForwarderCalldata instance.
     pub fn new(untrusted_forwarder: &str, input: Vec<u8>, output: Vec<u8>) -> Self {
         // This is only used in circuits, just let it panic if the address is invalid
         let untrusted_forwarder_addr = untrusted_forwarder.parse().expect("Invalid address string");
@@ -59,6 +64,7 @@ impl ForwarderCalldata {
         }
     }
 
+    /// Creates a new ForwarderCalldata instance from hex strings.
     pub fn from_hex(untrusted_forwarder: &str, input: &str, output: &str) -> Self {
         // This is only used in circuits, just let it panic if the address is invalid
         let untrusted_forwarder_addr = untrusted_forwarder.parse().expect("Invalid address string");
@@ -69,6 +75,7 @@ impl ForwarderCalldata {
         }
     }
 
+    /// Creates a new ForwarderCalldata instance from byte slices.
     pub fn from_bytes(untrusted_forwarder: &[u8], input: Vec<u8>, output: Vec<u8>) -> Self {
         ForwarderCalldata {
             // This is only used in circuits, just let it panic if the address is invalid
@@ -80,10 +87,12 @@ impl ForwarderCalldata {
         }
     }
 
+    /// Encodes the ForwarderCalldata struct into a byte vector using ABI encoding.
     pub fn encode(&self) -> Vec<u8> {
         self.abi_encode_params()
     }
 
+    /// Decodes a byte slice into a ForwarderCalldata struct using ABI decoding.
     pub fn decode(encoded: &[u8]) -> Option<Self> {
         Self::abi_decode_params(encoded).ok()
     }

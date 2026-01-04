@@ -1,3 +1,5 @@
+//! Sequential aggregation of proofs.
+
 use risc0_zkvm::Digest;
 
 use crate::{
@@ -9,6 +11,7 @@ use crate::{
 
 use super::pcd::{PCDAggregation, PcdMessage, PcdProof, StepInstance, StepProof};
 
+/// Sequential aggregation of proofs.
 pub struct SequentialAggregation;
 
 impl SequentialAggregation {

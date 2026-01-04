@@ -1,3 +1,5 @@
+//! Delta proof module containing the delta proof, witness, and instance.
+
 use k256::ecdsa::{RecoveryId, Signature, SigningKey, VerifyingKey};
 use k256::{
     elliptic_curve::{scalar::IsHigh, PublicKey, ScalarPrimitive},
@@ -8,22 +10,31 @@ use serde::{Deserialize, Serialize};
 use crate::error::ArmError;
 use sha3::{Digest, Keccak256};
 
+/// The delta proof consists of an ECDSA signature and a recovery ID.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DeltaProof {
+    /// The binding signature(ECDSA).
     pub signature: Signature,
+    /// The recovery ID.
     pub recid: RecoveryId,
 }
 
+/// The delta witness contains the signing key used to generate the delta proof.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DeltaWitness {
+    /// The signing key.
     pub signing_key: SigningKey,
 }
 
+/// The delta instance contains the verifying key used to verify the delta proof.
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DeltaInstance {
+    /// The verifying key.
     pub verifying_key: VerifyingKey,
 }
 
 impl DeltaProof {
+    /// Generates a delta proof by signing the given message with the provided witness.
     pub fn prove(message: &[u8], witness: &DeltaWitness) -> Result<DeltaProof, ArmError> {
         // Hash the message using Keccak256
         let mut digest = Keccak256::new();
@@ -43,6 +54,7 @@ impl DeltaProof {
         Ok(DeltaProof { signature, recid })
     }
 
+    /// Verifies the delta proof against the given message and instance.
     pub fn verify(
         message: &[u8],
         proof: &DeltaProof,
@@ -73,6 +85,7 @@ impl DeltaProof {
         Ok(())
     }
 
+    /// Serializes the delta proof to bytes.
     pub fn to_bytes(&self) -> [u8; 65] {
         let mut bytes = [0u8; 65];
         bytes[0..64].clone_from_slice(&self.signature.to_bytes());
@@ -80,6 +93,7 @@ impl DeltaProof {
         bytes
     }
 
+    /// Deserializes the delta proof from bytes.
     pub fn from_bytes(bytes: &[u8]) -> Result<DeltaProof, ArmError> {
         Ok(DeltaProof {
             signature: Signature::from_bytes((&bytes[0..64]).into())
@@ -90,6 +104,7 @@ impl DeltaProof {
 }
 
 impl DeltaWitness {
+    /// Creates a delta witness from a list of secret keys by summing them up.
     pub fn from_scalars(secret_keys: &[Scalar]) -> DeltaWitness {
         let sum: ScalarPrimitive<_> = secret_keys
             .iter()
@@ -100,6 +115,7 @@ impl DeltaWitness {
         DeltaWitness { signing_key }
     }
 
+    /// Creates a delta witness from a list of byte vectors representing secret keys.
     pub fn from_bytes_vec(keys: &[Vec<u8>]) -> Result<DeltaWitness, ArmError> {
         let witnesses: Result<Vec<DeltaWitness>, ArmError> = keys
             .iter()
@@ -108,6 +124,7 @@ impl DeltaWitness {
         Ok(DeltaWitness::compress(&witnesses?))
     }
 
+    /// Creates a delta witness from bytes.
     pub fn from_bytes(bytes: &[u8]) -> Result<DeltaWitness, ArmError> {
         Ok(DeltaWitness {
             signing_key: SigningKey::from_bytes(bytes.into())
@@ -115,10 +132,12 @@ impl DeltaWitness {
         })
     }
 
+    /// Serializes the delta witness to bytes.
     pub fn to_bytes(&self) -> [u8; 32] {
         self.signing_key.to_bytes().into()
     }
 
+    /// Composes two delta witnesses by summing their signing keys.
     pub fn compose(&self, other: &DeltaWitness) -> Self {
         let sum = self.signing_key.as_nonzero_scalar().as_ref()
             + other.signing_key.as_nonzero_scalar().as_ref();
@@ -128,6 +147,7 @@ impl DeltaWitness {
         }
     }
 
+    /// Compresses a list of delta witnesses into a single delta witness by summing them up.
     pub fn compress(witnesses: &[DeltaWitness]) -> DeltaWitness {
         let mut sum = witnesses[0].clone();
         for witness in witnesses.iter().skip(1) {
@@ -138,6 +158,7 @@ impl DeltaWitness {
 }
 
 impl DeltaInstance {
+    /// Creates a delta instance from a list of projective points by summing them up.
     pub fn from_deltas(deltas: &[ProjectivePoint]) -> Result<DeltaInstance, ArmError> {
         let sum = deltas
             .iter()
