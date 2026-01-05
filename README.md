@@ -4,15 +4,16 @@ This is a shielded resource machine implementation based on [Risc0-zkvm](https:/
 
 ## Docs
 
-* [General RM Specification](https://specs.anoma.net/latest/arch/system/state/resource_machine/index.html)
-* Shielded RM Specification(TBD)
-* [Anoma SDK](https://github.com/anoma/anoma-sdk)
+- [General RM Specification](https://specs.anoma.net/latest/arch/system/state/resource_machine/index.html)
+- Shielded RM Specification(TBD)
+- [Anoma SDK](https://github.com/anoma/anoma-sdk)
 
 ## ARM-RISC0 Directory Structure
 
 - **`arm/`**: The main Anoma Shielded Resource Machine implementation providing the core functionality for Anoma SDK and Validator.
 
 - **`arm_circuits/`**: Demonstration circuits for arms and applications:
+
   - **compliance**: Basic compliance checking circuit
   - **trivial_logic**: Minimal logic circuit example, also used in padding resources
   - **proof aggregation (batch_aggregation, sequential_aggregation)**: Circuits for single-run aggregation and IVC-based aggregation, respectively
@@ -20,6 +21,35 @@ This is a shielded resource machine implementation based on [Risc0-zkvm](https:/
 - **`arm_gadgets/`**: It provides a range of commonly used components for resource logic circuits, such as verifiable encryption and ECDSA signature authentication.
 
 - **`arm_tests/`**: It encompasses a basic resource logic instantiation and transaction tests.
+
+## Audits
+
+Our software undergoes regular audits:
+
+1. Informal Systems
+
+   - Company Website: https://informal.systems
+   - Commit ID: [61e68468e9c9c292ee0ce2575d5b743e6571a2ff](https://github.com/anoma/arm-risc0/tree/61e68468e9c9c292ee0ce2575d5b743e6571a2ff)
+   - Started: 2025-10-13
+   - Finished: 2025-10-31
+   - Last revised: 2025-11-07
+
+   [📄 Audit Report (pdf)](./audits/2025-11-24_Informal_Systems_RISC_Zero_RM_&_EVM_Protocol_Adapter.pdf)
+
+2. Nethermind
+
+   - Company Website: https://www.nethermind.io/nethermind-security
+   - Commit ID: [a0cca9cdc8e87508b97f6afc65a3b7582aa3e59d](https://github.com/anoma/arm-risc0/tree/a0cca9cdc8e87508b97f6afc65a3b7582aa3e59d)
+   - Started: 2025-10-07
+   - Finished: 2025-11-13
+
+   [📄 Audit Report (pdf)](./audits/2025-11-13_Nethermind_RISC_Zero_RM_&_EVM_Protocol_Adapter.pdf)
+
+## Security
+
+If you believe you've found a security issue, we encourage you to notify us via Email at [security@anoma.foundation](mailto:security@anoma.foundation).
+
+Please do not use the issue tracker for security issues. We welcome working with you to resolve the issue promptly.
 
 ## ARM-RISC0 Application Examples
 
@@ -29,20 +59,20 @@ Several application examples are available at [here](https://github.com/anoma/ar
 
 ### Dependencies
 
-* Rust: [install rust instructions](https://www.rust-lang.org/tools/install)
-* Risc0 toolchain: [install risc0 instructions](https://dev.risczero.com/api/zkvm/install)
+- Rust: [install rust instructions](https://www.rust-lang.org/tools/install)
+- Risc0 toolchain: [install risc0 instructions](https://dev.risczero.com/api/zkvm/install)
 
 Note: The installation of the Risc0 toolchain is required only if you intend to develop resource logics(circuits).
 
 ### Build and Test
 
-* Compile `arm` libs
+- Compile `arm` libs
 
 ```bash
 cargo build
 ```
 
-* Run `arm` tests
+- Run `arm` tests
 
 ```bash
 # run tests in dev-mode: no real proofs are generated
@@ -63,23 +93,22 @@ export BONSAI_API_KEY=<YOUR_API_KEY>
 
 ### Benchmark
 
-* [Compliance circuit benchmark](./arm_circuits/compliance/README.md)
+- [Compliance circuit benchmark](./arm_circuits/compliance/README.md)
 
 ## Feature flags
 
 We have the following feature flags in arm lib:
 
-
-| Feature                  | Implies                   | Description                                                                                                                     |
-| ------------------------ | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `compliance_circuit`       |                           | A specific feature for compliance circuit                                                                                       |
-| `transaction (default)`     | `compliance_circuit`, `client` | It provides full transaction processing capabilities and supports Succinct(STARK) and Groth16 proof types. Groth16 proofs require x86_64 machines. |
-| `prove`                    |                           | Enables RISC0 proving capabilities (required for actual proof generation)                                                       |
-| `bonsai`                    |                           | Enables RISC0 bonsai sdk                                                       |
-| `client`                    |                           | Enables RISC0 client sdk                                                       |
-| `cuda`                    |                           | Enables CUDA GPU acceleration for the prover. Requires CUDA toolkit to be installed.                                                       |
-| `aggregation_circuit`      |                           | A specific feature for (pcd-based) aggregation circuits |
-| `aggregation`              | `aggregation_circuit`, `transaction`       | Enables proof aggregation (only succinct proofs can be aggregated) |
+| Feature                 | Implies                              | Description                                                                                                                                        |
+| ----------------------- | ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `compliance_circuit`    |                                      | A specific feature for compliance circuit                                                                                                          |
+| `transaction (default)` | `compliance_circuit`, `client`       | It provides full transaction processing capabilities and supports Succinct(STARK) and Groth16 proof types. Groth16 proofs require x86_64 machines. |
+| `prove`                 |                                      | Enables RISC0 proving capabilities (required for actual proof generation)                                                                          |
+| `bonsai`                |                                      | Enables RISC0 bonsai sdk                                                                                                                           |
+| `client`                |                                      | Enables RISC0 client sdk                                                                                                                           |
+| `cuda`                  |                                      | Enables CUDA GPU acceleration for the prover. Requires CUDA toolkit to be installed.                                                               |
+| `aggregation_circuit`   |                                      | A specific feature for (pcd-based) aggregation circuits                                                                                            |
+| `aggregation`           | `aggregation_circuit`, `transaction` | Enables proof aggregation (only succinct proofs can be aggregated)                                                                                 |
 
 ### Usage Examples
 
@@ -93,7 +122,6 @@ arm = { version = "0.13.0", features = ["aggregation"] }
 # Logic-circuit-only usage
 arm = { version = "0.13.0", default-features = false }
 ```
-
 
 ## Reproducibly generate proving and verifying keys (ELF and ImageID)
 
@@ -111,25 +139,28 @@ will reproduce the output to:
 View build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/zbrzf1brqyb5evydjxs9h3gvl
 
 ELFs ready at:
-ImageID: 5d3ea0a27561e9e66e6a7c12c7022d1a814a0724d13f7f8e083c4b4f14b5f1c7 - 
+ImageID: 5d3ea0a27561e9e66e6a7c12c7022d1a814a0724d13f7f8e083c4b4f14b5f1c7 -
 arm-risc0/arm_circuits/compliance/methods/guest/target/riscv32im-risc0-zkvm-elf/docker/compliance-guest.bin
 ```
 
 Note: The `unstable` feature of `risc0-zkvm` currently causes issues in circuits. This can be temporarily fixed by manually updating the tool. The problem will be fully resolved in the next release of RISC Zero.
+
 ```bash
 cargo install --force --git https://github.com/risc0/risc0 --tag v3.0.3 -Fexperimental cargo-risczero
 ```
 
 ## Proof aggregation
+
 If a single transaction bundles too many resources, it is possible to aggregate all compliance and logic proofs into a single aggregation proof, attesting to the validity of them all. This reduces overall verification time and transaction size.
 
 ### Before aggregation
- Generate the transaction in the normal way in your workflow. But note that succinct proofs will yield faster aggregation.
 
- **Warning:** It does not support in-circuit verification of Groth16 proofs. You would need to generate succinct compliance and logic proofs instead.
+Generate the transaction in the normal way in your workflow. But note that succinct proofs will yield faster aggregation.
 
+**Warning:** It does not support in-circuit verification of Groth16 proofs. You would need to generate succinct compliance and logic proofs instead.
 
 ### Prove aggregations
+
 You need to enable the `aggregation` feature to be able to prove or verify aggregations.
 
 The aggregation proof type is specified by the ProofType argument. The inner proofs must be Succinct.
@@ -158,18 +189,19 @@ assert!(tx.aggregate_with_strategy(AggregationStrategy::Sequential, proof_type).
 **Warning:** Once again, aggregation erases all the individual proofs from `tx` and replaces them with the (single) aggregation proof in a dedicated field. This is why the transaction must be `mut`. This is true independently of the strategy used.
 
 ### Verify after aggregation
+
 Use `tx.verify()`, as when there is no aggregated proof. Feature `aggregation` must be enabled. Otherwise, it will result in an error.
 
-
 ### External verification of the aggregation proof
+
 Use `tx.get_raw_aggregation_proof()` to get the RISC0 `InnerReceipt` (the actual proof). The verifier would also need to derive the aggregation instance from `tx` on its own, and wrap both in a RISC0 `Receipt`.
 
 ### Comparison
 
-**Strategy** | **Prover cost** | **Public input size** | **Aggregation scope** | **Memory efficient**
--------------|-----------------|-----------------------|-----------------------|----------------------
-**batch** | amortized among all tx proofs | linear in #{tx proofs} | fixed (single prover) | for RISC0 yes. In general, depends on the zkVM (if supports continuations) 
-**sequential** | linear in #{tx proofs} | constant | composable (different provers) | by design
+| **Strategy**   | **Prover cost**               | **Public input size**  | **Aggregation scope**          | **Memory efficient**                                                       |
+| -------------- | ----------------------------- | ---------------------- | ------------------------------ | -------------------------------------------------------------------------- |
+| **batch**      | amortized among all tx proofs | linear in #{tx proofs} | fixed (single prover)          | for RISC0 yes. In general, depends on the zkVM (if supports continuations) |
+| **sequential** | linear in #{tx proofs}        | constant               | composable (different provers) | by design                                                                  |
 
 The sequential (IVC) strategy is an example of proof-carrying data computation. PCD-based aggregation can be distributed across mutually _untrusted_ nodes, and proofs to be aggregated arbitrarily grouped and arranged in different transcripts.
 
