@@ -6,7 +6,13 @@ use k256::{
 use serde::{Deserialize, Serialize};
 
 use crate::error::ArmError;
-use sha3::{Digest, Keccak256};
+
+// Conditionally use SHA-256 for Solana, Keccak-256 for EVM
+#[cfg(feature = "solana")]
+use sha2::{Digest, Sha256 as HashFunction};
+
+#[cfg(not(feature = "solana"))]
+use sha3::{Digest, Keccak256 as HashFunction};
 
 #[derive(Clone, Debug)]
 pub struct DeltaProof {
@@ -25,8 +31,8 @@ pub struct DeltaInstance {
 
 impl DeltaProof {
     pub fn prove(message: &[u8], witness: &DeltaWitness) -> Result<DeltaProof, ArmError> {
-        // Hash the message using Keccak256
-        let mut digest = Keccak256::new();
+        // Hash the message (SHA-256 for Solana, Keccak-256 for EVM)
+        let mut digest = HashFunction::new();
         digest.update(message);
 
         // Sign the hashed message using RFC6979
@@ -60,8 +66,8 @@ impl DeltaProof {
             return Err(ArmError::InvalidDeltaProof);
         }
 
-        // Hash the message using Keccak256
-        let mut digest = Keccak256::new();
+        // Hash the message (SHA-256 for Solana, Keccak-256 for EVM)
+        let mut digest = HashFunction::new();
         digest.update(message);
 
         // Verify the signature
