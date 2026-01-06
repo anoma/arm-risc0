@@ -601,7 +601,7 @@ dependencies = [
 
 [[package]]
 name = "arm"
-version = "0.13.0"
+version = "1.0.0"
 dependencies = [
  "bincode",
  "bytemuck",
@@ -618,7 +618,7 @@ dependencies = [
 
 [[package]]
 name = "arm-gadgets"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "aes-gcm",
  "alloy-primitives",
@@ -634,7 +634,7 @@ dependencies = [
 
 [[package]]
 name = "arm-test-app"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "arm",
  "arm-test-witness",
@@ -646,7 +646,7 @@ dependencies = [
 
 [[package]]
 name = "arm-test-witness"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "arm",
  "arm-gadgets",

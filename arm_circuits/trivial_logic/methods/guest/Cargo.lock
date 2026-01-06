@@ -275,7 +275,7 @@ dependencies = [
 
 [[package]]
 name = "arm"
-version = "0.13.0"
+version = "1.0.0"
 dependencies = [
  "bincode",
  "bytemuck",
@@ -3214,7 +3214,7 @@ dependencies = [
 
 [[package]]
 name = "trivial-logic-guest"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "arm",
  "risc0-zkvm",
