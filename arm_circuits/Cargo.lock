@@ -235,6 +235,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "anoma-rm-risc0"
+version = "1.0.0"
+dependencies = [
+ "bincode",
+ "bytemuck",
+ "hex",
+ "k256",
+ "lazy_static",
+ "rand 0.8.5",
+ "risc0-zkvm",
+ "serde",
+ "serde_with",
+ "thiserror 2.0.17",
+]
+
+[[package]]
 name = "anyhow"
 version = "1.0.100"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -600,29 +616,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "arm"
-version = "1.0.0"
-dependencies = [
- "bincode",
- "bytemuck",
- "hex",
- "k256",
- "lazy_static",
- "rand 0.8.5",
- "risc0-zkvm",
- "serde",
- "serde_with",
- "thiserror 2.0.17",
-]
-
-[[package]]
 name = "arm-gadgets"
 version = "1.0.0"
 dependencies = [
  "aes-gcm",
  "alloy-primitives",
  "alloy-sol-types",
- "arm",
+ "anoma-rm-risc0",
  "bincode",
  "hex",
  "k256",
@@ -635,7 +635,7 @@ dependencies = [
 name = "arm-test-witness"
 version = "1.0.0"
 dependencies = [
- "arm",
+ "anoma-rm-risc0",
  "arm-gadgets",
  "k256",
  "serde",
@@ -1045,7 +1045,7 @@ dependencies = [
 name = "compliance"
 version = "1.0.0"
 dependencies = [
- "arm",
+ "anoma-rm-risc0",
  "compliance-methods",
  "risc0-zkvm",
 ]
@@ -2747,7 +2747,7 @@ checksum = "34080505efa8e45a4b816c349525ebe327ceaa8559756f0356cba97ef3bf7432"
 name = "logic-test"
 version = "1.0.0"
 dependencies = [
- "arm",
+ "anoma-rm-risc0",
  "arm-test-witness",
  "logic-test-methods",
  "risc0-zkvm",
@@ -5168,7 +5168,7 @@ dependencies = [
 name = "trivial-logic"
 version = "1.0.0"
 dependencies = [
- "arm",
+ "anoma-rm-risc0",
  "risc0-zkvm",
  "trivial-logic-methods",
 ]

@@ -4,7 +4,7 @@ version = "1.0.0"
 edition = "2021"
 
 [dependencies]
-arm = { path = "../../arm", features = ["aggregation"] }
+anoma-rm-risc0 = { path = "../../arm", features = ["aggregation"] }
 arm-test-witness = { path = "../arm_test_witness" }
 serde = { version = "1.0.197", default-features = false }
 hex = "0.4"
@@ -20,6 +20,6 @@ k256 = { version = "=0.13.3", features = [
 
 [features]
 default = []
-cuda = ["arm/cuda"]
-prove = ["arm/prove"]
-bonsai = ["arm/bonsai"]
+cuda = ["anoma-rm-risc0/cuda"]
+prove = ["anoma-rm-risc0/prove"]
+bonsai = ["anoma-rm-risc0/bonsai"]

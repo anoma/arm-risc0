@@ -1,7 +1,7 @@
 //! ARM encryption gadgets for resource logics(applications).
 
 use aes_gcm::{aead::Aead, Aes256Gcm, Key, KeyInit};
-use arm::{
+use anoma_rm_risc0::{
     error::ArmError,
     utils::{bytes_to_words, hash_bytes, words_to_bytes},
 };

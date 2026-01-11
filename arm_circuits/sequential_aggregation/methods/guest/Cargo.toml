@@ -10,6 +10,6 @@ risc0-zkvm = { version = "3.0.3", features = [
   "std",
   "unstable",
 ], default-features = false }
-arm = { path = "../../../../arm", features = [
+anoma-rm-risc0 = { path = "../../../../arm", features = [
   "aggregation_circuit",
 ], default-features = false }
