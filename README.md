@@ -114,13 +114,13 @@ We have the following feature flags in arm lib:
 
 ```toml
 # Default configuration
-arm = "1.0.0"
+anoma-rm-risc0 ="1.0.0"
 
 # Proof aggregation (a single succinct proof per transaction)
-arm = { version = "1.0.0", features = ["aggregation"] }
+anoma-rm-risc0 ={ version = "1.0.0", features = ["aggregation"] }
 
 # Logic-circuit-only usage
-arm = { version = "1.0.0", default-features = false }
+anoma-rm-risc0 ={ version = "1.0.0", default-features = false }
 ```
 
 ## Reproducibly generate proving and verifying keys (ELF and ImageID)
@@ -168,7 +168,7 @@ The aggregation proof type is specified by the ProofType argument. The inner pro
 We currently support two different aggregation strategies. The _batch_ strategy aggregates all proofs in the transaction in a single run. It is the default aggregation.
 
 ```rust
-use arm::transaction;
+use anoma_rm_risc0::transaction;
 
 // Just a dummy tx, for illustration. The inner proofs must be Succinct.
 let mut tx = generate_test_transaction(1, 1, ProofType::Succinct);
@@ -181,7 +181,7 @@ assert!(tx.aggregate(proof_type).is_ok());
 The _sequential_ strategy aggregates sequentially, in an IVC style.
 
 ```rust
-use arm::aggregation::AggregationStrategy;
+use anoma_rm_risc0::aggregation::AggregationStrategy;
 
 assert!(tx.aggregate_with_strategy(AggregationStrategy::Sequential, proof_type).is_ok());
 ```

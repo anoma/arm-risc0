@@ -1,4 +1,4 @@
-use arm::resource_logic::{TrivialLogicWitness, LogicCircuit};
+use anoma_rm_risc0::resource_logic::{TrivialLogicWitness, LogicCircuit};
 use risc0_zkvm::guest::env;
 
 fn main() {

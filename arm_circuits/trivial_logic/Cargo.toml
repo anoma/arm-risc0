@@ -6,4 +6,4 @@ edition = "2021"
 [dependencies]
 trivial-logic-methods = { path = "methods" }
 risc0-zkvm = "3.0.3"
-arm = { path = "../../arm", default-features = false }
+anoma-rm-risc0 = { path = "../../arm", default-features = false }

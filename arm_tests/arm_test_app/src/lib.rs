@@ -2,7 +2,7 @@
 // The functions here are also used in the elixir sdk and binding libraries to
 // ensure that the ARM crate's transaction functionalities work as expected.
 
-use arm::{
+use anoma_rm_risc0::{
     action::Action,
     action_tree::MerkleTree,
     compliance::{ComplianceWitness, INITIAL_ROOT},
@@ -234,7 +234,7 @@ fn test_transaction_groth16() {
 
 #[test]
 fn test_aggregation_works() {
-    use arm::aggregation::AggregationStrategy;
+    use anoma_rm_risc0::aggregation::AggregationStrategy;
 
     let tx = generate_test_transaction(2, 2, ProofType::Succinct);
 
@@ -251,7 +251,7 @@ fn test_aggregation_works() {
 #[test]
 #[ignore]
 fn test_aggregation_works_groth16() {
-    use arm::aggregation::AggregationStrategy;
+    use anoma_rm_risc0::aggregation::AggregationStrategy;
 
     let tx = generate_test_transaction(2, 2, ProofType::Succinct);
 
@@ -267,7 +267,7 @@ fn test_aggregation_works_groth16() {
 
 #[test]
 fn test_verify_aggregation_fails_for_incorrect_instances() {
-    use arm::aggregation::AggregationStrategy;
+    use anoma_rm_risc0::aggregation::AggregationStrategy;
 
     let tx = generate_test_transaction(2, 2, ProofType::Succinct);
 
@@ -285,7 +285,7 @@ fn test_verify_aggregation_fails_for_incorrect_instances() {
 
 #[test]
 fn test_cannot_aggregate_invalid_proofs() {
-    use arm::{aggregation::AggregationStrategy, logic_proof::LogicVerifierInputs};
+    use anoma_rm_risc0::{aggregation::AggregationStrategy, logic_proof::LogicVerifierInputs};
 
     let tx = generate_test_transaction(2, 2, ProofType::Succinct);
 

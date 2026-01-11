@@ -54,6 +54,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "anoma-rm-risc0"
+version = "1.0.0"
+dependencies = [
+ "bincode",
+ "bytemuck",
+ "hex",
+ "k256",
+ "lazy_static",
+ "rand 0.8.5",
+ "risc0-zkvm",
+ "serde",
+ "serde_with",
+ "thiserror",
+]
+
+[[package]]
 name = "anyhow"
 version = "1.0.100"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -271,22 +287,6 @@ checksum = "246a225cc6131e9ee4f24619af0f19d67761fff15d7ccc22e42b80846e69449a"
 dependencies = [
  "num-traits",
  "rand 0.8.5",
-]
-
-[[package]]
-name = "arm"
-version = "1.0.0"
-dependencies = [
- "bincode",
- "bytemuck",
- "hex",
- "k256",
- "lazy_static",
- "rand 0.8.5",
- "risc0-zkvm",
- "serde",
- "serde_with",
- "thiserror",
 ]
 
 [[package]]
@@ -3216,7 +3216,7 @@ dependencies = [
 name = "trivial-logic-guest"
 version = "1.0.0"
 dependencies = [
- "arm",
+ "anoma-rm-risc0",
  "risc0-zkvm",
 ]
 

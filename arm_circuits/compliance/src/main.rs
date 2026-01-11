@@ -1,4 +1,4 @@
-use arm::compliance::{ComplianceInstance, ComplianceWitness};
+use anoma_rm_risc0::compliance::{ComplianceInstance, ComplianceWitness};
 use compliance_methods::{COMPLIANCE_GUEST_ELF, COMPLIANCE_GUEST_ID};
 use risc0_zkvm::{default_prover, ExecutorEnv};
 use std::time::Instant;

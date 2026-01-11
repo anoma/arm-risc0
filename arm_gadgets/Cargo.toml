@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-arm = { path = "../arm", default-features = false }
+anoma-rm-risc0 = { path = "../arm", default-features = false }
 alloy-primitives = "1.0.23"
 alloy-sol-types = "1.0.23"
 serde = { version = "1.0.197", default-features = false }
