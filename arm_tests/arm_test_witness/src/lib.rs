@@ -8,7 +8,7 @@ use anoma_rm_risc0::{
     resource_logic::LogicCircuit,
     utils::bytes_to_words,
 };
-use arm_gadgets::{
+use anoma_rm_risc0_gadgets::{
     encryption::{Ciphertext, SecretKey},
     evm::Resource as EvmResource,
 };
