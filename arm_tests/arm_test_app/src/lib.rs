@@ -16,7 +16,7 @@ use anoma_rm_risc0::{
     transaction::{Delta, Transaction},
     Digest,
 };
-use arm_test_witness::TestLogicWitness;
+use anoma_rm_risc0_test_witness::TestLogicWitness;
 use hex::FromHex;
 use k256::Scalar;
 use lazy_static::lazy_static;

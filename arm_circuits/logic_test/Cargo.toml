@@ -7,7 +7,7 @@ edition = "2021"
 logic-test-methods = { path = "methods" }
 risc0-zkvm = "3.0.3"
 anoma-rm-risc0 = { path = "../../arm", default-features = false }
-arm-test-witness = { path = "../../arm_tests/arm_test_witness" }
+anoma-rm-risc0-test-witness = { path = "../../arm_tests/arm_test_witness" }
 
 [features]
 default = []
