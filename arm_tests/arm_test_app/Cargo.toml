@@ -1,11 +1,11 @@
 [package]
-name = "arm-test-app"
+name = "anoma-rm-risc0-test-app"
 version = "1.0.0"
 edition = "2021"
 
 [dependencies]
 anoma-rm-risc0 = { path = "../../arm", features = ["aggregation"] }
-arm-test-witness = { path = "../arm_test_witness" }
+anoma-rm-risc0-test-witness = { path = "../arm_test_witness" }
 serde = { version = "1.0.197", default-features = false }
 hex = "0.4"
 lazy_static = "1.5.0"

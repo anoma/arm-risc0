@@ -1,5 +1,5 @@
 [package]
-name = "arm-test-witness"
+name = "anoma-rm-risc0-test-witness"
 version = "1.0.0"
 edition = "2021"
 
