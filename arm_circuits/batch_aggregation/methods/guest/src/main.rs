@@ -1,7 +1,7 @@
 use risc0_zkvm::guest::env;
 use risc0_zkvm::Digest;
 
-use arm::compliance::ComplianceInstanceWords;
+use anoma_rm_risc0::compliance::ComplianceInstanceWords;
 
 ///  The batch aggregation circuit.
 fn main() {

@@ -2,7 +2,7 @@
 // The functions here are also used in the elixir sdk and binding libraries to
 // ensure that the ARM crate's transaction functionalities work as expected.
 
-use arm::{
+use anoma_rm_risc0::{
     action::Action,
     action_tree::MerkleTree,
     compliance::{ComplianceWitness, INITIAL_ROOT},
@@ -16,7 +16,7 @@ use arm::{
     transaction::{Delta, Transaction},
     Digest,
 };
-use arm_test_witness::TestLogicWitness;
+use anoma_rm_risc0_test_witness::TestLogicWitness;
 use hex::FromHex;
 use k256::Scalar;
 use lazy_static::lazy_static;
@@ -28,7 +28,7 @@ pub const TEST_LOGIC_PK: &[u8] = include_bytes!("../elf/logic-test-guest.bin");
 lazy_static! {
     // test logic verification key / compliance image id
     pub static ref TEST_LOGIC_VK: Digest =
-        Digest::from_hex("3cdf4e49f23543ff8a32f7f2da63a1d918c0d32167e4723b1435838a61cebf0a")
+        Digest::from_hex("795801e6474084c49d6fb5b6303155732378e27718431230a401f0ffa5eae9c4")
             .unwrap();
 }
 
@@ -234,7 +234,7 @@ fn test_transaction_groth16() {
 
 #[test]
 fn test_aggregation_works() {
-    use arm::aggregation::AggregationStrategy;
+    use anoma_rm_risc0::aggregation::AggregationStrategy;
 
     let tx = generate_test_transaction(2, 2, ProofType::Succinct);
 
@@ -251,7 +251,7 @@ fn test_aggregation_works() {
 #[test]
 #[ignore]
 fn test_aggregation_works_groth16() {
-    use arm::aggregation::AggregationStrategy;
+    use anoma_rm_risc0::aggregation::AggregationStrategy;
 
     let tx = generate_test_transaction(2, 2, ProofType::Succinct);
 
@@ -267,7 +267,7 @@ fn test_aggregation_works_groth16() {
 
 #[test]
 fn test_verify_aggregation_fails_for_incorrect_instances() {
-    use arm::aggregation::AggregationStrategy;
+    use anoma_rm_risc0::aggregation::AggregationStrategy;
 
     let tx = generate_test_transaction(2, 2, ProofType::Succinct);
 
@@ -285,7 +285,7 @@ fn test_verify_aggregation_fails_for_incorrect_instances() {
 
 #[test]
 fn test_cannot_aggregate_invalid_proofs() {
-    use arm::{aggregation::AggregationStrategy, logic_proof::LogicVerifierInputs};
+    use anoma_rm_risc0::{aggregation::AggregationStrategy, logic_proof::LogicVerifierInputs};
 
     let tx = generate_test_transaction(2, 2, ProofType::Succinct);
 

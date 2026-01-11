@@ -1,11 +1,11 @@
 [package]
-name = "arm-test-witness"
+name = "anoma-rm-risc0-test-witness"
 version = "1.0.0"
 edition = "2021"
 
 [dependencies]
-arm = { path = "../../arm", default-features = false }
-arm-gadgets = { path = "../../arm_gadgets" }
+anoma-rm-risc0 = { path = "../../arm", default-features = false }
+anoma-rm-risc0-gadgets = { path = "../../arm_gadgets" }
 serde = { version = "1.0.197", default-features = false }
 k256 = { version = "=0.13.3", features = [
   "arithmetic",

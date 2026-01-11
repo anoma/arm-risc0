@@ -25,7 +25,7 @@ fn main() {
     }
 
     // Hash-chain the verified output and program.
-    let h_out = arm::hash::commit_step_output_with_sha(&[h_in], &step_output);
-    let d_out = arm::hash::commit_step_program_with_sha(&[d_in], &step_program);
+    let h_out = anoma_rm_risc0::hash::commit_step_output_with_sha(&[h_in], &step_output);
+    let d_out = anoma_rm_risc0::hash::commit_step_program_with_sha(&[d_in], &step_program);
     env::commit(&(ag_program_key, h_out, d_out));
 }
