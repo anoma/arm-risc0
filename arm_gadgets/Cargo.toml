@@ -1,5 +1,5 @@
 [package]
-name = "arm-gadgets"
+name = "anoma-rm-risc0-gadgets"
 version = "1.0.0"
 edition = "2021"
 
