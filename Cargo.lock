@@ -309,7 +309,7 @@ name = "anoma-rm-risc0-test-app"
 version = "1.0.0"
 dependencies = [
  "anoma-rm-risc0-test-0112 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "anoma-rm-risc0-test-witness",
+ "anoma-rm-risc0-test-witness-test-0112",
  "hex",
  "k256",
  "lazy_static",
@@ -317,7 +317,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "anoma-rm-risc0-test-witness"
+name = "anoma-rm-risc0-test-witness-test-0112"
 version = "1.0.0"
 dependencies = [
  "anoma-rm-risc0-gadgets-test-0112 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",

@@ -1,5 +1,5 @@
 [package]
-name = "anoma-rm-risc0-test-witness"
+name = "anoma-rm-risc0-test-witness-test-0112"
 description = "An Anoma Resource Machine Test Witness using RISC0 zkVM"
 version = "1.0.0"
 edition = { workspace = true }
