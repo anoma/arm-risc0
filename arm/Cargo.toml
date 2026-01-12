@@ -31,8 +31,9 @@ bytemuck = { version = "1.12", features = ["derive"] }
 thiserror = "2.0.6"
 
 [features]
-default = ["transaction", "prove"]
-transaction = ["compliance_circuit", "dep:sha3"]
+default = ["transaction", "prove", "evm"]
+transaction = ["compliance_circuit"]
+evm = ["dep:sha3"]
 solana = ["transaction", "dep:sha2"]
 compliance_circuit = []
 prove = ["risc0-zkvm/prove"]
