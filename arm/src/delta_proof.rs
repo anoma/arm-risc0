@@ -13,7 +13,7 @@ use crate::error::ArmError;
 #[cfg(feature = "solana")]
 use sha2::{Digest, Sha256 as HashFunction};
 
-#[cfg(not(feature = "solana"))]
+#[cfg(feature = "evm")]
 use sha3::{Digest, Keccak256 as HashFunction};
 
 /// The delta proof consists of an ECDSA signature and a recovery ID.
@@ -52,7 +52,8 @@ impl DeltaProof {
             .sign_digest_recoverable(digest)
             .map_err(|_| ArmError::DeltaProofGenerationFailed)?;
 
-        // On-chain signatures are not supported when recid is 2 or 3.
+        // On-chain EVM signatures are not supported when recid is 2 or 3.
+        #[cfg(feature = "evm")]
         if recid.to_byte() > 1 {
             return Err(ArmError::InvalidDeltaProof);
         }
@@ -66,7 +67,8 @@ impl DeltaProof {
         proof: &DeltaProof,
         instance: DeltaInstance,
     ) -> Result<(), ArmError> {
-        // handle recid
+        // handle recid for EVM verification
+        #[cfg(feature = "evm")]
         if proof.recid.to_byte() > 1 {
             return Err(ArmError::InvalidDeltaProof);
         }
@@ -95,16 +97,29 @@ impl DeltaProof {
     pub fn to_bytes(&self) -> [u8; 65] {
         let mut bytes = [0u8; 65];
         bytes[0..64].clone_from_slice(&self.signature.to_bytes());
-        bytes[64] = self.recid.to_byte() + 27;
+
+        #[cfg(not(feature = "evm"))]
+        let recid_byte = self.recid.to_byte();
+
+        #[cfg(feature = "evm")]
+        let recid_byte = self.recid.to_byte() + 27;
+
+        bytes[64] = recid_byte;
         bytes
     }
 
     /// Deserializes the delta proof from bytes.
     pub fn from_bytes(bytes: &[u8]) -> Result<DeltaProof, ArmError> {
+        #[cfg(not(feature = "evm"))]
+        let recid_byte = bytes[64];
+
+        #[cfg(feature = "evm")]
+        let recid_byte = bytes[64] - 27;
+
         Ok(DeltaProof {
             signature: Signature::from_bytes((&bytes[0..64]).into())
                 .map_err(|_| ArmError::InvalidSignature)?,
-            recid: RecoveryId::from_byte(bytes[64] - 27).ok_or(ArmError::InvalidSignature)?,
+            recid: RecoveryId::from_byte(recid_byte).ok_or(ArmError::InvalidSignature)?,
         })
     }
 }
