@@ -65,7 +65,7 @@ The crate includes a comprehensive test suite:
 ### Basic Tests
 
 - **`test_logic_prover`**: Validates individual logic proof generation
-- **`test_action`**: Tests action creation with multiple compliances
+- **`test_action`**: Tests action creation with multiple compliance units
 - **`test_transaction`**: Validates complete transaction flow
 
 ### Validation Tests
