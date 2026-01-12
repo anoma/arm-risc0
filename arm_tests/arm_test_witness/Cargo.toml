@@ -8,7 +8,7 @@ repository = { workspace = true }
 
 [dependencies]
 anoma-rm-risc0-test-0112 = { version = "1.0.0", default-features = false }
-anoma-rm-risc0-gadgets-test-0112 = { path = "../../arm_gadgets" }
+anoma-rm-risc0-gadgets-test-0112 = "1.0.0"
 serde = { version = "1.0.197", default-features = false }
 k256 = { version = "=0.13.3", features = [
   "arithmetic",
