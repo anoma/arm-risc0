@@ -1,4 +1,4 @@
-use anoma_rm_risc0_gadgets::{
+use anoma_rm_risc0_gadgets_test_0112::{
     encryption::{Ciphertext, SecretKey},
     evm::Resource as EvmResource,
 };

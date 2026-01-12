@@ -235,7 +235,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "anoma-rm-risc0-gadgets"
+name = "anoma-rm-risc0-gadgets-test-0112"
 version = "1.0.0"
 dependencies = [
  "aes-gcm",
@@ -302,7 +302,7 @@ dependencies = [
 name = "anoma-rm-risc0-test-witness"
 version = "1.0.0"
 dependencies = [
- "anoma-rm-risc0-gadgets",
+ "anoma-rm-risc0-gadgets-test-0112",
  "anoma-rm-risc0-test-0112 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "k256",
  "serde",
