@@ -1,6 +1,6 @@
 //! Authority signing and verification using ECDSA over secp256k1.
 
-use anoma_rm_risc0::error::ArmError;
+use anoma_rm_risc0_test_0112::error::ArmError;
 use k256::{
     ecdsa::{
         signature::{Signer, Verifier},

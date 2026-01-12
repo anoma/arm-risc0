@@ -1,4 +1,4 @@
-use anoma_rm_risc0::{
+use anoma_rm_risc0_test_0112::{
     error::ArmError,
     logic_instance::AppData,
     logic_instance::{ExpirableBlob, LogicInstance},
