@@ -6,7 +6,7 @@ A Rust implementation of the Anoma Shielded Resource Machine using [RISC0 zkVM](
 
 The `anoma-rm-risc0` crate provides the core functionality of a resource-based state machine designed for the Anoma protocol. It implements:
 
-- **Resource Management**: Defines and manages cryptographic resources with associated logic
+- **Resource Management**: Defines and manages resources with associated logic
 - **Transaction Processing**: Builds and validates transactions with compliance and logic checks
 - **Proof Generation**: Creates zero-knowledge proofs for transaction validity using RISC0
 - **Aggregation**: Enables proof aggregation and composition (single-run and IVC-based)
