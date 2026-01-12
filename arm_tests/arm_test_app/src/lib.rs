@@ -285,7 +285,9 @@ fn test_verify_aggregation_fails_for_incorrect_instances() {
 
 #[test]
 fn test_cannot_aggregate_invalid_proofs() {
-    use anoma_rm_risc0_test_0112::{aggregation::AggregationStrategy, logic_proof::LogicVerifierInputs};
+    use anoma_rm_risc0_test_0112::{
+        aggregation::AggregationStrategy, logic_proof::LogicVerifierInputs,
+    };
 
     let tx = generate_test_transaction(2, 2, ProofType::Succinct);
 

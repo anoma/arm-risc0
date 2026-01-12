@@ -1,3 +1,7 @@
+use anoma_rm_risc0_gadgets::{
+    encryption::{Ciphertext, SecretKey},
+    evm::Resource as EvmResource,
+};
 use anoma_rm_risc0_test_0112::{
     error::ArmError,
     logic_instance::AppData,
@@ -7,10 +11,6 @@ use anoma_rm_risc0_test_0112::{
     resource::Resource,
     resource_logic::LogicCircuit,
     utils::bytes_to_words,
-};
-use anoma_rm_risc0_gadgets::{
-    encryption::{Ciphertext, SecretKey},
-    evm::Resource as EvmResource,
 };
 use k256::AffinePoint;
 use serde::{Deserialize, Serialize};
