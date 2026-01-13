@@ -54,11 +54,6 @@ impl ComplianceUnit {
 
     /// Obtains the delta from the compliance instance.
     pub fn delta(&self) -> Result<ProjectivePoint, ArmError> {
-        self.get_instance().delta_projective()
-    }
-
-    /// Retrieves the compliance instance.
-    pub fn get_instance(&self) -> &ComplianceInstance {
-        &self.instance
+        self.instance.delta_projective()
     }
 }

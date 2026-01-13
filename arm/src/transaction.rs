@@ -105,8 +105,7 @@ impl Transaction {
         let mut seen_nullifiers = std::collections::HashSet::new();
         for action in &self.actions {
             for cu in action.get_compliance_units() {
-                let instance = cu.get_instance();
-                if !seen_nullifiers.insert(instance.consumed_nullifier) {
+                if !seen_nullifiers.insert(cu.instance.consumed_nullifier) {
                     return Err(ArmError::NullifierDuplication);
                 }
             }

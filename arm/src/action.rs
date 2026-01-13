@@ -54,7 +54,7 @@ impl Action {
         let compliance_intances: Vec<ComplianceInstance> = self
             .compliance_units
             .iter()
-            .map(|unit| unit.get_instance().clone())
+            .map(|unit| unit.instance.clone())
             .collect();
 
         // Construct the action tree
