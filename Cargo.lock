@@ -656,6 +656,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "arm_types"
+version = "1.0.0"
+dependencies = [
+ "bytemuck",
+ "hex",
+ "k256",
+ "lazy_static",
+ "risc0-zkp",
+ "serde",
+ "serde_with",
+ "sha3",
+ "thiserror 2.0.17",
+]
+
+[[package]]
 name = "arraydeque"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
