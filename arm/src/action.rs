@@ -51,11 +51,11 @@ impl Action {
     pub(crate) fn get_logic_verifiers(&self) -> Result<Vec<LogicVerifier>, ArmError> {
         let mut logic_verifiers = Vec::new();
 
-        let compliance_intances = self
+        let compliance_intances: Vec<ComplianceInstance> = self
             .compliance_units
             .iter()
-            .map(|unit| unit.get_instance())
-            .collect::<Result<Vec<ComplianceInstance>, ArmError>>()?;
+            .map(|unit| unit.get_instance().clone())
+            .collect();
 
         // Construct the action tree
         let tags: Vec<Digest> = compliance_intances
@@ -122,15 +122,11 @@ impl Action {
 
     /// Constructs the delta message by concatenating the delta messages
     /// of each compliance unit.
-    pub fn get_delta_msg(&self) -> Result<Vec<u8>, ArmError> {
+    pub fn get_delta_msg(&self) -> Vec<u8> {
         let mut msg = Vec::new();
         for unit in &self.compliance_units {
-            if let Ok(instance) = unit.get_instance() {
-                msg.extend_from_slice(&instance.delta_msg());
-            } else {
-                return Err(ArmError::InvalidComplianceInstance);
-            }
+            msg.extend_from_slice(&unit.instance.delta_msg());
         }
-        Ok(msg)
+        msg
     }
 }

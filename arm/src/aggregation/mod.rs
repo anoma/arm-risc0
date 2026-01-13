@@ -57,7 +57,10 @@ impl Transaction {
             .flat_map(|a| a.get_compliance_units().clone())
             .collect();
 
-        let cu_instances: Vec<Vec<u8>> = cus.iter().map(|cu| cu.instance.clone()).collect();
+        let cu_instances: Vec<Vec<u8>> = cus
+            .iter()
+            .map(|cu| cu.instance.to_journal().unwrap())
+            .collect();
 
         let inner_receipts: Option<Vec<InnerReceipt>> = if self.base_proofs_are_empty() {
             None

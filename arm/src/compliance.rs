@@ -20,6 +20,7 @@ use k256::{
 };
 use lazy_static::lazy_static;
 use rand::rngs::OsRng;
+use risc0_zkvm::serde::to_vec;
 use risc0_zkvm::Digest;
 use serde_with::serde_as;
 
@@ -273,5 +274,13 @@ impl ComplianceInstance {
         msg.extend_from_slice(self.consumed_nullifier.as_bytes());
         msg.extend_from_slice(self.created_commitment.as_bytes());
         msg
+    }
+
+    /// Serializes the instance to a journal format.
+    pub fn to_journal(&self) -> Result<Vec<u8>, ArmError> {
+        Ok(
+            words_to_bytes(&to_vec(&self).map_err(|_| ArmError::InstanceSerializationFailed)?)
+                .to_vec(),
+        )
     }
 }

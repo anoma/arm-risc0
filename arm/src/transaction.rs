@@ -105,7 +105,7 @@ impl Transaction {
         let mut seen_nullifiers = std::collections::HashSet::new();
         for action in &self.actions {
             for cu in action.get_compliance_units() {
-                let instance = cu.get_instance()?;
+                let instance = cu.get_instance();
                 if !seen_nullifiers.insert(instance.consumed_nullifier) {
                     return Err(ArmError::NullifierDuplication);
                 }
@@ -128,7 +128,7 @@ impl Transaction {
     pub fn get_delta_msg(&self) -> Result<Vec<u8>, ArmError> {
         let mut msg = Vec::new();
         for action in &self.actions {
-            msg.extend(action.get_delta_msg()?);
+            msg.extend(action.get_delta_msg());
         }
         Ok(msg)
     }
