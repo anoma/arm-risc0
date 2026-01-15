@@ -5,8 +5,9 @@ const COMPLIANCE_INSTANCE_SIZE: usize = 56;
 
 use crate::{error::ArmError, utils::words_to_bytes};
 use hex::FromHex;
-use k256::{elliptic_curve::sec1::FromEncodedPoint, EncodedPoint, ProjectivePoint};
+use k256::{EncodedPoint, ProjectivePoint, elliptic_curve::sec1::FromEncodedPoint};
 use lazy_static::lazy_static;
+use risc0_serde::to_vec;
 use risc0_zkp::core::digest::Digest;
 use serde_with::serde_as;
 
@@ -65,5 +66,13 @@ impl ComplianceInstance {
         msg.extend_from_slice(self.consumed_nullifier.as_bytes());
         msg.extend_from_slice(self.created_commitment.as_bytes());
         msg
+    }
+
+    /// Serializes the instance to a journal format.
+    pub fn to_journal(&self) -> Result<Vec<u8>, ArmError> {
+        Ok(
+            words_to_bytes(&to_vec(&self).map_err(|_| ArmError::InstanceSerializationFailed)?)
+                .to_vec(),
+        )
     }
 }

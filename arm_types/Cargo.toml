@@ -16,6 +16,7 @@ bytemuck = { version = "1.12", features = ["derive"] }
 serde_with = "3.14.1"
 lazy_static = "1.5.0"
 hex = "0.4"
+risc0-serde = {git = "https://github.com/agureev/risc0", package = "risc0-serde", rev = "160073c324d72a0bfb74c7f2cf8d8e2ee5879bca", default-features = false}
 
 [features]
 
