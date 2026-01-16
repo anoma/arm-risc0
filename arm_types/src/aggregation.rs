@@ -25,21 +25,53 @@ pub struct BatchAggregation;
 /// Holds the compliance instances, and compliance proofs (if all present)
 /// of a transaction.
 #[derive(Debug, Clone)]
-pub(crate) struct BatchCU {
-    pub(crate) instances: Vec<Vec<u8>>,
-    pub(crate) journals: Option<Vec<Vec<u8>>>,
+pub struct BatchCU {
+    pub instances: Vec<Vec<u8>>,
+    pub journals: Option<Vec<Vec<u8>>>,
 }
 
 /// Holds resource logic instances, keys, and proofs (if all present).
 #[derive(Debug, Clone)]
-pub(crate) struct BatchLP {
-    pub(crate) instances: Vec<Vec<u8>>,
-    pub(crate) keys: Vec<Digest>, // Verify proof on the batch instance.
-    pub(crate) journals: Option<Vec<Vec<u8>>>,
+pub struct BatchLP {
+    pub instances: Vec<Vec<u8>>,
+    pub keys: Vec<Digest>, // Verify proof on the batch instance.
+    pub journals: Option<Vec<Vec<u8>>>,
+}
+
+/// Produces the journal for verifying a batch aggregation proof
+pub fn get_batch_journal(
+    compliance_instances: Vec<Vec<u8>>,
+    logic_instances: Vec<Vec<u8>>,
+    logic_keys: Vec<Digest>,
+) -> Result<Vec<u8>, ArmError> {
+    let mut compliance_instances_u32: Vec<ComplianceInstanceWords> = Vec::new();
+    for ci in compliance_instances.iter() {
+        compliance_instances_u32.push(ComplianceInstanceWords {
+            u32_words: bytes_to_words(ci).try_into().map_err(|_| {
+                ArmError::ProofVerificationFailed(
+                    "Error converting compliance instance into fixed-size u32 words".into(),
+                )
+            })?,
+        });
+    }
+    let logic_instances_u32: Vec<Vec<u32>> = logic_instances
+        .iter()
+        .map(|bytes| bytes_to_words(bytes))
+        .collect();
+
+    let batch_instance = risc0_serde::to_vec(&(
+        compliance_instances_u32,
+        *COMPLIANCE_VK,
+        logic_instances_u32,
+        logic_keys,
+    ))
+    .map_err(|_| ArmError::InstanceSerializationFailed)?;
+
+    Ok(words_to_bytes(&batch_instance).to_vec())
 }
 
 impl Transaction {
-    fn get_batch_cu(&self) -> BatchCU {
+    pub fn get_batch_cu(&self) -> BatchCU {
         let cus: Vec<ComplianceUnit> = self
             .actions
             .iter()
@@ -64,7 +96,7 @@ impl Transaction {
         }
     }
 
-    fn get_batch_lp(&self) -> Result<BatchLP, ArmError> {
+    pub fn get_batch_lp(&self) -> Result<BatchLP, ArmError> {
         let mut lps: Vec<LogicVerifier> = Vec::new();
 
         for action in self.actions.iter() {
@@ -109,38 +141,6 @@ impl Transaction {
 }
 
 impl BatchAggregation {
-    /// Produces the journal for verifying a batch aggregation proof
-    pub fn get_batch_journal(
-        compliance_instances: Vec<Vec<u8>>,
-        logic_instances: Vec<Vec<u8>>,
-        logic_keys: Vec<Digest>,
-    ) -> Result<Vec<u8>, ArmError> {
-        let mut compliance_instances_u32: Vec<ComplianceInstanceWords> = Vec::new();
-        for ci in compliance_instances.iter() {
-            compliance_instances_u32.push(ComplianceInstanceWords {
-                u32_words: bytes_to_words(ci).try_into().map_err(|_| {
-                    ArmError::ProofVerificationFailed(
-                        "Error converting compliance instance into fixed-size u32 words".into(),
-                    )
-                })?,
-            });
-        }
-        let logic_instances_u32: Vec<Vec<u32>> = logic_instances
-            .iter()
-            .map(|bytes| bytes_to_words(bytes))
-            .collect();
-
-        let batch_instance = risc0_serde::to_vec(&(
-            compliance_instances_u32,
-            *COMPLIANCE_VK,
-            logic_instances_u32,
-            logic_keys,
-        ))
-        .map_err(|_| ArmError::InstanceSerializationFailed)?;
-
-        Ok(words_to_bytes(&batch_instance).to_vec())
-    }
-
     /// Verifies the aggregated batch proof of a transaction.
     pub fn verify_transaction_aggregation(
         tx: &Transaction,
@@ -157,7 +157,7 @@ impl BatchAggregation {
             journals: _,
         } = tx.get_batch_lp()?;
 
-        let _journal = Self::get_batch_journal(compliance_instances, logic_instances, logic_keys);
+        let _journal = get_batch_journal(compliance_instances, logic_instances, logic_keys);
 
         // // Verify proof on the batch instance.
         // let receipt = Receipt::new(
