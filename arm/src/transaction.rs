@@ -1,17 +1,13 @@
 //! Transaction structure and associated methods.
 
+#[cfg(feature = "aggregation")]
+use crate::aggregation::batch::{prove_transaction_aggregation, verify_transaction_aggregation};
+#[cfg(feature = "aggregation")]
+use crate::proving_system::ProofType;
 use crate::{
     action::Action,
     delta_proof::{DeltaInstance, DeltaProof, DeltaWitness},
     error::ArmError,
-};
-#[cfg(feature = "aggregation")]
-use crate::{
-    aggregation::{
-        batch::BatchAggregation, sequential::SequentialAggregation, AggregationProof,
-        AggregationStrategy,
-    },
-    proving_system::ProofType,
 };
 use serde::{Deserialize, Serialize};
 
@@ -151,27 +147,14 @@ impl Transaction {
 impl Transaction {
     /// Aggregates all the transaction proofs with the default strategy.
     pub fn aggregate(&mut self, proof_type: ProofType) -> Result<(), ArmError> {
-        self.aggregate_with_strategy(AggregationStrategy::Batch, proof_type)
+        self.aggregate_with_strategy(proof_type)
     }
 
     /// Aggregates all the transaction proofs using the passed aggregation strategy.
     /// If aggregation is successful, `self` contains an aggregation proof and its
     /// compliance and logic proofs are set to `None`. Else proofs are untouched.
-    pub fn aggregate_with_strategy(
-        &mut self,
-        strategy: AggregationStrategy,
-        proof_type: ProofType,
-    ) -> Result<(), ArmError> {
-        let agg_proof = match strategy {
-            AggregationStrategy::Sequential => {
-                SequentialAggregation::prove_transaction_aggregation(self, proof_type)
-                    .map(AggregationProof::Sequential)?
-            }
-            AggregationStrategy::Batch => {
-                BatchAggregation::prove_transaction_aggregation(self, proof_type)
-                    .map(AggregationProof::Batch)?
-            }
-        };
+    pub fn aggregate_with_strategy(&mut self, proof_type: ProofType) -> Result<(), ArmError> {
+        let agg_proof = prove_transaction_aggregation(self, proof_type)?;
 
         self.aggregation_proof =
             Some(bincode::serialize(&agg_proof).map_err(|_| ArmError::SerializationError)?);
@@ -183,32 +166,11 @@ impl Transaction {
     /// Verifies the aggregated proof of the transaction.
     pub fn verify_aggregation(&self) -> Result<(), ArmError> {
         if let Some(agg_proof) = &self.aggregation_proof {
-            match bincode::deserialize(agg_proof)
-                .map_err(|_| ArmError::InnerReceiptDeserializationError)?
-            {
-                AggregationProof::Sequential(proof) => {
-                    SequentialAggregation::verify_transaction_aggregation(self, &proof)
-                }
-                AggregationProof::Batch(proof) => {
-                    BatchAggregation::verify_transaction_aggregation(self, &proof)
-                }
-            }
+            verify_transaction_aggregation(self, &agg_proof)
         } else {
             Err(ArmError::ProofVerificationFailed(
                 "Missing aggregation proof".into(),
             ))
-        }
-    }
-
-    /// Retrieves the raw aggregation proof bytes, if present.
-    pub fn get_raw_aggregation_proof(&self) -> Option<Vec<u8>> {
-        if let Some(agg_proof) = &self.aggregation_proof {
-            match bincode::deserialize(agg_proof).unwrap() {
-                AggregationProof::Sequential(proof) => Some(bincode::serialize(&proof.0).unwrap()),
-                AggregationProof::Batch(proof) => Some(bincode::serialize(&proof.0).unwrap()),
-            }
-        } else {
-            None
         }
     }
 
