@@ -4,10 +4,16 @@ use crate::error::ArmError;
 use risc0_zkvm::{sha::Digest, InnerReceipt, Receipt};
 use serde::de::DeserializeOwned;
 
+#[cfg(feature = "solana")]
+use anchor_lang::prelude::AnchorSerialize;
 #[cfg(feature = "prove")]
 use risc0_zkvm::{default_prover, ExecutorEnv, ProverOpts, VerifierContext};
 #[cfg(feature = "prove")]
 use serde::Serialize;
+#[cfg(feature = "solana")]
+use solana_groth16_verifier::{negate_g1, Proof};
+#[cfg(feature = "solana")]
+use solana_verifier_router::{Seal, Selector};
 
 /// Types of proofs supported.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -58,11 +64,30 @@ pub fn encode_seal(proof: &[u8]) -> Result<Vec<u8>, ArmError> {
     let seal = match inner {
         InnerReceipt::Groth16(receipt) => {
             let selector = &receipt.verifier_parameters.as_bytes()[..4];
-            // Create a new vector with the capacity to hold both selector and seal
-            let mut selector_seal = Vec::with_capacity(selector.len() + receipt.seal.len());
-            selector_seal.extend_from_slice(selector);
-            selector_seal.extend_from_slice(receipt.seal.as_ref());
-            selector_seal
+            #[cfg(feature = "evm")]
+            {
+                // Create a new vector with the capacity to hold both selector and seal
+                let mut selector_seal = Vec::with_capacity(selector.len() + receipt.seal.len());
+                selector_seal.extend_from_slice(selector);
+                selector_seal.extend_from_slice(receipt.seal.as_ref());
+                selector_seal
+            }
+
+            #[cfg(feature = "solana")]
+            {
+                let proof_raw = receipt.seal;
+                let mut proof = Proof {
+                    pi_a: proof_raw[0..64].try_into().unwrap(),
+                    pi_b: proof_raw[64..192].try_into().unwrap(),
+                    pi_c: proof_raw[192..256].try_into().unwrap(),
+                };
+                proof.pi_a = negate_g1(&proof.pi_a);
+                let seal = Seal {
+                    selector: selector.try_into().unwrap(),
+                    proof: proof,
+                };
+                seal.try_to_vec().unwrap()
+            }
         }
         _ => Err(ArmError::UnsupportedProofType)?,
     };
