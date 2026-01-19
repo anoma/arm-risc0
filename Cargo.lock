@@ -790,6 +790,7 @@ dependencies = [
 name = "arm"
 version = "1.0.0"
 dependencies = [
+ "anchor-lang",
  "bincode",
  "bytemuck",
  "groth_16_verifier",
@@ -803,6 +804,7 @@ dependencies = [
  "sha2 0.10.9",
  "sha3",
  "thiserror 2.0.17",
+ "verifier_router",
 ]
 
 [[package]]
@@ -956,7 +958,7 @@ dependencies = [
  "bitflags 2.9.4",
  "cexpr",
  "clang-sys",
- "itertools 0.13.0",
+ "itertools 0.11.0",
  "log",
  "prettyplease",
  "proc-macro2",
@@ -3623,6 +3625,25 @@ name = "option-ext"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "04744f49eae99ab78e0d5c0b603ab218f515ea8cfe5a456d7629ad883a3b6e7d"
+
+[[package]]
+name = "ownable"
+version = "0.1.0"
+source = "git+https://github.com/boundless-xyz/risc0-solana?tag=v3.0.0#ee415935d04a948f27a346b563391900bdad6486"
+dependencies = [
+ "anchor-lang",
+ "ownable-macro",
+]
+
+[[package]]
+name = "ownable-macro"
+version = "0.1.0"
+source = "git+https://github.com/boundless-xyz/risc0-solana?tag=v3.0.0#ee415935d04a948f27a346b563391900bdad6486"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.106",
+]
 
 [[package]]
 name = "parity-scale-codec"
@@ -6671,6 +6692,16 @@ dependencies = [
  "num-integer",
  "num-traits",
  "rustc_version 0.4.1",
+]
+
+[[package]]
+name = "verifier_router"
+version = "0.1.0"
+source = "git+https://github.com/boundless-xyz/risc0-solana?tag=v3.0.0#ee415935d04a948f27a346b563391900bdad6486"
+dependencies = [
+ "anchor-lang",
+ "groth_16_verifier",
+ "ownable",
 ]
 
 [[package]]

@@ -11,7 +11,10 @@ risc0-zkvm = { version = "3.0.3", features = [
   "std",
   "unstable",
 ], default-features = false }
-groth_16_verifier = { git = "https://github.com/boundless-xyz/risc0-solana", package = "groth_16_verifier", tag = "v3.0.0", optional = true}
+solana_groth16_verifier = { git = "https://github.com/boundless-xyz/risc0-solana", package = "groth_16_verifier", tag = "v3.0.0", optional = true}
+solana_verifier_router = { git = "https://github.com/boundless-xyz/risc0-solana", package = "verifier_router", tag = "v3.0.0", optional = true}
+anchor-lang = {version = "0.31.1", optional = true}
+
 serde = { version = "1.0.197", default-features = false }
 serde_with = "3.14.1"
 k256 = { version = "=0.13.3", features = [
@@ -35,7 +38,7 @@ thiserror = "2.0.6"
 default = ["transaction", "prove", "evm"]
 transaction = ["compliance_circuit"]
 evm = ["dep:sha3"]
-solana = ["transaction", "dep:sha2", "dep:groth16_verifier"]
+solana = ["transaction", "dep:sha2", "dep:solana_groth16_verifier", "dep:solana_verifier_router", "dep:anchor-lang"]
 compliance_circuit = []
 prove = ["risc0-zkvm/prove"]
 bonsai = ["risc0-zkvm/bonsai"]
