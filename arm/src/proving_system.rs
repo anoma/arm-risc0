@@ -57,7 +57,7 @@ pub fn journal_to_instance<T: DeserializeOwned>(journal: &[u8]) -> Result<T, Arm
     journal.decode().map_err(|_| ArmError::JournalDecodingError)
 }
 
-/// Encode the seal of the given proof for use with EVM smart contract verifiers.
+/// Encode the seal of the given proof for use with on-chain Groth16 verifiers.
 pub fn encode_seal(proof: &[u8]) -> Result<Vec<u8>, ArmError> {
     let inner: InnerReceipt =
         bincode::deserialize(proof).map_err(|_| ArmError::InnerReceiptDeserializationError)?;
