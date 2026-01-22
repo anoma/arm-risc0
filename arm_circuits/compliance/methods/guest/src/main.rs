@@ -8,5 +8,14 @@ pub fn main() {
 
     let compliance_instance = compliance_witness.constrain().unwrap();
 
-    env::commit(&compliance_instance);
+    // println!("default encoding");
+    // env::commit(&compliance_instance);
+
+    // println!("binary encoding");
+    // let compliance_instance_bytes = bincode::serialize(&compliance_instance).unwrap();
+    // env::commit_slice(&compliance_instance_bytes);
+
+    println!("borsh encoding");
+    let compliance_instance_bytes = borsh::to_vec(&compliance_instance).unwrap();
+    env::commit_slice(&compliance_instance_bytes);
 }

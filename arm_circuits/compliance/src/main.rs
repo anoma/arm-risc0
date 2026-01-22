@@ -24,7 +24,15 @@ pub fn main() {
 
     let extract_journal_start_timer = Instant::now();
     // Extract journal of receipt
-    let _compliance_instance: ComplianceInstance = receipt.journal.decode().unwrap();
+    // let _compliance_instance: ComplianceInstance = receipt.journal.decode().unwrap();
+
+    // let _compliance_instance = bincode::deserialize::<ComplianceInstance>(&receipt.journal.bytes).unwrap();
+
+    let _compliance_instance =
+        borsh::from_slice::<ComplianceInstance>(&receipt.journal.bytes).unwrap();
+
+    println!("compliance instance: {:?}", _compliance_instance);
+    println!("instance length: {}", receipt.journal.bytes.len());
 
     let extract_journal_duration = extract_journal_start_timer.elapsed();
     println!(

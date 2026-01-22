@@ -239,6 +239,25 @@ name = "anoma-rm-risc0"
 version = "1.0.0"
 dependencies = [
  "bincode",
+ "borsh",
+ "bytemuck",
+ "hex",
+ "k256",
+ "lazy_static",
+ "rand 0.8.5",
+ "risc0-zkvm",
+ "serde",
+ "serde_with",
+ "thiserror 2.0.17",
+]
+
+[[package]]
+name = "anoma-rm-risc0"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "26e987cb8962ddb8e72b43a32aadfb36c2d9abe9829c91d7b97fa742b3a1b998"
+dependencies = [
+ "bincode",
  "bytemuck",
  "hex",
  "k256",
@@ -253,11 +272,13 @@ dependencies = [
 [[package]]
 name = "anoma-rm-risc0-gadgets"
 version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1c126d90b10b9be4663490e80cc5309fb7612e2ed914e32aaca0a9fe516ebfe1"
 dependencies = [
  "aes-gcm",
  "alloy-primitives",
  "alloy-sol-types",
- "anoma-rm-risc0",
+ "anoma-rm-risc0 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "bincode",
  "hex",
  "k256",
@@ -270,7 +291,7 @@ dependencies = [
 name = "anoma-rm-risc0-test-witness"
 version = "1.0.0"
 dependencies = [
- "anoma-rm-risc0",
+ "anoma-rm-risc0 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "anoma-rm-risc0-gadgets",
  "k256",
  "serde",
@@ -1045,7 +1066,9 @@ dependencies = [
 name = "compliance"
 version = "1.0.0"
 dependencies = [
- "anoma-rm-risc0",
+ "anoma-rm-risc0 1.0.0",
+ "bincode",
+ "borsh",
  "compliance-methods",
  "risc0-zkvm",
 ]
@@ -2747,7 +2770,7 @@ checksum = "34080505efa8e45a4b816c349525ebe327ceaa8559756f0356cba97ef3bf7432"
 name = "logic-test"
 version = "1.0.0"
 dependencies = [
- "anoma-rm-risc0",
+ "anoma-rm-risc0 1.0.0",
  "anoma-rm-risc0-test-witness",
  "logic-test-methods",
  "risc0-zkvm",
@@ -5168,7 +5191,9 @@ dependencies = [
 name = "trivial-logic"
 version = "1.0.0"
 dependencies = [
- "anoma-rm-risc0",
+ "anoma-rm-risc0 1.0.0",
+ "bincode",
+ "borsh",
  "risc0-zkvm",
  "trivial-logic-methods",
 ]
