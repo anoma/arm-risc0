@@ -8,3 +8,8 @@ risc0-build = { version = "3.0.3", features = ["unstable"] }
 
 [package.metadata.risc0]
 methods = ["guest"]
+
+[features]
+default = []
+borsh = []
+bin = []

@@ -239,6 +239,7 @@ name = "anoma-rm-risc0"
 version = "1.0.0"
 dependencies = [
  "bincode",
+ "borsh",
  "bytemuck",
  "hex",
  "k256",

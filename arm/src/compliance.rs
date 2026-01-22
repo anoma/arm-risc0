@@ -22,6 +22,7 @@ use lazy_static::lazy_static;
 use rand::rngs::OsRng;
 use risc0_zkvm::Digest;
 use serde_with::serde_as;
+use borsh::{BorshDeserialize, BorshSerialize};
 
 lazy_static! {
     /// The initial root of the empty commitment tree is the hash of an empty string.
@@ -31,7 +32,7 @@ lazy_static! {
 }
 
 /// The compliance instance contains all public inputs to the compliance proof.
-#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
 pub struct ComplianceInstance {
     /// The nullifier of the consumed resource.
     pub consumed_nullifier: Digest,

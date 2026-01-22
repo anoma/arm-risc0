@@ -7,3 +7,10 @@ edition = "2021"
 trivial-logic-methods = { path = "methods" }
 risc0-zkvm = "3.0.3"
 anoma-rm-risc0 = { path = "../../arm", default-features = false }
+bincode = "1.3.3"
+borsh = { version = "1.5", default-features = false }
+
+[features]
+default = []
+borsh = ["trivial-logic-methods/borsh"]
+bin = ["trivial-logic-methods/bin"]

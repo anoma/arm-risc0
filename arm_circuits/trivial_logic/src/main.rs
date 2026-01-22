@@ -28,7 +28,17 @@ fn main() {
     // extract the receipt.
     let receipt = prove_info.receipt;
 
-    let _output: LogicInstance = receipt.journal.decode().unwrap();
+    // Decode the journal to get the LogicInstance
+    let instance: LogicInstance = if cfg!(feature = "bin") {
+        bincode::deserialize::<LogicInstance>(&receipt.journal.bytes).unwrap()
+    } else if cfg!(feature = "borsh") {
+        borsh::from_slice::<LogicInstance>(&receipt.journal.bytes).unwrap()
+    } else {
+        receipt.journal.decode().unwrap()
+    };
+
+    println!("instance: {:?}", instance);
+    println!("instance length: {}", receipt.journal.bytes.len());
 
     let verify_start_timer = Instant::now();
 
