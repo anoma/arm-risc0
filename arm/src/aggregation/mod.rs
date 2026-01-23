@@ -1,37 +1,13 @@
 //! Aggregation module for ARM proofs.
 use risc0_zkvm::{Digest, InnerReceipt, Receipt};
-use serde::{Deserialize, Serialize};
 
 use crate::{
-    aggregation::{batch::BatchProof, pcd::PcdProof},
-    compliance_unit::ComplianceUnit,
-    error::ArmError,
-    logic_proof::LogicVerifier,
+    compliance_unit::ComplianceUnit, error::ArmError, logic_proof::LogicVerifier,
     transaction::Transaction,
 };
 
 pub mod batch;
 pub mod constants;
-pub mod pcd;
-pub mod sequential;
-
-/// Supported strategies to aggregate.
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub enum AggregationStrategy {
-    /// Sequential aggregation strategy.
-    Sequential,
-    /// Batch aggregation strategy.
-    Batch,
-}
-
-/// Aggregation proof discriminating by strategies.
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub enum AggregationProof {
-    /// A PCD-based aggregation proof generated with a sequential transcript.
-    Sequential(PcdProof),
-    /// A batch aggregation proof.
-    Batch(BatchProof),
-}
 
 /// Holds the compliance instances, and compliance proofs (if all present)
 /// of a transaction.
@@ -57,7 +33,10 @@ impl Transaction {
             .flat_map(|a| a.get_compliance_units().clone())
             .collect();
 
-        let cu_instances: Vec<Vec<u8>> = cus.iter().map(|cu| cu.instance.clone()).collect();
+        let cu_instances: Vec<Vec<u8>> = cus
+            .iter()
+            .map(|cu| cu.instance.to_journal().unwrap())
+            .collect();
 
         let inner_receipts: Option<Vec<InnerReceipt>> = if self.base_proofs_are_empty() {
             None

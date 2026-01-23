@@ -8,7 +8,13 @@ use k256::{
 use serde::{Deserialize, Serialize};
 
 use crate::error::ArmError;
-use sha3::{Digest, Keccak256};
+
+// Conditionally use SHA-256 for Solana, Keccak-256 for EVM
+#[cfg(feature = "solana")]
+use sha2::{Digest, Sha256 as HashFunction};
+
+#[cfg(feature = "evm")]
+use sha3::{Digest, Keccak256 as HashFunction};
 
 /// The delta proof consists of an ECDSA signature and a recovery ID.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -36,8 +42,8 @@ pub struct DeltaInstance {
 impl DeltaProof {
     /// Generates a delta proof by signing the given message with the provided witness.
     pub fn prove(message: &[u8], witness: &DeltaWitness) -> Result<DeltaProof, ArmError> {
-        // Hash the message using Keccak256
-        let mut digest = Keccak256::new();
+        // Hash the message (SHA-256 for Solana, Keccak-256 for EVM)
+        let mut digest = HashFunction::new();
         digest.update(message);
 
         // Sign the hashed message using RFC6979
@@ -46,7 +52,8 @@ impl DeltaProof {
             .sign_digest_recoverable(digest)
             .map_err(|_| ArmError::DeltaProofGenerationFailed)?;
 
-        // On-chain signatures are not supported when recid is 2 or 3.
+        // On-chain EVM signatures are not supported when recid is 2 or 3.
+        #[cfg(feature = "evm")]
         if recid.to_byte() > 1 {
             return Err(ArmError::InvalidDeltaProof);
         }
@@ -60,7 +67,8 @@ impl DeltaProof {
         proof: &DeltaProof,
         instance: DeltaInstance,
     ) -> Result<(), ArmError> {
-        // handle recid
+        // handle recid for EVM verification
+        #[cfg(feature = "evm")]
         if proof.recid.to_byte() > 1 {
             return Err(ArmError::InvalidDeltaProof);
         }
@@ -72,8 +80,8 @@ impl DeltaProof {
             return Err(ArmError::InvalidDeltaProof);
         }
 
-        // Hash the message using Keccak256
-        let mut digest = Keccak256::new();
+        // Hash the message (SHA-256 for Solana, Keccak-256 for EVM)
+        let mut digest = HashFunction::new();
         digest.update(message);
 
         // Verify the signature
@@ -89,16 +97,29 @@ impl DeltaProof {
     pub fn to_bytes(&self) -> [u8; 65] {
         let mut bytes = [0u8; 65];
         bytes[0..64].clone_from_slice(&self.signature.to_bytes());
-        bytes[64] = self.recid.to_byte() + 27;
+
+        #[cfg(not(feature = "evm"))]
+        let recid_byte = self.recid.to_byte();
+
+        #[cfg(feature = "evm")]
+        let recid_byte = self.recid.to_byte() + 27;
+
+        bytes[64] = recid_byte;
         bytes
     }
 
     /// Deserializes the delta proof from bytes.
     pub fn from_bytes(bytes: &[u8]) -> Result<DeltaProof, ArmError> {
+        #[cfg(not(feature = "evm"))]
+        let recid_byte = bytes[64];
+
+        #[cfg(feature = "evm")]
+        let recid_byte = bytes[64] - 27;
+
         Ok(DeltaProof {
             signature: Signature::from_bytes((&bytes[0..64]).into())
                 .map_err(|_| ArmError::InvalidSignature)?,
-            recid: RecoveryId::from_byte(bytes[64] - 27).ok_or(ArmError::InvalidSignature)?,
+            recid: RecoveryId::from_byte(recid_byte).ok_or(ArmError::InvalidSignature)?,
         })
     }
 }
