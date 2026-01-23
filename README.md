@@ -183,7 +183,7 @@ The _sequential_ strategy aggregates sequentially, in an IVC style.
 ```rust
 use anoma_rm_risc0::aggregation::AggregationStrategy;
 
-assert!(tx.aggregate_with_strategy(AggregationStrategy::Sequential, proof_type).is_ok());
+assert!(tx.aggregate(AggregationStrategy::Sequential, proof_type).is_ok());
 ```
 
 **Warning:** Once again, aggregation erases all the individual proofs from `tx` and replaces them with the (single) aggregation proof in a dedicated field. This is why the transaction must be `mut`. This is true independently of the strategy used.

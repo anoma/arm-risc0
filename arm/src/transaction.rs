@@ -145,15 +145,10 @@ impl Transaction {
 
 #[cfg(feature = "aggregation")]
 impl Transaction {
-    /// Aggregates all the transaction proofs with the default strategy.
-    pub fn aggregate(&mut self, proof_type: ProofType) -> Result<(), ArmError> {
-        self.aggregate_with_strategy(proof_type)
-    }
-
-    /// Aggregates all the transaction proofs using the passed aggregation strategy.
+    /// Aggregates all the transaction proofs.
     /// If aggregation is successful, `self` contains an aggregation proof and its
     /// compliance and logic proofs are set to `None`. Else proofs are untouched.
-    pub fn aggregate_with_strategy(&mut self, proof_type: ProofType) -> Result<(), ArmError> {
+    pub fn aggregate(&mut self, proof_type: ProofType) -> Result<(), ArmError> {
         let agg_proof = prove_transaction_aggregation(self, proof_type)?;
 
         self.aggregation_proof =
