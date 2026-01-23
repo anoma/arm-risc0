@@ -22,13 +22,16 @@ pub mod logic_instance;
 #[cfg(feature = "transaction")]
 pub mod logic_proof;
 pub mod merkle_path;
+#[cfg(feature = "prove")]
 pub mod nullifier_key;
 #[cfg(feature = "transaction")]
 pub mod proving_system;
+#[cfg(feature = "prove")]
 pub mod resource;
+#[cfg(feature = "prove")]
 pub mod resource_logic;
 #[cfg(feature = "transaction")]
 pub mod transaction;
 pub mod utils;
 
-pub use risc0_zkvm::Digest;
+pub use risc0_zkp::core::digest::Digest;

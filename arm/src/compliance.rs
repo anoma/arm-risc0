@@ -12,16 +12,18 @@ use crate::{
 };
 use hex::FromHex;
 use k256::{
-    elliptic_curve::{
-        sec1::{FromEncodedPoint, ToEncodedPoint},
-        Field, PrimeField,
-    },
     EncodedPoint, ProjectivePoint, Scalar,
+    elliptic_curve::{
+        Field, PrimeField,
+        sec1::{FromEncodedPoint, ToEncodedPoint},
+    },
 };
 use lazy_static::lazy_static;
+#[cfg(feature = "prove")]
 use rand::rngs::OsRng;
+use risc0_zkp::core::digest::Digest;
+#[cfg(feature = "zkvm")]
 use risc0_zkvm::serde::to_vec;
-use risc0_zkvm::Digest;
 use serde_with::serde_as;
 
 lazy_static! {
@@ -80,6 +82,7 @@ pub struct ComplianceWitness {
     // pub output_resource_logic_cm_r: [u8; DATA_BYTES],
 }
 
+#[cfg(feature = "prove")]
 impl ComplianceWitness {
     /// Creates a new compliance witness from the given resources and latest
     /// root when consuming an ephemeral resource.
@@ -277,6 +280,7 @@ impl ComplianceInstance {
     }
 
     /// Serializes the instance to a journal format.
+    #[cfg(feature = "zkvm")]
     pub fn to_journal(&self) -> Result<Vec<u8>, ArmError> {
         Ok(
             words_to_bytes(&to_vec(&self).map_err(|_| ArmError::InstanceSerializationFailed)?)

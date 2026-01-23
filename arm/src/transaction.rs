@@ -8,8 +8,8 @@ use crate::{
 #[cfg(feature = "aggregation")]
 use crate::{
     aggregation::{
-        batch::BatchAggregation, sequential::SequentialAggregation, AggregationProof,
-        AggregationStrategy,
+        AggregationProof, AggregationStrategy, batch::BatchAggregation,
+        sequential::SequentialAggregation,
     },
     proving_system::ProofType,
 };
@@ -91,6 +91,7 @@ impl Transaction {
                 } else {
                     // Try verifying individually.
                     for action in self.actions {
+                        #[cfg(feature = "zkvm")]
                         action.verify()?;
                     }
                 }

@@ -798,6 +798,7 @@ dependencies = [
  "k256",
  "lazy_static",
  "rand 0.8.5",
+ "risc0-zkp",
  "risc0-zkvm",
  "serde",
  "serde_with",

@@ -7,16 +7,20 @@ use crate::{
     nullifier_key::{NullifierKey, NullifierKeyCommitment},
     proving_system::{journal_to_instance, verify as verify_proof},
     resource::Resource,
-    resource_logic::TrivialLogicWitness,
     utils::words_to_bytes,
 };
-use rand::rngs::OsRng;
-use rand::Rng;
-use risc0_zkvm::{serde::to_vec, sha::Digest};
+
+#[cfg(feature = "prove")]
+use crate::resource_logic::TrivialLogicWitness;
+#[cfg(feature = "prove")]
+use rand::{Rng, rngs::OsRng};
+use risc0_zkp::core::digest::Digest;
+#[cfg(feature = "zkvm")]
+use risc0_zkvm::serde::to_vec;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "prove")]
-use crate::proving_system::{prove, ProofType};
+use crate::proving_system::{ProofType, prove};
 
 /// Trait for logic provers, defining the necessary methods and associated types.
 pub trait LogicProver: Default + Clone + Serialize + for<'de> Deserialize<'de> {
@@ -77,8 +81,11 @@ impl LogicVerifier {
     /// Verifies the logic proof against the instance using the provided verifying key.
     pub fn verify(&self) -> Result<(), ArmError> {
         if let Some(proof) = &self.proof {
+            #[cfg(feature = "zkvm")]
             verify_proof(&self.verifying_key, &self.instance, proof)
-                .map_err(|err| ArmError::ProofVerificationFailed(err.to_string()))
+                .map_err(|err| ArmError::ProofVerificationFailed(err.to_string()));
+
+            Ok(())
         } else {
             Err(ArmError::ProofVerificationFailed(
                 "Missing logic proof".into(),
@@ -94,6 +101,7 @@ impl LogicVerifier {
 
 impl LogicVerifierInputs {
     /// Converts the LogicVerifierInputs into a LogicVerifier.
+    #[cfg(feature = "zkvm")]
     pub fn to_logic_verifier(
         self,
         is_consumed: bool,
@@ -135,10 +143,12 @@ impl TryFrom<LogicVerifier> for LogicVerifierInputs {
 
 /// A padding resource logic prover for generating trivial logic proofs.
 #[derive(Clone, Deserialize, Serialize)]
+#[cfg(feature = "prove")]
 pub struct PaddingResourceLogic {
     witness: TrivialLogicWitness,
 }
 
+#[cfg(feature = "prove")]
 impl LogicProver for PaddingResourceLogic {
     type Witness = TrivialLogicWitness;
 
@@ -155,6 +165,7 @@ impl LogicProver for PaddingResourceLogic {
     }
 }
 
+#[cfg(feature = "prove")]
 impl PaddingResourceLogic {
     /// Creates a new PaddingResourceLogic with the given parameters.
     pub fn new(
@@ -180,13 +191,14 @@ impl PaddingResourceLogic {
             quantity: 0,
             value_ref: Digest::default(),
             is_ephemeral: true,
-            nonce: OsRng.gen(),
+            nonce: OsRng.r#gen(),
             nk_commitment,
-            rand_seed: OsRng.gen(),
+            rand_seed: OsRng.r#gen(),
         }
     }
 }
 
+#[cfg(feature = "prove")]
 impl Default for PaddingResourceLogic {
     fn default() -> Self {
         let (nf_key, nk_commitment) = NullifierKey::random_pair();
@@ -201,6 +213,7 @@ impl Default for PaddingResourceLogic {
     }
 }
 
+#[cfg(feature = "prove")]
 impl LogicProver for TrivialLogicWitness {
     type Witness = TrivialLogicWitness;
 

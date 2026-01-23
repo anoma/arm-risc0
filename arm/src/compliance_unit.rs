@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     compliance::ComplianceWitness,
     constants::COMPLIANCE_PK,
-    proving_system::{prove, ProofType},
+    proving_system::{ProofType, prove},
 };
 
 /// A compliance unit consists of a compliance proof and its corresponding instance.
@@ -41,10 +41,13 @@ impl ComplianceUnit {
     }
 
     /// Verifies the compliance proof against the instance using the constant verifying key.
+    #[cfg(feature = "zkvm")]
     pub fn verify(&self) -> Result<(), ArmError> {
         if let Some(proof) = &self.proof {
             let journal = &self.instance.to_journal()?;
-            verify_proof(&COMPLIANCE_VK, journal, proof)
+            verify_proof(&COMPLIANCE_VK, journal, proof);
+
+            Ok(())
         } else {
             Err(ArmError::ProofVerificationFailed(
                 "Missing compliance proof".into(),

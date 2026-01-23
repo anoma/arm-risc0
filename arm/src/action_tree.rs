@@ -5,7 +5,7 @@ use crate::{
     merkle_path::{MerklePath, PADDING_LEAF},
     utils::hash_two,
 };
-use risc0_zkvm::sha::Digest;
+use risc0_zkp::core::digest::Digest;
 
 /// A Merkle tree structure.
 #[derive(Debug, Clone, PartialEq, Eq)]
