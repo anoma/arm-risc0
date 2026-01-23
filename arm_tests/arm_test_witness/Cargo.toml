@@ -1,11 +1,14 @@
 [package]
-name = "arm-test-witness"
+name = "anoma-rm-risc0-test-witness"
+description = "An Anoma Resource Machine Test Witness using RISC0 zkVM"
 version = "1.0.0"
-edition = "2021"
+edition = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
 
 [dependencies]
-arm = { path = "../../arm", default-features = false }
-arm-gadgets = { path = "../../arm_gadgets" }
+anoma-rm-risc0 = { version = "1.0.0", default-features = false }
+anoma-rm-risc0-gadgets = "1.0.0"
 serde = { version = "1.0.197", default-features = false }
 k256 = { version = "=0.13.3", features = [
   "arithmetic",

@@ -422,6 +422,114 @@ dependencies = [
 ]
 
 [[package]]
+name = "anoma-rm-risc0"
+version = "1.0.0"
+dependencies = [
+ "anchor-lang",
+ "bincode",
+ "bytemuck",
+ "groth_16_verifier",
+ "hex",
+ "k256",
+ "lazy_static",
+ "rand 0.8.5",
+ "risc0-zkvm",
+ "serde",
+ "serde_with",
+ "sha2 0.10.9",
+ "sha3",
+ "thiserror 2.0.17",
+ "verifier_router",
+]
+
+[[package]]
+name = "anoma-rm-risc0"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "26e987cb8962ddb8e72b43a32aadfb36c2d9abe9829c91d7b97fa742b3a1b998"
+dependencies = [
+ "bincode",
+ "bytemuck",
+ "hex",
+ "k256",
+ "lazy_static",
+ "rand 0.8.5",
+ "risc0-zkvm",
+ "serde",
+ "serde_with",
+ "sha3",
+ "thiserror 2.0.17",
+]
+
+[[package]]
+name = "anoma-rm-risc0-gadgets"
+version = "1.0.0"
+dependencies = [
+ "aes-gcm",
+ "alloy-primitives",
+ "alloy-sol-types",
+ "anoma-rm-risc0 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "bincode",
+ "hex",
+ "k256",
+ "rand 0.8.5",
+ "serde",
+ "zeroize",
+]
+
+[[package]]
+name = "anoma-rm-risc0-gadgets"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1c126d90b10b9be4663490e80cc5309fb7612e2ed914e32aaca0a9fe516ebfe1"
+dependencies = [
+ "aes-gcm",
+ "alloy-primitives",
+ "alloy-sol-types",
+ "anoma-rm-risc0 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "bincode",
+ "hex",
+ "k256",
+ "rand 0.8.5",
+ "serde",
+ "zeroize",
+]
+
+[[package]]
+name = "anoma-rm-risc0-test-app"
+version = "1.0.0"
+dependencies = [
+ "anoma-rm-risc0 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "anoma-rm-risc0-test-witness 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "hex",
+ "k256",
+ "lazy_static",
+ "serde",
+]
+
+[[package]]
+name = "anoma-rm-risc0-test-witness"
+version = "1.0.0"
+dependencies = [
+ "anoma-rm-risc0 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "anoma-rm-risc0-gadgets 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "k256",
+ "serde",
+]
+
+[[package]]
+name = "anoma-rm-risc0-test-witness"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5bcbf7acfdc781fbb93c2eed3779aadae3f433ebdff8cfaff361d39cc674c44c"
+dependencies = [
+ "anoma-rm-risc0 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "anoma-rm-risc0-gadgets 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "k256",
+ "serde",
+]
+
+[[package]]
 name = "anyhow"
 version = "1.0.100"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -784,65 +892,6 @@ checksum = "246a225cc6131e9ee4f24619af0f19d67761fff15d7ccc22e42b80846e69449a"
 dependencies = [
  "num-traits",
  "rand 0.8.5",
-]
-
-[[package]]
-name = "arm"
-version = "1.0.0"
-dependencies = [
- "anchor-lang",
- "bincode",
- "bytemuck",
- "groth_16_verifier",
- "hex",
- "k256",
- "lazy_static",
- "rand 0.8.5",
- "risc0-zkvm",
- "serde",
- "serde_with",
- "sha2 0.10.9",
- "sha3",
- "thiserror 2.0.17",
- "verifier_router",
-]
-
-[[package]]
-name = "arm-gadgets"
-version = "1.0.0"
-dependencies = [
- "aes-gcm",
- "alloy-primitives",
- "alloy-sol-types",
- "arm",
- "bincode",
- "hex",
- "k256",
- "rand 0.8.5",
- "serde",
- "zeroize",
-]
-
-[[package]]
-name = "arm-test-app"
-version = "1.0.0"
-dependencies = [
- "arm",
- "arm-test-witness",
- "hex",
- "k256",
- "lazy_static",
- "serde",
-]
-
-[[package]]
-name = "arm-test-witness"
-version = "1.0.0"
-dependencies = [
- "arm",
- "arm-gadgets",
- "k256",
- "serde",
 ]
 
 [[package]]

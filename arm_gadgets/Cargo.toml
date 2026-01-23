@@ -1,12 +1,15 @@
 [package]
-name = "arm-gadgets"
+name = "anoma-rm-risc0-gadgets"
+description = "Anoma Resource Machine Gadgets using RISC0 zkVM"
 version = "1.0.0"
-edition = "2021"
+edition = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-arm = { path = "../arm", default-features = false }
+anoma-rm-risc0 = { version = "1.0.0", default-features = false }
 alloy-primitives = "1.0.23"
 alloy-sol-types = "1.0.23"
 serde = { version = "1.0.197", default-features = false }

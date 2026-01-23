@@ -2,7 +2,7 @@
 
 use alloy_primitives::B256;
 use alloy_sol_types::{sol, SolValue};
-use arm::resource::Resource as ArmResource;
+use anoma_rm_risc0::resource::Resource as ArmResource;
 
 sol! {
     struct Resource {

@@ -1,4 +1,4 @@
-use arm::compliance::ComplianceWitness;
+use anoma_rm_risc0::compliance::ComplianceWitness;
 use risc0_zkvm::guest::env;
 
 // Guest code:

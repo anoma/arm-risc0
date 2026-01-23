@@ -1,4 +1,4 @@
-use arm::{
+use anoma_rm_risc0::{
     error::ArmError,
     logic_instance::AppData,
     logic_instance::{ExpirableBlob, LogicInstance},
@@ -8,7 +8,7 @@ use arm::{
     resource_logic::LogicCircuit,
     utils::bytes_to_words,
 };
-use arm_gadgets::{
+use anoma_rm_risc0_gadgets::{
     encryption::{Ciphertext, SecretKey},
     evm::Resource as EvmResource,
 };

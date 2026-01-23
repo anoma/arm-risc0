@@ -1,5 +1,5 @@
-use arm::resource_logic::LogicCircuit;
-use arm_test_witness::TestLogicWitness;
+use anoma_rm_risc0::resource_logic::LogicCircuit;
+use anoma_rm_risc0_test_witness::TestLogicWitness;
 use risc0_zkvm::guest::env;
 
 fn main() {
