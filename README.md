@@ -16,7 +16,7 @@ This is a shielded resource machine implementation based on [Risc0-zkvm](https:/
 
   - **compliance**: Basic compliance checking circuit
   - **trivial_logic**: Minimal logic circuit example, also used in padding resources
-  - **proof aggregation (batch_aggregation, sequential_aggregation)**: Circuits for single-run aggregation and IVC-based aggregation, respectively
+  - **proof aggregation (batch)**: Circuit for single-run aggregation
 
 - **`arm_gadgets/`**: It provides a range of commonly used components for resource logic circuits, such as verifiable encryption and ECDSA signature authentication.
 
@@ -165,7 +165,7 @@ You need to enable the `aggregation` feature to be able to prove or verify aggre
 
 The aggregation proof type is specified by the ProofType argument. The inner proofs must be Succinct.
 
-We currently support two different aggregation strategies. The _batch_ strategy aggregates all proofs in the transaction in a single run. It is the default aggregation.
+We support the batch aggregation strategy. The _batch_ strategy aggregates all proofs in the transaction in a single run.
 
 ```rust
 use anoma_rm_risc0::transaction;
@@ -176,14 +176,6 @@ let mut tx = generate_test_transaction(1, 1, ProofType::Succinct);
 // Upon succesful aggregation, compliance and resource logic proofs are erased.
 // The aggregated proof_type can be ProofType::Succinct or ProofType::Groth16
 assert!(tx.aggregate(proof_type).is_ok());
-```
-
-The _sequential_ strategy aggregates sequentially, in an IVC style.
-
-```rust
-use anoma_rm_risc0::aggregation::AggregationStrategy;
-
-assert!(tx.aggregate(AggregationStrategy::Sequential, proof_type).is_ok());
 ```
 
 **Warning:** Once again, aggregation erases all the individual proofs from `tx` and replaces them with the (single) aggregation proof in a dedicated field. This is why the transaction must be `mut`. This is true independently of the strategy used.
@@ -201,8 +193,5 @@ Use `tx.get_raw_aggregation_proof()` to get the RISC0 `InnerReceipt` (the actual
 | **Strategy**   | **Prover cost**               | **Public input size**  | **Aggregation scope**          | **Memory efficient**                                                       |
 | -------------- | ----------------------------- | ---------------------- | ------------------------------ | -------------------------------------------------------------------------- |
 | **batch**      | amortized among all tx proofs | linear in #{tx proofs} | fixed (single prover)          | for RISC0 yes. In general, depends on the zkVM (if supports continuations) |
-| **sequential** | linear in #{tx proofs}        | constant               | composable (different provers) | by design                                                                  |
-
-The sequential (IVC) strategy is an example of proof-carrying data computation. PCD-based aggregation can be distributed across mutually _untrusted_ nodes, and proofs to be aggregated arbitrarily grouped and arranged in different transcripts.
 
 **[TODO] Parallel proving at the ARM level.** It is possible with tree-like transcripts. Currently not supported, but [planned](https://github.com/anoma/arm-risc0/issues/112).

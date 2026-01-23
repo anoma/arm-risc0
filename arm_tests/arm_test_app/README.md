@@ -9,7 +9,7 @@ The `anoma-rm-risc0-test-app` crate provides:
 - **Test Logic Implementation**: A simple yet complete resource logic circuit for testing
 - **Transaction Generation**: Utilities for creating test transactions with multiple actions and compliance units
 - **Proof Verification**: Examples of generating and verifying different proof types (Succinct, Groth16)
-- **Aggregation Testing**: Demonstration of proof aggregation with both sequential and batch strategies
+- **Aggregation Testing**: Demonstration of proof aggregation with batch strategy
 - **Integration Tests**: Comprehensive test suite validating ARM functionality
 
 ## Key Components
@@ -75,7 +75,7 @@ The crate includes a comprehensive test suite:
 
 ### Aggregation Tests
 
-- **`test_aggregation_works`**: Tests sequential and batch proof aggregation strategies
+- **`test_aggregation_works`**: Tests batch proof aggregation strategy
 - **`test_aggregation_works_groth16`**: Tests aggregation with Groth16 proofs (ignored by default)
 - **`test_verify_aggregation_fails_for_incorrect_instances`**: Validates aggregation integrity checks
 - **`test_cannot_aggregate_invalid_proofs`**: Ensures invalid proofs cannot be aggregated
