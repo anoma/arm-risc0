@@ -16,8 +16,6 @@ pub mod constants;
 #[cfg(feature = "transaction")]
 pub mod delta_proof;
 pub mod error;
-#[cfg(feature = "aggregation_circuit")]
-pub mod hash;
 pub mod logic_instance;
 #[cfg(feature = "transaction")]
 pub mod logic_proof;
