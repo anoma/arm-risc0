@@ -99,7 +99,7 @@ pub fn prove_transaction_aggregation(
 }
 
 /// Verifies the aggregated batch proof of a transaction.
-pub fn verify_transaction_aggregation(tx: &Transaction, proof: &Vec<u8>) -> Result<(), ArmError> {
+pub fn verify_transaction_aggregation(tx: &Transaction, proof: &[u8]) -> Result<(), ArmError> {
     // Form the batch instance.
     let BatchCU {
         instances: compliance_instances,
