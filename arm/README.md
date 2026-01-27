@@ -25,7 +25,7 @@ The `anoma-rm-risc0` crate provides the core functionality of a resource-based s
 
 ### Optional Modules
 
-- **`aggregation`**: Proof aggregation (batch and sequential IVC)
+- **`aggregation`**: Proof aggregation (batch)
 
 ## Features
 

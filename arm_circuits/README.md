@@ -9,7 +9,6 @@ This workspace includes circuit crates and their corresponding RISC0 method buil
 - [arm_circuits/compliance](arm_circuits/compliance): Basic compliance checking circuit and method generation
 - [arm_circuits/trivial_logic](arm_circuits/trivial_logic): Minimal logic circuit example (also used for padding resources)
 - [arm_circuits/logic_test](arm_circuits/logic_test): Test logic circuit used by the test app and SDK bindings
-- [arm_circuits/sequential_aggregation](arm_circuits/sequential_aggregation): IVC-style sequential aggregation methods
 - [arm_circuits/batch_aggregation](arm_circuits/batch_aggregation): Single-run batch aggregation methods
 
 ## Prerequisites
@@ -28,8 +27,6 @@ cargo risczero build --manifest-path arm_circuits/compliance/methods/guest/Cargo
 cargo risczero build --manifest-path arm_circuits/trivial_logic/methods/guest/Cargo.toml
 
 cargo risczero build --manifest-path arm_circuits/logic_test/methods/guest/Cargo.toml
-
-cargo risczero build --manifest-path arm_circuits/sequential_aggregation/methods/guest/Cargo.toml
 
 cargo risczero build --manifest-path arm_circuits/batch_aggregation/methods/guest/Cargo.toml
 ```
