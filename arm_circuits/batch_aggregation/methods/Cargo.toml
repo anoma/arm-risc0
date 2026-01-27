@@ -1,5 +1,5 @@
 [package]
-name = "batch_aggregation_methods"
+name = "batch-aggregation-methods"
 version = "1.0.0"
 edition = "2021"
 

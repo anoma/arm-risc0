@@ -1,0 +1,20 @@
+[package]
+name = "batch-aggregation"
+version = "1.0.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+# If you want to try (experimental) std support, add `features = [ "std" ]` to risc0-zkvm
+batch-aggregation-methods = { path = "methods" }
+risc0-zkvm = "3.0.3"
+anoma-rm-risc0 = { path = "../../arm", features = [
+  "aggregation_circuit",
+], default-features = false }
+
+[features]
+default = []
+cuda = ["risc0-zkvm/cuda"]
+prove = ["risc0-zkvm/prove"]
+bonsai = ["risc0-zkvm/bonsai"]
