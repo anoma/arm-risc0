@@ -14,8 +14,13 @@ risc0-zkvm = { version = "3.0.3", features = [
 anoma-rm-risc0 = { path = "../../../../arm", features = [
   "compliance_circuit",
 ], default-features = false }
-bincode = "1.3.3"
-borsh = { version = "1.5", default-features = false }
+bincode = { version = "1.3.3", optional = true }
+borsh = { version = "1.5", default-features = false, optional = true }
+
+[features]
+default = []
+borsh = ["dep:borsh"]
+bin = ["dep:bincode"]
 
 [patch.crates-io]
 # Placing this patch statement in the workspace Cargo.toml will add RISC Zero SHA-256 accelerator
