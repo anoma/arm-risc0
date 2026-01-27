@@ -3,10 +3,7 @@
 use risc0_zkvm::{default_prover, Digest, ExecutorEnv, Receipt, VerifierContext};
 use risc0_zkvm::{InnerReceipt, ProverOpts};
 
-use crate::aggregation::{
-    constants::{BATCH_AGGREGATION_PK, BATCH_AGGREGATION_VK},
-    BatchCU, BatchLP,
-};
+use crate::aggregation::constants::{BATCH_AGGREGATION_PK, BATCH_AGGREGATION_VK};
 use crate::compliance::ComplianceInstanceWords;
 use crate::constants::COMPLIANCE_VK;
 use crate::error::ArmError;
@@ -19,50 +16,57 @@ pub fn prove_transaction_aggregation(
     tx: &Transaction,
     proof_type: ProofType,
 ) -> Result<InnerReceipt, ArmError> {
-    // Collect instances, proofs, and keys.
-    let BatchCU {
-        instances: cu_instances,
-        receipts: cu_receipts,
-    } = tx.get_batch_cu();
-
-    let BatchLP {
-        instances: lp_instances,
-        keys: lp_keys,
-        receipts: lp_receipts,
-    } = tx.get_batch_lp()?;
-
-    let mut cu_instances_u32: Vec<ComplianceInstanceWords> = Vec::new();
-    for ci in cu_instances.iter() {
-        cu_instances_u32.push(ComplianceInstanceWords {
-            u32_words: bytes_to_words(ci).try_into().map_err(|_| {
-                ArmError::ProveFailed(
-                    "Error converting compliance instance into fixed-size u32 words".into(),
-                )
-            })?,
-        });
-    }
-    let lp_instances_u32: Vec<Vec<u32>> = lp_instances
-        .iter()
-        .map(|bytes| bytes_to_words(bytes))
-        .collect();
-
-    let mut env_builder = ExecutorEnv::builder();
-
-    // Add proofs as assumptions
-    if let (Some(cu_receipts), Some(lp_receipts)) = (cu_receipts, lp_receipts) {
-        for receipt in cu_receipts.into_iter().chain(lp_receipts.into_iter()) {
-            env_builder.add_assumption(receipt);
-        }
-    } else {
-        return Err(ArmError::ProofVerificationFailed(
+    // Check base proofs exist.
+    if tx.base_proofs_are_empty() {
+        return Err(ArmError::ProveFailed(
             "Cannot aggregate: missing individual proof(s)".into(),
         ));
+    }
+
+    // Collect compliance inner_receipts/proofs and instances.
+    let compliance_units = tx.get_compliance_units();
+    let compliance_inner_receipts = compliance_units
+        .iter()
+        .map(|cu| cu.get_inner_receipt())
+        .collect::<Result<Vec<InnerReceipt>, ArmError>>()?;
+    let compliance_instances_u32: Vec<ComplianceInstanceWords> = compliance_units
+        .iter()
+        .map(|cu| {
+            Ok(ComplianceInstanceWords {
+                u32_words: bytes_to_words(&cu.instance).try_into().map_err(|_| {
+                    ArmError::ProveFailed(
+                        "Error converting compliance instance into fixed-size u32 words".into(),
+                    )
+                })?,
+            })
+        })
+        .collect::<Result<Vec<ComplianceInstanceWords>, ArmError>>()?;
+
+    // Collect logic inner_receipts/proofs, vks, and instances.
+    let logic_verifiers = tx.get_logic_verifiers()?;
+    let logic_inner_receipts = logic_verifiers
+        .iter()
+        .map(|lp| lp.get_inner_receipt())
+        .collect::<Result<Vec<InnerReceipt>, ArmError>>()?;
+    let lp_keys: Vec<Digest> = logic_verifiers.iter().map(|lp| lp.verifying_key).collect();
+    let lp_instances_u32: Vec<Vec<u32>> = logic_verifiers
+        .iter()
+        .map(|lp| bytes_to_words(&lp.instance))
+        .collect();
+
+    // Add proofs as assumptions
+    let mut env_builder = ExecutorEnv::builder();
+    for inner_receipt in compliance_inner_receipts
+        .into_iter()
+        .chain(logic_inner_receipts.into_iter())
+    {
+        env_builder.add_assumption(inner_receipt);
     }
 
     // Write instances and keys to guest input.
     let compliance_key: Digest = *COMPLIANCE_VK;
     let env = env_builder
-        .write(&cu_instances_u32)
+        .write(&compliance_instances_u32)
         .map_err(|_| ArmError::WriteWitnessFailed)?
         .write(&compliance_key)
         .map_err(|_| ArmError::WriteWitnessFailed)?
@@ -101,30 +105,26 @@ pub fn prove_transaction_aggregation(
 /// Verifies the aggregated batch proof of a transaction.
 pub fn verify_transaction_aggregation(tx: &Transaction) -> Result<(), ArmError> {
     if let Some(proof) = &tx.aggregation_proof {
-        // Form the batch instance.
-        let BatchCU {
-            instances: compliance_instances,
-            receipts: _,
-        } = tx.get_batch_cu();
-        let BatchLP {
-            instances: logic_instances,
-            keys: logic_keys,
-            receipts: _,
-        } = tx.get_batch_lp()?;
-
-        let mut compliance_instances_u32: Vec<ComplianceInstanceWords> = Vec::new();
-        for ci in compliance_instances.iter() {
-            compliance_instances_u32.push(ComplianceInstanceWords {
-                u32_words: bytes_to_words(ci).try_into().map_err(|_| {
-                    ArmError::ProofVerificationFailed(
-                        "Error converting compliance instance into fixed-size u32 words".into(),
-                    )
-                })?,
-            });
-        }
-        let logic_instances_u32: Vec<Vec<u32>> = logic_instances
+        let compliance_instances_u32 = tx
+            .get_compliance_units()
             .iter()
-            .map(|bytes| bytes_to_words(bytes))
+            .map(|cu| {
+                Ok(ComplianceInstanceWords {
+                    u32_words: bytes_to_words(&cu.instance).try_into().map_err(|_| {
+                        ArmError::ProofVerificationFailed(
+                            "Error converting compliance instance into fixed-size u32 words".into(),
+                        )
+                    })?,
+                })
+            })
+            .collect::<Result<Vec<ComplianceInstanceWords>, ArmError>>()?;
+
+        // Collect logic inner_receipts/proofs, vks, and instances.
+        let logic_verifiers = tx.get_logic_verifiers()?;
+        let logic_keys: Vec<Digest> = logic_verifiers.iter().map(|lp| lp.verifying_key).collect();
+        let logic_instances_u32: Vec<Vec<u32>> = logic_verifiers
+            .iter()
+            .map(|lp| bytes_to_words(&lp.instance))
             .collect();
 
         let batch_instance = risc0_zkvm::serde::to_vec(&(

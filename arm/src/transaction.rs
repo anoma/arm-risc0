@@ -6,8 +6,10 @@ use crate::aggregation::batch::{prove_transaction_aggregation, verify_transactio
 use crate::proving_system::ProofType;
 use crate::{
     action::Action,
+    compliance_unit::ComplianceUnit,
     delta_proof::{DeltaInstance, DeltaProof, DeltaWitness},
     error::ArmError,
+    logic_proof::LogicVerifier,
 };
 use serde::{Deserialize, Serialize};
 
@@ -140,6 +142,41 @@ impl Transaction {
             _ => panic!("Cannot compose transactions with different delta types"),
         };
         Transaction::create(actions, delta)
+    }
+
+    /// Returns `true` if any compliance or resource logic proof is `None`.
+    pub fn base_proofs_are_empty(&self) -> bool {
+        for a in self.actions.iter() {
+            if a.get_compliance_units().iter().any(|cu| cu.proof.is_none()) {
+                return true;
+            }
+            if a.get_logic_verifier_inputs()
+                .iter()
+                .any(|lp| lp.proof.is_none())
+            {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    /// Returns all compliance units in the transaction.
+    pub fn get_compliance_units(&self) -> Vec<&ComplianceUnit> {
+        self.actions
+            .iter()
+            .flat_map(|a| a.get_compliance_units().iter())
+            .collect()
+    }
+
+    /// Returns all logic verifiers in the transaction.
+    pub fn get_logic_verifiers(&self) -> Result<Vec<LogicVerifier>, ArmError> {
+        let mut result = Vec::new();
+        for action in &self.actions {
+            let logic_verifiers = action.get_logic_verifiers()?;
+            result.extend(logic_verifiers);
+        }
+        Ok(result)
     }
 }
 
