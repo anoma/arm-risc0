@@ -10,6 +10,13 @@ edition = "2021"
 risc0-zkvm = { version = "=3.0.3", features = ["std", "unstable"] }
 anoma-rm-risc0 = { version = "1.0.0", default-features = false }
 anoma-rm-risc0-test-witness = { version = "1.0.0" }
+bincode = { version = "1.3.3", optional = true }
+borsh = { version = "1.5", default-features = false, optional = true }
+
+[features]
+default = []
+borsh = ["dep:borsh"]
+bin = ["dep:bincode"]
 
 [patch.crates-io]
 # Placing this patch statement in the workspace Cargo.toml will add RISC Zero SHA-256 accelerator

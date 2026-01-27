@@ -26,10 +26,25 @@ fn main() {
     }
 
     // The output.
-    env::commit(&(
+    let output = (
         compliance_instances,
         compliance_key,
         logic_instances,
         logic_keys,
-    ));
+    );
+
+    #[cfg(feature = "bin")]
+    {
+        let output_bytes = bincode::serialize(&output).unwrap();
+        env::commit_slice(&output_bytes);
+    }
+
+    #[cfg(feature = "borsh")]
+    {
+        let output_bytes = borsh::to_vec(&output).unwrap();
+        env::commit_slice(&output_bytes);
+    }
+
+    #[cfg(not(any(feature = "bin", feature = "borsh")))]
+    env::commit(&output);
 }

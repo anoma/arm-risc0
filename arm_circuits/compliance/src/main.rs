@@ -23,13 +23,15 @@ pub fn main() {
     println!("Prove duration time: {:?}", prove_duration);
 
     let extract_journal_start_timer = Instant::now();
-    // Extract journal of receipt
-    // let _compliance_instance: ComplianceInstance = receipt.journal.decode().unwrap();
 
-    // let _compliance_instance = bincode::deserialize::<ComplianceInstance>(&receipt.journal.bytes).unwrap();
-
-    let _compliance_instance =
-        borsh::from_slice::<ComplianceInstance>(&receipt.journal.bytes).unwrap();
+    // Decode the journal to get the ComplianceInstance
+    let _compliance_instance: ComplianceInstance = if cfg!(feature = "bin") {
+        bincode::deserialize::<ComplianceInstance>(&receipt.journal.bytes).unwrap()
+    } else if cfg!(feature = "borsh") {
+        borsh::from_slice::<ComplianceInstance>(&receipt.journal.bytes).unwrap()
+    } else {
+        receipt.journal.decode().unwrap()
+    };
 
     println!("compliance instance: {:?}", _compliance_instance);
     println!("instance length: {}", receipt.journal.bytes.len());

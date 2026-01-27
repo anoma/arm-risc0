@@ -10,6 +10,7 @@ use crate::{
     resource::Resource,
     utils::{bytes_to_words, words_to_bytes},
 };
+use borsh::{BorshDeserialize, BorshSerialize};
 use hex::FromHex;
 use k256::{
     elliptic_curve::{
@@ -22,7 +23,6 @@ use lazy_static::lazy_static;
 use rand::rngs::OsRng;
 use risc0_zkvm::Digest;
 use serde_with::serde_as;
-use borsh::{BorshDeserialize, BorshSerialize};
 
 lazy_static! {
     /// The initial root of the empty commitment tree is the hash of an empty string.
@@ -32,7 +32,17 @@ lazy_static! {
 }
 
 /// The compliance instance contains all public inputs to the compliance proof.
-#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    serde::Serialize,
+    serde::Deserialize,
+    PartialEq,
+    Eq,
+    BorshSerialize,
+    BorshDeserialize,
+)]
 pub struct ComplianceInstance {
     /// The nullifier of the consumed resource.
     pub consumed_nullifier: Digest,
@@ -53,7 +63,7 @@ pub struct ComplianceInstance {
 /// The compliance instance represented as an array of u32 words for
 /// serialization(used in the aggregation circuit).
 #[serde_as]
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(serde::Serialize, serde::Deserialize, BorshSerialize, BorshDeserialize)]
 pub struct ComplianceInstanceWords {
     /// The compliance instance as an array of u32 words.
     #[serde_as(as = "[_; COMPLIANCE_INSTANCE_SIZE]")]
