@@ -719,19 +719,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "55248b47b0caf0546f7988906588779981c43bb1bc9d0c44087278f80cdb44ba"
 
 [[package]]
-name = "batch-aggregation-methods"
-version = "1.0.0"
-dependencies = [
- "risc0-build",
-]
-
-[[package]]
-name = "batch_aggregation"
+name = "batch-aggregation"
 version = "1.0.0"
 dependencies = [
  "anoma-rm-risc0",
  "batch-aggregation-methods",
  "risc0-zkvm",
+]
+
+[[package]]
+name = "batch-aggregation-methods"
+version = "1.0.0"
+dependencies = [
+ "risc0-build",
 ]
 
 [[package]]
