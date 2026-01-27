@@ -7,8 +7,8 @@ license = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
-anoma-rm-risc0 = { version = "1.0.0", default-features = false }
-anoma-rm-risc0-gadgets = "1.0.0"
+anoma-rm-risc0 = { path = "../../arm", default-features = false }
+anoma-rm-risc0-gadgets = { path = "../../arm_gadgets" }
 serde = { version = "1.0.197", default-features = false }
 k256 = { version = "=0.13.3", features = [
   "arithmetic",

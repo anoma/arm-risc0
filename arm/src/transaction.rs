@@ -161,7 +161,7 @@ impl Transaction {
     /// Verifies the aggregated proof of the transaction.
     pub fn verify_aggregation(&self) -> Result<(), ArmError> {
         if let Some(agg_proof) = &self.aggregation_proof {
-            verify_transaction_aggregation(self, &agg_proof)
+            verify_transaction_aggregation(self, agg_proof)
         } else {
             Err(ArmError::ProofVerificationFailed(
                 "Missing aggregation proof".into(),
