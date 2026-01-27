@@ -288,42 +288,13 @@ impl Transaction {
     /// Verifies the aggregated proof of the transaction.
     pub fn verify_aggregation(&self) -> Result<(), ArmError> {
         if let Some(proof) = &self.aggregation_proof {
-            let compliance_instances_u32 =
-                self.get_compliance_units()
-                    .iter()
-                    .map(|cu| {
-                        Ok(ComplianceInstanceWords {
-                            u32_words: bytes_to_words(&cu.instance).try_into().map_err(|_| {
-                                ArmError::ProofVerificationFailed(
-                            "Error converting compliance instance into fixed-size u32 words".into(),
-                        )
-                            })?,
-                        })
-                    })
-                    .collect::<Result<Vec<ComplianceInstanceWords>, ArmError>>()?;
-
-            // Collect logic inner_receipts/proofs, vks, and instances.
-            let logic_verifiers = self.get_logic_verifiers()?;
-            let logic_keys: Vec<Digest> =
-                logic_verifiers.iter().map(|lp| lp.verifying_key).collect();
-            let logic_instances_u32: Vec<Vec<u32>> = logic_verifiers
-                .iter()
-                .map(|lp| bytes_to_words(&lp.instance))
-                .collect();
-
-            let batch_instance = risc0_zkvm::serde::to_vec(&(
-                compliance_instances_u32,
-                *COMPLIANCE_VK,
-                logic_instances_u32,
-                logic_keys,
-            ))
-            .map_err(|_| ArmError::InstanceSerializationFailed)?;
+            let instance = self.construct_aggregation_instance()?;
 
             let inner_receipt: InnerReceipt = bincode::deserialize(proof)
                 .map_err(|_| ArmError::InnerReceiptDeserializationError)?;
 
             // Verify proof on the batch instance.
-            let receipt = Receipt::new(inner_receipt, words_to_bytes(&batch_instance).to_vec());
+            let receipt = Receipt::new(inner_receipt, instance);
 
             receipt.verify(*BATCH_AGGREGATION_VK).map_err(|err| {
                 ArmError::ProofVerificationFailed(format!("Proof verification failed: {}", err))
@@ -333,6 +304,42 @@ impl Transaction {
                 "Missing aggregation proof".into(),
             ))
         }
+    }
+
+    /// Constructs the aggregation instance by serializing all compliance and logic instances.
+    pub fn construct_aggregation_instance(&self) -> Result<Vec<u8>, ArmError> {
+        let compliance_instances_u32: Vec<ComplianceInstanceWords> = self
+            .get_compliance_units()
+            .iter()
+            .map(|cu| {
+                Ok(ComplianceInstanceWords {
+                    u32_words: bytes_to_words(&cu.instance).try_into().map_err(|_| {
+                        ArmError::ProveFailed(
+                            "Error converting compliance instance into fixed-size u32 words".into(),
+                        )
+                    })?,
+                })
+            })
+            .collect::<Result<Vec<ComplianceInstanceWords>, ArmError>>()?;
+
+        let logic_verifiers = self.get_logic_verifiers()?;
+        let lp_instances_u32: Vec<Vec<u32>> = logic_verifiers
+            .iter()
+            .map(|lp| bytes_to_words(&lp.instance))
+            .collect();
+
+        let instance = risc0_zkvm::serde::to_vec(&(
+            compliance_instances_u32,
+            *COMPLIANCE_VK,
+            lp_instances_u32,
+            logic_verifiers
+                .iter()
+                .map(|lp| lp.verifying_key)
+                .collect::<Vec<Digest>>(),
+        ))
+        .map_err(|_| ArmError::InstanceSerializationFailed)?;
+
+        Ok(words_to_bytes(&instance).to_vec())
     }
 
     // Replaces all compliance and resource logic proofs with `None`.
