@@ -177,6 +177,38 @@ impl Transaction {
             .collect()
     }
 
+    /// Returns all compliance inner receipts in the transaction.
+    pub fn get_compliance_inner_receipts(&self) -> Result<Vec<InnerReceipt>, ArmError> {
+        let mut compliance_inner_receipts = Vec::new();
+        for cu in self.get_compliance_units() {
+            let inner_receipt = cu.get_inner_receipt()?;
+            compliance_inner_receipts.push(inner_receipt);
+        }
+        Ok(compliance_inner_receipts)
+    }
+
+    /// Returns all logic inner receipts in the transaction.
+    pub fn get_logic_inner_receipts(&self) -> Result<Vec<InnerReceipt>, ArmError> {
+        let mut logic_inner_receipts = Vec::new();
+        for action in self.actions.iter() {
+            let logic_inputs = action.get_logic_verifier_inputs();
+            for lp in logic_inputs.iter() {
+                let inner_receipt = lp.get_inner_receipt()?;
+                logic_inner_receipts.push(inner_receipt);
+            }
+        }
+        Ok(logic_inner_receipts)
+    }
+
+    /// Returns all compliance instances in the transaction.
+    pub fn get_compliance_instances(&self) -> Vec<Vec<u8>> {
+        let mut result = Vec::new();
+        for cu in self.get_compliance_units() {
+            result.push(cu.instance.clone());
+        }
+        result
+    }
+
     /// Returns all logic verifiers in the transaction.
     pub fn get_logic_verifiers(&self) -> Result<Vec<LogicVerifier>, ArmError> {
         let mut result = Vec::new();
@@ -185,6 +217,17 @@ impl Transaction {
             result.extend(logic_verifiers);
         }
         Ok(result)
+    }
+
+    /// Returns all logic verifying keys and instances in the transaction.
+    pub fn get_logic_vks_and_instances(&self) -> Result<(Vec<Digest>, Vec<Vec<u8>>), ArmError> {
+        let mut vks = Vec::new();
+        let mut instances = Vec::new();
+        for lp in self.get_logic_verifiers()? {
+            vks.push(lp.verifying_key);
+            instances.push(lp.instance.clone());
+        }
+        Ok((vks, instances))
     }
 }
 
@@ -201,35 +244,19 @@ impl Transaction {
             ));
         }
 
-        // Collect compliance inner_receipts/proofs and instances.
-        let compliance_units = self.get_compliance_units();
-        let compliance_inner_receipts = compliance_units
+        // Collect inner_receipts/proofs and instances.
+        let compliance_inner_receipts = self.get_compliance_inner_receipts()?;
+        let logic_inner_receipts = self.get_logic_inner_receipts()?;
+        let compliance_instances_u32: Vec<ComplianceInstanceWords> = self
+            .get_compliance_instances()
             .iter()
-            .map(|cu| cu.get_inner_receipt())
-            .collect::<Result<Vec<InnerReceipt>, ArmError>>()?;
-        let compliance_instances_u32: Vec<ComplianceInstanceWords> = compliance_units
-            .iter()
-            .map(|cu| {
-                Ok(ComplianceInstanceWords {
-                    u32_words: bytes_to_words(&cu.instance).try_into().map_err(|_| {
-                        ArmError::ProveFailed(
-                            "Error converting compliance instance into fixed-size u32 words".into(),
-                        )
-                    })?,
-                })
-            })
+            .map(|instance_bytes| ComplianceInstanceWords::from_bytes(instance_bytes))
             .collect::<Result<Vec<ComplianceInstanceWords>, ArmError>>()?;
 
-        // Collect logic inner_receipts/proofs, vks, and instances.
-        let logic_verifiers = self.get_logic_verifiers()?;
-        let logic_inner_receipts = logic_verifiers
+        let (lp_vks, lp_instances) = self.get_logic_vks_and_instances()?;
+        let lp_instances_u32: Vec<Vec<u32>> = lp_instances
             .iter()
-            .map(|lp| lp.get_inner_receipt())
-            .collect::<Result<Vec<InnerReceipt>, ArmError>>()?;
-        let lp_keys: Vec<Digest> = logic_verifiers.iter().map(|lp| lp.verifying_key).collect();
-        let lp_instances_u32: Vec<Vec<u32>> = logic_verifiers
-            .iter()
-            .map(|lp| bytes_to_words(&lp.instance))
+            .map(|instance_bytes| bytes_to_words(instance_bytes))
             .collect();
 
         // Add proofs as assumptions
@@ -250,7 +277,7 @@ impl Transaction {
             .map_err(|_| ArmError::WriteWitnessFailed)?
             .write(&lp_instances_u32)
             .map_err(|_| ArmError::WriteWitnessFailed)?
-            .write(&lp_keys)
+            .write(&lp_vks)
             .map_err(|_| ArmError::WriteWitnessFailed)?
             .build()
             .map_err(|_| ArmError::BuildProverEnvFailed)?;
@@ -309,33 +336,22 @@ impl Transaction {
     /// Constructs the aggregation instance by serializing all compliance and logic instances.
     pub fn construct_aggregation_instance(&self) -> Result<Vec<u8>, ArmError> {
         let compliance_instances_u32: Vec<ComplianceInstanceWords> = self
-            .get_compliance_units()
+            .get_compliance_instances()
             .iter()
-            .map(|cu| {
-                Ok(ComplianceInstanceWords {
-                    u32_words: bytes_to_words(&cu.instance).try_into().map_err(|_| {
-                        ArmError::ProveFailed(
-                            "Error converting compliance instance into fixed-size u32 words".into(),
-                        )
-                    })?,
-                })
-            })
+            .map(|instance_bytes| ComplianceInstanceWords::from_bytes(instance_bytes))
             .collect::<Result<Vec<ComplianceInstanceWords>, ArmError>>()?;
 
-        let logic_verifiers = self.get_logic_verifiers()?;
-        let lp_instances_u32: Vec<Vec<u32>> = logic_verifiers
+        let (lp_vks, lp_instances) = self.get_logic_vks_and_instances()?;
+        let lp_instances_u32: Vec<Vec<u32>> = lp_instances
             .iter()
-            .map(|lp| bytes_to_words(&lp.instance))
+            .map(|instance_bytes| bytes_to_words(instance_bytes))
             .collect();
 
         let instance = risc0_zkvm::serde::to_vec(&(
             compliance_instances_u32,
             *COMPLIANCE_VK,
             lp_instances_u32,
-            logic_verifiers
-                .iter()
-                .map(|lp| lp.verifying_key)
-                .collect::<Vec<Digest>>(),
+            lp_vks,
         ))
         .map_err(|_| ArmError::InstanceSerializationFailed)?;
 

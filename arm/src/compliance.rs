@@ -275,3 +275,13 @@ impl ComplianceInstance {
         msg
     }
 }
+
+impl ComplianceInstanceWords {
+    /// Creates a ComplianceInstanceWords from a byte slice.
+    pub fn from_bytes(instance_bytes: &[u8]) -> Result<Self, ArmError> {
+        let u32_words: [u32; COMPLIANCE_INSTANCE_SIZE] = bytes_to_words(instance_bytes)
+            .try_into()
+            .map_err(|_| ArmError::InstanceSerializationFailed)?;
+        Ok(ComplianceInstanceWords { u32_words })
+    }
+}

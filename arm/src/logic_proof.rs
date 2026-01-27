@@ -90,17 +90,6 @@ impl LogicVerifier {
     pub fn get_instance(&self) -> Result<LogicInstance, ArmError> {
         journal_to_instance(&self.instance)
     }
-
-    /// Retrieves the inner receipt from the logic proof.
-    pub fn get_inner_receipt(&self) -> Result<InnerReceipt, ArmError> {
-        let inner: InnerReceipt = bincode::deserialize(
-            self.proof
-                .as_ref()
-                .ok_or(ArmError::MissingField("Missing logic proof"))?,
-        )
-        .map_err(|_| ArmError::InnerReceiptDeserializationError)?;
-        Ok(inner)
-    }
 }
 
 impl LogicVerifierInputs {
@@ -127,6 +116,17 @@ impl LogicVerifierInputs {
             root,
             app_data: self.app_data.clone(),
         }
+    }
+
+    /// Retrieves the inner receipt from the logic proof.
+    pub fn get_inner_receipt(&self) -> Result<InnerReceipt, ArmError> {
+        let inner: InnerReceipt = bincode::deserialize(
+            self.proof
+                .as_ref()
+                .ok_or(ArmError::MissingField("Missing logic proof"))?,
+        )
+        .map_err(|_| ArmError::InnerReceiptDeserializationError)?;
+        Ok(inner)
     }
 }
 
