@@ -12,7 +12,7 @@ use crate::{
 };
 use rand::rngs::OsRng;
 use rand::Rng;
-use risc0_zkvm::{serde::to_vec, sha::Digest};
+use risc0_zkvm::{serde::to_vec, sha::Digest, InnerReceipt};
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "prove")]
@@ -116,6 +116,17 @@ impl LogicVerifierInputs {
             root,
             app_data: self.app_data.clone(),
         }
+    }
+
+    /// Retrieves the inner receipt from the logic proof.
+    pub fn get_inner_receipt(&self) -> Result<InnerReceipt, ArmError> {
+        let inner: InnerReceipt = bincode::deserialize(
+            self.proof
+                .as_ref()
+                .ok_or(ArmError::MissingField("Missing logic proof"))?,
+        )
+        .map_err(|_| ArmError::InnerReceiptDeserializationError)?;
+        Ok(inner)
     }
 }
 

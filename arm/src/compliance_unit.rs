@@ -7,6 +7,7 @@ use crate::{
     proving_system::{journal_to_instance, verify as verify_proof},
 };
 use k256::ProjectivePoint;
+use risc0_zkvm::InnerReceipt;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "prove")]
@@ -58,5 +59,16 @@ impl ComplianceUnit {
     /// Retrieves the compliance instance from the serialized instance data.
     pub fn get_instance(&self) -> Result<ComplianceInstance, ArmError> {
         journal_to_instance(&self.instance)
+    }
+
+    /// Retrieves the inner receipt from the compliance proof.
+    pub fn get_inner_receipt(&self) -> Result<InnerReceipt, ArmError> {
+        let inner: InnerReceipt = bincode::deserialize(
+            self.proof
+                .as_ref()
+                .ok_or(ArmError::MissingField("Missing compliance proof"))?,
+        )
+        .map_err(|_| ArmError::InnerReceiptDeserializationError)?;
+        Ok(inner)
     }
 }
