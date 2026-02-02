@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 /// The constant padding leaf used in Merkle trees.
 /// This is the hash of an empty string (same value as INITIAL_ROOT in compliance.rs).
 /// Hex: cc1d2f838445db7aec431df9ee8a871f40e7aa5e064fc056633ef8c60fab7b06
-const PADDING_LEAF_WORDS: [u32; 8] = [
+pub const PADDING_LEAF_WORDS: [u32; 8] = [
     0x832f1dcc, 0x7adb4584, 0xf91d43ec, 0x1f878aee,
     0x5eaae740, 0x56c04f06, 0xc6f83e63, 0x067bab0f,
 ];

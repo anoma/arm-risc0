@@ -1,5 +1,6 @@
 //! Utility functions for byte and word conversions and hashing.
 
+#[cfg(feature = "zkvm")]
 use crate::{Digest, DIGEST_WORDS};
 
 #[cfg(feature = "zkvm")]
