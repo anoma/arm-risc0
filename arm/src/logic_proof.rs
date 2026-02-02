@@ -8,11 +8,10 @@ use crate::{
     proving_system::{journal_to_instance, verify as verify_proof},
     resource::Resource,
     resource_logic::TrivialLogicWitness,
-    utils::words_to_bytes,
 };
 use rand::rngs::OsRng;
 use rand::Rng;
-use risc0_zkvm::{serde::to_vec, sha::Digest};
+use risc0_zkvm::sha::Digest;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "prove")]
@@ -100,20 +99,7 @@ impl LogicVerifierInputs {
         root: Digest,
     ) -> Result<LogicVerifier, ArmError> {
         let instance = self.to_instance(is_consumed, root);
-
-        // Use Borsh serialization when the borsh feature is enabled for Solana compatibility.
-        // Otherwise use risc0's word-aligned serde.
-        #[cfg(feature = "borsh")]
-        let instance_bytes = {
-            borsh::to_vec(&instance).map_err(|_| ArmError::InstanceSerializationFailed)?
-        };
-
-        #[cfg(not(feature = "borsh"))]
-        let instance_bytes = {
-            let instance_words = to_vec(&instance)
-                .map_err(|_| ArmError::InstanceSerializationFailed)?;
-            words_to_bytes(&instance_words).to_vec()
-        };
+        let instance_bytes = instance.to_journal()?;
 
         Ok(LogicVerifier {
             proof: self.proof,
