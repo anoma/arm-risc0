@@ -1,17 +1,28 @@
 //! A Merkle path from a leaf to a root in a commitment/action tree.
 
+#[cfg(feature = "zkvm")]
 use crate::utils::hash_two;
-use hex::FromHex;
-use lazy_static::lazy_static;
-use risc0_zkvm::sha::Digest;
+use crate::Digest;
 use serde::{Deserialize, Serialize};
 
-lazy_static! {
-    /// A constant padding leaf used in Merkle trees.
-    /// This is the hash of an empty string.
-    pub static ref PADDING_LEAF: Digest =
-        Digest::from_hex("cc1d2f838445db7aec431df9ee8a871f40e7aa5e064fc056633ef8c60fab7b06")
-            .unwrap();
+/// The constant padding leaf used in Merkle trees.
+/// This is the hash of an empty string (same value as INITIAL_ROOT in compliance.rs).
+/// Hex: cc1d2f838445db7aec431df9ee8a871f40e7aa5e064fc056633ef8c60fab7b06
+const PADDING_LEAF_WORDS: [u32; 8] = [
+    0x832f1dcc, 0x7adb4584, 0xf91d43ec, 0x1f878aee,
+    0x5eaae740, 0x56c04f06, 0xc6f83e63, 0x067bab0f,
+];
+
+/// Returns the padding leaf value.
+#[cfg(not(feature = "zkvm"))]
+pub fn padding_leaf() -> Digest {
+    Digest(PADDING_LEAF_WORDS)
+}
+
+/// Returns the padding leaf value.
+#[cfg(feature = "zkvm")]
+pub fn padding_leaf() -> Digest {
+    Digest::new(PADDING_LEAF_WORDS)
 }
 
 /// A path from a position in a particular commitment tree to the root of that tree.
@@ -25,6 +36,7 @@ impl MerklePath {
     }
 
     /// Returns the root of the tree corresponding to this path applied to `leaf`.
+    #[cfg(feature = "zkvm")]
     pub fn root(&self, leaf: &Digest) -> Digest {
         self.0.iter().fold(
             *leaf,

@@ -2,8 +2,19 @@
 
 #![deny(missing_docs)]
 
+// When zkvm is enabled, use risc0's Digest for compatibility with risc0 APIs
+#[cfg(feature = "zkvm")]
+pub use risc0_zkvm::sha::{Digest, DIGEST_BYTES, DIGEST_WORDS};
+
+// When zkvm is disabled (solana feature), use standalone Digest
+#[cfg(not(feature = "zkvm"))]
+mod digest;
+#[cfg(not(feature = "zkvm"))]
+pub use digest::{Digest, DIGEST_BYTES, DIGEST_WORDS};
+
 #[cfg(feature = "transaction")]
 pub mod action;
+#[cfg(feature = "zkvm")]
 pub mod action_tree;
 #[cfg(feature = "aggregation")]
 pub mod aggregation;
@@ -25,10 +36,10 @@ pub mod merkle_path;
 pub mod nullifier_key;
 #[cfg(feature = "transaction")]
 pub mod proving_system;
+#[cfg(feature = "zkvm")]
 pub mod resource;
+#[cfg(feature = "zkvm")]
 pub mod resource_logic;
 #[cfg(feature = "transaction")]
 pub mod transaction;
 pub mod utils;
-
-pub use risc0_zkvm::Digest;

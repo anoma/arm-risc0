@@ -3,47 +3,49 @@
 /// Size hard-coded to two resources per unit
 const COMPLIANCE_INSTANCE_SIZE: usize = 56;
 
-use crate::{
-    error::ArmError,
-    merkle_path::MerklePath,
-    nullifier_key::NullifierKey,
-    resource::Resource,
-    utils::{bytes_to_words, words_to_bytes},
-};
+use crate::error::ArmError;
+use crate::utils::{bytes_to_words, words_to_bytes};
+use crate::Digest;
+#[cfg(feature = "solana")]
 use borsh::{BorshDeserialize, BorshSerialize};
-use hex::FromHex;
 use k256::{
-    elliptic_curve::{
-        sec1::{FromEncodedPoint, ToEncodedPoint},
-        Field, PrimeField,
-    },
-    EncodedPoint, ProjectivePoint, Scalar,
+    elliptic_curve::sec1::{FromEncodedPoint, ToEncodedPoint},
+    EncodedPoint, ProjectivePoint,
 };
-use lazy_static::lazy_static;
-use rand::rngs::OsRng;
-use risc0_zkvm::serde::to_vec;
-use risc0_zkvm::Digest;
 use serde_with::serde_as;
 
-lazy_static! {
-    /// The initial root of the empty commitment tree is the hash of an empty string.
-    pub static ref INITIAL_ROOT: Digest =
-        Digest::from_hex("cc1d2f838445db7aec431df9ee8a871f40e7aa5e064fc056633ef8c60fab7b06")
-            .unwrap();
+#[cfg(feature = "zkvm")]
+use risc0_zkvm::serde::to_vec;
+
+#[cfg(feature = "zkvm")]
+use crate::{merkle_path::MerklePath, nullifier_key::NullifierKey, resource::Resource};
+#[cfg(feature = "zkvm")]
+use k256::{elliptic_curve::{Field, PrimeField}, Scalar};
+#[cfg(feature = "zkvm")]
+use rand::rngs::OsRng;
+
+/// The initial root of the empty commitment tree (hash of empty string).
+/// Hex: cc1d2f838445db7aec431df9ee8a871f40e7aa5e064fc056633ef8c60fab7b06
+const INITIAL_ROOT_WORDS: [u32; 8] = [
+    0x832f1dcc, 0x7adb4584, 0xf91d43ec, 0x1f878aee,
+    0x5eaae740, 0x56c04f06, 0xc6f83e63, 0x067bab0f,
+];
+
+/// Returns the initial root value (hash of empty string).
+#[cfg(not(feature = "zkvm"))]
+pub fn initial_root() -> Digest {
+    Digest(INITIAL_ROOT_WORDS)
+}
+
+/// Returns the initial root value (hash of empty string).
+#[cfg(feature = "zkvm")]
+pub fn initial_root() -> Digest {
+    Digest::new(INITIAL_ROOT_WORDS)
 }
 
 /// The compliance instance contains all public inputs to the compliance proof.
-#[derive(
-    Clone,
-    Debug,
-    Default,
-    serde::Serialize,
-    serde::Deserialize,
-    PartialEq,
-    Eq,
-    BorshSerialize,
-    BorshDeserialize,
-)]
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+#[cfg_attr(feature = "solana", derive(BorshSerialize, BorshDeserialize))]
 pub struct ComplianceInstance {
     /// The nullifier of the consumed resource.
     pub consumed_nullifier: Digest,
@@ -64,7 +66,8 @@ pub struct ComplianceInstance {
 /// The compliance instance represented as an array of u32 words for
 /// serialization(used in the aggregation circuit).
 #[serde_as]
-#[derive(serde::Serialize, serde::Deserialize, BorshSerialize, BorshDeserialize)]
+#[derive(serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "solana", derive(BorshSerialize, BorshDeserialize))]
 pub struct ComplianceInstanceWords {
     /// The compliance instance as an array of u32 words.
     #[serde_as(as = "[_; COMPLIANCE_INSTANCE_SIZE]")]
@@ -72,6 +75,7 @@ pub struct ComplianceInstanceWords {
 }
 
 /// The compliance witness contains all private inputs to the compliance proof.
+#[cfg(feature = "zkvm")]
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub struct ComplianceWitness {
     /// The consumed resource
@@ -91,6 +95,7 @@ pub struct ComplianceWitness {
     // pub output_resource_logic_cm_r: [u8; DATA_BYTES],
 }
 
+#[cfg(feature = "zkvm")]
 impl ComplianceWitness {
     /// Creates a new compliance witness from the given resources and latest
     /// root when consuming an ephemeral resource.
@@ -124,7 +129,7 @@ impl ComplianceWitness {
             merkle_path,
             rcv: Scalar::random(&mut OsRng).to_bytes().to_vec(),
             nf_key,
-            ephemeral_root: *INITIAL_ROOT,
+            ephemeral_root: initial_root(),
         }
     }
 
@@ -223,6 +228,7 @@ impl ComplianceWitness {
     }
 }
 
+#[cfg(feature = "zkvm")]
 impl Default for ComplianceWitness {
     fn default() -> Self {
         let nf_key = NullifierKey::default();
@@ -258,7 +264,7 @@ impl Default for ComplianceWitness {
         ComplianceWitness {
             consumed_resource,
             created_resource,
-            ephemeral_root: *INITIAL_ROOT,
+            ephemeral_root: initial_root(),
             merkle_path,
             rcv,
             nf_key,
@@ -287,11 +293,18 @@ impl ComplianceInstance {
         msg
     }
 
-    /// Serializes the instance to a journal format.
+    /// Serializes the instance to a journal format (zkvm serde).
+    #[cfg(feature = "zkvm")]
     pub fn to_journal(&self) -> Result<Vec<u8>, ArmError> {
         Ok(
             words_to_bytes(&to_vec(&self).map_err(|_| ArmError::InstanceSerializationFailed)?)
                 .to_vec(),
         )
+    }
+
+    /// Serializes the instance to a journal format (borsh).
+    #[cfg(all(feature = "solana", not(feature = "zkvm")))]
+    pub fn to_journal(&self) -> Result<Vec<u8>, ArmError> {
+        borsh::to_vec(&self).map_err(|_| ArmError::InstanceSerializationFailed)
     }
 }

@@ -1,13 +1,13 @@
 //! Logic instance for ARM resource logic proofs.
 
+#[cfg(feature = "solana")]
 use borsh::{BorshDeserialize, BorshSerialize};
-use risc0_zkvm::Digest;
+use crate::Digest;
 use serde::{Deserialize, Serialize};
 
 /// Represents a logic instance with its associated data.
-#[derive(
-    Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq, BorshSerialize, BorshDeserialize,
-)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[cfg_attr(feature = "solana", derive(BorshSerialize, BorshDeserialize))]
 pub struct LogicInstance {
     /// The logic instance's tag (either commitment or nullifier)
     pub tag: Digest,
@@ -20,9 +20,8 @@ pub struct LogicInstance {
 }
 
 /// Application data contains four different types of payloads.
-#[derive(
-    Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq, BorshSerialize, BorshDeserialize,
-)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[cfg_attr(feature = "solana", derive(BorshSerialize, BorshDeserialize))]
 pub struct AppData {
     /// The resource payload blobs.
     pub resource_payload: Vec<ExpirableBlob>,
@@ -35,9 +34,8 @@ pub struct AppData {
 }
 
 /// An expirable blob consists of a blob and a deletion criterion.
-#[derive(
-    Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq, BorshSerialize, BorshDeserialize,
-)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[cfg_attr(feature = "solana", derive(BorshSerialize, BorshDeserialize))]
 pub struct ExpirableBlob {
     /// The blob data as a vector of u32 words.
     pub blob: Vec<u32>,
