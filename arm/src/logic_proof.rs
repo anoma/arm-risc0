@@ -99,11 +99,25 @@ impl LogicVerifierInputs {
         is_consumed: bool,
         root: Digest,
     ) -> Result<LogicVerifier, ArmError> {
-        let instance_words = to_vec(&self.to_instance(is_consumed, root))
-            .map_err(|_| ArmError::InstanceSerializationFailed)?;
+        let instance = self.to_instance(is_consumed, root);
+
+        // Use Borsh serialization when the borsh feature is enabled for Solana compatibility.
+        // Otherwise use risc0's word-aligned serde.
+        #[cfg(feature = "borsh")]
+        let instance_bytes = {
+            borsh::to_vec(&instance).map_err(|_| ArmError::InstanceSerializationFailed)?
+        };
+
+        #[cfg(not(feature = "borsh"))]
+        let instance_bytes = {
+            let instance_words = to_vec(&instance)
+                .map_err(|_| ArmError::InstanceSerializationFailed)?;
+            words_to_bytes(&instance_words).to_vec()
+        };
+
         Ok(LogicVerifier {
             proof: self.proof,
-            instance: words_to_bytes(&instance_words).to_vec(),
+            instance: instance_bytes,
             verifying_key: self.verifying_key,
         })
     }
