@@ -12,6 +12,7 @@ risc0-zkvm = { version = "3.0.3", features = [
 ], default-features = false }
 anoma-rm-risc0 = { path = "../../../../arm", features = [
   "aggregation_circuit",
+  "zkvm",
 ], default-features = false }
 bincode = { version = "1.3.3", optional = true }
 borsh = { version = "1.5", default-features = false, optional = true }
