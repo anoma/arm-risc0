@@ -13,8 +13,8 @@ pub const BATCH_AGGREGATION_PK: &[u8] = include_bytes!("../../elfs/batch_aggrega
 lazy_static! {
     /// Sequential aggregation verification key / sequential aggregation image id.
     pub static ref SEQUENTIAL_AGGREGATION_VK: Digest =
-        Digest::from_hex("25782c2bbe597a2db31fcce28f6cd3e1aa423f2cb987aab0e881ed87b9369d13").unwrap();
+        Digest::from_hex("378bebfe9a8e136e28d309f582474ab02da3c8ef005e7b3c88727c563dfd2752").unwrap();
 
-    /// Batch aggregation verification key / Batch aggregation image id.
-    pub static ref BATCH_AGGREGATION_VK: Digest = Digest::from_hex("4297db7ea74c296acd49ca55e160a6e930478da2605931ea0654d466c0f95099").unwrap();
+    /// Batch aggregation verification key / Batch aggregation image id (Borsh-serializing circuit).
+    pub static ref BATCH_AGGREGATION_VK: Digest = Digest::from_hex("0235fd42c773897d07063ad9515723e2ea8d7f54a786b230b5395fd73071d8d3").unwrap();
 }
