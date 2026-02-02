@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-#[cfg(feature = "solana")]
+#[cfg(feature = "borsh")]
 use borsh::{BorshDeserialize, BorshSerialize};
 
 /// Number of 32-bit words in a Digest.
@@ -15,7 +15,7 @@ pub const DIGEST_BYTES: usize = 32;
 ///
 /// This is compatible with risc0_zkvm::sha::Digest's internal representation.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[cfg_attr(feature = "solana", derive(BorshSerialize, BorshDeserialize))]
+#[cfg_attr(feature = "borsh", derive(BorshSerialize, BorshDeserialize))]
 pub struct Digest(pub [u32; DIGEST_WORDS]);
 
 impl Digest {

@@ -6,7 +6,7 @@ const COMPLIANCE_INSTANCE_SIZE: usize = 56;
 use crate::error::ArmError;
 use crate::utils::{bytes_to_words, words_to_bytes};
 use crate::Digest;
-#[cfg(feature = "solana")]
+#[cfg(feature = "borsh")]
 use borsh::{BorshDeserialize, BorshSerialize};
 use k256::{
     elliptic_curve::sec1::{FromEncodedPoint, ToEncodedPoint},
@@ -45,7 +45,7 @@ pub fn initial_root() -> Digest {
 
 /// The compliance instance contains all public inputs to the compliance proof.
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
-#[cfg_attr(feature = "solana", derive(BorshSerialize, BorshDeserialize))]
+#[cfg_attr(feature = "borsh", derive(BorshSerialize, BorshDeserialize))]
 pub struct ComplianceInstance {
     /// The nullifier of the consumed resource.
     pub consumed_nullifier: Digest,
@@ -67,7 +67,7 @@ pub struct ComplianceInstance {
 /// serialization(used in the aggregation circuit).
 #[serde_as]
 #[derive(serde::Serialize, serde::Deserialize)]
-#[cfg_attr(feature = "solana", derive(BorshSerialize, BorshDeserialize))]
+#[cfg_attr(feature = "borsh", derive(BorshSerialize, BorshDeserialize))]
 pub struct ComplianceInstanceWords {
     /// The compliance instance as an array of u32 words.
     #[serde_as(as = "[_; COMPLIANCE_INSTANCE_SIZE]")]

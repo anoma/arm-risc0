@@ -41,7 +41,12 @@ default = ["transaction", "prove"]
 
 # Backend-specific features
 evm = ["dep:sha3"]
-solana = ["dep:borsh", "dep:sha2", "dep:hex-literal", "compliance_circuit"]
+
+# Borsh serialization for types (used by guest circuits and Solana)
+borsh = ["dep:borsh"]
+
+# Solana: borsh serialization + sha2 for delta proof hashing, no risc0-zkvm
+solana = ["borsh", "dep:sha2", "dep:hex-literal", "compliance_circuit"]
 
 # Transaction processing features
 transaction = ["zkvm", "compliance_circuit", "evm"]
