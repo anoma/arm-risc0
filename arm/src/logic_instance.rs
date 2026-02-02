@@ -44,16 +44,9 @@ pub struct ExpirableBlob {
 }
 
 impl LogicInstance {
-    /// Serializes the instance to a journal format (borsh).
-    /// Used when borsh feature is enabled for Solana compatibility.
-    #[cfg(feature = "borsh")]
-    pub fn to_journal(&self) -> Result<Vec<u8>, crate::error::ArmError> {
-        borsh::to_vec(&self).map_err(|_| crate::error::ArmError::InstanceSerializationFailed)
-    }
-
     /// Serializes the instance to a journal format (zkvm serde).
-    /// Used when zkvm is enabled but borsh is not.
-    #[cfg(all(feature = "zkvm", not(feature = "borsh")))]
+    /// Used when zkvm is enabled for circuit compatibility.
+    #[cfg(feature = "zkvm")]
     pub fn to_journal(&self) -> Result<Vec<u8>, crate::error::ArmError> {
         use crate::utils::words_to_bytes;
         use risc0_zkvm::serde::to_vec;
@@ -61,6 +54,13 @@ impl LogicInstance {
             words_to_bytes(&to_vec(&self).map_err(|_| crate::error::ArmError::InstanceSerializationFailed)?)
                 .to_vec(),
         )
+    }
+
+    /// Serializes the instance to a journal format (borsh).
+    /// Used when solana feature is enabled (without zkvm) for Solana compatibility.
+    #[cfg(all(feature = "solana", not(feature = "zkvm")))]
+    pub fn to_journal(&self) -> Result<Vec<u8>, crate::error::ArmError> {
+        borsh::to_vec(&self).map_err(|_| crate::error::ArmError::InstanceSerializationFailed)
     }
 }
 
