@@ -42,6 +42,8 @@ pub mod resource;
 pub mod resource_logic;
 #[cfg(feature = "solana")]
 pub mod solana_constants;
+#[cfg(feature = "solana")]
+pub mod solana_transaction;
 #[cfg(feature = "transaction")]
 pub mod transaction;
 pub mod utils;
