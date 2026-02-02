@@ -2,6 +2,8 @@
 
 use crate::error::ArmError;
 use risc0_zkvm::{sha::Digest, InnerReceipt, Receipt};
+
+#[cfg(not(feature = "borsh"))]
 use serde::de::DeserializeOwned;
 
 #[cfg(feature = "prove")]
@@ -44,6 +46,15 @@ pub fn verify(verifying_key: &Digest, instance: &[u8], proof: &[u8]) -> Result<(
 }
 
 /// Converts a serialized journal into an instance of the specified type.
+/// Uses Borsh deserialization when the borsh feature is enabled.
+#[cfg(feature = "borsh")]
+pub fn journal_to_instance<T: borsh::BorshDeserialize>(journal: &[u8]) -> Result<T, ArmError> {
+    borsh::from_slice(journal).map_err(|_| ArmError::JournalDecodingError)
+}
+
+/// Converts a serialized journal into an instance of the specified type.
+/// Uses risc0 serde deserialization when borsh is not enabled.
+#[cfg(not(feature = "borsh"))]
 pub fn journal_to_instance<T: DeserializeOwned>(journal: &[u8]) -> Result<T, ArmError> {
     let journal = risc0_zkvm::Journal {
         bytes: journal.to_vec(),
