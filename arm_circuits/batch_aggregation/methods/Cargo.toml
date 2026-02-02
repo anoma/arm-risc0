@@ -3,6 +3,8 @@ name = "batch_aggregation_methods"
 version = "1.0.0"
 edition = "2021"
 
+[workspace]
+
 [build-dependencies]
 risc0-build = { version = "3.0.3", features = ["unstable"] }
 
