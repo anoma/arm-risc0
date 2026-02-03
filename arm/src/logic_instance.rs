@@ -1,8 +1,9 @@
 //! Logic instance for ARM resource logic proofs.
 
+use crate::Digest;
+
 #[cfg(feature = "borsh")]
 use borsh::{BorshDeserialize, BorshSerialize};
-use crate::Digest;
 use serde::{Deserialize, Serialize};
 
 /// Represents a logic instance with its associated data.

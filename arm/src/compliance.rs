@@ -3,46 +3,42 @@
 /// Size hard-coded to two resources per unit
 const COMPLIANCE_INSTANCE_SIZE: usize = 56;
 
+use crate::constants::EMPTY_HASH_WORDS;
 use crate::error::ArmError;
-use crate::Digest;
-#[cfg(feature = "borsh")]
-use borsh::{BorshDeserialize, BorshSerialize};
 #[cfg(any(feature = "k256", feature = "zkvm"))]
 use crate::utils::{bytes_to_words, words_to_bytes};
+use crate::Digest;
+#[cfg(feature = "zkvm")]
+use crate::{merkle_path::MerklePath, nullifier_key::NullifierKey, resource::Resource};
+
+#[cfg(feature = "borsh")]
+use borsh::{BorshDeserialize, BorshSerialize};
 #[cfg(feature = "k256")]
 use k256::{
     elliptic_curve::sec1::{FromEncodedPoint, ToEncodedPoint},
     EncodedPoint, ProjectivePoint,
 };
-use serde_with::serde_as;
-
 #[cfg(feature = "zkvm")]
-use risc0_zkvm::serde::to_vec;
-
-#[cfg(feature = "zkvm")]
-use crate::{merkle_path::MerklePath, nullifier_key::NullifierKey, resource::Resource};
-#[cfg(feature = "zkvm")]
-use k256::{elliptic_curve::{Field, PrimeField}, Scalar};
+use k256::{
+    elliptic_curve::{Field, PrimeField},
+    Scalar,
+};
 #[cfg(feature = "zkvm")]
 use rand::rngs::OsRng;
+#[cfg(feature = "zkvm")]
+use risc0_zkvm::serde::to_vec;
+use serde_with::serde_as;
 
-/// The initial root of the empty commitment tree (hash of empty string).
-/// Hex: cc1d2f838445db7aec431df9ee8a871f40e7aa5e064fc056633ef8c60fab7b06
-const INITIAL_ROOT_WORDS: [u32; 8] = [
-    0x832f1dcc, 0x7adb4584, 0xf91d43ec, 0x1f878aee,
-    0x5eaae740, 0x56c04f06, 0xc6f83e63, 0x067bab0f,
-];
-
-/// Returns the initial root value (hash of empty string).
+/// Returns the initial root of the empty commitment tree (hash of an empty string).
 #[cfg(not(feature = "zkvm"))]
 pub fn initial_root() -> Digest {
-    Digest(INITIAL_ROOT_WORDS)
+    Digest(EMPTY_HASH_WORDS)
 }
 
-/// Returns the initial root value (hash of empty string).
+/// Returns the initial root of the empty commitment tree (hash of an empty string).
 #[cfg(feature = "zkvm")]
 pub fn initial_root() -> Digest {
-    Digest::new(INITIAL_ROOT_WORDS)
+    Digest::new(EMPTY_HASH_WORDS)
 }
 
 /// The compliance instance contains all public inputs to the compliance proof.

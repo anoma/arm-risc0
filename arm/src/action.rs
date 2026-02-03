@@ -1,14 +1,14 @@
 //! An action represents a set of compliance units and logic verifiers.
 
 use crate::compliance_unit::ComplianceUnit;
-use crate::logic_instance::LogicVerifierInputs;
 #[cfg(any(feature = "zkvm", feature = "k256"))]
 use crate::error::ArmError;
+use crate::logic_instance::LogicVerifierInputs;
 #[cfg(feature = "zkvm")]
 use crate::{
-    compliance::ComplianceInstance, action_tree::MerkleTree,
-    logic_proof::LogicVerifier, Digest,
+    action_tree::MerkleTree, compliance::ComplianceInstance, logic_proof::LogicVerifier, Digest,
 };
+
 #[cfg(feature = "k256")]
 use k256::ProjectivePoint;
 use serde::{Deserialize, Serialize};

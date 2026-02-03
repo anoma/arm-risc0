@@ -9,12 +9,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::ArmError;
 
-// Solana uses SHA-256 for delta proof hashing; EVM uses Keccak-256.
-// These features are mutually exclusive — enabling both is a compile error.
+// Solana uses SHA-256 for delta proof hashing; default uses Keccak-256.
 #[cfg(feature = "solana")]
 use sha2::{Digest, Sha256 as HashFunction};
 
-#[cfg(feature = "evm")]
+#[cfg(not(feature = "solana"))]
 use sha3::{Digest, Keccak256 as HashFunction};
 
 /// The delta proof consists of an ECDSA signature and a recovery ID.
@@ -54,7 +53,7 @@ impl DeltaProof {
             .map_err(|_| ArmError::DeltaProofGenerationFailed)?;
 
         // On-chain EVM signatures are not supported when recid is 2 or 3.
-        #[cfg(feature = "evm")]
+        #[cfg(not(feature = "solana"))]
         if recid.to_byte() > 1 {
             return Err(ArmError::InvalidDeltaProof);
         }
@@ -68,8 +67,8 @@ impl DeltaProof {
         proof: &DeltaProof,
         instance: DeltaInstance,
     ) -> Result<(), ArmError> {
-        // handle recid for EVM verification
-        #[cfg(feature = "evm")]
+        // EVM does not support recid 2 or 3.
+        #[cfg(not(feature = "solana"))]
         if proof.recid.to_byte() > 1 {
             return Err(ArmError::InvalidDeltaProof);
         }
@@ -99,10 +98,10 @@ impl DeltaProof {
         let mut bytes = [0u8; 65];
         bytes[0..64].clone_from_slice(&self.signature.to_bytes());
 
-        #[cfg(not(feature = "evm"))]
+        #[cfg(feature = "solana")]
         let recid_byte = self.recid.to_byte();
 
-        #[cfg(feature = "evm")]
+        #[cfg(not(feature = "solana"))]
         let recid_byte = self.recid.to_byte() + 27;
 
         bytes[64] = recid_byte;
@@ -111,10 +110,10 @@ impl DeltaProof {
 
     /// Deserializes the delta proof from bytes.
     pub fn from_bytes(bytes: &[u8]) -> Result<DeltaProof, ArmError> {
-        #[cfg(not(feature = "evm"))]
+        #[cfg(feature = "solana")]
         let recid_byte = bytes[64];
 
-        #[cfg(feature = "evm")]
+        #[cfg(not(feature = "solana"))]
         let recid_byte = bytes[64] - 27;
 
         Ok(DeltaProof {

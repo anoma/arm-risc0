@@ -1,5 +1,12 @@
 //! Constants for compliance and padding logic proving and verification keys.
 
+/// The hash of an empty string, used as the initial Merkle tree root and padding leaf.
+/// Hex: cc1d2f838445db7aec431df9ee8a871f40e7aa5e064fc056633ef8c60fab7b06
+pub const EMPTY_HASH_WORDS: [u32; 8] = [
+    0x832f1dcc, 0x7adb4584, 0xf91d43ec, 0x1f878aee,
+    0x5eaae740, 0x56c04f06, 0xc6f83e63, 0x067bab0f,
+];
+
 /// Compliance verification key bytes.
 pub const COMPLIANCE_VK_BYTES: [u8; 32] =
     hex_literal::hex!("1176e7f038c55009f369e2eafd1dd9bc5b51a6f5fc6369cc9f54779258f898fc");
