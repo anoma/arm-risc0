@@ -70,6 +70,9 @@ pub struct LogicVerifierInputs {
     pub app_data: AppData,
     /// The logic proof (optional, would be absent when aggregation is enabled).
     pub proof: Option<Vec<u8>>,
+    /// The pre-serialized logic instance journal (risc0 serde format).
+    /// Used for batch aggregation journal digest computation on Solana.
+    pub instance_journal: Vec<u8>,
 }
 
 impl LogicVerifier {
@@ -129,6 +132,7 @@ impl TryFrom<LogicVerifier> for LogicVerifierInputs {
             verifying_key: logic_proof.verifying_key,
             app_data: instance.app_data,
             proof: logic_proof.proof,
+            instance_journal: logic_proof.instance,
         })
     }
 }

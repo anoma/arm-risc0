@@ -23,6 +23,9 @@ pub struct LogicVerifierInputs {
     pub app_data: AppData,
     /// The logic proof (None when using aggregated proofs).
     pub proof: Option<Vec<u8>>,
+    /// The pre-serialized logic instance journal (risc0 serde format).
+    /// Used for batch aggregation journal digest computation on Solana.
+    pub instance_journal: Vec<u8>,
 }
 
 /// A compliance unit for on-chain verification.
