@@ -43,6 +43,23 @@ pub struct ExpirableBlob {
     pub deletion_criterion: u32,
 }
 
+/// Inputs required to create a logic verifier.
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[cfg_attr(feature = "borsh", derive(BorshSerialize, BorshDeserialize))]
+pub struct LogicVerifierInputs {
+    /// The tag (either commitment or nullifier) for the logic instance.
+    pub tag: Digest,
+    /// The verifying key for the logic proof.
+    pub verifying_key: Digest,
+    /// The application data associated with the logic instance.
+    pub app_data: AppData,
+    /// The logic proof (optional, would be absent when aggregation is enabled).
+    pub proof: Option<Vec<u8>>,
+    /// The pre-serialized logic instance journal (risc0 serde format).
+    /// Used for batch aggregation journal digest computation on Solana.
+    pub instance_journal: Vec<u8>,
+}
+
 impl LogicInstance {
     /// Serializes the instance to a journal format (zkvm serde).
     /// Used when zkvm is enabled for circuit compatibility.

@@ -10,7 +10,7 @@
 //! 4. Verify ECDSA signature using Solana secp256k1_recover syscall
 
 use crate::error::ArmError;
-use crate::solana_transaction::{Delta, Transaction};
+use crate::transaction::{Delta, Transaction};
 
 use dashu::integer::UBig;
 use solana_program::hash::hashv;

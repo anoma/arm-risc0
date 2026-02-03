@@ -1,8 +1,6 @@
 //! Aggregation constants for proving keys and verification keys.
 
-use hex::FromHex;
-use lazy_static::lazy_static;
-use risc0_zkvm::Digest;
+use crate::constants::{BATCH_AGGREGATION_VK_BYTES, SEQUENTIAL_AGGREGATION_VK_BYTES};
 
 /// Sequential aggregation proving key / sequential aggregation guest ELF binary
 pub const SEQUENTIAL_AGGREGATION_PK: &[u8] =
@@ -10,11 +8,12 @@ pub const SEQUENTIAL_AGGREGATION_PK: &[u8] =
 /// Batch aggregation proving key / batch aggregation guest ELF binary
 pub const BATCH_AGGREGATION_PK: &[u8] = include_bytes!("../../elfs/batch_aggregation.bin");
 
-lazy_static! {
+lazy_static::lazy_static! {
     /// Sequential aggregation verification key / sequential aggregation image id.
-    pub static ref SEQUENTIAL_AGGREGATION_VK: Digest =
-        Digest::from_hex("378bebfe9a8e136e28d309f582474ab02da3c8ef005e7b3c88727c563dfd2752").unwrap();
+    pub static ref SEQUENTIAL_AGGREGATION_VK: crate::Digest =
+        crate::Digest::new(bytemuck::cast(SEQUENTIAL_AGGREGATION_VK_BYTES));
 
     /// Batch aggregation verification key / Batch aggregation image id (Borsh-serializing circuit).
-    pub static ref BATCH_AGGREGATION_VK: Digest = Digest::from_hex("0235fd42c773897d07063ad9515723e2ea8d7f54a786b230b5395fd73071d8d3").unwrap();
+    pub static ref BATCH_AGGREGATION_VK: crate::Digest =
+        crate::Digest::new(bytemuck::cast(BATCH_AGGREGATION_VK_BYTES));
 }

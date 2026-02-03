@@ -1,10 +1,10 @@
 //! Transaction structure and associated methods.
 
-use crate::{
-    action::Action,
-    delta_proof::{DeltaInstance, DeltaProof, DeltaWitness},
-    error::ArmError,
-};
+use crate::action::Action;
+#[cfg(feature = "k256")]
+use crate::delta_proof::{DeltaInstance, DeltaProof, DeltaWitness};
+#[cfg(any(feature = "k256", feature = "aggregation"))]
+use crate::error::ArmError;
 #[cfg(feature = "aggregation")]
 use crate::{
     aggregation::{
@@ -18,6 +18,7 @@ use serde::{Deserialize, Serialize};
 /// Represents a transaction consisting of actions, delta proof, expected balance,
 /// and optional aggregation proof.
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[cfg_attr(feature = "borsh", derive(borsh::BorshSerialize, borsh::BorshDeserialize))]
 pub struct Transaction {
     /// The actions included in the transaction.
     pub actions: Vec<Action>,
@@ -31,13 +32,23 @@ pub struct Transaction {
 
 /// Represents either a delta witness for proving or a delta proof for verification.
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[cfg_attr(feature = "borsh", derive(borsh::BorshSerialize, borsh::BorshDeserialize))]
 pub enum Delta {
     /// The delta witness used for proving the delta proof.
+    #[cfg(feature = "k256")]
     Witness(DeltaWitness),
+    /// The delta witness as raw bytes.
+    #[cfg(not(feature = "k256"))]
+    Witness(Vec<u8>),
     /// The delta proof used for verification.
+    #[cfg(feature = "k256")]
     Proof(DeltaProof),
+    /// The delta proof as raw bytes.
+    #[cfg(not(feature = "k256"))]
+    Proof(Vec<u8>),
 }
 
+#[cfg(feature = "k256")]
 impl Transaction {
     /// Create a new transaction with the given actions and delta.
     /// Delta proof is a deterministic process, no proving key is needed.

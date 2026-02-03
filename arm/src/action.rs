@@ -1,18 +1,21 @@
 //! An action represents a set of compliance units and logic verifiers.
 
+use crate::compliance_unit::ComplianceUnit;
+use crate::logic_instance::LogicVerifierInputs;
+#[cfg(any(feature = "zkvm", feature = "k256"))]
+use crate::error::ArmError;
+#[cfg(feature = "zkvm")]
 use crate::{
-    action_tree::MerkleTree,
-    compliance::ComplianceInstance,
-    compliance_unit::ComplianceUnit,
-    error::ArmError,
-    logic_proof::{LogicVerifier, LogicVerifierInputs},
+    compliance::ComplianceInstance, action_tree::MerkleTree,
+    logic_proof::LogicVerifier, Digest,
 };
+#[cfg(feature = "k256")]
 use k256::ProjectivePoint;
-use risc0_zkvm::Digest;
 use serde::{Deserialize, Serialize};
 
 /// An action consists of compliance units and logic verifier inputs.
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[cfg_attr(feature = "borsh", derive(borsh::BorshSerialize, borsh::BorshDeserialize))]
 pub struct Action {
     /// The compliance units in this action.
     pub compliance_units: Vec<ComplianceUnit>,
@@ -20,6 +23,29 @@ pub struct Action {
     pub logic_verifier_inputs: Vec<LogicVerifierInputs>,
 }
 
+impl Action {
+    /// Returns a reference to the compliance units.
+    pub fn get_compliance_units(&self) -> &Vec<ComplianceUnit> {
+        &self.compliance_units
+    }
+
+    /// Returns a reference to the logic verifier inputs.
+    pub fn get_logic_verifier_inputs(&self) -> &Vec<LogicVerifierInputs> {
+        &self.logic_verifier_inputs
+    }
+
+    /// Constructs the delta message by concatenating the delta messages
+    /// of each compliance unit.
+    pub fn get_delta_msg(&self) -> Vec<u8> {
+        let mut msg = Vec::new();
+        for unit in &self.compliance_units {
+            msg.extend_from_slice(&unit.instance.delta_msg());
+        }
+        msg
+    }
+}
+
+#[cfg(feature = "zkvm")]
 impl Action {
     /// Creates a new Action from compliance units and logic verifiers.
     pub fn new(
@@ -34,16 +60,6 @@ impl Action {
             compliance_units,
             logic_verifier_inputs,
         })
-    }
-
-    /// Returns a reference to the compliance units.
-    pub fn get_compliance_units(&self) -> &Vec<ComplianceUnit> {
-        &self.compliance_units
-    }
-
-    /// Returns a reference to the logic verifier inputs.
-    pub fn get_logic_verifier_inputs(&self) -> &Vec<LogicVerifierInputs> {
-        &self.logic_verifier_inputs
     }
 
     /// Constructs logic verifiers from the action's compliance units and logic verifier inputs.
@@ -109,7 +125,10 @@ impl Action {
 
         Ok(())
     }
+}
 
+#[cfg(feature = "k256")]
+impl Action {
     /// This function computes the delta of the action by summing up the deltas
     /// of each compliance unit.
     pub fn delta(&self) -> Result<ProjectivePoint, ArmError> {
@@ -118,15 +137,5 @@ impl Action {
             .try_fold(ProjectivePoint::IDENTITY, |acc, unit| {
                 Ok(acc + unit.delta()?)
             })
-    }
-
-    /// Constructs the delta message by concatenating the delta messages
-    /// of each compliance unit.
-    pub fn get_delta_msg(&self) -> Vec<u8> {
-        let mut msg = Vec::new();
-        for unit in &self.compliance_units {
-            msg.extend_from_slice(&unit.instance.delta_msg());
-        }
-        msg
     }
 }

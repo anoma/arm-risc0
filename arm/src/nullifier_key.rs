@@ -2,6 +2,7 @@
 
 use crate::error::ArmError;
 use crate::{Digest, DIGEST_BYTES};
+#[cfg(feature = "zkvm")]
 use rand::{rngs::OsRng, Rng};
 #[cfg(feature = "zkvm")]
 use risc0_zkvm::sha::{Impl, Sha256};

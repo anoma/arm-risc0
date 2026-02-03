@@ -3,15 +3,15 @@
 use crate::{
     constants::{PADDING_LOGIC_PK, PADDING_LOGIC_VK},
     error::ArmError,
-    logic_instance::{AppData, LogicInstance},
+    logic_instance::{AppData, LogicInstance, LogicVerifierInputs},
     nullifier_key::{NullifierKey, NullifierKeyCommitment},
     proving_system::{journal_to_instance, verify as verify_proof},
     resource::Resource,
     resource_logic::TrivialLogicWitness,
+    Digest,
 };
 use rand::rngs::OsRng;
 use rand::Rng;
-use risc0_zkvm::sha::Digest;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "prove")]
@@ -57,22 +57,6 @@ pub struct LogicVerifier {
     pub instance: Vec<u8>,
     /// The verifying key for the logic proof.
     pub verifying_key: Digest,
-}
-
-/// Inputs required to create a logic verifier.
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
-pub struct LogicVerifierInputs {
-    /// The tag (either commitment or nullifier) for the logic instance.
-    pub tag: Digest,
-    /// The verifying key for the logic proof.
-    pub verifying_key: Digest,
-    /// The application data associated with the logic instance.
-    pub app_data: AppData,
-    /// The logic proof (optional, would be absent when aggregation is enabled).
-    pub proof: Option<Vec<u8>>,
-    /// The pre-serialized logic instance journal (risc0 serde format).
-    /// Used for batch aggregation journal digest computation on Solana.
-    pub instance_journal: Vec<u8>,
 }
 
 impl LogicVerifier {

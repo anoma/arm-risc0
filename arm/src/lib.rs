@@ -2,11 +2,9 @@
 
 #![deny(missing_docs)]
 
-// When zkvm is enabled, use risc0's Digest for compatibility with risc0 APIs
 #[cfg(feature = "zkvm")]
 pub use risc0_zkvm::sha::{Digest, DIGEST_BYTES, DIGEST_WORDS};
 
-// When zkvm is disabled (solana feature), use standalone Digest
 #[cfg(not(feature = "zkvm"))]
 mod digest;
 #[cfg(not(feature = "zkvm"))]
@@ -22,32 +20,25 @@ pub mod aggregation;
 pub mod compliance;
 #[cfg(feature = "transaction")]
 pub mod compliance_unit;
-#[cfg(feature = "transaction")]
 pub mod constants;
-#[cfg(feature = "transaction")]
+#[cfg(all(feature = "transaction", feature = "k256"))]
 pub mod delta_proof;
 pub mod error;
 #[cfg(feature = "aggregation_circuit")]
 pub mod hash;
 pub mod logic_instance;
-#[cfg(feature = "transaction")]
+#[cfg(all(feature = "transaction", feature = "zkvm"))]
 pub mod logic_proof;
 pub mod merkle_path;
 pub mod nullifier_key;
-#[cfg(feature = "transaction")]
+#[cfg(all(feature = "transaction", feature = "zkvm"))]
 pub mod proving_system;
 #[cfg(feature = "zkvm")]
 pub mod resource;
 #[cfg(feature = "zkvm")]
 pub mod resource_logic;
-#[cfg(feature = "solana")]
-pub mod solana_constants;
-// solana_delta uses the standalone Digest (to_bytes()), not risc0's Digest.
-// Gate on not(zkvm) so it only compiles for on-chain builds.
 #[cfg(all(feature = "solana", not(feature = "zkvm")))]
 pub mod solana_delta;
-#[cfg(feature = "solana")]
-pub mod solana_transaction;
 #[cfg(feature = "transaction")]
 pub mod transaction;
 pub mod utils;

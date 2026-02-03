@@ -9,7 +9,6 @@ repository = { workspace = true }
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-# risc0-zkvm is optional - not available when building for Solana
 risc0-zkvm = { version = "3.0.3", features = [
   "std",
   "unstable",
@@ -34,38 +33,22 @@ bytemuck = { version = "1.12", features = ["derive"] }
 thiserror = "2.0.6"
 borsh = { version = "1.5", default-features = false, features = ["derive"], optional = true }
 lazy_static = { version = "1.4", optional = true }
-hex-literal = { version = "0.4", optional = true }
+hex-literal = "0.4"
 
-# Solana on-chain delta verification (replaces k256 which exceeds SBF stack limits)
 solana-program = { version = "2.1", optional = true }
 solana-secp256k1 = { version = "0.1", optional = true }
 dashu = { version = "0.4", optional = true }
 
 [features]
-default = ["transaction", "prove", "evm"]
-
-# Backend-specific features
-evm = ["dep:sha3"]
-
-# Borsh serialization for types (used by guest circuits and Solana)
-borsh = ["dep:borsh"]
-
-# Solana: borsh serialization + sha2 for delta proof hashing, no risc0-zkvm or k256
-# Uses solana-secp256k1 for delta verification (k256 exceeds SBF stack frame limits)
-solana = ["borsh", "dep:sha2", "dep:hex-literal", "compliance_circuit", "dep:solana-program", "dep:solana-secp256k1", "dep:dashu"]
-
-# Transaction processing features
-transaction = ["zkvm", "compliance_circuit", "dep:k256"]
+default = ["transaction", "prove", "k256"]
+k256 = ["dep:k256"]
+transaction = ["compliance_circuit", "dep:sha3"]
 compliance_circuit = []
-
-# zkvm implies lazy_static for constants
 zkvm = ["dep:risc0-zkvm", "dep:lazy_static"]
-
-# Proving features (require zkvm)
+borsh = ["dep:borsh"]
+solana = ["transaction", "borsh", "dep:sha2", "dep:solana-program", "dep:solana-secp256k1", "dep:dashu"]
 prove = ["zkvm", "risc0-zkvm/prove"]
 bonsai = ["zkvm", "risc0-zkvm/bonsai"]
 cuda = ["zkvm", "risc0-zkvm/cuda"]
-
-# Aggregation features
 aggregation = ["aggregation_circuit", "transaction"]
 aggregation_circuit = []
