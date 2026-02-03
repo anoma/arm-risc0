@@ -13,7 +13,7 @@ lazy_static::lazy_static! {
     pub static ref SEQUENTIAL_AGGREGATION_VK: crate::Digest =
         crate::Digest::new(bytemuck::cast(SEQUENTIAL_AGGREGATION_VK_BYTES));
 
-    /// Batch aggregation verification key / Batch aggregation image id (Borsh-serializing circuit).
+    /// Batch aggregation verification key / Batch aggregation image id.
     pub static ref BATCH_AGGREGATION_VK: crate::Digest =
         crate::Digest::new(bytemuck::cast(BATCH_AGGREGATION_VK_BYTES));
 }
