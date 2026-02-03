@@ -34,7 +34,6 @@ name = "anoma-rm-risc0"
 version = "1.0.0"
 dependencies = [
  "bincode",
- "borsh",
  "bytemuck",
  "hex",
  "k256",
@@ -450,8 +449,6 @@ name = "compliance-guest"
 version = "1.0.0"
 dependencies = [
  "anoma-rm-risc0",
- "bincode",
- "borsh",
  "risc0-zkvm",
 ]
 
