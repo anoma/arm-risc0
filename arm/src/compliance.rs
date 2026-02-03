@@ -4,10 +4,12 @@
 const COMPLIANCE_INSTANCE_SIZE: usize = 56;
 
 use crate::error::ArmError;
-use crate::utils::{bytes_to_words, words_to_bytes};
 use crate::Digest;
 #[cfg(feature = "borsh")]
 use borsh::{BorshDeserialize, BorshSerialize};
+#[cfg(feature = "transaction")]
+use crate::utils::{bytes_to_words, words_to_bytes};
+#[cfg(feature = "transaction")]
 use k256::{
     elliptic_curve::sec1::{FromEncodedPoint, ToEncodedPoint},
     EncodedPoint, ProjectivePoint,
@@ -274,6 +276,7 @@ impl Default for ComplianceWitness {
 
 impl ComplianceInstance {
     /// Converts the delta commitment from affine coordinates to a ProjectivePoint.
+    #[cfg(feature = "transaction")]
     pub fn delta_projective(&self) -> Result<ProjectivePoint, ArmError> {
         let encoded_point = EncodedPoint::from_affine_coordinates(
             words_to_bytes(&self.delta_x).into(),

@@ -42,6 +42,10 @@ pub mod resource;
 pub mod resource_logic;
 #[cfg(feature = "solana")]
 pub mod solana_constants;
+// solana_delta uses the standalone Digest (to_bytes()), not risc0's Digest.
+// Gate on not(zkvm) so it only compiles for on-chain builds.
+#[cfg(all(feature = "solana", not(feature = "zkvm")))]
+pub mod solana_delta;
 #[cfg(feature = "solana")]
 pub mod solana_transaction;
 #[cfg(feature = "transaction")]

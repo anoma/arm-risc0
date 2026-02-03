@@ -9,7 +9,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::ArmError;
 
-// Conditionally use SHA-256 for Solana, Keccak-256 for EVM
+// Solana uses SHA-256 for delta proof hashing; EVM uses Keccak-256.
+// These features are mutually exclusive — enabling both is a compile error.
 #[cfg(feature = "solana")]
 use sha2::{Digest, Sha256 as HashFunction};
 
