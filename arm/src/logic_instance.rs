@@ -68,10 +68,10 @@ impl LogicInstance {
     pub fn to_journal(&self) -> Result<Vec<u8>, crate::error::ArmError> {
         use crate::utils::words_to_bytes;
         use risc0_zkvm::serde::to_vec;
-        Ok(
-            words_to_bytes(&to_vec(&self).map_err(|_| crate::error::ArmError::InstanceSerializationFailed)?)
-                .to_vec(),
+        Ok(words_to_bytes(
+            &to_vec(&self).map_err(|_| crate::error::ArmError::InstanceSerializationFailed)?,
         )
+        .to_vec())
     }
 
     /// Serializes the instance to a journal format (borsh).

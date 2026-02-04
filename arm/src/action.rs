@@ -15,7 +15,10 @@ use serde::{Deserialize, Serialize};
 
 /// An action consists of compliance units and logic verifier inputs.
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
-#[cfg_attr(feature = "borsh", derive(borsh::BorshSerialize, borsh::BorshDeserialize))]
+#[cfg_attr(
+    feature = "borsh",
+    derive(borsh::BorshSerialize, borsh::BorshDeserialize)
+)]
 pub struct Action {
     /// The compliance units in this action.
     pub compliance_units: Vec<ComplianceUnit>,

@@ -52,3 +52,6 @@ bonsai = ["zkvm", "risc0-zkvm/bonsai"]
 cuda = ["zkvm", "risc0-zkvm/cuda"]
 aggregation = ["aggregation_circuit", "transaction"]
 aggregation_circuit = []
+
+[dev-dependencies]
+k256 = { version = "=0.13.3", features = ["arithmetic", "ecdsa", "std"], default-features = false }

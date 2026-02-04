@@ -46,7 +46,10 @@ fn words_to_bytes(words: &[u32; 8]) -> [u8; 32] {
 /// All compliance units must provide valid secp256k1 curve points. The point (0, 0)
 /// is NOT on the curve and will error - the identity point (point at infinity) has
 /// no valid affine representation.
-fn parse_delta_point(x_words: &[u32; 8], y_words: &[u32; 8]) -> Result<UncompressedPoint, ArmError> {
+fn parse_delta_point(
+    x_words: &[u32; 8],
+    y_words: &[u32; 8],
+) -> Result<UncompressedPoint, ArmError> {
     let x_bytes = words_to_bytes(x_words);
     let y_bytes = words_to_bytes(y_words);
 
@@ -188,4 +191,73 @@ pub fn verify_delta_proof(tx: &Transaction) -> Result<(), ArmError> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::action::Action;
+    use crate::compliance::ComplianceInstance;
+    use crate::compliance_unit::ComplianceUnit;
+    use crate::Digest;
+    use k256::ecdsa::SigningKey;
+    use k256::elliptic_curve::rand_core::OsRng;
+
+    /// Build a Transaction with a single compliance unit whose delta point
+    /// matches `signing_key`'s public key, signed by that key.
+    fn make_signed_transaction(signing_key: &SigningKey) -> Transaction {
+        let vk = k256::ecdsa::VerifyingKey::from(signing_key);
+        let encoded = vk.to_encoded_point(false);
+        let x_bytes: [u8; 32] = encoded.x().unwrap().as_slice().try_into().unwrap();
+        let y_bytes: [u8; 32] = encoded.y().unwrap().as_slice().try_into().unwrap();
+
+        let delta_x: [u32; 8] = bytemuck::cast(x_bytes);
+        let delta_y: [u32; 8] = bytemuck::cast(y_bytes);
+
+        let instance = ComplianceInstance {
+            consumed_nullifier: Digest::default(),
+            consumed_logic_ref: Digest::default(),
+            consumed_commitment_tree_root: Digest::default(),
+            created_commitment: Digest::default(),
+            created_logic_ref: Digest::default(),
+            delta_x,
+            delta_y,
+        };
+
+        let cu = ComplianceUnit {
+            proof: None,
+            instance,
+        };
+
+        let action = Action {
+            compliance_units: vec![cu],
+            logic_verifier_inputs: vec![],
+        };
+
+        // Compute the message hash (same path as verify_delta_proof)
+        let nf_bytes = Digest::default().to_bytes();
+        let cm_bytes = Digest::default().to_bytes();
+        let msg_hash = compute_verifying_key(&[nf_bytes, cm_bytes]);
+
+        // Sign the message hash with k256
+        let (sig, recid) = signing_key.sign_prehash_recoverable(&msg_hash).unwrap();
+
+        let mut proof_bytes = Vec::with_capacity(65);
+        proof_bytes.extend_from_slice(&sig.to_bytes());
+        proof_bytes.push(recid.to_byte());
+
+        Transaction {
+            actions: vec![action],
+            delta_proof: Delta::Proof(proof_bytes),
+            expected_balance: None,
+            aggregation_proof: None,
+        }
+    }
+
+    #[test]
+    fn test_delta_proof() {
+        let signing_key = SigningKey::random(&mut OsRng);
+        let tx = make_signed_transaction(&signing_key);
+        verify_delta_proof(&tx).unwrap();
+    }
 }

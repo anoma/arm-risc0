@@ -3,7 +3,7 @@
 use crate::{
     constants::{PADDING_LOGIC_PK, PADDING_LOGIC_VK},
     error::ArmError,
-    logic_instance::{AppData, LogicInstance, LogicVerifierInputs},
+    logic_instance::{LogicInstance, LogicVerifierInputs},
     nullifier_key::{NullifierKey, NullifierKeyCommitment},
     proving_system::{journal_to_instance, verify as verify_proof},
     resource::Resource,

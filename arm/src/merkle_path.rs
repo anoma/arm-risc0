@@ -1,8 +1,8 @@
 //! A Merkle path from a leaf to a root in a commitment/action tree.
 
+use crate::constants::EMPTY_HASH_WORDS;
 #[cfg(feature = "zkvm")]
 use crate::utils::hash_two;
-use crate::constants::EMPTY_HASH_WORDS;
 use crate::Digest;
 use serde::{Deserialize, Serialize};
 

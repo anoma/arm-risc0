@@ -3,8 +3,7 @@
 /// The hash of an empty string, used as the initial Merkle tree root and padding leaf.
 /// Hex: cc1d2f838445db7aec431df9ee8a871f40e7aa5e064fc056633ef8c60fab7b06
 pub const EMPTY_HASH_WORDS: [u32; 8] = [
-    0x832f1dcc, 0x7adb4584, 0xf91d43ec, 0x1f878aee,
-    0x5eaae740, 0x56c04f06, 0xc6f83e63, 0x067bab0f,
+    0x832f1dcc, 0x7adb4584, 0xf91d43ec, 0x1f878aee, 0x5eaae740, 0x56c04f06, 0xc6f83e63, 0x067bab0f,
 ];
 
 /// Compliance verification key bytes (default circuit, risc0 serde).
