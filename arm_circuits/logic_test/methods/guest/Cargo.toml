@@ -11,6 +11,10 @@ risc0-zkvm = { version = "=3.0.3", features = ["std", "unstable"] }
 anoma-rm-risc0 = { version = "1.0.0", default-features = false }
 anoma-rm-risc0-test-witness = { version = "1.0.0" }
 
+[features]
+default = []
+evm = ["anoma-rm-risc0/evm"]
+
 [patch.crates-io]
 # Placing this patch statement in the workspace Cargo.toml will add RISC Zero SHA-256 accelerator
 # support for all downstream usages of the `sha2` crate.

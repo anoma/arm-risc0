@@ -6,5 +6,11 @@ fn main() {
 
     let instance = witness.constrain().unwrap();
 
+    #[cfg(feature = "evm")]
+    {
+        env::commit_slice(&instance.abi_encode());
+    }
+
+    #[cfg(not(feature = "evm"))]
     env::commit(&instance);
 }

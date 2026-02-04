@@ -8,6 +8,11 @@ pub fn main() {
 
     let compliance_instance = compliance_witness.constrain().unwrap();
 
+    #[cfg(feature = "evm")]
+    {
+        env::commit_slice(&compliance_instance.abi_encode());
+    }
+
     #[cfg(feature = "bin")]
     {
         let compliance_instance_bytes = bincode::serialize(&compliance_instance).unwrap();
@@ -20,6 +25,6 @@ pub fn main() {
         env::commit_slice(&compliance_instance_bytes);
     }
 
-    #[cfg(not(any(feature = "bin", feature = "borsh")))]
+    #[cfg(not(any(feature = "bin", feature = "borsh", feature = "evm")))]
     env::commit(&compliance_instance);
 }

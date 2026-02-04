@@ -78,6 +78,27 @@ impl LogicInstance {
     pub fn to_journal(&self) -> Result<Vec<u8>, crate::error::ArmError> {
         borsh::to_vec(&self).map_err(|_| crate::error::ArmError::InstanceSerializationFailed)
     }
+
+    /// ABI-encodes the instance as a Solidity struct.
+    ///
+    /// ```solidity
+    /// struct LogicInstance {
+    ///     bytes32 tag;
+    ///     bool isConsumed;
+    ///     bytes32 root;
+    ///     AppData appData;
+    /// }
+    /// ```
+    #[cfg(feature = "evm")]
+    pub fn abi_encode(&self) -> Vec<u8> {
+        use crate::abi::{encode_bool, encode_bytes32, encode_tuple, AbiToken};
+        encode_tuple(&[
+            AbiToken::Word(encode_bytes32(self.tag.as_bytes())),
+            AbiToken::Word(encode_bool(self.is_consumed)),
+            AbiToken::Word(encode_bytes32(self.root.as_bytes())),
+            AbiToken::Dynamic(self.app_data.abi_encode()),
+        ])
+    }
 }
 
 impl AppData {
@@ -109,5 +130,55 @@ impl AppData {
     /// Adds an application payload blob with its deletion criterion.
     pub fn add_application_payload(&mut self, blob: ExpirableBlob) {
         self.application_payload.push(blob);
+    }
+
+    /// ABI-encodes the application data as a Solidity struct.
+    ///
+    /// ```solidity
+    /// struct AppData {
+    ///     ExpirableBlob[] resourcePayload;
+    ///     ExpirableBlob[] discoveryPayload;
+    ///     ExpirableBlob[] externalPayload;
+    ///     ExpirableBlob[] applicationPayload;
+    /// }
+    /// ```
+    #[cfg(feature = "evm")]
+    pub fn abi_encode(&self) -> Vec<u8> {
+        use crate::abi::{encode_dynamic_array, encode_tuple, AbiToken};
+
+        let encode_blob_array = |blobs: &[ExpirableBlob]| -> Vec<u8> {
+            let encoded: Vec<Vec<u8>> = blobs.iter().map(|b| b.abi_encode()).collect();
+            encode_dynamic_array(&encoded)
+        };
+
+        encode_tuple(&[
+            AbiToken::Dynamic(encode_blob_array(&self.resource_payload)),
+            AbiToken::Dynamic(encode_blob_array(&self.discovery_payload)),
+            AbiToken::Dynamic(encode_blob_array(&self.external_payload)),
+            AbiToken::Dynamic(encode_blob_array(&self.application_payload)),
+        ])
+    }
+}
+
+impl ExpirableBlob {
+    /// ABI-encodes the expirable blob as a Solidity struct.
+    ///
+    /// ```solidity
+    /// struct ExpirableBlob {
+    ///     uint32[] blob;
+    ///     uint32 deletionCriterion;
+    /// }
+    /// ```
+    #[cfg(feature = "evm")]
+    pub fn abi_encode(&self) -> Vec<u8> {
+        use crate::abi::{encode_static_array, encode_tuple, encode_uint32, AbiToken};
+
+        let blob_items: Vec<[u8; 32]> = self.blob.iter().map(|&w| encode_uint32(w)).collect();
+        let blob_encoded = encode_static_array(&blob_items);
+
+        encode_tuple(&[
+            AbiToken::Dynamic(blob_encoded),
+            AbiToken::Word(encode_uint32(self.deletion_criterion)),
+        ])
     }
 }

@@ -59,6 +59,7 @@ bonsai = ["zkvm", "risc0-zkvm/bonsai"]
 cuda = ["zkvm", "risc0-zkvm/cuda"]
 aggregation = ["aggregation_circuit", "transaction"]
 aggregation_circuit = []
+evm = []
 
 [dev-dependencies]
 k256 = { version = "=0.13.3", features = [
@@ -66,3 +67,5 @@ k256 = { version = "=0.13.3", features = [
   "ecdsa",
   "std",
 ], default-features = false }
+alloy-sol-types = "1.5"
+alloy-primitives = "1.5"

@@ -4,6 +4,7 @@
 const COMPLIANCE_INSTANCE_SIZE: usize = 56;
 
 use crate::constants::EMPTY_HASH_WORDS;
+#[cfg(any(feature = "k256", feature = "zkvm", feature = "solana"))]
 use crate::error::ArmError;
 #[cfg(any(feature = "k256", feature = "zkvm"))]
 use crate::utils::{bytes_to_words, words_to_bytes};
@@ -65,6 +66,17 @@ pub struct ComplianceInstanceWords {
     pub u32_words: [u32; COMPLIANCE_INSTANCE_SIZE],
 }
 
+impl ComplianceInstanceWords {
+    /// ABI-encodes the instance words as 7 consecutive `bytes32` fields (224 bytes).
+    ///
+    /// The 56 u32 words are reinterpreted as 7 groups of 8 words (32 bytes each),
+    /// matching the [`ComplianceInstance`] ABI layout.
+    #[cfg(feature = "evm")]
+    pub fn abi_encode(&self) -> Vec<u8> {
+        bytemuck::cast_slice::<u32, u8>(&self.u32_words).to_vec()
+    }
+}
+
 impl ComplianceInstance {
     /// Converts the delta commitment from affine coordinates to a ProjectivePoint.
     #[cfg(feature = "k256")]
@@ -100,6 +112,32 @@ impl ComplianceInstance {
     #[cfg(all(feature = "solana", not(feature = "zkvm")))]
     pub fn to_journal(&self) -> Result<Vec<u8>, ArmError> {
         borsh::to_vec(&self).map_err(|_| ArmError::InstanceSerializationFailed)
+    }
+
+    /// ABI-encodes the instance as a Solidity struct with 7 `bytes32` fields.
+    ///
+    /// ```solidity
+    /// struct ComplianceInstance {
+    ///     bytes32 consumedNullifier;
+    ///     bytes32 consumedLogicRef;
+    ///     bytes32 consumedCommitmentTreeRoot;
+    ///     bytes32 createdCommitment;
+    ///     bytes32 createdLogicRef;
+    ///     bytes32 deltaX;
+    ///     bytes32 deltaY;
+    /// }
+    /// ```
+    #[cfg(feature = "evm")]
+    pub fn abi_encode(&self) -> Vec<u8> {
+        let mut buf = Vec::with_capacity(224);
+        buf.extend_from_slice(self.consumed_nullifier.as_bytes());
+        buf.extend_from_slice(self.consumed_logic_ref.as_bytes());
+        buf.extend_from_slice(self.consumed_commitment_tree_root.as_bytes());
+        buf.extend_from_slice(self.created_commitment.as_bytes());
+        buf.extend_from_slice(self.created_logic_ref.as_bytes());
+        buf.extend_from_slice(bytemuck::bytes_of(&self.delta_x));
+        buf.extend_from_slice(bytemuck::bytes_of(&self.delta_y));
+        buf
     }
 }
 
