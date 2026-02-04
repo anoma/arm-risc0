@@ -1,7 +1,13 @@
 //! Compliance unit module containing the compliance proof and instance.
 
-use crate::{compliance::ComplianceInstance, error::ArmError};
+use crate::compliance::ComplianceInstance;
 use serde::{Deserialize, Serialize};
+
+#[cfg(feature = "borsh")]
+use borsh::{BorshDeserialize, BorshSerialize};
+
+#[cfg(any(feature = "zkvm", feature = "k256"))]
+use crate::error::ArmError;
 
 #[cfg(feature = "zkvm")]
 use crate::{
@@ -19,6 +25,7 @@ use crate::{
 /// A compliance unit consists of a compliance proof and its corresponding instance.
 /// The vk is a constant in the compliance unit, so we don't place it here.
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[cfg_attr(feature = "borsh", derive(BorshSerialize, BorshDeserialize))]
 pub struct ComplianceUnit {
     /// The compliance proof (optional, would be absent when aggregation is enabled).
     pub proof: Option<Vec<u8>>,

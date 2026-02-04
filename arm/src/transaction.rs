@@ -1,8 +1,10 @@
 //! Transaction structure and associated methods.
 
+use crate::action::Action;
 #[cfg(feature = "k256")]
 use crate::delta_proof::{DeltaInstance, DeltaProof, DeltaWitness};
-use crate::{action::Action, error::ArmError};
+#[cfg(any(feature = "k256", feature = "aggregation"))]
+use crate::error::ArmError;
 #[cfg(feature = "aggregation")]
 use crate::{
     aggregation::{
@@ -16,6 +18,10 @@ use serde::{Deserialize, Serialize};
 /// Represents a transaction consisting of actions, delta proof, expected balance,
 /// and optional aggregation proof.
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[cfg_attr(
+    feature = "borsh",
+    derive(borsh::BorshSerialize, borsh::BorshDeserialize)
+)]
 pub struct Transaction {
     /// The actions included in the transaction.
     pub actions: Vec<Action>,
@@ -28,27 +34,31 @@ pub struct Transaction {
 }
 
 /// Represents either a delta witness for proving or a delta proof for verification.
-#[cfg(feature = "k256")]
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[cfg_attr(
+    feature = "borsh",
+    derive(borsh::BorshSerialize, borsh::BorshDeserialize)
+)]
 pub enum Delta {
     /// The delta witness used for proving the delta proof.
+    #[cfg(feature = "k256")]
     Witness(DeltaWitness),
-    /// The delta proof used for verification.
-    Proof(DeltaProof),
-}
-
-/// Represents either a delta witness or proof as opaque bytes (without k256).
-#[cfg(not(feature = "k256"))]
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
-pub enum Delta {
-    /// The delta witness as opaque bytes.
+    /// The delta witness as raw bytes.
+    #[cfg(not(feature = "k256"))]
     Witness(Vec<u8>),
-    /// The delta proof as opaque bytes.
+    /// The delta proof used for verification.
+    #[cfg(feature = "k256")]
+    Proof(DeltaProof),
+    /// The delta proof as raw bytes.
+    #[cfg(not(feature = "k256"))]
     Proof(Vec<u8>),
 }
 
+#[cfg(feature = "k256")]
 impl Transaction {
     /// Create a new transaction with the given actions and delta.
+    /// Delta proof is a deterministic process, no proving key is needed.
+    /// Delta instance can be constructed from the actions.
     pub fn create(actions: Vec<Action>, delta: Delta) -> Self {
         Transaction {
             actions,
@@ -58,32 +68,6 @@ impl Transaction {
         }
     }
 
-    /// Constructs the delta message by concatenating the delta messages
-    /// of each action.
-    pub fn get_delta_msg(&self) -> Vec<u8> {
-        let mut msg = Vec::new();
-        for action in &self.actions {
-            msg.extend(action.get_delta_msg());
-        }
-        msg
-    }
-
-    /// Inner check for nullifier duplication across all compliance units
-    pub fn nf_duplication_check(&self) -> Result<(), ArmError> {
-        let mut seen_nullifiers = std::collections::HashSet::new();
-        for action in &self.actions {
-            for cu in action.get_compliance_units() {
-                if !seen_nullifiers.insert(cu.instance.consumed_nullifier) {
-                    return Err(ArmError::NullifierDuplication);
-                }
-            }
-        }
-        Ok(())
-    }
-}
-
-#[cfg(feature = "k256")]
-impl Transaction {
     /// Generates the delta proof for the transaction if it contains a delta witness.
     pub fn generate_delta_proof(self) -> Result<Transaction, ArmError> {
         match self.delta_proof {
@@ -133,6 +117,19 @@ impl Transaction {
         }
     }
 
+    /// Inner check for nullifier duplication across all compliance units
+    pub fn nf_duplication_check(&self) -> Result<(), ArmError> {
+        let mut seen_nullifiers = std::collections::HashSet::new();
+        for action in &self.actions {
+            for cu in action.get_compliance_units() {
+                if !seen_nullifiers.insert(cu.instance.consumed_nullifier) {
+                    return Err(ArmError::NullifierDuplication);
+                }
+            }
+        }
+        Ok(())
+    }
+
     /// Returns the DeltaInstance constructed from the sum of all actions' deltas.
     pub fn delta(&self) -> Result<DeltaInstance, ArmError> {
         let mut points = Vec::with_capacity(self.actions.len());
@@ -140,6 +137,16 @@ impl Transaction {
             points.push(action.delta()?);
         }
         DeltaInstance::from_deltas(&points)
+    }
+
+    /// Constructs the delta message by concatenating the delta messages
+    /// of each action.
+    pub fn get_delta_msg(&self) -> Vec<u8> {
+        let mut msg = Vec::new();
+        for action in &self.actions {
+            msg.extend(action.get_delta_msg());
+        }
+        msg
     }
 
     /// Composes two transactions by concatenating their actions and combining their delta witnesses.

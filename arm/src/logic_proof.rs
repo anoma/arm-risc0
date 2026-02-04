@@ -8,10 +8,10 @@ use crate::{
     proving_system::{journal_to_instance, verify as verify_proof},
     resource::Resource,
     resource_logic::TrivialLogicWitness,
+    Digest,
 };
 use rand::rngs::OsRng;
 use rand::Rng;
-use risc0_zkvm::sha::Digest;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "prove")]
@@ -86,11 +86,23 @@ impl LogicVerifierInputs {
         root: Digest,
     ) -> Result<LogicVerifier, ArmError> {
         let instance = self.to_instance(is_consumed, root);
+        let instance_bytes = instance.to_journal()?;
+
         Ok(LogicVerifier {
             proof: self.proof,
-            instance: instance.to_journal()?,
+            instance: instance_bytes,
             verifying_key: self.verifying_key,
         })
+    }
+
+    /// Converts the LogicVerifierInputs into a LogicInstance.
+    fn to_instance(&self, is_consumed: bool, root: Digest) -> LogicInstance {
+        LogicInstance {
+            tag: self.tag,
+            is_consumed,
+            root,
+            app_data: self.app_data.clone(),
+        }
     }
 }
 
@@ -104,6 +116,7 @@ impl TryFrom<LogicVerifier> for LogicVerifierInputs {
             verifying_key: logic_proof.verifying_key,
             app_data: instance.app_data,
             proof: logic_proof.proof,
+            instance_journal: logic_proof.instance,
         })
     }
 }

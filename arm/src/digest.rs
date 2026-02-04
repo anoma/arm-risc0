@@ -1,23 +1,37 @@
-//! Standalone Digest type, wire-compatible with `risc0_zkvm::sha::Digest`.
+//! Standalone Digest type for builds without risc0-zkvm.
 
+#[cfg(feature = "borsh")]
+use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
 
-/// Number of bytes in a digest.
-pub const DIGEST_BYTES: usize = 32;
-/// Number of u32 words in a digest.
+/// Number of 32-bit words in a Digest.
 pub const DIGEST_WORDS: usize = 8;
 
-/// A SHA-256 digest represented as 8 little-endian u32 words.
+/// Number of bytes in a Digest.
+pub const DIGEST_BYTES: usize = 32;
+
+/// A 32-byte digest represented as 8 little-endian u32 words.
 ///
-/// This type is wire-compatible with `risc0_zkvm::sha::Digest`:
-/// both store `[u32; 8]` and expose bytes via `bytemuck::cast_slice`.
+/// This is compatible with risc0_zkvm::sha::Digest's internal representation.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct Digest([u32; DIGEST_WORDS]);
+#[cfg_attr(feature = "borsh", derive(BorshSerialize, BorshDeserialize))]
+pub struct Digest(pub [u32; DIGEST_WORDS]);
 
 impl Digest {
     /// Creates a new Digest from u32 words.
     pub const fn new(words: [u32; DIGEST_WORDS]) -> Self {
         Digest(words)
+    }
+
+    /// Create a Digest from 32 bytes.
+    pub fn from_bytes(bytes: [u8; DIGEST_BYTES]) -> Self {
+        let words: [u32; DIGEST_WORDS] = bytemuck::cast(bytes);
+        Digest(words)
+    }
+
+    /// Convert to 32 bytes.
+    pub fn to_bytes(&self) -> [u8; DIGEST_BYTES] {
+        bytemuck::cast(self.0)
     }
 
     /// Returns the digest as a slice of u32 words.
@@ -27,7 +41,18 @@ impl Digest {
 
     /// Returns the digest as a byte slice.
     pub fn as_bytes(&self) -> &[u8] {
-        bytemuck::cast_slice(&self.0)
+        bytemuck::bytes_of(&self.0)
+    }
+
+    /// Create a Digest from a hex string.
+    pub fn from_hex(hex: &str) -> Result<Self, hex::FromHexError> {
+        let bytes = hex::decode(hex)?;
+        if bytes.len() != DIGEST_BYTES {
+            return Err(hex::FromHexError::InvalidStringLength);
+        }
+        let mut arr = [0u8; DIGEST_BYTES];
+        arr.copy_from_slice(&bytes);
+        Ok(Self::from_bytes(arr))
     }
 }
 
@@ -38,25 +63,11 @@ impl AsRef<[u8]> for Digest {
 }
 
 impl TryFrom<&[u8]> for Digest {
-    type Error = &'static str;
+    type Error = core::array::TryFromSliceError;
 
     fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
-        if bytes.len() != DIGEST_BYTES {
-            return Err("Invalid byte length for Digest");
-        }
-        Ok(Digest(*bytemuck::from_bytes(bytes)))
-    }
-}
-
-impl hex::FromHex for Digest {
-    type Error = hex::FromHexError;
-
-    fn from_hex<T: AsRef<[u8]>>(hex: T) -> Result<Self, Self::Error> {
-        let bytes = hex::decode(hex)?;
-        if bytes.len() != DIGEST_BYTES {
-            return Err(hex::FromHexError::InvalidStringLength);
-        }
-        Ok(Digest(*bytemuck::from_bytes(&bytes)))
+        let arr: [u8; DIGEST_BYTES] = bytes.try_into()?;
+        Ok(Self::from_bytes(arr))
     }
 }
 
@@ -67,16 +78,16 @@ mod tests {
     #[test]
     fn test_digest_roundtrip_bytes() {
         let hex_str = "cc1d2f838445db7aec431df9ee8a871f40e7aa5e064fc056633ef8c60fab7b06";
-        let digest = <Digest as hex::FromHex>::from_hex(hex_str).unwrap();
-        let bytes = digest.as_bytes();
-        let digest2 = Digest::try_from(bytes).unwrap();
+        let digest = Digest::from_hex(hex_str).unwrap();
+        let bytes = digest.to_bytes();
+        let digest2 = Digest::from_bytes(bytes);
         assert_eq!(digest, digest2);
     }
 
     #[test]
     fn test_digest_from_hex_nonzero() {
         let hex_str = "cc1d2f838445db7aec431df9ee8a871f40e7aa5e064fc056633ef8c60fab7b06";
-        let digest = <Digest as hex::FromHex>::from_hex(hex_str).unwrap();
+        let digest = Digest::from_hex(hex_str).unwrap();
         assert_ne!(digest, Digest::default());
     }
 
@@ -101,9 +112,9 @@ mod tests {
         ];
         let digest = Digest::new(words);
         assert_eq!(digest.as_words(), &words);
-        let bytes = digest.as_bytes();
+        let bytes = digest.to_bytes();
         assert_eq!(bytes.len(), DIGEST_BYTES);
-        let roundtrip = Digest::try_from(bytes).unwrap();
+        let roundtrip = Digest::from_bytes(bytes);
         assert_eq!(roundtrip, digest);
     }
 }

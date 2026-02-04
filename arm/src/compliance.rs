@@ -3,31 +3,40 @@
 /// Size hard-coded to two resources per unit
 const COMPLIANCE_INSTANCE_SIZE: usize = 56;
 
-use crate::{constants::EMPTY_HASH_BYTES, error::ArmError, Digest};
+use crate::constants::EMPTY_HASH_WORDS;
+use crate::error::ArmError;
+#[cfg(any(feature = "k256", feature = "zkvm"))]
+use crate::utils::{bytes_to_words, words_to_bytes};
+use crate::Digest;
+#[cfg(feature = "zkvm")]
+use crate::{merkle_path::MerklePath, nullifier_key::NullifierKey, resource::Resource};
+
+#[cfg(feature = "borsh")]
+use borsh::{BorshDeserialize, BorshSerialize};
+#[cfg(feature = "k256")]
+use k256::{
+    elliptic_curve::sec1::{FromEncodedPoint, ToEncodedPoint},
+    EncodedPoint, ProjectivePoint,
+};
+#[cfg(feature = "zkvm")]
+use k256::{
+    elliptic_curve::{Field, PrimeField},
+    Scalar,
+};
+#[cfg(feature = "zkvm")]
+use rand::rngs::OsRng;
+#[cfg(feature = "zkvm")]
+use risc0_zkvm::serde::to_vec;
 use serde_with::serde_as;
 
-#[cfg(feature = "zkvm")]
-use crate::utils::bytes_to_words;
-#[cfg(all(feature = "zkvm", feature = "k256"))]
-use crate::{merkle_path::MerklePath, nullifier_key::NullifierKey, resource::Resource};
-#[cfg(all(feature = "zkvm", feature = "k256"))]
-use k256::{
-    elliptic_curve::{
-        sec1::{FromEncodedPoint, ToEncodedPoint},
-        Field, PrimeField,
-    },
-    EncodedPoint, ProjectivePoint, Scalar,
-};
-#[cfg(all(feature = "zkvm", feature = "k256"))]
-use rand::rngs::OsRng;
-
-/// Returns the initial root of the empty commitment tree.
+/// Returns the initial root of the empty commitment tree (hash of an empty string).
 pub fn initial_root() -> Digest {
-    Digest::try_from(EMPTY_HASH_BYTES.as_slice()).unwrap()
+    Digest::new(EMPTY_HASH_WORDS)
 }
 
 /// The compliance instance contains all public inputs to the compliance proof.
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+#[cfg_attr(feature = "borsh", derive(BorshSerialize, BorshDeserialize))]
 pub struct ComplianceInstance {
     /// The nullifier of the consumed resource.
     pub consumed_nullifier: Digest,
@@ -49,6 +58,7 @@ pub struct ComplianceInstance {
 /// serialization(used in the aggregation circuit).
 #[serde_as]
 #[derive(serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "borsh", derive(BorshSerialize, BorshDeserialize))]
 pub struct ComplianceInstanceWords {
     /// The compliance instance as an array of u32 words.
     #[serde_as(as = "[_; COMPLIANCE_INSTANCE_SIZE]")]
@@ -56,21 +66,9 @@ pub struct ComplianceInstanceWords {
 }
 
 impl ComplianceInstance {
-    /// Retrieves the delta message used for signing.
-    pub fn delta_msg(&self) -> Vec<u8> {
-        let mut msg = Vec::new();
-        msg.extend_from_slice(self.consumed_nullifier.as_bytes());
-        msg.extend_from_slice(self.created_commitment.as_bytes());
-        msg
-    }
-}
-
-/// Converts the delta commitment from affine coordinates to a ProjectivePoint.
-#[cfg(feature = "k256")]
-impl ComplianceInstance {
     /// Converts the delta commitment from affine coordinates to a ProjectivePoint.
+    #[cfg(feature = "k256")]
     pub fn delta_projective(&self) -> Result<ProjectivePoint, ArmError> {
-        use crate::utils::words_to_bytes;
         let encoded_point = EncodedPoint::from_affine_coordinates(
             words_to_bytes(&self.delta_x).into(),
             words_to_bytes(&self.delta_y).into(),
@@ -80,22 +78,33 @@ impl ComplianceInstance {
             .into_option()
             .ok_or(ArmError::InvalidDelta)
     }
-}
 
-/// Serializes the compliance instance to journal bytes using risc0 serde.
-#[cfg(feature = "zkvm")]
-impl ComplianceInstance {
-    /// Serializes this instance to journal bytes (risc0 serde format).
+    /// Retrieves the delta message used for signing.
+    pub fn delta_msg(&self) -> Vec<u8> {
+        let mut msg = Vec::new();
+        msg.extend_from_slice(self.consumed_nullifier.as_bytes());
+        msg.extend_from_slice(self.created_commitment.as_bytes());
+        msg
+    }
+
+    /// Serializes the instance to a journal format (zkvm serde).
+    #[cfg(feature = "zkvm")]
     pub fn to_journal(&self) -> Result<Vec<u8>, ArmError> {
-        use crate::utils::words_to_bytes;
-        let words =
-            risc0_zkvm::serde::to_vec(self).map_err(|_| ArmError::InstanceSerializationFailed)?;
-        Ok(words_to_bytes(&words).to_vec())
+        Ok(
+            words_to_bytes(&to_vec(&self).map_err(|_| ArmError::InstanceSerializationFailed)?)
+                .to_vec(),
+        )
+    }
+
+    /// Serializes the instance to a journal format (borsh).
+    #[cfg(all(feature = "solana", not(feature = "zkvm")))]
+    pub fn to_journal(&self) -> Result<Vec<u8>, ArmError> {
+        borsh::to_vec(&self).map_err(|_| ArmError::InstanceSerializationFailed)
     }
 }
 
 /// The compliance witness contains all private inputs to the compliance proof.
-#[cfg(all(feature = "zkvm", feature = "k256"))]
+#[cfg(feature = "zkvm")]
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub struct ComplianceWitness {
     /// The consumed resource
@@ -115,7 +124,7 @@ pub struct ComplianceWitness {
     // pub output_resource_logic_cm_r: [u8; DATA_BYTES],
 }
 
-#[cfg(all(feature = "zkvm", feature = "k256"))]
+#[cfg(feature = "zkvm")]
 impl ComplianceWitness {
     /// Creates a new compliance witness from the given resources and latest
     /// root when consuming an ephemeral resource.
@@ -248,7 +257,7 @@ impl ComplianceWitness {
     }
 }
 
-#[cfg(all(feature = "zkvm", feature = "k256"))]
+#[cfg(feature = "zkvm")]
 impl Default for ComplianceWitness {
     fn default() -> Self {
         let nf_key = NullifierKey::default();

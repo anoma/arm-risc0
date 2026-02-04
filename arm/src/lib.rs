@@ -40,6 +40,8 @@ pub mod proving_system;
 pub mod resource;
 #[cfg(feature = "zkvm")]
 pub mod resource_logic;
+#[cfg(all(feature = "solana", not(feature = "zkvm")))]
+pub mod solana_delta;
 #[cfg(feature = "transaction")]
 pub mod transaction;
 pub mod utils;

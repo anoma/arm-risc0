@@ -1,12 +1,12 @@
 //! A Merkle path from a leaf to a root in a commitment/action tree.
 
-use crate::constants::EMPTY_HASH_BYTES;
+use crate::constants::EMPTY_HASH_WORDS;
 use crate::Digest;
 use serde::{Deserialize, Serialize};
 
 /// Returns the padding leaf digest (hash of the empty string).
 pub fn padding_leaf() -> Digest {
-    Digest::try_from(EMPTY_HASH_BYTES.as_slice()).unwrap()
+    Digest::new(EMPTY_HASH_WORDS)
 }
 
 /// A path from a position in a particular commitment tree to the root of that tree.

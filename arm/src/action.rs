@@ -1,15 +1,20 @@
 //! An action represents a set of compliance units and logic verifiers.
 
-use crate::{
-    compliance_unit::ComplianceUnit, error::ArmError, logic_instance::LogicVerifierInputs, Digest,
-};
+use crate::{compliance_unit::ComplianceUnit, logic_instance::LogicVerifierInputs};
+
+#[cfg(feature = "zkvm")]
+use crate::{error::ArmError, Digest};
 use serde::{Deserialize, Serialize};
+
+#[cfg(feature = "borsh")]
+use borsh::{BorshDeserialize, BorshSerialize};
 
 #[cfg(feature = "zkvm")]
 use crate::{action_tree::MerkleTree, logic_proof::LogicVerifier};
 
 /// An action consists of compliance units and logic verifier inputs.
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[cfg_attr(feature = "borsh", derive(BorshSerialize, BorshDeserialize))]
 pub struct Action {
     /// The compliance units in this action.
     pub compliance_units: Vec<ComplianceUnit>,
