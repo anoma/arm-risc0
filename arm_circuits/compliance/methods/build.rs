@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use risc0_build::GuestOptionsBuilder;
+use std::collections::HashMap;
 
 fn main() {
     let features = if cfg!(feature = "borsh") {
