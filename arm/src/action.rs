@@ -1,15 +1,12 @@
 //! An action represents a set of compliance units and logic verifiers.
 
 use crate::{
-    action_tree::MerkleTree,
-    compliance::ComplianceInstance,
-    compliance_unit::ComplianceUnit,
-    error::ArmError,
-    logic_proof::{LogicVerifier, LogicVerifierInputs},
+    compliance_unit::ComplianceUnit, error::ArmError, logic_instance::LogicVerifierInputs, Digest,
 };
-use k256::ProjectivePoint;
-use risc0_zkvm::Digest;
 use serde::{Deserialize, Serialize};
+
+#[cfg(feature = "zkvm")]
+use crate::{action_tree::MerkleTree, logic_proof::LogicVerifier};
 
 /// An action consists of compliance units and logic verifier inputs.
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -20,6 +17,29 @@ pub struct Action {
     pub logic_verifier_inputs: Vec<LogicVerifierInputs>,
 }
 
+impl Action {
+    /// Returns a reference to the compliance units.
+    pub fn get_compliance_units(&self) -> &Vec<ComplianceUnit> {
+        &self.compliance_units
+    }
+
+    /// Returns a reference to the logic verifier inputs.
+    pub fn get_logic_verifier_inputs(&self) -> &Vec<LogicVerifierInputs> {
+        &self.logic_verifier_inputs
+    }
+
+    /// Constructs the delta message by concatenating the delta messages
+    /// of each compliance unit.
+    pub fn get_delta_msg(&self) -> Vec<u8> {
+        let mut msg = Vec::new();
+        for unit in &self.compliance_units {
+            msg.extend_from_slice(&unit.instance.delta_msg());
+        }
+        msg
+    }
+}
+
+#[cfg(feature = "zkvm")]
 impl Action {
     /// Creates a new Action from compliance units and logic verifiers.
     pub fn new(
@@ -36,33 +56,23 @@ impl Action {
         })
     }
 
-    /// Returns a reference to the compliance units.
-    pub fn get_compliance_units(&self) -> &Vec<ComplianceUnit> {
-        &self.compliance_units
-    }
-
-    /// Returns a reference to the logic verifier inputs.
-    pub fn get_logic_verifier_inputs(&self) -> &Vec<LogicVerifierInputs> {
-        &self.logic_verifier_inputs
-    }
-
     /// Constructs logic verifiers from the action's compliance units and logic verifier inputs.
     /// It also checks consistency between compliance instances and logic verifier inputs.
     pub(crate) fn get_logic_verifiers(&self) -> Result<Vec<LogicVerifier>, ArmError> {
         let mut logic_verifiers = Vec::new();
 
-        let compliance_intances = self
+        let compliance_instances: Vec<_> = self
             .compliance_units
             .iter()
-            .map(|unit| unit.get_instance())
-            .collect::<Result<Vec<ComplianceInstance>, ArmError>>()?;
+            .map(|unit| &unit.instance)
+            .collect();
 
         // Construct the action tree
-        let tags: Vec<Digest> = compliance_intances
+        let tags: Vec<Digest> = compliance_instances
             .iter()
             .flat_map(|instance| vec![instance.consumed_nullifier, instance.created_commitment])
             .collect();
-        let logics = compliance_intances
+        let logics = compliance_instances
             .iter()
             .flat_map(|instance| vec![instance.consumed_logic_ref, instance.created_logic_ref])
             .collect::<Vec<_>>();
@@ -109,28 +119,18 @@ impl Action {
 
         Ok(())
     }
+}
 
+/// Delta computation for actions (requires k256).
+#[cfg(feature = "k256")]
+impl Action {
     /// This function computes the delta of the action by summing up the deltas
     /// of each compliance unit.
-    pub fn delta(&self) -> Result<ProjectivePoint, ArmError> {
+    pub fn delta(&self) -> Result<k256::ProjectivePoint, ArmError> {
         self.compliance_units
             .iter()
-            .try_fold(ProjectivePoint::IDENTITY, |acc, unit| {
+            .try_fold(k256::ProjectivePoint::IDENTITY, |acc, unit| {
                 Ok(acc + unit.delta()?)
             })
-    }
-
-    /// Constructs the delta message by concatenating the delta messages
-    /// of each compliance unit.
-    pub fn get_delta_msg(&self) -> Result<Vec<u8>, ArmError> {
-        let mut msg = Vec::new();
-        for unit in &self.compliance_units {
-            if let Ok(instance) = unit.get_instance() {
-                msg.extend_from_slice(&instance.delta_msg());
-            } else {
-                return Err(ArmError::InvalidComplianceInstance);
-            }
-        }
-        Ok(msg)
     }
 }

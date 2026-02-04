@@ -32,7 +32,7 @@ impl BatchAggregation {
         let BatchCU {
             instances: cu_instances,
             receipts: cu_receipts,
-        } = tx.get_batch_cu();
+        } = tx.get_batch_cu()?;
 
         let BatchLP {
             instances: lp_instances,
@@ -116,7 +116,7 @@ impl BatchAggregation {
         let BatchCU {
             instances: compliance_instances,
             receipts: _,
-        } = tx.get_batch_cu();
+        } = tx.get_batch_cu()?;
         let BatchLP {
             instances: logic_instances,
             keys: logic_keys,

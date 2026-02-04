@@ -241,6 +241,7 @@ dependencies = [
  "bincode",
  "bytemuck",
  "hex",
+ "hex-literal",
  "k256",
  "lazy_static",
  "rand 0.8.5",

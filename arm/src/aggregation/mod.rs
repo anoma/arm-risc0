@@ -50,14 +50,17 @@ pub(crate) struct BatchLP {
 }
 
 impl Transaction {
-    fn get_batch_cu(&self) -> BatchCU {
+    fn get_batch_cu(&self) -> Result<BatchCU, ArmError> {
         let cus: Vec<ComplianceUnit> = self
             .actions
             .iter()
             .flat_map(|a| a.get_compliance_units().clone())
             .collect();
 
-        let cu_instances: Vec<Vec<u8>> = cus.iter().map(|cu| cu.instance.clone()).collect();
+        let cu_instances: Vec<Vec<u8>> = cus
+            .iter()
+            .map(|cu| cu.instance.to_journal())
+            .collect::<Result<_, _>>()?;
 
         let inner_receipts: Option<Vec<InnerReceipt>> = if self.base_proofs_are_empty() {
             None
@@ -75,10 +78,10 @@ impl Transaction {
         };
 
         match inner_receipts {
-            None => BatchCU {
+            None => Ok(BatchCU {
                 instances: cu_instances,
                 receipts: None,
-            },
+            }),
             Some(ir_vec) => {
                 let r: Vec<Receipt> = ir_vec
                     .into_iter()
@@ -86,10 +89,10 @@ impl Transaction {
                     .map(|(ir, i)| Receipt::new(ir, i))
                     .collect();
 
-                BatchCU {
+                Ok(BatchCU {
                     instances: cu_instances,
                     receipts: Some(r),
-                }
+                })
             }
         }
     }

@@ -1,6 +1,6 @@
 //! Aggregation constants for proving keys and verification keys.
 
-use hex::FromHex;
+use hex_literal::hex;
 use lazy_static::lazy_static;
 use risc0_zkvm::Digest;
 
@@ -10,11 +10,20 @@ pub const SEQUENTIAL_AGGREGATION_PK: &[u8] =
 /// Batch aggregation proving key / batch aggregation guest ELF binary
 pub const BATCH_AGGREGATION_PK: &[u8] = include_bytes!("../../elfs/batch_aggregation.bin");
 
+/// Sequential aggregation verification key bytes.
+pub const SEQUENTIAL_AGGREGATION_VK_BYTES: [u8; 32] =
+    hex!("378bebfe9a8e136e28d309f582474ab02da3c8ef005e7b3c88727c563dfd2752");
+
+/// Batch aggregation verification key bytes.
+pub const BATCH_AGGREGATION_VK_BYTES: [u8; 32] =
+    hex!("213b3f40d7c113c1a012072fcd791fa44bf5166a2300121630bd3228e2b00827");
+
 lazy_static! {
     /// Sequential aggregation verification key / sequential aggregation image id.
     pub static ref SEQUENTIAL_AGGREGATION_VK: Digest =
-        Digest::from_hex("378bebfe9a8e136e28d309f582474ab02da3c8ef005e7b3c88727c563dfd2752").unwrap();
+        Digest::try_from(SEQUENTIAL_AGGREGATION_VK_BYTES.as_slice()).unwrap();
 
     /// Batch aggregation verification key / Batch aggregation image id.
-    pub static ref BATCH_AGGREGATION_VK: Digest = Digest::from_hex("213b3f40d7c113c1a012072fcd791fa44bf5166a2300121630bd3228e2b00827").unwrap();
+    pub static ref BATCH_AGGREGATION_VK: Digest =
+        Digest::try_from(BATCH_AGGREGATION_VK_BYTES.as_slice()).unwrap();
 }

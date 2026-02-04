@@ -100,7 +100,7 @@ impl SequentialAggregation {
     pub fn transaction_transcript(
         tx: &Transaction,
     ) -> Result<(Vec<StepInstance>, Option<Vec<StepProof>>), ArmError> {
-        let batch_cu = tx.get_batch_cu();
+        let batch_cu = tx.get_batch_cu()?;
         let batch_lp = tx.get_batch_lp()?;
         let mut step_instances: Vec<StepInstance> = batch_cu.clone().try_into()?;
         step_instances.append(
