@@ -6,6 +6,9 @@ fn main() {
     if cfg!(feature = "bin") {
         features.push("bin".to_string());
     }
+    if cfg!(feature = "evm") {
+        features.push("evm".to_string());
+    }
 
     if features.is_empty() {
         risc0_build::embed_methods();

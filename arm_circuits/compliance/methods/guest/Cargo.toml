@@ -21,6 +21,7 @@ borsh = { version = "1.5", default-features = false, optional = true }
 default = []
 borsh = ["dep:borsh"]
 bin = ["dep:bincode"]
+evm = ["anoma-rm-risc0/evm"]
 
 [patch.crates-io]
 # Placing this patch statement in the workspace Cargo.toml will add RISC Zero SHA-256 accelerator

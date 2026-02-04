@@ -13,6 +13,8 @@ pub use risc0_zkvm::sha::{DIGEST_BYTES, DIGEST_WORDS};
 #[cfg(feature = "zkvm")]
 pub use risc0_zkvm::Digest;
 
+#[cfg(feature = "evm")]
+pub mod abi;
 #[cfg(feature = "transaction")]
 pub mod action;
 #[cfg(feature = "zkvm")]

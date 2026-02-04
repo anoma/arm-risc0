@@ -7,6 +7,11 @@ fn main() {
 
     let instance = witness.constrain().unwrap();
 
+    #[cfg(feature = "evm")]
+    {
+        env::commit_slice(&instance.abi_encode());
+    }
+
     #[cfg(feature = "bin")]
     {
         let instance_bytes = bincode::serialize(&instance).unwrap();
@@ -19,6 +24,6 @@ fn main() {
         env::commit_slice(&instance_bytes);
     }
 
-    #[cfg(not(any(feature = "bin", feature = "borsh")))]
+    #[cfg(not(any(feature = "bin", feature = "borsh", feature = "evm")))]
     env::commit(&instance);
 }

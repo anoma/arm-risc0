@@ -21,3 +21,4 @@ borsh = { version = "1.5", default-features = false, optional = true }
 default = []
 borsh = ["dep:borsh", "anoma-rm-risc0/borsh"]
 bin = ["dep:bincode"]
+evm = ["anoma-rm-risc0/evm"]
