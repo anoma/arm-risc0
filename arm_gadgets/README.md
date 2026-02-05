@@ -49,7 +49,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-anoma-rm-risc0-gadgets = "1.0"
+anoma-rm-risc0-gadgets = "1.1"
 ```
 
 ## License
