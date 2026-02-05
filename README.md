@@ -114,13 +114,13 @@ We have the following feature flags in arm lib:
 
 ```toml
 # Default configuration
-anoma-rm-risc0 ="1.0.0"
+anoma-rm-risc0 ="1.1.0"
 
 # Proof aggregation (a single succinct proof per transaction)
-anoma-rm-risc0 ={ version = "1.0.0", features = ["aggregation"] }
+anoma-rm-risc0 ={ version = "1.1.0", features = ["aggregation"] }
 
 # Logic-circuit-only usage
-anoma-rm-risc0 ={ version = "1.0.0", default-features = false }
+anoma-rm-risc0 ={ version = "1.1.0", default-features = false }
 ```
 
 ## Reproducibly generate proving and verifying keys (ELF and ImageID)
