@@ -237,22 +237,6 @@ dependencies = [
 [[package]]
 name = "anoma-rm-risc0"
 version = "1.1.0"
-dependencies = [
- "bincode",
- "bytemuck",
- "hex",
- "k256",
- "lazy_static",
- "rand 0.8.5",
- "risc0-zkvm",
- "serde",
- "serde_with",
- "thiserror 2.0.17",
-]
-
-[[package]]
-name = "anoma-rm-risc0"
-version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a3bafed27d56b944004a4eb6bf16e98d4269cc5462ad3a07477c177d71690a6f"
 dependencies = [
@@ -271,11 +255,13 @@ dependencies = [
 [[package]]
 name = "anoma-rm-risc0-gadgets"
 version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "82d109cad7ed60cc902bc0664e9c521176cc823c889a5291c6e19460d69ecb61"
 dependencies = [
  "aes-gcm",
  "alloy-primitives",
  "alloy-sol-types",
- "anoma-rm-risc0 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "anoma-rm-risc0",
  "bincode",
  "hex",
  "k256",
@@ -287,8 +273,10 @@ dependencies = [
 [[package]]
 name = "anoma-rm-risc0-test-witness"
 version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7a370a5bd72689be05ad75f5ea0d8556047dcd0c562f9f0b8944fb51f633c474"
 dependencies = [
- "anoma-rm-risc0 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "anoma-rm-risc0",
  "anoma-rm-risc0-gadgets",
  "k256",
  "serde",
@@ -740,7 +728,7 @@ checksum = "55248b47b0caf0546f7988906588779981c43bb1bc9d0c44087278f80cdb44ba"
 name = "batch-aggregation"
 version = "1.0.0"
 dependencies = [
- "anoma-rm-risc0 1.1.0",
+ "anoma-rm-risc0",
  "batch-aggregation-methods",
  "risc0-zkvm",
 ]
@@ -1079,7 +1067,7 @@ dependencies = [
 name = "compliance"
 version = "1.0.0"
 dependencies = [
- "anoma-rm-risc0 1.1.0",
+ "anoma-rm-risc0",
  "compliance-methods",
  "risc0-zkvm",
 ]
@@ -2781,7 +2769,7 @@ checksum = "34080505efa8e45a4b816c349525ebe327ceaa8559756f0356cba97ef3bf7432"
 name = "logic-test"
 version = "1.0.0"
 dependencies = [
- "anoma-rm-risc0 1.1.0",
+ "anoma-rm-risc0",
  "anoma-rm-risc0-test-witness",
  "logic-test-methods",
  "risc0-zkvm",
@@ -5202,7 +5190,7 @@ dependencies = [
 name = "trivial-logic"
 version = "1.0.0"
 dependencies = [
- "anoma-rm-risc0 1.1.0",
+ "anoma-rm-risc0",
  "risc0-zkvm",
  "trivial-logic-methods",
 ]
