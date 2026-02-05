@@ -22,8 +22,10 @@ lazy_static! {
     pub static ref PADDING_LOGIC_VK: Digest =
         Digest::from_hex("21fcc2fc2c07f9753405d3070f2488c67389f7d797b6f6e20a9f2529fe4a0bff")
             .unwrap();
+}
 
+#[cfg(feature = "aggregation")]
+lazy_static! {
     /// Batch aggregation verification key / Batch aggregation image id.
-    #[cfg(feature = "aggregation")]
     pub static ref BATCH_AGGREGATION_VK: Digest = Digest::from_hex("5ca0cbd4d5c267f42e0883b1ae7a28689d792230d9c4c61ca4f5df56aaf5fede").unwrap();
 }
