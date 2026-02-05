@@ -8,9 +8,8 @@ use crate::{
     utils::{bytes_to_words, words_to_bytes},
 };
 #[cfg(feature = "aggregation")]
-use risc0_zkvm::{
-    default_prover, Digest, ExecutorEnv, InnerReceipt, ProverOpts, Receipt, VerifierContext,
-};
+use risc0_zkvm::{default_prover, ExecutorEnv, ProverOpts, Receipt, VerifierContext};
+use risc0_zkvm::{Digest, InnerReceipt};
 
 use crate::{
     action::Action,
