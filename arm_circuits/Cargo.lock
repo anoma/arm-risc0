@@ -236,7 +236,7 @@ dependencies = [
 
 [[package]]
 name = "anoma-rm-risc0"
-version = "1.1.0"
+version = "1.1.1"
 dependencies = [
  "bincode",
  "bytemuck",
@@ -252,7 +252,7 @@ dependencies = [
 
 [[package]]
 name = "anoma-rm-risc0-gadgets"
-version = "1.1.0"
+version = "1.1.1"
 dependencies = [
  "aes-gcm",
  "alloy-primitives",
@@ -268,7 +268,7 @@ dependencies = [
 
 [[package]]
 name = "anoma-rm-risc0-test-witness"
-version = "1.1.0"
+version = "1.1.1"
 dependencies = [
  "anoma-rm-risc0",
  "anoma-rm-risc0-gadgets",
