@@ -83,13 +83,15 @@ impl LogicVerifierInputs {
     /// Converts the LogicVerifierInputs into a LogicVerifier.
     pub fn to_logic_verifier(
         self,
-        is_consumed: bool,
-        root: Digest,
+        _is_consumed: bool,
+        _root: Digest,
     ) -> Result<LogicVerifier, ArmError> {
-        let instance = self.to_instance(is_consumed, root);
         Ok(LogicVerifier {
             proof: self.proof,
-            instance: instance.to_journal()?,
+            // Use the pre-serialized journal from proving (risc0 serde format)
+            // rather than recomputing via to_journal(), which may use a different
+            // serialization format (e.g. Borsh) and produce a claim digest mismatch.
+            instance: self.instance_journal,
             verifying_key: self.verifying_key,
         })
     }
@@ -105,6 +107,7 @@ impl TryFrom<LogicVerifier> for LogicVerifierInputs {
             verifying_key: logic_proof.verifying_key,
             app_data: instance.app_data,
             proof: logic_proof.proof,
+            instance_journal: logic_proof.instance,
         })
     }
 }

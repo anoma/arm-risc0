@@ -82,13 +82,31 @@ impl AppData {
     }
 }
 
-#[cfg(feature = "zkvm")]
+/// For EVM/default context (zkvm without borsh): risc0 serde format.
+#[cfg(all(feature = "zkvm", not(feature = "borsh")))]
 impl LogicInstance {
     /// Serializes this instance to journal bytes (risc0 serde format).
     pub fn to_journal(&self) -> Result<Vec<u8>, crate::error::ArmError> {
         let words = risc0_zkvm::serde::to_vec(self)
             .map_err(|_| crate::error::ArmError::InstanceSerializationFailed)?;
         Ok(crate::utils::words_to_bytes(&words).to_vec())
+    }
+}
+
+/// For Solana/Borsh context: Borsh format, padded to 4-byte alignment.
+#[cfg(feature = "borsh")]
+impl LogicInstance {
+    /// Serializes this instance to journal bytes (Borsh format).
+    ///
+    /// Output is zero-padded to 4-byte alignment because risc0's `env::verify`
+    /// operates on `&[u32]` journals. The `bytes_to_words` / `words_to_bytes`
+    /// round-trip must be lossless for receipt claim digests to match.
+    pub fn to_journal(&self) -> Result<Vec<u8>, crate::error::ArmError> {
+        let mut bytes =
+            borsh::to_vec(self).map_err(|_| crate::error::ArmError::InstanceSerializationFailed)?;
+        let padding = (4 - bytes.len() % 4) % 4;
+        bytes.resize(bytes.len() + padding, 0);
+        Ok(bytes)
     }
 }
 
@@ -107,6 +125,9 @@ pub struct LogicVerifierInputs {
     pub app_data: AppData,
     /// The logic proof (optional, would be absent when aggregation is enabled).
     pub proof: Option<Vec<u8>>,
+    /// Pre-serialized LogicInstance journal bytes from proving.
+    /// Preserved so on-chain code can use them directly without recomputing.
+    pub instance_journal: Vec<u8>,
 }
 
 impl LogicVerifierInputs {

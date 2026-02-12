@@ -271,9 +271,12 @@ fn test_cannot_aggregate_invalid_proofs() {
     // Create a transaction with one invalid proof.
     let bad_lproof = LogicVerifierInputs {
         proof: tx.actions[0].logic_verifier_inputs[0].clone().proof,
-        verifying_key: Digest::from_bytes([66u8; 32]), //vec![666u32; 8], // Bad key.
+        verifying_key: Digest::from_bytes([66u8; 32]),
         tag: tx.actions[0].logic_verifier_inputs[0].tag,
         app_data: tx.actions[0].logic_verifier_inputs[0].app_data.clone(),
+        instance_journal: tx.actions[0].logic_verifier_inputs[0]
+            .instance_journal
+            .clone(),
     };
 
     let bad_action = Action {

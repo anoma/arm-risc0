@@ -3,22 +3,19 @@
 /// Size hard-coded to two resources per unit
 const COMPLIANCE_INSTANCE_SIZE: usize = 56;
 
-#[cfg(any(feature = "k256", feature = "zkvm"))]
+#[cfg(any(feature = "k256", feature = "zkvm", feature = "solana"))]
 use crate::error::ArmError;
-use crate::utils::bytes_to_words;
 use crate::{constants::EMPTY_HASH_BYTES, Digest};
 use serde_with::serde_as;
 
-#[cfg(feature = "zkvm")]
-use crate::utils::words_to_bytes;
-#[cfg(all(feature = "zkvm", feature = "k256"))]
+#[cfg(feature = "k256")]
+use crate::utils::bytes_to_words;
+#[cfg(feature = "k256")]
 use crate::{merkle_path::MerklePath, nullifier_key::NullifierKey, resource::Resource};
 #[cfg(feature = "k256")]
-use k256::{elliptic_curve::sec1::FromEncodedPoint, EncodedPoint, ProjectivePoint};
-#[cfg(all(feature = "zkvm", feature = "k256"))]
 use k256::{
-    elliptic_curve::{sec1::ToEncodedPoint, Field, PrimeField},
-    Scalar,
+    elliptic_curve::{sec1::FromEncodedPoint, sec1::ToEncodedPoint, Field, PrimeField},
+    EncodedPoint, ProjectivePoint, Scalar,
 };
 #[cfg(all(feature = "zkvm", feature = "k256"))]
 use rand::rngs::OsRng;
@@ -95,24 +92,34 @@ impl ComplianceInstance {
 impl ComplianceInstance {
     /// Serializes this instance to journal bytes (risc0 serde format).
     pub fn to_journal(&self) -> Result<Vec<u8>, ArmError> {
+        use crate::utils::words_to_bytes;
         let words =
             risc0_zkvm::serde::to_vec(self).map_err(|_| ArmError::InstanceSerializationFailed)?;
         Ok(words_to_bytes(&words).to_vec())
     }
 }
 
+#[cfg(all(feature = "solana", not(feature = "zkvm")))]
+impl ComplianceInstance {
+    /// Serializes this instance to journal bytes (borsh format for Solana).
+    pub fn to_journal(&self) -> Result<Vec<u8>, ArmError> {
+        borsh::to_vec(self).map_err(|_| ArmError::InstanceSerializationFailed)
+    }
+}
+
 impl ComplianceInstanceWords {
     /// Creates a ComplianceInstanceWords from a byte slice.
     pub fn from_bytes(instance_bytes: &[u8]) -> Result<Self, ArmError> {
-        let u32_words: [u32; COMPLIANCE_INSTANCE_SIZE] = bytes_to_words(instance_bytes)
-            .try_into()
-            .map_err(|_| ArmError::InstanceSerializationFailed)?;
+        let u32_words: [u32; COMPLIANCE_INSTANCE_SIZE] =
+            crate::utils::bytes_to_words(instance_bytes)
+                .try_into()
+                .map_err(|_| ArmError::InstanceSerializationFailed)?;
         Ok(ComplianceInstanceWords { u32_words })
     }
 }
 
 /// The compliance witness contains all private inputs to the compliance proof.
-#[cfg(all(feature = "zkvm", feature = "k256"))]
+#[cfg(feature = "k256")]
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub struct ComplianceWitness {
     /// The consumed resource
@@ -169,7 +176,10 @@ impl ComplianceWitness {
             ephemeral_root: initial_root(),
         }
     }
+}
 
+#[cfg(feature = "k256")]
+impl ComplianceWitness {
     /// Compliance constraints
     pub fn constrain(&self) -> Result<ComplianceInstance, ArmError> {
         let consumed_cm = self.consumed_commitment();
