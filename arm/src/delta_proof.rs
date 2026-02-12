@@ -8,7 +8,12 @@ use k256::{
 use serde::{Deserialize, Serialize};
 
 use crate::error::ArmError;
-use sha3::{Digest, Keccak256};
+
+#[cfg(not(feature = "solana"))]
+use sha3::{Digest, Keccak256 as MessageHasher};
+
+#[cfg(feature = "solana")]
+use sha2::{Digest, Sha256 as MessageHasher};
 
 /// The delta proof consists of an ECDSA signature and a recovery ID.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -36,8 +41,7 @@ pub struct DeltaInstance {
 impl DeltaProof {
     /// Generates a delta proof by signing the given message with the provided witness.
     pub fn prove(message: &[u8], witness: &DeltaWitness) -> Result<DeltaProof, ArmError> {
-        // Hash the message using Keccak256
-        let mut digest = Keccak256::new();
+        let mut digest = MessageHasher::new();
         digest.update(message);
 
         // Sign the hashed message using RFC6979
@@ -72,8 +76,7 @@ impl DeltaProof {
             return Err(ArmError::InvalidDeltaProof);
         }
 
-        // Hash the message using Keccak256
-        let mut digest = Keccak256::new();
+        let mut digest = MessageHasher::new();
         digest.update(message);
 
         // Verify the signature
