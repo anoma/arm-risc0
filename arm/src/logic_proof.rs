@@ -1,9 +1,10 @@
 //! Logic proof structures and traits for proving and verifying logic statements.
 
+pub use crate::logic_instance::LogicVerifierInputs;
 use crate::{
     constants::{PADDING_LOGIC_PK, PADDING_LOGIC_VK},
     error::ArmError,
-    logic_instance::{LogicInstance, LogicVerifierInputs},
+    logic_instance::LogicInstance,
     nullifier_key::{NullifierKey, NullifierKeyCommitment},
     proving_system::{journal_to_instance, verify as verify_proof},
     resource::Resource,

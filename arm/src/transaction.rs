@@ -193,9 +193,7 @@ impl Transaction {
     }
 
     /// Returns all compliance inner receipts in the transaction.
-    pub fn get_compliance_inner_receipts(
-        &self,
-    ) -> Result<Vec<risc0_zkvm::InnerReceipt>, ArmError> {
+    pub fn get_compliance_inner_receipts(&self) -> Result<Vec<risc0_zkvm::InnerReceipt>, ArmError> {
         let mut compliance_inner_receipts = Vec::new();
         for cu in self.get_compliance_units() {
             let inner_receipt = cu.get_inner_receipt()?;

@@ -1,11 +1,11 @@
 //! Merkle tree implementation for the action tree.
 
+use crate::Digest;
 use crate::{
     error::ArmError,
-    merkle_path::{MerklePath, padding_leaf},
+    merkle_path::{padding_leaf, MerklePath},
     utils::hash_two,
 };
-use crate::Digest;
 
 /// A Merkle tree structure.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -87,7 +87,7 @@ impl MerkleTree {
             ) {
                 if cur_layer.len() > 1 {
                     let sibling = {
-                        let is_sibling_left = position % 2 != 0;
+                        let is_sibling_left = !position.is_multiple_of(2);
                         let sibling_value = if is_sibling_left {
                             cur_layer[position - 1]
                         } else {
