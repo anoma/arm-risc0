@@ -22,6 +22,10 @@ use risc0_zkvm::{default_prover, ExecutorEnv, ProverOpts, Receipt, VerifierConte
 /// Represents a transaction consisting of actions, delta proof, expected balance,
 /// and optional aggregation proof.
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[cfg_attr(
+    feature = "borsh",
+    derive(borsh::BorshSerialize, borsh::BorshDeserialize)
+)]
 pub struct Transaction {
     /// The actions included in the transaction.
     pub actions: Vec<Action>,
@@ -39,6 +43,10 @@ pub struct Transaction {
 /// full cryptographic operations. Without `k256`, they are opaque byte containers
 /// that maintain wire compatibility.
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[cfg_attr(
+    feature = "borsh",
+    derive(borsh::BorshSerialize, borsh::BorshDeserialize)
+)]
 pub enum Delta {
     /// The delta witness used for proving the delta proof.
     Witness(DeltaWitness),
