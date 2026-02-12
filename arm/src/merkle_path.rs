@@ -1,17 +1,12 @@
 //! A Merkle path from a leaf to a root in a commitment/action tree.
 
-use crate::utils::hash_two;
-use hex::FromHex;
-use lazy_static::lazy_static;
-use risc0_zkvm::sha::Digest;
+use crate::constants::EMPTY_HASH_BYTES;
+use crate::Digest;
 use serde::{Deserialize, Serialize};
 
-lazy_static! {
-    /// A constant padding leaf used in Merkle trees.
-    /// This is the hash of an empty string.
-    pub static ref PADDING_LEAF: Digest =
-        Digest::from_hex("cc1d2f838445db7aec431df9ee8a871f40e7aa5e064fc056633ef8c60fab7b06")
-            .unwrap();
+/// Returns the padding leaf digest (hash of the empty string).
+pub fn padding_leaf() -> Digest {
+    Digest::try_from(EMPTY_HASH_BYTES.as_slice()).unwrap()
 }
 
 /// A path from a position in a particular commitment tree to the root of that tree.
@@ -25,7 +20,9 @@ impl MerklePath {
     }
 
     /// Returns the root of the tree corresponding to this path applied to `leaf`.
+    #[cfg(feature = "zkvm")]
     pub fn root(&self, leaf: &Digest) -> Digest {
+        use crate::utils::hash_two;
         self.0.iter().fold(
             *leaf,
             |root, (p, leaf_is_on_right)| match leaf_is_on_right {
