@@ -6,7 +6,7 @@ use crate::delta_types::{DeltaProof, DeltaWitness};
 use crate::{action::Action, compliance_unit::ComplianceUnit, error::ArmError};
 use serde::{Deserialize, Serialize};
 
-#[cfg(feature = "zkvm")]
+#[cfg(all(feature = "zkvm", feature = "k256"))]
 use crate::logic_proof::LogicVerifier;
 
 #[cfg(feature = "aggregation")]
@@ -214,7 +214,10 @@ impl Transaction {
         }
         Ok(logic_inner_receipts)
     }
+}
 
+#[cfg(all(feature = "zkvm", feature = "k256"))]
+impl Transaction {
     /// Returns all logic verifiers in the transaction.
     pub fn get_logic_verifiers(&self) -> Result<Vec<LogicVerifier>, ArmError> {
         let mut result = Vec::new();
