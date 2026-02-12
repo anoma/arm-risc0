@@ -13,11 +13,36 @@ mod placeholder {
 
     /// Opaque 65-byte delta proof (signature + recovery ID).
     #[derive(Clone, Debug, PartialEq, Eq)]
+    #[cfg_attr(
+        feature = "borsh",
+        derive(borsh::BorshSerialize, borsh::BorshDeserialize)
+    )]
     pub struct DeltaProof(pub [u8; 65]);
 
     /// Opaque 32-byte delta witness (signing key).
     #[derive(Clone, Debug, PartialEq, Eq)]
+    #[cfg_attr(
+        feature = "borsh",
+        derive(borsh::BorshSerialize, borsh::BorshDeserialize)
+    )]
     pub struct DeltaWitness(pub [u8; 32]);
+
+    impl DeltaProof {
+        /// Returns the length of the proof bytes.
+        pub fn len(&self) -> usize {
+            self.0.len()
+        }
+
+        /// Returns true if the proof is empty (always false for valid proofs).
+        pub fn is_empty(&self) -> bool {
+            false
+        }
+
+        /// Returns the proof bytes as a slice.
+        pub fn as_slice(&self) -> &[u8] {
+            &self.0
+        }
+    }
 
     impl DeltaWitness {
         /// Panics - composition requires k256.

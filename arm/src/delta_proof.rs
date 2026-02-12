@@ -216,6 +216,45 @@ impl<'de> Deserialize<'de> for DeltaWitness {
     }
 }
 
+#[cfg(feature = "borsh")]
+mod borsh_impl {
+    use super::{DeltaProof, DeltaWitness};
+    use borsh::io::{Error, ErrorKind, Read, Result, Write};
+    use borsh::{BorshDeserialize, BorshSerialize};
+
+    impl BorshSerialize for DeltaProof {
+        fn serialize<W: Write>(&self, writer: &mut W) -> Result<()> {
+            let bytes = self.to_bytes();
+            writer.write_all(&bytes)
+        }
+    }
+
+    impl BorshDeserialize for DeltaProof {
+        fn deserialize_reader<R: Read>(reader: &mut R) -> Result<Self> {
+            let mut bytes = [0u8; 65];
+            reader.read_exact(&mut bytes)?;
+            DeltaProof::from_bytes(&bytes)
+                .map_err(|e| Error::new(ErrorKind::InvalidData, format!("{:?}", e)))
+        }
+    }
+
+    impl BorshSerialize for DeltaWitness {
+        fn serialize<W: Write>(&self, writer: &mut W) -> Result<()> {
+            let bytes = self.to_bytes();
+            writer.write_all(&bytes)
+        }
+    }
+
+    impl BorshDeserialize for DeltaWitness {
+        fn deserialize_reader<R: Read>(reader: &mut R) -> Result<Self> {
+            let mut bytes = [0u8; 32];
+            reader.read_exact(&mut bytes)?;
+            DeltaWitness::from_bytes(&bytes)
+                .map_err(|e| Error::new(ErrorKind::InvalidData, format!("{:?}", e)))
+        }
+    }
+}
+
 #[test]
 fn test_delta_proof() {
     use k256::elliptic_curve::rand_core::OsRng;

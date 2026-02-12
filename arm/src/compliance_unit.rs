@@ -18,6 +18,10 @@ use crate::{
 /// A compliance unit consists of a compliance proof and its corresponding instance.
 /// The vk is a constant in the compliance unit, so we don't place it here.
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[cfg_attr(
+    feature = "borsh",
+    derive(borsh::BorshSerialize, borsh::BorshDeserialize)
+)]
 pub struct ComplianceUnit {
     /// The compliance proof (optional, would be absent when aggregation is enabled).
     pub proof: Option<Vec<u8>>,
