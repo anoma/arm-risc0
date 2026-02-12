@@ -12,12 +12,43 @@ pub const DIGEST_WORDS: usize = 8;
 /// This type is wire-compatible with `risc0_zkvm::sha::Digest`:
 /// both store `[u32; 8]` and expose bytes via `bytemuck::cast_slice`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct Digest([u32; DIGEST_WORDS]);
+#[cfg_attr(
+    feature = "borsh",
+    derive(borsh::BorshSerialize, borsh::BorshDeserialize)
+)]
+pub struct Digest(pub [u32; DIGEST_WORDS]);
 
 impl Digest {
     /// Creates a new Digest from u32 words.
     pub const fn new(words: [u32; DIGEST_WORDS]) -> Self {
         Digest(words)
+    }
+
+    /// Create a Digest from 32 bytes.
+    pub fn from_bytes(bytes: [u8; DIGEST_BYTES]) -> Self {
+        let mut words = [0u32; DIGEST_WORDS];
+        for i in 0..DIGEST_WORDS {
+            words[i] = u32::from_le_bytes([
+                bytes[4 * i],
+                bytes[4 * i + 1],
+                bytes[4 * i + 2],
+                bytes[4 * i + 3],
+            ]);
+        }
+        Digest(words)
+    }
+
+    /// Convert to 32 bytes.
+    pub fn to_bytes(&self) -> [u8; DIGEST_BYTES] {
+        let mut bytes = [0u8; DIGEST_BYTES];
+        for i in 0..DIGEST_WORDS {
+            let wb = self.0[i].to_le_bytes();
+            bytes[4 * i] = wb[0];
+            bytes[4 * i + 1] = wb[1];
+            bytes[4 * i + 2] = wb[2];
+            bytes[4 * i + 3] = wb[3];
+        }
+        bytes
     }
 
     /// Returns the digest as a slice of u32 words.
@@ -44,7 +75,9 @@ impl TryFrom<&[u8]> for Digest {
         if bytes.len() != DIGEST_BYTES {
             return Err("Invalid byte length for Digest");
         }
-        Ok(Digest(*bytemuck::from_bytes(bytes)))
+        let mut arr = [0u8; DIGEST_BYTES];
+        arr.copy_from_slice(bytes);
+        Ok(Digest::from_bytes(arr))
     }
 }
 
@@ -56,7 +89,9 @@ impl hex::FromHex for Digest {
         if bytes.len() != DIGEST_BYTES {
             return Err(hex::FromHexError::InvalidStringLength);
         }
-        Ok(Digest(*bytemuck::from_bytes(&bytes)))
+        let mut arr = [0u8; DIGEST_BYTES];
+        arr.copy_from_slice(&bytes);
+        Ok(Digest::from_bytes(arr))
     }
 }
 

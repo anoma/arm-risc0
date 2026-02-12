@@ -78,4 +78,8 @@ pub enum ArmError {
     TreeTooLarge,
     #[error("Invalid delta proof: pls regenerate the proof")]
     InvalidDeltaProof,
+    #[error("Delta point not on curve")]
+    DeltaPointNotOnCurve,
+    #[error("Delta mismatch")]
+    DeltaMismatch,
 }
