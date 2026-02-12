@@ -2,10 +2,10 @@
 
 use crate::{
     error::ArmError,
-    merkle_path::{MerklePath, PADDING_LEAF},
+    merkle_path::{MerklePath, padding_leaf},
     utils::hash_two,
 };
-use risc0_zkvm::sha::Digest;
+use crate::Digest;
 
 /// A Merkle tree structure.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -37,7 +37,7 @@ impl MerkleTree {
             .checked_next_power_of_two()
             .ok_or(ArmError::TreeTooLarge)?;
         let mut cur_layer = self.leaves.clone();
-        cur_layer.resize(len, *PADDING_LEAF);
+        cur_layer.resize(len, padding_leaf());
         while cur_layer.len() > 1 {
             cur_layer = cur_layer
                 .chunks(2)
@@ -67,7 +67,7 @@ impl MerkleTree {
             return Err(ArmError::EmptyTree);
         }
 
-        if *cur_leave == *PADDING_LEAF {
+        if *cur_leave == padding_leaf() {
             return Err(ArmError::InvalidLeaf);
         }
 
@@ -77,7 +77,7 @@ impl MerkleTree {
             .checked_next_power_of_two()
             .ok_or(ArmError::TreeTooLarge)?;
         let mut cur_layer = self.leaves.clone();
-        cur_layer.resize(len, *PADDING_LEAF);
+        cur_layer.resize(len, padding_leaf());
         if let Some(position) = cur_layer.iter().position(|v| v == cur_leave) {
             let mut merkle_path = Vec::new();
             fn build_merkle_path_inner(
