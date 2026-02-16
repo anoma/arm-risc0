@@ -210,8 +210,6 @@ mod tests {
     /// Build a Transaction with a single compliance unit whose delta point
     /// matches `signing_key`'s public key, signed by that key.
     fn make_signed_transaction(signing_key: &SigningKey) -> Transaction {
-        use k256::ecdsa::signature::hazmat::PrehashSigner;
-
         let vk = k256::ecdsa::VerifyingKey::from(signing_key);
         let encoded = vk.to_encoded_point(false);
         let x_bytes: [u8; 32] = encoded.x().unwrap().as_slice().try_into().unwrap();
