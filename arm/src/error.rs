@@ -38,6 +38,8 @@ pub enum ArmError {
     VerifyingKeyMismatch,
     #[error("Tag not found")]
     TagNotFound,
+    #[error("Logic instance does not match action context")]
+    LogicInstanceMismatch,
     #[error("Delta proof verification failed")]
     DeltaProofVerificationFailed,
     #[error("Expected delta proof, but found witness")]
