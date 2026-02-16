@@ -6,18 +6,5 @@ fn main() {
 
     let instance = witness.constrain().unwrap();
 
-    #[cfg(feature = "bin")]
-    {
-        let output_bytes = bincode::serialize(&instance).unwrap();
-        env::commit_slice(&output_bytes);
-    }
-
-    #[cfg(feature = "borsh")]
-    {
-        let output_bytes = borsh::to_vec(&instance).unwrap();
-        env::commit_slice(&output_bytes);
-    }
-
-    #[cfg(not(any(feature = "bin", feature = "borsh")))]
     env::commit(&instance);
 }

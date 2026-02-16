@@ -83,17 +83,43 @@ impl LogicVerifierInputs {
     /// Converts the LogicVerifierInputs into a LogicVerifier.
     pub fn to_logic_verifier(
         self,
-        _is_consumed: bool,
-        _root: Digest,
+        is_consumed: bool,
+        root: Digest,
     ) -> Result<LogicVerifier, ArmError> {
+        let expected_instance = self.to_instance(is_consumed, root);
+        let provided_instance = decode_instance_journal(&self.instance_journal)?;
+        if provided_instance != expected_instance {
+            return Err(ArmError::LogicInstanceMismatch);
+        }
+
         Ok(LogicVerifier {
             proof: self.proof,
-            // Use the pre-serialized journal from proving (risc0 serde format)
-            // rather than recomputing via to_journal(), which may use a different
-            // serialization format (e.g. Borsh) and produce a claim digest mismatch.
             instance: self.instance_journal,
             verifying_key: self.verifying_key,
         })
+    }
+}
+
+fn decode_instance_journal(journal: &[u8]) -> Result<LogicInstance, ArmError> {
+    #[cfg(feature = "borsh")]
+    {
+        if let Ok(instance) = decode_borsh_instance(journal) {
+            return Ok(instance);
+        }
+    }
+
+    journal_to_instance(journal)
+}
+
+#[cfg(feature = "borsh")]
+fn decode_borsh_instance(journal: &[u8]) -> Result<LogicInstance, ArmError> {
+    let mut input = journal;
+    let instance = <LogicInstance as borsh::BorshDeserialize>::deserialize(&mut input)
+        .map_err(|_| ArmError::JournalDecodingError)?;
+    if input.iter().all(|byte| *byte == 0) {
+        Ok(instance)
+    } else {
+        Err(ArmError::JournalDecodingError)
     }
 }
 

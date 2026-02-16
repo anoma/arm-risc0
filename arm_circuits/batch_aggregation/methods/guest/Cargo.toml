@@ -1,5 +1,5 @@
 [package]
-name = "batch_aggregation"
+name = "batch-aggregation-guest"
 version = "1.0.0"
 edition = "2021"
 
@@ -13,9 +13,3 @@ risc0-zkvm = { version = "3.0.3", features = [
 anoma-rm-risc0 = { path = "../../../../arm", features = [
   "aggregation_circuit",
 ], default-features = false }
-borsh = { version = "1.5", default-features = false, features = ["derive"], optional = true }
-bincode = { version = "1.3", optional = true }
-
-[features]
-borsh = ["dep:borsh", "anoma-rm-risc0/borsh"]
-bin = ["dep:bincode"]
