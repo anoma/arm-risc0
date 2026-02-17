@@ -3,7 +3,6 @@
 /// Size hard-coded to two resources per unit
 const COMPLIANCE_INSTANCE_SIZE: usize = 56;
 
-#[cfg(any(feature = "k256", feature = "zkvm", feature = "solana"))]
 use crate::error::ArmError;
 use crate::{constants::EMPTY_HASH_BYTES, Digest};
 use serde_with::serde_as;

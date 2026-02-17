@@ -6,16 +6,13 @@ use serde::{Deserialize, Serialize};
 #[cfg(any(feature = "zkvm", feature = "k256"))]
 use crate::error::ArmError;
 #[cfg(feature = "zkvm")]
-use crate::{
-    constants::COMPLIANCE_VK,
-    proving_system::{journal_to_instance, verify as verify_proof},
-};
+use crate::{constants::COMPLIANCE_VK, proving_system::verify as verify_proof};
 
 #[cfg(feature = "prove")]
 use crate::{
     compliance::ComplianceWitness,
     constants::COMPLIANCE_PK,
-    proving_system::{prove, ProofType},
+    proving_system::{journal_to_instance, prove, ProofType},
 };
 
 /// A compliance unit consists of a compliance proof and its corresponding instance.
