@@ -7,14 +7,16 @@ use crate::error::ArmError;
 use crate::{constants::EMPTY_HASH_BYTES, Digest};
 use serde_with::serde_as;
 
-#[cfg(feature = "k256")]
+#[cfg(all(feature = "zkvm", feature = "k256"))]
 use crate::utils::bytes_to_words;
-#[cfg(feature = "k256")]
+#[cfg(all(feature = "zkvm", feature = "k256"))]
 use crate::{merkle_path::MerklePath, nullifier_key::NullifierKey, resource::Resource};
 #[cfg(feature = "k256")]
+use k256::{elliptic_curve::sec1::FromEncodedPoint, EncodedPoint, ProjectivePoint};
+#[cfg(all(feature = "zkvm", feature = "k256"))]
 use k256::{
-    elliptic_curve::{sec1::FromEncodedPoint, sec1::ToEncodedPoint, Field, PrimeField},
-    EncodedPoint, ProjectivePoint, Scalar,
+    elliptic_curve::{sec1::ToEncodedPoint, Field, PrimeField},
+    Scalar,
 };
 #[cfg(all(feature = "zkvm", feature = "k256"))]
 use rand::rngs::OsRng;
@@ -118,7 +120,7 @@ impl ComplianceInstanceWords {
 }
 
 /// The compliance witness contains all private inputs to the compliance proof.
-#[cfg(feature = "k256")]
+#[cfg(all(feature = "zkvm", feature = "k256"))]
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub struct ComplianceWitness {
     /// The consumed resource
@@ -177,7 +179,7 @@ impl ComplianceWitness {
     }
 }
 
-#[cfg(feature = "k256")]
+#[cfg(all(feature = "zkvm", feature = "k256"))]
 impl ComplianceWitness {
     /// Compliance constraints
     pub fn constrain(&self) -> Result<ComplianceInstance, ArmError> {
