@@ -2,6 +2,12 @@
 
 #![deny(missing_docs)]
 
+#[cfg(all(feature = "solana", feature = "zkvm"))]
+compile_error!("Invalid feature set: `solana` and `zkvm` are mutually exclusive.");
+
+#[cfg(all(feature = "solana", feature = "k256"))]
+compile_error!("Invalid feature set: `solana` and `k256` are mutually exclusive.");
+
 #[cfg(not(feature = "zkvm"))]
 mod digest;
 #[cfg(not(feature = "zkvm"))]
@@ -37,7 +43,7 @@ pub mod proving_system;
 pub mod resource;
 #[cfg(all(feature = "zkvm", feature = "k256"))]
 pub mod resource_logic;
-#[cfg(all(feature = "solana", not(feature = "zkvm")))]
+#[cfg(all(feature = "solana", not(feature = "zkvm"), not(feature = "k256")))]
 pub mod solana_delta;
 #[cfg(feature = "transaction")]
 pub mod transaction;
