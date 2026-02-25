@@ -3,7 +3,6 @@
 /// Size hard-coded to two resources per unit
 const COMPLIANCE_INSTANCE_SIZE: usize = 56;
 
-#[cfg(any(feature = "k256", feature = "zkvm"))]
 use crate::error::ArmError;
 use crate::utils::bytes_to_words;
 use crate::{constants::EMPTY_HASH_BYTES, Digest};

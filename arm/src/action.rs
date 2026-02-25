@@ -3,9 +3,9 @@
 use crate::{compliance_unit::ComplianceUnit, logic_instance::LogicVerifierInputs};
 use serde::{Deserialize, Serialize};
 
-#[cfg(any(feature = "zkvm", feature = "k256"))]
+#[cfg(feature = "k256")]
 use crate::error::ArmError;
-#[cfg(feature = "zkvm")]
+#[cfg(all(feature = "zkvm", feature = "k256"))]
 use crate::{action_tree::MerkleTree, logic_proof::LogicVerifier, Digest};
 
 /// An action consists of compliance units and logic verifier inputs.
@@ -39,7 +39,7 @@ impl Action {
     }
 }
 
-#[cfg(feature = "zkvm")]
+#[cfg(all(feature = "zkvm", feature = "k256"))]
 impl Action {
     /// Creates a new Action from compliance units and logic verifiers.
     pub fn new(
