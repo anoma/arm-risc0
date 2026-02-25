@@ -74,7 +74,10 @@ mod placeholder {
 
     impl<'de> Deserialize<'de> for DeltaWitness {
         fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
-            <[u8; 32]>::deserialize(d).map(DeltaWitness)
+            let bytes: Vec<u8> = Vec::deserialize(d)?;
+            bytes.try_into().map(DeltaWitness).map_err(|v: Vec<u8>| {
+                serde::de::Error::custom(format!("expected 32 bytes, got {}", v.len()))
+            })
         }
     }
 }
