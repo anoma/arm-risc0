@@ -13,6 +13,8 @@ risc0-zkvm = { version = "3.0.3", features = [
 ], default-features = false }
 anoma-rm-risc0 = { path = "../../../../arm", features = [
   "compliance_circuit",
+  "zkvm",
+  "k256",
 ], default-features = false }
 
 [patch.crates-io]
