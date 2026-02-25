@@ -254,10 +254,6 @@ mod tests {
     }
 
     /// DeltaWitness: serialize then deserialize via bincode must round-trip.
-    ///
-    /// Serialize uses serialize_bytes (u64 length prefix + bytes) but
-    /// Deserialize reads [u8; 32] (fixed-size, no prefix). These are
-    /// incompatible in bincode, so the round-trip fails.
     #[test]
     fn delta_witness_bincode_roundtrip() {
         let mut rng = OsRng;
