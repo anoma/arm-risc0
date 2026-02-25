@@ -3,31 +3,28 @@
 /// Size hard-coded to two resources per unit
 const COMPLIANCE_INSTANCE_SIZE: usize = 56;
 
-use crate::{
-    error::ArmError,
-    merkle_path::MerklePath,
-    nullifier_key::NullifierKey,
-    resource::Resource,
-    utils::{bytes_to_words, words_to_bytes},
-};
-use hex::FromHex;
-use k256::{
-    elliptic_curve::{
-        sec1::{FromEncodedPoint, ToEncodedPoint},
-        Field, PrimeField,
-    },
-    EncodedPoint, ProjectivePoint, Scalar,
-};
-use lazy_static::lazy_static;
-use rand::rngs::OsRng;
-use risc0_zkvm::Digest;
+use crate::error::ArmError;
+use crate::utils::bytes_to_words;
+use crate::{constants::EMPTY_HASH_BYTES, Digest};
 use serde_with::serde_as;
 
-lazy_static! {
-    /// The initial root of the empty commitment tree is the hash of an empty string.
-    pub static ref INITIAL_ROOT: Digest =
-        Digest::from_hex("cc1d2f838445db7aec431df9ee8a871f40e7aa5e064fc056633ef8c60fab7b06")
-            .unwrap();
+#[cfg(feature = "zkvm")]
+use crate::utils::words_to_bytes;
+#[cfg(all(feature = "zkvm", feature = "k256"))]
+use crate::{merkle_path::MerklePath, nullifier_key::NullifierKey, resource::Resource};
+#[cfg(feature = "k256")]
+use k256::{elliptic_curve::sec1::FromEncodedPoint, EncodedPoint, ProjectivePoint};
+#[cfg(all(feature = "zkvm", feature = "k256"))]
+use k256::{
+    elliptic_curve::{sec1::ToEncodedPoint, Field, PrimeField},
+    Scalar,
+};
+#[cfg(all(feature = "zkvm", feature = "k256"))]
+use rand::rngs::OsRng;
+
+/// Returns the initial root of the empty commitment tree.
+pub fn initial_root() -> Digest {
+    Digest::try_from(EMPTY_HASH_BYTES.as_slice()).unwrap()
 }
 
 /// The compliance instance contains all public inputs to the compliance proof.
@@ -59,7 +56,54 @@ pub struct ComplianceInstanceWords {
     pub u32_words: [u32; COMPLIANCE_INSTANCE_SIZE],
 }
 
+impl ComplianceInstance {
+    /// Retrieves the delta message used for signing.
+    pub fn delta_msg(&self) -> Vec<u8> {
+        let mut msg = Vec::new();
+        msg.extend_from_slice(self.consumed_nullifier.as_bytes());
+        msg.extend_from_slice(self.created_commitment.as_bytes());
+        msg
+    }
+}
+
+#[cfg(feature = "k256")]
+impl ComplianceInstance {
+    /// Converts the delta commitment from affine coordinates to a ProjectivePoint.
+    pub fn delta_projective(&self) -> Result<ProjectivePoint, ArmError> {
+        use crate::utils::words_to_bytes;
+        let encoded_point = EncodedPoint::from_affine_coordinates(
+            words_to_bytes(&self.delta_x).into(),
+            words_to_bytes(&self.delta_y).into(),
+            false,
+        );
+        ProjectivePoint::from_encoded_point(&encoded_point)
+            .into_option()
+            .ok_or(ArmError::InvalidDelta)
+    }
+}
+
+#[cfg(feature = "zkvm")]
+impl ComplianceInstance {
+    /// Serializes this instance to journal bytes (risc0 serde format).
+    pub fn to_journal(&self) -> Result<Vec<u8>, ArmError> {
+        let words =
+            risc0_zkvm::serde::to_vec(self).map_err(|_| ArmError::InstanceSerializationFailed)?;
+        Ok(words_to_bytes(&words).to_vec())
+    }
+}
+
+impl ComplianceInstanceWords {
+    /// Creates a ComplianceInstanceWords from a byte slice.
+    pub fn from_bytes(instance_bytes: &[u8]) -> Result<Self, ArmError> {
+        let u32_words: [u32; COMPLIANCE_INSTANCE_SIZE] = bytes_to_words(instance_bytes)
+            .try_into()
+            .map_err(|_| ArmError::InstanceSerializationFailed)?;
+        Ok(ComplianceInstanceWords { u32_words })
+    }
+}
+
 /// The compliance witness contains all private inputs to the compliance proof.
+#[cfg(all(feature = "zkvm", feature = "k256"))]
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub struct ComplianceWitness {
     /// The consumed resource
@@ -79,6 +123,7 @@ pub struct ComplianceWitness {
     // pub output_resource_logic_cm_r: [u8; DATA_BYTES],
 }
 
+#[cfg(all(feature = "zkvm", feature = "k256"))]
 impl ComplianceWitness {
     /// Creates a new compliance witness from the given resources and latest
     /// root when consuming an ephemeral resource.
@@ -112,7 +157,7 @@ impl ComplianceWitness {
             merkle_path,
             rcv: Scalar::random(&mut OsRng).to_bytes().to_vec(),
             nf_key,
-            ephemeral_root: *INITIAL_ROOT,
+            ephemeral_root: initial_root(),
         }
     }
 
@@ -211,6 +256,7 @@ impl ComplianceWitness {
     }
 }
 
+#[cfg(all(feature = "zkvm", feature = "k256"))]
 impl Default for ComplianceWitness {
     fn default() -> Self {
         let nf_key = NullifierKey::default();
@@ -246,42 +292,10 @@ impl Default for ComplianceWitness {
         ComplianceWitness {
             consumed_resource,
             created_resource,
-            ephemeral_root: *INITIAL_ROOT,
+            ephemeral_root: initial_root(),
             merkle_path,
             rcv,
             nf_key,
         }
-    }
-}
-
-impl ComplianceInstance {
-    /// Converts the delta commitment from affine coordinates to a ProjectivePoint.
-    pub fn delta_projective(&self) -> Result<ProjectivePoint, ArmError> {
-        let encoded_point = EncodedPoint::from_affine_coordinates(
-            words_to_bytes(&self.delta_x).into(),
-            words_to_bytes(&self.delta_y).into(),
-            false,
-        );
-        ProjectivePoint::from_encoded_point(&encoded_point)
-            .into_option()
-            .ok_or(ArmError::InvalidDelta)
-    }
-
-    /// Retrieves the delta message used for signing.
-    pub fn delta_msg(&self) -> Vec<u8> {
-        let mut msg = Vec::new();
-        msg.extend_from_slice(self.consumed_nullifier.as_bytes());
-        msg.extend_from_slice(self.created_commitment.as_bytes());
-        msg
-    }
-}
-
-impl ComplianceInstanceWords {
-    /// Creates a ComplianceInstanceWords from a byte slice.
-    pub fn from_bytes(instance_bytes: &[u8]) -> Result<Self, ArmError> {
-        let u32_words: [u32; COMPLIANCE_INSTANCE_SIZE] = bytes_to_words(instance_bytes)
-            .try_into()
-            .map_err(|_| ArmError::InstanceSerializationFailed)?;
-        Ok(ComplianceInstanceWords { u32_words })
     }
 }

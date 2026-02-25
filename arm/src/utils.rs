@@ -1,7 +1,5 @@
 //! Utility functions for byte and word conversions and hashing.
 
-use risc0_zkvm::sha::{Digest, Impl, Sha256, DIGEST_WORDS};
-
 /// Converts a byte slice to a vector of u32 words.
 pub fn bytes_to_words(bytes: &[u8]) -> Vec<u32> {
     let mut words = Vec::new();
@@ -33,7 +31,9 @@ pub fn words_to_bytes(words: &[u32]) -> &[u8] {
 }
 
 /// Hashes two digests together using SHA-256.
-pub fn hash_two(left: &Digest, right: &Digest) -> Digest {
+#[cfg(feature = "zkvm")]
+pub fn hash_two(left: &crate::Digest, right: &crate::Digest) -> crate::Digest {
+    use risc0_zkvm::sha::{Impl, Sha256, DIGEST_WORDS};
     let mut words = Vec::with_capacity(2 * DIGEST_WORDS);
     words.extend_from_slice(left.as_words());
     words.extend_from_slice(right.as_words());
@@ -41,7 +41,9 @@ pub fn hash_two(left: &Digest, right: &Digest) -> Digest {
 }
 
 /// Hashes arbitrary bytes using SHA-256.
-pub fn hash_bytes(bytes: &[u8]) -> Digest {
+#[cfg(feature = "zkvm")]
+pub fn hash_bytes(bytes: &[u8]) -> crate::Digest {
+    use risc0_zkvm::sha::{Impl, Sha256};
     *Impl::hash_bytes(bytes)
 }
 

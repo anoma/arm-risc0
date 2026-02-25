@@ -11,6 +11,8 @@ compliance-methods = { path = "methods" }
 risc0-zkvm = "3.0.3"
 anoma-rm-risc0 = { path = "../../arm", features = [
   "compliance_circuit",
+  "zkvm",
+  "k256",
 ], default-features = false }
 
 [features]

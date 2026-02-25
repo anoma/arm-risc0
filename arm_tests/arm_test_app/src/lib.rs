@@ -5,7 +5,7 @@
 use anoma_rm_risc0::{
     action::Action,
     action_tree::MerkleTree,
-    compliance::{ComplianceWitness, INITIAL_ROOT},
+    compliance::{initial_root, ComplianceWitness},
     compliance_unit::ComplianceUnit,
     delta_proof::DeltaWitness,
     logic_proof::LogicProver,
@@ -103,7 +103,7 @@ pub fn create_an_action_with_multiple_compliances(
         let compliance_witness = ComplianceWitness {
             consumed_resource: consumed_resources[i],
             merkle_path: MerklePath::default(), // dummy path for test
-            ephemeral_root: *INITIAL_ROOT,
+            ephemeral_root: initial_root(),
             nf_key: nf_key.clone(),
             created_resource: created_resources[i],
             rcv: Scalar::ONE.to_bytes().to_vec(), // fixed rcv for test

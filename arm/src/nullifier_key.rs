@@ -1,9 +1,13 @@
 //! Nullifier key and its commitment
 
 use crate::error::ArmError;
-use rand::{rngs::OsRng, Rng};
-use risc0_zkvm::sha::{Digest, Impl, Sha256, DIGEST_BYTES};
+use crate::{Digest, DIGEST_BYTES};
 use serde::{Deserialize, Serialize};
+
+#[cfg(feature = "zkvm")]
+use rand::{rngs::OsRng, Rng};
+#[cfg(feature = "zkvm")]
+use risc0_zkvm::sha::{Impl, Sha256};
 
 /// Nullifier key
 #[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -16,6 +20,7 @@ impl NullifierKey {
     }
 
     /// Compute the commitment to the nullifier key
+    #[cfg(feature = "zkvm")]
     pub fn commit(&self) -> NullifierKeyCommitment {
         NullifierKeyCommitment(*Impl::hash_bytes(self.inner()))
     }
@@ -31,6 +36,7 @@ impl NullifierKey {
     }
 
     /// Generate a random nullifier key and its commitment
+    #[cfg(feature = "zkvm")]
     pub fn random_pair() -> (NullifierKey, NullifierKeyCommitment) {
         let rng_bytes: [u8; DIGEST_BYTES] = OsRng.gen();
         let nf_key = NullifierKey::from_bytes(rng_bytes);
@@ -68,6 +74,7 @@ impl NullifierKeyCommitment {
     }
 }
 
+#[cfg(feature = "zkvm")]
 impl Default for NullifierKeyCommitment {
     fn default() -> Self {
         NullifierKey::default().commit()

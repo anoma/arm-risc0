@@ -1,5 +1,14 @@
 //! Transaction structure and associated methods.
 
+#[cfg(feature = "k256")]
+use crate::delta_proof::DeltaInstance;
+use crate::delta_types::{DeltaProof, DeltaWitness};
+use crate::{action::Action, compliance_unit::ComplianceUnit, error::ArmError};
+use serde::{Deserialize, Serialize};
+
+#[cfg(all(feature = "zkvm", feature = "k256"))]
+use crate::logic_proof::LogicVerifier;
+
 #[cfg(feature = "aggregation")]
 use crate::{
     compliance::ComplianceInstanceWords,
@@ -9,16 +18,6 @@ use crate::{
 };
 #[cfg(feature = "aggregation")]
 use risc0_zkvm::{default_prover, ExecutorEnv, ProverOpts, Receipt, VerifierContext};
-use risc0_zkvm::{Digest, InnerReceipt};
-
-use crate::{
-    action::Action,
-    compliance_unit::ComplianceUnit,
-    delta_proof::{DeltaInstance, DeltaProof, DeltaWitness},
-    error::ArmError,
-    logic_proof::LogicVerifier,
-};
-use serde::{Deserialize, Serialize};
 
 /// Represents a transaction consisting of actions, delta proof, expected balance,
 /// and optional aggregation proof.
@@ -35,6 +34,10 @@ pub struct Transaction {
 }
 
 /// Represents either a delta witness for proving or a delta proof for verification.
+///
+/// The inner types are feature-conditional: with `k256` enabled, they provide
+/// full cryptographic operations. Without `k256`, they are opaque byte containers
+/// that maintain wire compatibility.
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub enum Delta {
     /// The delta witness used for proving the delta proof.
@@ -45,8 +48,6 @@ pub enum Delta {
 
 impl Transaction {
     /// Create a new transaction with the given actions and delta.
-    /// Delta proof is a deterministic process, no proving key is needed.
-    /// Delta instance can be constructed from the actions.
     pub fn create(actions: Vec<Action>, delta: Delta) -> Self {
         Transaction {
             actions,
@@ -56,11 +57,62 @@ impl Transaction {
         }
     }
 
+    /// Constructs the delta message by concatenating the delta messages
+    /// of each action.
+    pub fn get_delta_msg(&self) -> Vec<u8> {
+        let mut msg = Vec::new();
+        for action in &self.actions {
+            msg.extend(action.get_delta_msg());
+        }
+        msg
+    }
+
+    /// Inner check for nullifier duplication across all compliance units
+    pub fn nf_duplication_check(&self) -> Result<(), ArmError> {
+        let mut seen_nullifiers = std::collections::HashSet::new();
+        for action in &self.actions {
+            for cu in action.get_compliance_units() {
+                if !seen_nullifiers.insert(cu.instance.consumed_nullifier) {
+                    return Err(ArmError::NullifierDuplication);
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Returns all compliance units in the transaction.
+    pub fn get_compliance_units(&self) -> Vec<&ComplianceUnit> {
+        self.actions
+            .iter()
+            .flat_map(|a| a.get_compliance_units().iter())
+            .collect()
+    }
+
+    /// Returns `true` if any compliance or resource logic proof is `None`.
+    pub fn base_proofs_are_empty(&self) -> bool {
+        for a in self.actions.iter() {
+            if a.get_compliance_units().iter().any(|cu| cu.proof.is_none()) {
+                return true;
+            }
+            if a.get_logic_verifier_inputs()
+                .iter()
+                .any(|lp| lp.proof.is_none())
+            {
+                return true;
+            }
+        }
+
+        false
+    }
+}
+
+#[cfg(feature = "k256")]
+impl Transaction {
     /// Generates the delta proof for the transaction if it contains a delta witness.
     pub fn generate_delta_proof(self) -> Result<Transaction, ArmError> {
         match self.delta_proof {
             Delta::Witness(ref witness) => {
-                let msg = self.get_delta_msg()?;
+                let msg = self.get_delta_msg();
                 let proof = DeltaProof::prove(&msg, witness)?;
                 let delta_proof = Delta::Proof(proof);
                 Ok(Transaction {
@@ -74,11 +126,34 @@ impl Transaction {
         }
     }
 
+    /// Returns the DeltaInstance constructed from the sum of all actions' deltas.
+    pub fn delta(&self) -> Result<DeltaInstance, ArmError> {
+        let mut points = Vec::with_capacity(self.actions.len());
+        for action in &self.actions {
+            points.push(action.delta()?);
+        }
+        DeltaInstance::from_deltas(&points)
+    }
+
+    /// Composes two transactions by concatenating their actions and combining their delta witnesses.
+    pub fn compose(tx1: Transaction, tx2: Transaction) -> Transaction {
+        let mut actions = tx1.actions;
+        actions.extend(tx2.actions);
+        let delta = match (&tx1.delta_proof, &tx2.delta_proof) {
+            (Delta::Witness(witness1), Delta::Witness(witness2)) => {
+                Delta::Witness(witness1.compose(witness2))
+            }
+            _ => panic!("Cannot compose transactions with different delta types"),
+        };
+        Transaction::create(actions, delta)
+    }
+
     /// Verifies all the proofs and corresponding checks in the transaction.
+    #[cfg(feature = "zkvm")]
     pub fn verify(self) -> Result<(), ArmError> {
         match &self.delta_proof {
             Delta::Proof(ref proof) => {
-                let msg = self.get_delta_msg()?;
+                let msg = self.get_delta_msg();
                 let instance = self.delta()?;
                 DeltaProof::verify(&msg, proof, instance)?;
 
@@ -104,80 +179,21 @@ impl Transaction {
             Delta::Witness(_) => Err(ArmError::ExpectedDeltaProof),
         }
     }
+}
 
-    /// Inner check for nullifier duplication across all compliance units
-    pub fn nf_duplication_check(&self) -> Result<(), ArmError> {
-        let mut seen_nullifiers = std::collections::HashSet::new();
-        for action in &self.actions {
-            for cu in action.get_compliance_units() {
-                let instance = cu.get_instance()?;
-                if !seen_nullifiers.insert(instance.consumed_nullifier) {
-                    return Err(ArmError::NullifierDuplication);
-                }
-            }
+#[cfg(feature = "zkvm")]
+impl Transaction {
+    /// Returns all compliance instances as serialized journal bytes.
+    pub fn get_compliance_instances(&self) -> Result<Vec<Vec<u8>>, ArmError> {
+        let mut result = Vec::new();
+        for cu in self.get_compliance_units() {
+            result.push(cu.instance.to_journal()?);
         }
-        Ok(())
-    }
-
-    /// Returns the DeltaInstance constructed from the sum of all actions' deltas.
-    pub fn delta(&self) -> Result<DeltaInstance, ArmError> {
-        let mut points = Vec::with_capacity(self.actions.len());
-        for action in &self.actions {
-            points.push(action.delta()?);
-        }
-        DeltaInstance::from_deltas(&points)
-    }
-
-    /// Constructs the delta message by concatenating the delta messages
-    /// of each action.
-    pub fn get_delta_msg(&self) -> Result<Vec<u8>, ArmError> {
-        let mut msg = Vec::new();
-        for action in &self.actions {
-            msg.extend(action.get_delta_msg()?);
-        }
-        Ok(msg)
-    }
-
-    /// Composes two transactions by concatenating their actions and combining their delta witnesses.
-    pub fn compose(tx1: Transaction, tx2: Transaction) -> Transaction {
-        let mut actions = tx1.actions;
-        actions.extend(tx2.actions);
-        let delta = match (&tx1.delta_proof, &tx2.delta_proof) {
-            (Delta::Witness(witness1), Delta::Witness(witness2)) => {
-                Delta::Witness(witness1.compose(witness2))
-            }
-            _ => panic!("Cannot compose transactions with different delta types"),
-        };
-        Transaction::create(actions, delta)
-    }
-
-    /// Returns `true` if any compliance or resource logic proof is `None`.
-    pub fn base_proofs_are_empty(&self) -> bool {
-        for a in self.actions.iter() {
-            if a.get_compliance_units().iter().any(|cu| cu.proof.is_none()) {
-                return true;
-            }
-            if a.get_logic_verifier_inputs()
-                .iter()
-                .any(|lp| lp.proof.is_none())
-            {
-                return true;
-            }
-        }
-
-        false
-    }
-
-    /// Returns all compliance units in the transaction.
-    pub fn get_compliance_units(&self) -> Vec<&ComplianceUnit> {
-        self.actions
-            .iter()
-            .flat_map(|a| a.get_compliance_units().iter())
-            .collect()
+        Ok(result)
     }
 
     /// Returns all compliance inner receipts in the transaction.
-    pub fn get_compliance_inner_receipts(&self) -> Result<Vec<InnerReceipt>, ArmError> {
+    pub fn get_compliance_inner_receipts(&self) -> Result<Vec<risc0_zkvm::InnerReceipt>, ArmError> {
         let mut compliance_inner_receipts = Vec::new();
         for cu in self.get_compliance_units() {
             let inner_receipt = cu.get_inner_receipt()?;
@@ -187,7 +203,7 @@ impl Transaction {
     }
 
     /// Returns all logic inner receipts in the transaction.
-    pub fn get_logic_inner_receipts(&self) -> Result<Vec<InnerReceipt>, ArmError> {
+    pub fn get_logic_inner_receipts(&self) -> Result<Vec<risc0_zkvm::InnerReceipt>, ArmError> {
         let mut logic_inner_receipts = Vec::new();
         for action in self.actions.iter() {
             let logic_inputs = action.get_logic_verifier_inputs();
@@ -198,16 +214,10 @@ impl Transaction {
         }
         Ok(logic_inner_receipts)
     }
+}
 
-    /// Returns all compliance instances in the transaction.
-    pub fn get_compliance_instances(&self) -> Vec<Vec<u8>> {
-        let mut result = Vec::new();
-        for cu in self.get_compliance_units() {
-            result.push(cu.instance.clone());
-        }
-        result
-    }
-
+#[cfg(all(feature = "zkvm", feature = "k256"))]
+impl Transaction {
     /// Returns all logic verifiers in the transaction.
     pub fn get_logic_verifiers(&self) -> Result<Vec<LogicVerifier>, ArmError> {
         let mut result = Vec::new();
@@ -219,7 +229,9 @@ impl Transaction {
     }
 
     /// Returns all logic verifying keys and instances in the transaction.
-    pub fn get_logic_vks_and_instances(&self) -> Result<(Vec<Digest>, Vec<Vec<u8>>), ArmError> {
+    pub fn get_logic_vks_and_instances(
+        &self,
+    ) -> Result<(Vec<crate::Digest>, Vec<Vec<u8>>), ArmError> {
         let mut vks = Vec::new();
         let mut instances = Vec::new();
         for lp in self.get_logic_verifiers()? {
@@ -247,7 +259,7 @@ impl Transaction {
         let compliance_inner_receipts = self.get_compliance_inner_receipts()?;
         let logic_inner_receipts = self.get_logic_inner_receipts()?;
         let compliance_instances_u32: Vec<ComplianceInstanceWords> = self
-            .get_compliance_instances()
+            .get_compliance_instances()?
             .iter()
             .map(|instance_bytes| ComplianceInstanceWords::from_bytes(instance_bytes))
             .collect::<Result<Vec<ComplianceInstanceWords>, ArmError>>()?;
@@ -268,7 +280,7 @@ impl Transaction {
         }
 
         // Write instances and keys to guest input.
-        let compliance_key: Digest = *COMPLIANCE_VK;
+        let compliance_key: crate::Digest = *COMPLIANCE_VK;
         let env = env_builder
             .write(&compliance_instances_u32)
             .map_err(|_| ArmError::WriteWitnessFailed)?
@@ -316,7 +328,7 @@ impl Transaction {
         if let Some(proof) = &self.aggregation_proof {
             let instance = self.construct_aggregation_instance()?;
 
-            let inner_receipt: InnerReceipt = bincode::deserialize(proof)
+            let inner_receipt: risc0_zkvm::InnerReceipt = bincode::deserialize(proof)
                 .map_err(|_| ArmError::InnerReceiptDeserializationError)?;
 
             // Verify proof on the batch instance.
@@ -335,7 +347,7 @@ impl Transaction {
     /// Constructs the aggregation instance by serializing all compliance and logic instances.
     pub fn construct_aggregation_instance(&self) -> Result<Vec<u8>, ArmError> {
         let compliance_instances_u32: Vec<ComplianceInstanceWords> = self
-            .get_compliance_instances()
+            .get_compliance_instances()?
             .iter()
             .map(|instance_bytes| ComplianceInstanceWords::from_bytes(instance_bytes))
             .collect::<Result<Vec<ComplianceInstanceWords>, ArmError>>()?;

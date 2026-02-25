@@ -1,6 +1,6 @@
 //! Logic instance for ARM resource logic proofs.
 
-use risc0_zkvm::Digest;
+use crate::Digest;
 use serde::{Deserialize, Serialize};
 
 /// Represents a logic instance with its associated data.
@@ -67,5 +67,54 @@ impl AppData {
     /// Adds an application payload blob with its deletion criterion.
     pub fn add_application_payload(&mut self, blob: ExpirableBlob) {
         self.application_payload.push(blob);
+    }
+}
+
+#[cfg(feature = "zkvm")]
+impl LogicInstance {
+    /// Serializes this instance to journal bytes (risc0 serde format).
+    pub fn to_journal(&self) -> Result<Vec<u8>, crate::error::ArmError> {
+        let words = risc0_zkvm::serde::to_vec(self)
+            .map_err(|_| crate::error::ArmError::InstanceSerializationFailed)?;
+        Ok(crate::utils::words_to_bytes(&words).to_vec())
+    }
+}
+
+/// Inputs required to create a logic verifier.
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+pub struct LogicVerifierInputs {
+    /// The tag (either commitment or nullifier) for the logic instance.
+    pub tag: Digest,
+    /// The verifying key for the logic proof.
+    pub verifying_key: Digest,
+    /// The application data associated with the logic instance.
+    pub app_data: AppData,
+    /// The logic proof (optional, would be absent when aggregation is enabled).
+    pub proof: Option<Vec<u8>>,
+}
+
+impl LogicVerifierInputs {
+    /// Converts the LogicVerifierInputs into a LogicInstance.
+    pub fn to_instance(&self, is_consumed: bool, root: Digest) -> LogicInstance {
+        LogicInstance {
+            tag: self.tag,
+            is_consumed,
+            root,
+            app_data: self.app_data.clone(),
+        }
+    }
+}
+
+#[cfg(feature = "zkvm")]
+impl LogicVerifierInputs {
+    /// Retrieves the inner receipt from the logic proof.
+    pub fn get_inner_receipt(&self) -> Result<risc0_zkvm::InnerReceipt, crate::error::ArmError> {
+        let inner: risc0_zkvm::InnerReceipt = bincode::deserialize(
+            self.proof
+                .as_ref()
+                .ok_or(crate::error::ArmError::MissingField("Missing logic proof"))?,
+        )
+        .map_err(|_| crate::error::ArmError::InnerReceiptDeserializationError)?;
+        Ok(inner)
     }
 }
