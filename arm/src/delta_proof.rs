@@ -235,4 +235,30 @@ fn test_delta_proof() {
     let instance = DeltaInstance { verifying_key };
 
     DeltaProof::verify(message, &proof, instance).unwrap();
+    }
+
+    /// DeltaProof: serialize then deserialize via bincode must round-trip.
+    #[test]
+    fn delta_proof_bincode_roundtrip() {
+        let mut rng = OsRng;
+        let signing_key = SigningKey::random(&mut rng);
+        let witness = DeltaWitness { signing_key };
+        let proof = DeltaProof::prove(b"roundtrip", &witness).unwrap();
+
+        let encoded = bincode::serialize(&proof).unwrap();
+        let decoded: DeltaProof = bincode::deserialize(&encoded).unwrap();
+        assert_eq!(proof, decoded);
+    }
+
+    /// DeltaWitness: serialize then deserialize via bincode must round-trip.
+    #[test]
+    fn delta_witness_bincode_roundtrip() {
+        let mut rng = OsRng;
+        let signing_key = SigningKey::random(&mut rng);
+        let witness = DeltaWitness { signing_key };
+
+        let encoded = bincode::serialize(&witness).unwrap();
+        let decoded: DeltaWitness = bincode::deserialize(&encoded).unwrap();
+        assert_eq!(witness, decoded);
+    }
 }
