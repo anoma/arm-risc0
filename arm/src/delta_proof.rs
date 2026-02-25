@@ -209,7 +209,12 @@ impl<'de> Deserialize<'de> for DeltaWitness {
     where
         D: serde::Deserializer<'de>,
     {
-        let bytes = <[u8; 32]>::deserialize(deserializer)?;
+        let bytes: Vec<u8> = Vec::deserialize(deserializer)?;
+        if bytes.len() != 32 {
+            return Err(serde::de::Error::custom(
+                "Invalid byte length for DeltaWitness",
+            ));
+        }
         DeltaWitness::from_bytes(&bytes).map_err(|e| {
             serde::de::Error::custom(format!("Failed to deserialize DeltaWitness: {:?}", e))
         })
