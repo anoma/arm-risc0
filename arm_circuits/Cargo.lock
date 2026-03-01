@@ -4648,6 +4648,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "sha2-bench"
+version = "1.0.0"
+dependencies = [
+ "risc0-zkvm",
+ "sha2-bench-methods",
+]
+
+[[package]]
+name = "sha2-bench-methods"
+version = "1.0.0"
+dependencies = [
+ "risc0-build",
+]
+
+[[package]]
 name = "sha3"
 version = "0.10.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"

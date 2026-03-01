@@ -1,0 +1,14 @@
+[package]
+name = "sha2-bench"
+version = "1.0.0"
+edition = "2021"
+
+[dependencies]
+sha2-bench-methods = { path = "methods" }
+risc0-zkvm = "3.0.3"
+
+[features]
+default = []
+cuda = ["risc0-zkvm/cuda"]
+prove = ["risc0-zkvm/prove"]
+bonsai = ["risc0-zkvm/bonsai"]
