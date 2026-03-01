@@ -1,6 +1,6 @@
 use anoma_rm_risc0::compliance::{ComplianceInstance, ComplianceWitness};
 use compliance_methods::{COMPLIANCE_GUEST_ELF, COMPLIANCE_GUEST_ID};
-use risc0_zkvm::{default_prover, ExecutorEnv};
+use risc0_zkvm::{default_prover, ExecutorEnv, ProverOpts, VerifierContext};
 use std::time::Instant;
 
 pub fn main() {
@@ -17,7 +17,15 @@ pub fn main() {
     let prove_start_timer = Instant::now();
 
     // Produce a receipt by proving the specified ELF binary.
-    let receipt = prover.prove(env, COMPLIANCE_GUEST_ELF).unwrap().receipt;
+    let prove_info = prover
+        .prove_with_ctx(
+            env,
+            &VerifierContext::default(),
+            COMPLIANCE_GUEST_ELF,
+            &ProverOpts::succinct(),
+        )
+        .unwrap();
+    let receipt = prove_info.receipt;
 
     let prove_duration = prove_start_timer.elapsed();
     println!("Prove duration time: {:?}", prove_duration);
@@ -37,6 +45,10 @@ pub fn main() {
     receipt.verify(COMPLIANCE_GUEST_ID).unwrap();
     let verify_duration = verify_start_timer.elapsed();
     println!("Verify duration time: {:?}", verify_duration);
+
+    // print cycle counts
+    println!("  Total cycles:     {}", prove_info.stats.total_cycles);
+    println!("  User cycles:      {}", prove_info.stats.user_cycles);
 }
 
 // This is for local testing only. It updates the elf binary and prints the ID
