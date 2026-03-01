@@ -1,0 +1,15 @@
+[package]
+name = "ecdsa-bench"
+version = "1.0.0"
+edition = "2021"
+
+[dependencies]
+ecdsa-bench-methods = { path = "methods" }
+risc0-zkvm = "3.0.3"
+k256 = { version = "0.13.3", features = ["ecdsa", "std"] }
+
+[features]
+default = []
+cuda = ["risc0-zkvm/cuda"]
+prove = ["risc0-zkvm/prove"]
+bonsai = ["risc0-zkvm/bonsai"]

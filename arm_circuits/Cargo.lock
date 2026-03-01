@@ -1585,6 +1585,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "ecdsa-bench"
+version = "1.0.0"
+dependencies = [
+ "ecdsa-bench-methods",
+ "k256",
+ "risc0-zkvm",
+]
+
+[[package]]
+name = "ecdsa-bench-methods"
+version = "1.0.0"
+dependencies = [
+ "risc0-build",
+]
+
+[[package]]
 name = "educe"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2620,6 +2636,7 @@ dependencies = [
  "once_cell",
  "serdect",
  "sha2",
+ "signature",
 ]
 
 [[package]]
