@@ -9,8 +9,7 @@ use crate::{
     compliance_unit::{ComplianceUnit, ComplianceUnitExt},
     error::ArmError,
     logic_proof::{LogicVerifier, LogicVerifierInputsExt},
-    LogicVerifierInputs,
-    Digest,
+    Digest, LogicVerifierInputs,
 };
 
 /// Extension methods for actions that require zkvm/k256 functionality.
@@ -77,12 +76,22 @@ impl ActionExt for Action {
         let tags: Vec<Digest> = self
             .compliance_units
             .iter()
-            .flat_map(|unit| [unit.instance.consumed_nullifier, unit.instance.created_commitment])
+            .flat_map(|unit| {
+                [
+                    unit.instance.consumed_nullifier,
+                    unit.instance.created_commitment,
+                ]
+            })
             .collect();
         let logics: Vec<Digest> = self
             .compliance_units
             .iter()
-            .flat_map(|unit| [unit.instance.consumed_logic_ref, unit.instance.created_logic_ref])
+            .flat_map(|unit| {
+                [
+                    unit.instance.consumed_logic_ref,
+                    unit.instance.created_logic_ref,
+                ]
+            })
             .collect();
         let action_tree = MerkleTree::from(tags.clone());
         let root = action_tree.root()?;
