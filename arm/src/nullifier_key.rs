@@ -2,6 +2,7 @@
 
 pub use arm_core::nullifier_key::{NullifierKey, NullifierKeyCommitment};
 
+use arm_core::digest::DIGEST_BYTES;
 use rand::{rngs::OsRng, Rng};
 
 /// Extension methods for nullifier keys that require risc0/rand.
@@ -24,7 +25,7 @@ impl NullifierKeyExt for NullifierKey {
     }
 
     fn random_pair() -> (NullifierKey, NullifierKeyCommitment) {
-        let rng_bytes: [u8; 32] = OsRng.gen();
+        let rng_bytes: [u8; DIGEST_BYTES] = OsRng.gen();
         let nf_key = NullifierKey::from_bytes(rng_bytes);
         let nk_commitment = nf_key.commit();
         (nf_key, nk_commitment)

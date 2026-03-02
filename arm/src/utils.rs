@@ -5,9 +5,9 @@ use risc0_zkvm::sha::{Digest as Risc0Digest, Impl, Sha256, DIGEST_WORDS};
 
 /// Hashes two digests together using SHA-256.
 pub fn hash_two(left: &Risc0Digest, right: &Risc0Digest) -> Risc0Digest {
-    let mut words = Vec::with_capacity(2 * DIGEST_WORDS);
-    words.extend_from_slice(left.as_words());
-    words.extend_from_slice(right.as_words());
+    let mut words = [0u32; 2 * DIGEST_WORDS];
+    words[..DIGEST_WORDS].copy_from_slice(left.as_words());
+    words[DIGEST_WORDS..].copy_from_slice(right.as_words());
     *Impl::hash_words(&words)
 }
 

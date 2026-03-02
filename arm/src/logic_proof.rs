@@ -1,6 +1,6 @@
 //! Logic proof structures and traits for proving and verifying logic statements.
 
-pub use arm_core::logic_instance::LogicVerifierInputs;
+use arm_core::logic_instance::LogicVerifierInputs;
 
 use crate::{
     constants::{PADDING_LOGIC_PK, PADDING_LOGIC_VK},

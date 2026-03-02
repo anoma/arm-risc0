@@ -1,11 +1,14 @@
 //! A Merkle path from a leaf to a root in a commitment/action tree.
 
-use crate::{constants::EMPTY_HASH_BYTES, digest::Digest};
+use crate::digest::Digest;
 use serde::{Deserialize, Serialize};
+
+/// Depth of the commitment tree.
+pub const COMMITMENT_TREE_DEPTH: usize = 10;
 
 /// Returns the constant padding leaf used in Merkle trees.
 pub fn padding_leaf() -> Digest {
-    Digest::try_from(EMPTY_HASH_BYTES.as_slice()).unwrap()
+    crate::compliance::initial_root()
 }
 
 /// A path from a position in a particular commitment tree to the root of that tree.
@@ -36,9 +39,6 @@ impl MerklePath {
 
 impl Default for MerklePath {
     fn default() -> Self {
-        MerklePath(vec![
-            (Digest::default(), false);
-           10 // COMMITMENT_TREE_DEPTH, only for testing
-        ])
+        MerklePath(vec![(Digest::default(), false); COMMITMENT_TREE_DEPTH])
     }
 }

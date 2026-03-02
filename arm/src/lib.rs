@@ -56,19 +56,3 @@ pub use crate::merkle_path::MerklePathExt;
 pub use crate::nullifier_key::NullifierKeyExt;
 #[cfg(feature = "transaction")]
 pub use crate::transaction::TransactionExt;
-
-/// Convenience re-exports for core extension traits.
-pub mod prelude {
-    #[cfg(feature = "transaction")]
-    pub use crate::action::ActionExt;
-    #[cfg(any(feature = "compliance_circuit", feature = "aggregation_circuit"))]
-    pub use crate::compliance::{ComplianceInstanceExt, ComplianceInstanceJournalExt};
-    #[cfg(feature = "transaction")]
-    pub use crate::compliance_unit::ComplianceUnitExt;
-    #[cfg(feature = "transaction")]
-    pub use crate::logic_proof::LogicVerifierInputsExt;
-    pub use crate::merkle_path::MerklePathExt;
-    pub use crate::nullifier_key::NullifierKeyExt;
-    #[cfg(feature = "transaction")]
-    pub use crate::transaction::TransactionExt;
-}

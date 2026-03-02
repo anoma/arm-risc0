@@ -241,6 +241,6 @@ impl ComplianceInstanceJournalExt for ComplianceInstance {
     fn to_journal(&self) -> Result<Vec<u8>, ArmError> {
         let words =
             risc0_zkvm::serde::to_vec(self).map_err(|_| ArmError::InstanceSerializationFailed)?;
-        Ok(arm_core::utils::words_to_bytes(&words).to_vec())
+        Ok(bytemuck::cast_vec(words))
     }
 }

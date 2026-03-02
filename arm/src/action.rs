@@ -8,7 +8,8 @@ use crate::{
     action_tree::MerkleTree,
     compliance_unit::{ComplianceUnit, ComplianceUnitExt},
     error::ArmError,
-    logic_proof::{LogicVerifier, LogicVerifierInputs, LogicVerifierInputsExt},
+    logic_proof::{LogicVerifier, LogicVerifierInputsExt},
+    LogicVerifierInputs,
     Digest,
 };
 
@@ -72,21 +73,17 @@ impl ActionExt for Action {
     fn get_logic_verifiers(&self) -> Result<Vec<LogicVerifier>, ArmError> {
         let mut logic_verifiers = Vec::new();
 
-        let compliance_intances = self
+        // Construct the action tree.
+        let tags: Vec<Digest> = self
             .compliance_units
             .iter()
-            .map(|unit| unit.instance.clone())
-            .collect::<Vec<_>>();
-
-        // Construct the action tree.
-        let tags: Vec<Digest> = compliance_intances
-            .iter()
-            .flat_map(|instance| vec![instance.consumed_nullifier, instance.created_commitment])
+            .flat_map(|unit| [unit.instance.consumed_nullifier, unit.instance.created_commitment])
             .collect();
-        let logics = compliance_intances
+        let logics: Vec<Digest> = self
+            .compliance_units
             .iter()
-            .flat_map(|instance| vec![instance.consumed_logic_ref, instance.created_logic_ref])
-            .collect::<Vec<_>>();
+            .flat_map(|unit| [unit.instance.consumed_logic_ref, unit.instance.created_logic_ref])
+            .collect();
         let action_tree = MerkleTree::from(tags.clone());
         let root = action_tree.root()?;
 
