@@ -44,7 +44,11 @@ impl TryFrom<&[u8]> for Digest {
         if bytes.len() != DIGEST_BYTES {
             return Err("Invalid byte length for Digest");
         }
-        Ok(Digest(*bytemuck::from_bytes(bytes)))
+        let mut words = [0u32; DIGEST_WORDS];
+        for (i, chunk) in bytes.chunks_exact(4).enumerate() {
+            words[i] = u32::from_ne_bytes(chunk.try_into().unwrap());
+        }
+        Ok(Digest(words))
     }
 }
 
@@ -53,10 +57,7 @@ impl hex::FromHex for Digest {
 
     fn from_hex<T: AsRef<[u8]>>(hex: T) -> Result<Self, Self::Error> {
         let bytes = hex::decode(hex)?;
-        if bytes.len() != DIGEST_BYTES {
-            return Err(hex::FromHexError::InvalidStringLength);
-        }
-        Ok(Digest(*bytemuck::from_bytes(&bytes)))
+        Digest::try_from(bytes.as_slice()).map_err(|_| hex::FromHexError::InvalidStringLength)
     }
 }
 
