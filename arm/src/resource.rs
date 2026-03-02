@@ -18,7 +18,8 @@ const RESOURCE_BYTES: usize = DIGEST_BYTES
 
 use crate::{
     error::ArmError,
-    nullifier_key::{NullifierKey, NullifierKeyCommitment},
+    nullifier_key::{NullifierKey, NullifierKeyCommitment, NullifierKeyExt},
+    utils::risc0_to_core_digest,
 };
 
 use k256::{
@@ -28,8 +29,9 @@ use k256::{
 use rand::rngs::OsRng;
 use rand::Rng;
 use risc0_zkvm::sha::{rust_crypto::Sha256 as Sha256Type, Impl, Sha256, DIGEST_BYTES};
-use risc0_zkvm::Digest;
 use serde::{Deserialize, Serialize};
+
+use crate::Digest;
 
 /// Resource representation in the ARM system.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -172,7 +174,7 @@ impl Resource {
         offset += DIGEST_BYTES;
         assert_eq!(offset, RESOURCE_BYTES);
         // Now produce the hash
-        *Impl::hash_bytes(&bytes)
+        risc0_to_core_digest(*Impl::hash_bytes(&bytes))
     }
 
     /// Compute the nullifier of the resource
@@ -206,7 +208,7 @@ impl Resource {
 
             assert_eq!(offset, 4 * DIGEST_BYTES);
 
-            Ok(*Impl::hash_bytes(&bytes))
+            Ok(risc0_to_core_digest(*Impl::hash_bytes(&bytes)))
         } else {
             Err(ArmError::InvalidNullifierKey)
         }
@@ -280,7 +282,7 @@ impl Default for Resource {
             value_ref: Digest::default(),
             is_ephemeral: true,
             nonce: [0; DIGEST_BYTES],
-            nk_commitment: NullifierKeyCommitment::default(),
+            nk_commitment: NullifierKey::default().commit(),
             rand_seed: [0; DIGEST_BYTES],
         }
     }

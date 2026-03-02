@@ -1,8 +1,11 @@
 //! Constants for compliance and padding logic proving and verification keys.
 
-use hex::FromHex;
+pub use arm_core::constants::{
+    BATCH_AGGREGATION_VK_BYTES, COMPLIANCE_VK_BYTES, EMPTY_HASH_BYTES, PADDING_LOGIC_VK_BYTES,
+};
 use lazy_static::lazy_static;
-use risc0_zkvm::Digest;
+
+use crate::Digest;
 
 /// Compliance proving key / compliance guest ELF binary
 pub const COMPLIANCE_PK: &[u8] = include_bytes!("../elfs/compliance-guest.bin");
@@ -15,17 +18,16 @@ pub const BATCH_AGGREGATION_PK: &[u8] = include_bytes!("../elfs/batch-aggregatio
 lazy_static! {
     /// compliance verification key / compliance image id
     pub static ref COMPLIANCE_VK: Digest =
-        Digest::from_hex("919e13001cd3319be5a5a7cb189203be083674acb3fff23d05aae9c3ed86314d")
-            .unwrap();
+        Digest::try_from(COMPLIANCE_VK_BYTES.as_slice()).unwrap();
 
     /// padding logic verification key / compliance image id
     pub static ref PADDING_LOGIC_VK: Digest =
-        Digest::from_hex("21fcc2fc2c07f9753405d3070f2488c67389f7d797b6f6e20a9f2529fe4a0bff")
-            .unwrap();
+        Digest::try_from(PADDING_LOGIC_VK_BYTES.as_slice()).unwrap();
 }
 
 #[cfg(feature = "aggregation")]
 lazy_static! {
     /// Batch aggregation verification key / Batch aggregation image id.
-    pub static ref BATCH_AGGREGATION_VK: Digest = Digest::from_hex("213b3f40d7c113c1a012072fcd791fa44bf5166a2300121630bd3228e2b00827").unwrap();
+    pub static ref BATCH_AGGREGATION_VK: Digest =
+        Digest::try_from(BATCH_AGGREGATION_VK_BYTES.as_slice()).unwrap();
 }

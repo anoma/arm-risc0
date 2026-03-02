@@ -1,68 +1,82 @@
-//! Transaction structure and associated methods.
+//! Transaction extensions and associated methods.
+
+pub use arm_core::transaction::{Delta, Transaction};
+
+use arm_core::delta_types::{DeltaProof as CoreDeltaProof, DeltaWitness as CoreDeltaWitness};
+use risc0_zkvm::InnerReceipt;
 
 #[cfg(feature = "aggregation")]
 use crate::{
-    compliance::ComplianceInstanceWords,
     constants::{BATCH_AGGREGATION_PK, BATCH_AGGREGATION_VK, COMPLIANCE_VK},
     proving_system::ProofType,
-    utils::{bytes_to_words, words_to_bytes},
+    utils::{bytes_to_words, core_to_risc0_digest, words_to_bytes},
+    ComplianceInstanceWords,
 };
 #[cfg(feature = "aggregation")]
 use risc0_zkvm::{default_prover, ExecutorEnv, ProverOpts, Receipt, VerifierContext};
-use risc0_zkvm::{Digest, InnerReceipt};
 
 use crate::{
-    action::Action,
-    compliance_unit::ComplianceUnit,
+    action::ActionExt,
+    compliance::ComplianceInstanceJournalExt,
+    compliance_unit::ComplianceUnitExt,
     delta_proof::{DeltaInstance, DeltaProof, DeltaWitness},
     error::ArmError,
-    logic_proof::LogicVerifier,
+    logic_proof::{LogicVerifier, LogicVerifierInputsExt},
+    Digest,
 };
-use serde::{Deserialize, Serialize};
 
-/// Represents a transaction consisting of actions, delta proof, expected balance,
-/// and optional aggregation proof.
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
-pub struct Transaction {
-    /// The actions included in the transaction.
-    pub actions: Vec<Action>,
-    /// The delta proof, which can be either a witness for proving or a proof for verification.
-    pub delta_proof: Delta,
-    /// We can't support unbalanced transactions, so this is just a placeholder.
-    pub expected_balance: Option<Vec<u8>>,
-    /// The aggregation proof, if present, attesting to the validity of all individual proofs.
-    pub aggregation_proof: Option<Vec<u8>>,
-}
-
-/// Represents either a delta witness for proving or a delta proof for verification.
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
-pub enum Delta {
-    /// The delta witness used for proving the delta proof.
-    Witness(DeltaWitness),
-    /// The delta proof used for verification.
-    Proof(DeltaProof),
-}
-
-impl Transaction {
-    /// Create a new transaction with the given actions and delta.
-    /// Delta proof is a deterministic process, no proving key is needed.
-    /// Delta instance can be constructed from the actions.
-    pub fn create(actions: Vec<Action>, delta: Delta) -> Self {
-        Transaction {
-            actions,
-            delta_proof: delta,
-            expected_balance: None,
-            aggregation_proof: None,
-        }
-    }
-
+/// Extension methods for transactions that require zkvm/k256 functionality.
+pub trait TransactionExt {
     /// Generates the delta proof for the transaction if it contains a delta witness.
-    pub fn generate_delta_proof(self) -> Result<Transaction, ArmError> {
+    fn generate_delta_proof(self) -> Result<Transaction, ArmError>;
+
+    /// Verifies all the proofs and corresponding checks in the transaction.
+    fn verify(self) -> Result<(), ArmError>;
+
+    /// Returns the DeltaInstance constructed from the sum of all actions' deltas.
+    fn delta(&self) -> Result<DeltaInstance, ArmError>;
+
+    /// Composes two transactions by concatenating their actions and combining their delta witnesses.
+    fn compose(tx1: Transaction, tx2: Transaction) -> Transaction
+    where
+        Self: Sized;
+
+    /// Returns all compliance inner receipts in the transaction.
+    fn get_compliance_inner_receipts(&self) -> Result<Vec<InnerReceipt>, ArmError>;
+
+    /// Returns all logic inner receipts in the transaction.
+    fn get_logic_inner_receipts(&self) -> Result<Vec<InnerReceipt>, ArmError>;
+
+    /// Returns all compliance instances in serialized journal format.
+    fn get_compliance_instances(&self) -> Result<Vec<Vec<u8>>, ArmError>;
+
+    /// Returns all logic verifiers in the transaction.
+    fn get_logic_verifiers(&self) -> Result<Vec<LogicVerifier>, ArmError>;
+
+    /// Returns all logic verifying keys and instances in the transaction.
+    fn get_logic_vks_and_instances(&self) -> Result<(Vec<Digest>, Vec<Vec<u8>>), ArmError>;
+
+    /// Aggregates all the transaction proofs.
+    #[cfg(feature = "aggregation")]
+    fn aggregate(&mut self, proof_type: ProofType) -> Result<(), ArmError>;
+
+    /// Verifies the aggregated proof of the transaction.
+    #[cfg(feature = "aggregation")]
+    fn verify_aggregation(&self) -> Result<(), ArmError>;
+
+    /// Constructs the aggregation instance by serializing all compliance and logic instances.
+    #[cfg(feature = "aggregation")]
+    fn construct_aggregation_instance(&self) -> Result<Vec<u8>, ArmError>;
+}
+
+impl TransactionExt for Transaction {
+    fn generate_delta_proof(self) -> Result<Transaction, ArmError> {
         match self.delta_proof {
             Delta::Witness(ref witness) => {
-                let msg = self.get_delta_msg()?;
-                let proof = DeltaProof::prove(&msg, witness)?;
-                let delta_proof = Delta::Proof(proof);
+                let witness = DeltaWitness::from_bytes(&witness.0)?;
+                let msg = self.get_delta_msg();
+                let proof = DeltaProof::prove(&msg, &witness)?;
+                let delta_proof = Delta::Proof(CoreDeltaProof(proof.to_bytes()));
                 Ok(Transaction {
                     actions: self.actions,
                     delta_proof,
@@ -74,15 +88,15 @@ impl Transaction {
         }
     }
 
-    /// Verifies all the proofs and corresponding checks in the transaction.
-    pub fn verify(self) -> Result<(), ArmError> {
+    fn verify(self) -> Result<(), ArmError> {
         match &self.delta_proof {
-            Delta::Proof(ref proof) => {
-                let msg = self.get_delta_msg()?;
+            Delta::Proof(proof) => {
+                let proof = DeltaProof::from_bytes(&proof.0)?;
+                let msg = self.get_delta_msg();
                 let instance = self.delta()?;
-                DeltaProof::verify(&msg, proof, instance)?;
+                DeltaProof::verify(&msg, &proof, instance)?;
 
-                // Check for nullifier duplication across all compliance units
+                // Check for nullifier duplication across all compliance units.
                 self.nf_duplication_check()?;
 
                 if self.aggregation_proof.is_some() {
@@ -105,22 +119,7 @@ impl Transaction {
         }
     }
 
-    /// Inner check for nullifier duplication across all compliance units
-    pub fn nf_duplication_check(&self) -> Result<(), ArmError> {
-        let mut seen_nullifiers = std::collections::HashSet::new();
-        for action in &self.actions {
-            for cu in action.get_compliance_units() {
-                let instance = cu.get_instance()?;
-                if !seen_nullifiers.insert(instance.consumed_nullifier) {
-                    return Err(ArmError::NullifierDuplication);
-                }
-            }
-        }
-        Ok(())
-    }
-
-    /// Returns the DeltaInstance constructed from the sum of all actions' deltas.
-    pub fn delta(&self) -> Result<DeltaInstance, ArmError> {
+    fn delta(&self) -> Result<DeltaInstance, ArmError> {
         let mut points = Vec::with_capacity(self.actions.len());
         for action in &self.actions {
             points.push(action.delta()?);
@@ -128,56 +127,24 @@ impl Transaction {
         DeltaInstance::from_deltas(&points)
     }
 
-    /// Constructs the delta message by concatenating the delta messages
-    /// of each action.
-    pub fn get_delta_msg(&self) -> Result<Vec<u8>, ArmError> {
-        let mut msg = Vec::new();
-        for action in &self.actions {
-            msg.extend(action.get_delta_msg()?);
-        }
-        Ok(msg)
-    }
-
-    /// Composes two transactions by concatenating their actions and combining their delta witnesses.
-    pub fn compose(tx1: Transaction, tx2: Transaction) -> Transaction {
+    fn compose(tx1: Transaction, tx2: Transaction) -> Transaction {
         let mut actions = tx1.actions;
         actions.extend(tx2.actions);
         let delta = match (&tx1.delta_proof, &tx2.delta_proof) {
             (Delta::Witness(witness1), Delta::Witness(witness2)) => {
-                Delta::Witness(witness1.compose(witness2))
+                let witness1 = DeltaWitness::from_bytes(&witness1.0)
+                    .expect("invalid witness bytes in first transaction");
+                let witness2 = DeltaWitness::from_bytes(&witness2.0)
+                    .expect("invalid witness bytes in second transaction");
+                let composed = witness1.compose(&witness2);
+                Delta::Witness(CoreDeltaWitness(composed.to_bytes()))
             }
             _ => panic!("Cannot compose transactions with different delta types"),
         };
         Transaction::create(actions, delta)
     }
 
-    /// Returns `true` if any compliance or resource logic proof is `None`.
-    pub fn base_proofs_are_empty(&self) -> bool {
-        for a in self.actions.iter() {
-            if a.get_compliance_units().iter().any(|cu| cu.proof.is_none()) {
-                return true;
-            }
-            if a.get_logic_verifier_inputs()
-                .iter()
-                .any(|lp| lp.proof.is_none())
-            {
-                return true;
-            }
-        }
-
-        false
-    }
-
-    /// Returns all compliance units in the transaction.
-    pub fn get_compliance_units(&self) -> Vec<&ComplianceUnit> {
-        self.actions
-            .iter()
-            .flat_map(|a| a.get_compliance_units().iter())
-            .collect()
-    }
-
-    /// Returns all compliance inner receipts in the transaction.
-    pub fn get_compliance_inner_receipts(&self) -> Result<Vec<InnerReceipt>, ArmError> {
+    fn get_compliance_inner_receipts(&self) -> Result<Vec<InnerReceipt>, ArmError> {
         let mut compliance_inner_receipts = Vec::new();
         for cu in self.get_compliance_units() {
             let inner_receipt = cu.get_inner_receipt()?;
@@ -186,12 +153,11 @@ impl Transaction {
         Ok(compliance_inner_receipts)
     }
 
-    /// Returns all logic inner receipts in the transaction.
-    pub fn get_logic_inner_receipts(&self) -> Result<Vec<InnerReceipt>, ArmError> {
+    fn get_logic_inner_receipts(&self) -> Result<Vec<InnerReceipt>, ArmError> {
         let mut logic_inner_receipts = Vec::new();
-        for action in self.actions.iter() {
+        for action in &self.actions {
             let logic_inputs = action.get_logic_verifier_inputs();
-            for lp in logic_inputs.iter() {
+            for lp in logic_inputs {
                 let inner_receipt = lp.get_inner_receipt()?;
                 logic_inner_receipts.push(inner_receipt);
             }
@@ -199,17 +165,15 @@ impl Transaction {
         Ok(logic_inner_receipts)
     }
 
-    /// Returns all compliance instances in the transaction.
-    pub fn get_compliance_instances(&self) -> Vec<Vec<u8>> {
+    fn get_compliance_instances(&self) -> Result<Vec<Vec<u8>>, ArmError> {
         let mut result = Vec::new();
         for cu in self.get_compliance_units() {
-            result.push(cu.instance.clone());
+            result.push(cu.instance.to_journal()?);
         }
-        result
+        Ok(result)
     }
 
-    /// Returns all logic verifiers in the transaction.
-    pub fn get_logic_verifiers(&self) -> Result<Vec<LogicVerifier>, ArmError> {
+    fn get_logic_verifiers(&self) -> Result<Vec<LogicVerifier>, ArmError> {
         let mut result = Vec::new();
         for action in &self.actions {
             let logic_verifiers = action.get_logic_verifiers()?;
@@ -218,8 +182,7 @@ impl Transaction {
         Ok(result)
     }
 
-    /// Returns all logic verifying keys and instances in the transaction.
-    pub fn get_logic_vks_and_instances(&self) -> Result<(Vec<Digest>, Vec<Vec<u8>>), ArmError> {
+    fn get_logic_vks_and_instances(&self) -> Result<(Vec<Digest>, Vec<Vec<u8>>), ArmError> {
         let mut vks = Vec::new();
         let mut instances = Vec::new();
         for lp in self.get_logic_verifiers()? {
@@ -228,14 +191,9 @@ impl Transaction {
         }
         Ok((vks, instances))
     }
-}
 
-#[cfg(feature = "aggregation")]
-impl Transaction {
-    /// Aggregates all the transaction proofs.
-    /// If aggregation is successful, `self` contains an aggregation proof and its
-    /// compliance and logic proofs are set to `None`. Else proofs are untouched.
-    pub fn aggregate(&mut self, proof_type: ProofType) -> Result<(), ArmError> {
+    #[cfg(feature = "aggregation")]
+    fn aggregate(&mut self, proof_type: ProofType) -> Result<(), ArmError> {
         // Check base proofs exist.
         if self.base_proofs_are_empty() {
             return Err(ArmError::ProveFailed(
@@ -247,7 +205,7 @@ impl Transaction {
         let compliance_inner_receipts = self.get_compliance_inner_receipts()?;
         let logic_inner_receipts = self.get_logic_inner_receipts()?;
         let compliance_instances_u32: Vec<ComplianceInstanceWords> = self
-            .get_compliance_instances()
+            .get_compliance_instances()?
             .iter()
             .map(|instance_bytes| ComplianceInstanceWords::from_bytes(instance_bytes))
             .collect::<Result<Vec<ComplianceInstanceWords>, ArmError>>()?;
@@ -258,7 +216,7 @@ impl Transaction {
             .map(|instance_bytes| bytes_to_words(instance_bytes))
             .collect();
 
-        // Add proofs as assumptions
+        // Add proofs as assumptions.
         let mut env_builder = ExecutorEnv::builder();
         for inner_receipt in compliance_inner_receipts
             .into_iter()
@@ -307,12 +265,12 @@ impl Transaction {
         self.aggregation_proof =
             Some(bincode::serialize(&agg_proof).map_err(|_| ArmError::SerializationError)?);
 
-        self.erase_base_proofs();
+        erase_base_proofs(self);
         Ok(())
     }
 
-    /// Verifies the aggregated proof of the transaction.
-    pub fn verify_aggregation(&self) -> Result<(), ArmError> {
+    #[cfg(feature = "aggregation")]
+    fn verify_aggregation(&self) -> Result<(), ArmError> {
         if let Some(proof) = &self.aggregation_proof {
             let instance = self.construct_aggregation_instance()?;
 
@@ -321,8 +279,9 @@ impl Transaction {
 
             // Verify proof on the batch instance.
             let receipt = Receipt::new(inner_receipt, instance);
+            let batch_vk = core_to_risc0_digest(&BATCH_AGGREGATION_VK);
 
-            receipt.verify(*BATCH_AGGREGATION_VK).map_err(|err| {
+            receipt.verify(batch_vk).map_err(|err| {
                 ArmError::ProofVerificationFailed(format!("Proof verification failed: {}", err))
             })
         } else {
@@ -332,10 +291,10 @@ impl Transaction {
         }
     }
 
-    /// Constructs the aggregation instance by serializing all compliance and logic instances.
-    pub fn construct_aggregation_instance(&self) -> Result<Vec<u8>, ArmError> {
+    #[cfg(feature = "aggregation")]
+    fn construct_aggregation_instance(&self) -> Result<Vec<u8>, ArmError> {
         let compliance_instances_u32: Vec<ComplianceInstanceWords> = self
-            .get_compliance_instances()
+            .get_compliance_instances()?
             .iter()
             .map(|instance_bytes| ComplianceInstanceWords::from_bytes(instance_bytes))
             .collect::<Result<Vec<ComplianceInstanceWords>, ArmError>>()?;
@@ -356,16 +315,16 @@ impl Transaction {
 
         Ok(words_to_bytes(&instance).to_vec())
     }
+}
 
-    // Replaces all compliance and resource logic proofs with `None`.
-    fn erase_base_proofs(&mut self) {
-        for a in self.actions.iter_mut() {
-            for cu in a.compliance_units.iter_mut() {
-                cu.proof = None;
-            }
-            for lp in a.logic_verifier_inputs.iter_mut() {
-                lp.proof = None;
-            }
+#[cfg(feature = "aggregation")]
+fn erase_base_proofs(tx: &mut Transaction) {
+    for a in &mut tx.actions {
+        for cu in &mut a.compliance_units {
+            cu.proof = None;
+        }
+        for lp in &mut a.logic_verifier_inputs {
+            lp.proof = None;
         }
     }
 }

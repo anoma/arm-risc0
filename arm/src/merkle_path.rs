@@ -1,61 +1,28 @@
 //! A Merkle path from a leaf to a root in a commitment/action tree.
 
-use crate::utils::hash_two;
-use hex::FromHex;
-use lazy_static::lazy_static;
-use risc0_zkvm::sha::Digest;
-use serde::{Deserialize, Serialize};
+pub use arm_core::merkle_path::{padding_leaf, MerklePath};
 
-lazy_static! {
-    /// A constant padding leaf used in Merkle trees.
-    /// This is the hash of an empty string.
-    pub static ref PADDING_LEAF: Digest =
-        Digest::from_hex("cc1d2f838445db7aec431df9ee8a871f40e7aa5e064fc056633ef8c60fab7b06")
-            .unwrap();
-}
+use crate::{
+    utils::{core_to_risc0_digest, hash_two, risc0_to_core_digest},
+    Digest,
+};
 
-/// A path from a position in a particular commitment tree to the root of that tree.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct MerklePath(pub Vec<(Digest, bool)>);
-
-impl MerklePath {
-    /// Constructs a Merkle path directly from a path and position.
-    pub fn from_path(auth_path: &[(Digest, bool)]) -> Self {
-        MerklePath(auth_path.to_vec())
-    }
-
+/// Extension methods for Merkle paths that require risc0 hashing.
+pub trait MerklePathExt {
     /// Returns the root of the tree corresponding to this path applied to `leaf`.
-    pub fn root(&self, leaf: &Digest) -> Digest {
-        self.0.iter().fold(
-            *leaf,
-            |root, (p, leaf_is_on_right)| match leaf_is_on_right {
-                false => hash_two(&root, p),
-                true => hash_two(p, &root),
-            },
-        )
-    }
-
-    /// Returns the length of the Merkle path.
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    /// Checks if the Merkle path is empty.
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-
-    /// Creates an empty Merkle path.
-    pub fn empty() -> Self {
-        MerklePath(vec![])
-    }
+    fn root(&self, leaf: &Digest) -> Digest;
 }
 
-impl Default for MerklePath {
-    fn default() -> Self {
-        MerklePath(vec![
-            (Digest::default(), false);
-           10 // COMMITMENT_TREE_DEPTH, only for testing
-        ])
+impl MerklePathExt for MerklePath {
+    fn root(&self, leaf: &Digest) -> Digest {
+        let leaf_r0 = core_to_risc0_digest(leaf);
+        let result = self.0.iter().fold(leaf_r0, |root, (p, leaf_is_on_right)| {
+            let p_r0 = core_to_risc0_digest(p);
+            match leaf_is_on_right {
+                false => hash_two(&root, &p_r0),
+                true => hash_two(&p_r0, &root),
+            }
+        });
+        risc0_to_core_digest(result)
     }
 }

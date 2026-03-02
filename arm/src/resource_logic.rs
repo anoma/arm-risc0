@@ -2,9 +2,8 @@
 
 use crate::{
     error::ArmError, logic_instance::AppData, logic_instance::LogicInstance,
-    nullifier_key::NullifierKey, resource::Resource,
+    nullifier_key::NullifierKey, resource::Resource, Digest,
 };
-use risc0_zkvm::Digest;
 use serde::{Deserialize, Serialize};
 
 /// Trait for logic circuits, defining the necessary methods.

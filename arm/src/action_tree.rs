@@ -2,10 +2,10 @@
 
 use crate::{
     error::ArmError,
-    merkle_path::{MerklePath, PADDING_LEAF},
-    utils::hash_two,
+    merkle_path::{padding_leaf, MerklePath},
+    utils::{core_to_risc0_digest, hash_two, risc0_to_core_digest},
+    Digest,
 };
-use risc0_zkvm::sha::Digest;
 
 /// A Merkle tree structure.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -37,17 +37,17 @@ impl MerkleTree {
             .checked_next_power_of_two()
             .ok_or(ArmError::TreeTooLarge)?;
         let mut cur_layer = self.leaves.clone();
-        cur_layer.resize(len, *PADDING_LEAF);
+        cur_layer.resize(len, padding_leaf());
         while cur_layer.len() > 1 {
             cur_layer = cur_layer
                 .chunks(2)
-                .map(|pair| hash_two(&pair[0], &pair[1]))
+                .map(|pair| hash_core(&pair[0], &pair[1]))
                 .collect();
         }
         Ok(cur_layer[0])
     }
 
-    // Generate the merkle path for the current leave
+    // Generate the merkle path for the current leave.
     /// Generates the Merkle path for a given leaf in the Merkle tree.
     ///
     /// # Arguments
@@ -67,7 +67,7 @@ impl MerkleTree {
             return Err(ArmError::EmptyTree);
         }
 
-        if *cur_leave == *PADDING_LEAF {
+        if *cur_leave == padding_leaf() {
             return Err(ArmError::InvalidLeaf);
         }
 
@@ -77,7 +77,7 @@ impl MerkleTree {
             .checked_next_power_of_two()
             .ok_or(ArmError::TreeTooLarge)?;
         let mut cur_layer = self.leaves.clone();
-        cur_layer.resize(len, *PADDING_LEAF);
+        cur_layer.resize(len, padding_leaf());
         if let Some(position) = cur_layer.iter().position(|v| v == cur_leave) {
             let mut merkle_path = Vec::new();
             fn build_merkle_path_inner(
@@ -99,7 +99,7 @@ impl MerkleTree {
 
                     let prev_layer = cur_layer
                         .chunks(2)
-                        .map(|pair| hash_two(&pair[0], &pair[1]))
+                        .map(|pair| hash_core(&pair[0], &pair[1]))
                         .collect();
 
                     build_merkle_path_inner(prev_layer, position / 2, path);
@@ -122,4 +122,10 @@ impl From<Vec<Digest>> for MerkleTree {
     fn from(leaves: Vec<Digest>) -> Self {
         MerkleTree::new(leaves)
     }
+}
+
+fn hash_core(left: &Digest, right: &Digest) -> Digest {
+    let left = core_to_risc0_digest(left);
+    let right = core_to_risc0_digest(right);
+    risc0_to_core_digest(hash_two(&left, &right))
 }

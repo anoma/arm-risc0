@@ -5,16 +5,17 @@
 use anoma_rm_risc0::{
     action::Action,
     action_tree::MerkleTree,
-    compliance::{ComplianceWitness, INITIAL_ROOT},
-    compliance_unit::ComplianceUnit,
+    compliance::ComplianceWitness,
+    compliance_unit::create_compliance_unit,
     delta_proof::DeltaWitness,
+    initial_root,
     logic_proof::LogicProver,
     merkle_path::MerklePath,
     nullifier_key::NullifierKey,
     proving_system::ProofType,
     resource::Resource,
     transaction::{Delta, Transaction},
-    Digest,
+    ActionExt, CoreDeltaWitness, Digest, NullifierKeyExt, TransactionExt,
 };
 use anoma_rm_risc0_test_witness::TestLogicWitness;
 use hex::FromHex;
@@ -103,13 +104,13 @@ pub fn create_an_action_with_multiple_compliances(
         let compliance_witness = ComplianceWitness {
             consumed_resource: consumed_resources[i],
             merkle_path: MerklePath::default(), // dummy path for test
-            ephemeral_root: *INITIAL_ROOT,
+            ephemeral_root: initial_root(),
             nf_key: nf_key.clone(),
             created_resource: created_resources[i],
             rcv: Scalar::ONE.to_bytes().to_vec(), // fixed rcv for test
         };
 
-        let compliance_receipt = ComplianceUnit::create(&compliance_witness, proof_type).unwrap();
+        let compliance_receipt = create_compliance_unit(&compliance_witness, proof_type).unwrap();
 
         let consumed_resource_nf = consumed_resources[i].nullifier(&nf_key).unwrap();
         let created_resource_cm = created_resources[i].commitment();
@@ -177,7 +178,10 @@ pub fn generate_test_transaction(
     proof_type: ProofType,
 ) -> Transaction {
     let (actions, delta_witness) = create_multiple_actions(n_actions, compliance_num, proof_type);
-    let tx = Transaction::create(actions, Delta::Witness(delta_witness));
+    let tx = Transaction::create(
+        actions,
+        Delta::Witness(CoreDeltaWitness(delta_witness.to_bytes())),
+    );
     let balanced_tx = tx.generate_delta_proof().unwrap();
     balanced_tx.clone().verify().unwrap();
     balanced_tx
@@ -271,7 +275,7 @@ fn test_cannot_aggregate_invalid_proofs() {
     // Create a transaction with one invalid proof.
     let bad_lproof = LogicVerifierInputs {
         proof: tx.actions[0].logic_verifier_inputs[0].clone().proof,
-        verifying_key: Digest::from_bytes([66u8; 32]), //vec![666u32; 8], // Bad key.
+        verifying_key: Digest::try_from([66u8; 32].as_slice()).unwrap(), // Bad key.
         tag: tx.actions[0].logic_verifier_inputs[0].tag,
         app_data: tx.actions[0].logic_verifier_inputs[0].app_data.clone(),
     };

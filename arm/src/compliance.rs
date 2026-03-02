@@ -1,16 +1,16 @@
-//! Compliance module containing the compliance instance and witness.
+//! Compliance module containing the compliance witness.
 
-/// Size hard-coded to two resources per unit
-const COMPLIANCE_INSTANCE_SIZE: usize = 56;
+pub use arm_core::compliance::ComplianceInstanceWords;
 
 use crate::{
     error::ArmError,
-    merkle_path::MerklePath,
-    nullifier_key::NullifierKey,
+    merkle_path::{MerklePath, MerklePathExt},
+    nullifier_key::{NullifierKey, NullifierKeyExt},
     resource::Resource,
     utils::{bytes_to_words, words_to_bytes},
+    Digest,
 };
-use hex::FromHex;
+pub use arm_core::compliance::ComplianceInstance;
 use k256::{
     elliptic_curve::{
         sec1::{FromEncodedPoint, ToEncodedPoint},
@@ -18,46 +18,7 @@ use k256::{
     },
     EncodedPoint, ProjectivePoint, Scalar,
 };
-use lazy_static::lazy_static;
 use rand::rngs::OsRng;
-use risc0_zkvm::Digest;
-use serde_with::serde_as;
-
-lazy_static! {
-    /// The initial root of the empty commitment tree is the hash of an empty string.
-    pub static ref INITIAL_ROOT: Digest =
-        Digest::from_hex("cc1d2f838445db7aec431df9ee8a871f40e7aa5e064fc056633ef8c60fab7b06")
-            .unwrap();
-}
-
-/// The compliance instance contains all public inputs to the compliance proof.
-#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
-pub struct ComplianceInstance {
-    /// The nullifier of the consumed resource.
-    pub consumed_nullifier: Digest,
-    /// The logic ref of the consumed resource.
-    pub consumed_logic_ref: Digest,
-    /// The commitment tree root for the consumed resource.
-    pub consumed_commitment_tree_root: Digest,
-    /// The commitment of the created resource.
-    pub created_commitment: Digest,
-    /// The logic ref of the created resource.
-    pub created_logic_ref: Digest,
-    /// The delta x coordinate of the created resource(use u32 array to avoid padding issues in risc0).
-    pub delta_x: [u32; 8],
-    /// The delta y coordinate of the created resource(use u32 array to avoid padding issues in risc0).
-    pub delta_y: [u32; 8],
-}
-
-/// The compliance instance represented as an array of u32 words for
-/// serialization(used in the aggregation circuit).
-#[serde_as]
-#[derive(serde::Serialize, serde::Deserialize)]
-pub struct ComplianceInstanceWords {
-    /// The compliance instance as an array of u32 words.
-    #[serde_as(as = "[_; COMPLIANCE_INSTANCE_SIZE]")]
-    pub u32_words: [u32; COMPLIANCE_INSTANCE_SIZE],
-}
 
 /// The compliance witness contains all private inputs to the compliance proof.
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
@@ -74,9 +35,6 @@ pub struct ComplianceWitness {
     pub created_resource: Resource,
     /// Random scalar for delta commitment
     pub rcv: Vec<u8>,
-    // TODO: If we want to add function privacy, include:
-    // pub input_resource_logic_cm_r: [u8; DATA_BYTES],
-    // pub output_resource_logic_cm_r: [u8; DATA_BYTES],
 }
 
 impl ComplianceWitness {
@@ -112,7 +70,7 @@ impl ComplianceWitness {
             merkle_path,
             rcv: Scalar::random(&mut OsRng).to_bytes().to_vec(),
             nf_key,
-            ephemeral_root: *INITIAL_ROOT,
+            ephemeral_root: arm_core::compliance::initial_root(),
         }
     }
 
@@ -246,7 +204,7 @@ impl Default for ComplianceWitness {
         ComplianceWitness {
             consumed_resource,
             created_resource,
-            ephemeral_root: *INITIAL_ROOT,
+            ephemeral_root: arm_core::compliance::initial_root(),
             merkle_path,
             rcv,
             nf_key,
@@ -254,9 +212,14 @@ impl Default for ComplianceWitness {
     }
 }
 
-impl ComplianceInstance {
+/// Extension methods for ComplianceInstance requiring k256.
+pub trait ComplianceInstanceExt {
     /// Converts the delta commitment from affine coordinates to a ProjectivePoint.
-    pub fn delta_projective(&self) -> Result<ProjectivePoint, ArmError> {
+    fn delta_projective(&self) -> Result<ProjectivePoint, ArmError>;
+}
+
+impl ComplianceInstanceExt for ComplianceInstance {
+    fn delta_projective(&self) -> Result<ProjectivePoint, ArmError> {
         let encoded_point = EncodedPoint::from_affine_coordinates(
             words_to_bytes(&self.delta_x).into(),
             words_to_bytes(&self.delta_y).into(),
@@ -266,22 +229,18 @@ impl ComplianceInstance {
             .into_option()
             .ok_or(ArmError::InvalidDelta)
     }
-
-    /// Retrieves the delta message used for signing.
-    pub fn delta_msg(&self) -> Vec<u8> {
-        let mut msg = Vec::new();
-        msg.extend_from_slice(self.consumed_nullifier.as_bytes());
-        msg.extend_from_slice(self.created_commitment.as_bytes());
-        msg
-    }
 }
 
-impl ComplianceInstanceWords {
-    /// Creates a ComplianceInstanceWords from a byte slice.
-    pub fn from_bytes(instance_bytes: &[u8]) -> Result<Self, ArmError> {
-        let u32_words: [u32; COMPLIANCE_INSTANCE_SIZE] = bytes_to_words(instance_bytes)
-            .try_into()
-            .map_err(|_| ArmError::InstanceSerializationFailed)?;
-        Ok(ComplianceInstanceWords { u32_words })
+/// Extension methods to serialize compliance instances into risc0 journal bytes.
+pub trait ComplianceInstanceJournalExt {
+    /// Serialize a compliance instance to the journal byte format.
+    fn to_journal(&self) -> Result<Vec<u8>, ArmError>;
+}
+
+impl ComplianceInstanceJournalExt for ComplianceInstance {
+    fn to_journal(&self) -> Result<Vec<u8>, ArmError> {
+        let words =
+            risc0_zkvm::serde::to_vec(self).map_err(|_| ArmError::InstanceSerializationFailed)?;
+        Ok(arm_core::utils::words_to_bytes(&words).to_vec())
     }
 }
