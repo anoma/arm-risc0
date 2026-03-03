@@ -1,0 +1,22 @@
+//! Solana-specific delta verification errors.
+use thiserror::Error;
+
+/// Errors from Solana on-chain delta proof verification.
+#[derive(Debug, Error, Clone, PartialEq, Eq)]
+pub enum SolanaArmError {
+    /// Transaction contains a delta witness instead of a finalized proof.
+    #[error("Expected delta proof, but found witness")]
+    ExpectedDeltaProof,
+    /// Delta proof bytes are malformed (wrong length or invalid recovery ID).
+    #[error("Invalid delta proof")]
+    InvalidDeltaProof,
+    /// A compliance instance contains a delta point not on the secp256k1 curve.
+    #[error("Delta point not on secp256k1 curve")]
+    DeltaPointNotOnCurve,
+    /// ECDSA recovery from the delta proof signature failed.
+    #[error("Delta proof verification failed")]
+    DeltaProofVerificationFailed,
+    /// Recovered public key does not match the accumulated delta point.
+    #[error("Delta mismatch: recovered key does not match accumulated delta")]
+    DeltaMismatch,
+}
