@@ -10,12 +10,11 @@ use crate::{
     proving_system::{journal_to_instance, verify as verify_proof},
     resource::Resource,
     resource_logic::TrivialLogicWitness,
-    utils::words_to_bytes,
     Digest,
 };
 use rand::rngs::OsRng;
 use rand::Rng;
-use risc0_zkvm::{serde::to_vec, InnerReceipt};
+use risc0_zkvm::InnerReceipt;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "prove")]
@@ -93,16 +92,14 @@ pub trait LogicVerifierInputsExt {
 
 impl LogicVerifierInputsExt for LogicVerifierInputs {
     fn to_logic_verifier(self, is_consumed: bool, root: Digest) -> Result<LogicVerifier, ArmError> {
-        let instance_words = to_vec(&LogicInstance {
-            tag: self.tag,
-            is_consumed,
-            root,
-            app_data: self.app_data.clone(),
-        })
-        .map_err(|_| ArmError::InstanceSerializationFailed)?;
+        let expected_instance = self.to_instance(is_consumed, root);
+        let provided_instance: LogicInstance = journal_to_instance(&self.instance_journal)?;
+        if provided_instance != expected_instance {
+            return Err(ArmError::LogicInstanceMismatch);
+        }
         Ok(LogicVerifier {
             proof: self.proof,
-            instance: words_to_bytes(&instance_words).to_vec(),
+            instance: self.instance_journal,
             verifying_key: self.verifying_key,
         })
     }
@@ -128,6 +125,7 @@ impl TryFrom<LogicVerifier> for LogicVerifierInputs {
             verifying_key: logic_proof.verifying_key,
             app_data: instance.app_data,
             proof: logic_proof.proof,
+            instance_journal: logic_proof.instance,
         })
     }
 }

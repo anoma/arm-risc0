@@ -8,7 +8,6 @@ use k256::{
 use serde::{Deserialize, Serialize};
 
 use crate::error::ArmError;
-use sha3::{Digest, Keccak256};
 
 /// The delta proof consists of an ECDSA signature and a recovery ID.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -34,16 +33,12 @@ pub struct DeltaInstance {
 }
 
 impl DeltaProof {
-    /// Generates a delta proof by signing the given message with the provided witness.
-    pub fn prove(message: &[u8], witness: &DeltaWitness) -> Result<DeltaProof, ArmError> {
-        // Hash the message using Keccak256
-        let mut digest = Keccak256::new();
-        digest.update(message);
-
-        // Sign the hashed message using RFC6979
+    /// Generates a delta proof by signing the given message hash with the provided witness.
+    pub fn prove(message_hash: &[u8; 32], witness: &DeltaWitness) -> Result<DeltaProof, ArmError> {
+        // Sign the pre-hashed message using RFC6979
         let (signature, recid) = witness
             .signing_key
-            .sign_digest_recoverable(digest)
+            .sign_prehash_recoverable(message_hash)
             .map_err(|_| ArmError::DeltaProofGenerationFailed)?;
 
         // On-chain signatures are not supported when recid is 2 or 3.
@@ -54,9 +49,9 @@ impl DeltaProof {
         Ok(DeltaProof { signature, recid })
     }
 
-    /// Verifies the delta proof against the given message and instance.
+    /// Verifies the delta proof against the given message hash and instance.
     pub fn verify(
-        message: &[u8],
+        message_hash: &[u8; 32],
         proof: &DeltaProof,
         instance: DeltaInstance,
     ) -> Result<(), ArmError> {
@@ -72,12 +67,8 @@ impl DeltaProof {
             return Err(ArmError::InvalidDeltaProof);
         }
 
-        // Hash the message using Keccak256
-        let mut digest = Keccak256::new();
-        digest.update(message);
-
         // Verify the signature
-        let vk = VerifyingKey::recover_from_digest(digest, &proof.signature, proof.recid)
+        let vk = VerifyingKey::recover_from_prehash(message_hash, &proof.signature, proof.recid)
             .map_err(|_| ArmError::DeltaProofVerificationFailed)?;
         if vk != instance.verifying_key {
             return Err(ArmError::DeltaProofVerificationFailed);
@@ -223,29 +214,34 @@ impl<'de> Deserialize<'de> for DeltaWitness {
 
 #[test]
 fn test_delta_proof() {
+    use k256::ecdsa::{SigningKey, VerifyingKey};
     use k256::elliptic_curve::rand_core::OsRng;
+    use sha3::{Digest as _, Keccak256};
 
     let mut rng = OsRng;
     let signing_key = SigningKey::random(&mut rng);
     let verifying_key = VerifyingKey::from(&signing_key);
 
     let message = b"Hello, world!";
+    let hash: [u8; 32] = Keccak256::digest(message).into();
     let witness = DeltaWitness { signing_key };
-    let proof = DeltaProof::prove(message, &witness).unwrap();
+    let proof = DeltaProof::prove(&hash, &witness).unwrap();
     let instance = DeltaInstance { verifying_key };
 
-    DeltaProof::verify(message, &proof, instance).unwrap();
+    DeltaProof::verify(&hash, &proof, instance).unwrap();
 }
 
 /// DeltaProof: serialize then deserialize via bincode must round-trip.
 #[test]
 fn delta_proof_bincode_roundtrip() {
     use k256::elliptic_curve::rand_core::OsRng;
+    use sha3::{Digest as _, Keccak256};
 
     let mut rng = OsRng;
     let signing_key = SigningKey::random(&mut rng);
     let witness = DeltaWitness { signing_key };
-    let proof = DeltaProof::prove(b"roundtrip", &witness).unwrap();
+    let hash: [u8; 32] = Keccak256::digest(b"roundtrip").into();
+    let proof = DeltaProof::prove(&hash, &witness).unwrap();
 
     let encoded = bincode::serialize(&proof).unwrap();
     let decoded: DeltaProof = bincode::deserialize(&encoded).unwrap();

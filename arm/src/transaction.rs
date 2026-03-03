@@ -28,10 +28,10 @@ use crate::{
 /// Extension methods for transactions that require zkvm/k256 functionality.
 pub trait TransactionExt {
     /// Generates the delta proof for the transaction if it contains a delta witness.
-    fn generate_delta_proof(self) -> Result<Transaction, ArmError>;
+    fn generate_delta_proof(self, hash_fn: fn(&[u8]) -> [u8; 32]) -> Result<Transaction, ArmError>;
 
     /// Verifies all the proofs and corresponding checks in the transaction.
-    fn verify(self) -> Result<(), ArmError>;
+    fn verify(self, hash_fn: fn(&[u8]) -> [u8; 32]) -> Result<(), ArmError>;
 
     /// Returns the DeltaInstance constructed from the sum of all actions' deltas.
     fn delta(&self) -> Result<DeltaInstance, ArmError>;
@@ -70,12 +70,13 @@ pub trait TransactionExt {
 }
 
 impl TransactionExt for Transaction {
-    fn generate_delta_proof(self) -> Result<Transaction, ArmError> {
+    fn generate_delta_proof(self, hash_fn: fn(&[u8]) -> [u8; 32]) -> Result<Transaction, ArmError> {
         match self.delta_proof {
             Delta::Witness(ref witness) => {
                 let witness = DeltaWitness::from_bytes(&witness.0)?;
                 let msg = self.get_delta_msg();
-                let proof = DeltaProof::prove(&msg, &witness)?;
+                let msg_hash = hash_fn(&msg);
+                let proof = DeltaProof::prove(&msg_hash, &witness)?;
                 let delta_proof = Delta::Proof(CoreDeltaProof(proof.to_bytes()));
                 Ok(Transaction {
                     actions: self.actions,
@@ -88,13 +89,14 @@ impl TransactionExt for Transaction {
         }
     }
 
-    fn verify(self) -> Result<(), ArmError> {
+    fn verify(self, hash_fn: fn(&[u8]) -> [u8; 32]) -> Result<(), ArmError> {
         match &self.delta_proof {
             Delta::Proof(proof) => {
                 let proof = DeltaProof::from_bytes(&proof.0)?;
                 let msg = self.get_delta_msg();
+                let msg_hash = hash_fn(&msg);
                 let instance = self.delta()?;
-                DeltaProof::verify(&msg, &proof, instance)?;
+                DeltaProof::verify(&msg_hash, &proof, instance)?;
 
                 // Check for nullifier duplication across all compliance units.
                 self.nf_duplication_check()?;
