@@ -1,6 +1,6 @@
 //! Compliance module containing the compliance witness.
 
-pub use arm_core::compliance::ComplianceInstanceWords;
+pub use arm_core::compliance::{initial_root, ComplianceInstanceWords};
 
 use crate::{
     error::ArmError,
