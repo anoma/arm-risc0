@@ -23,6 +23,12 @@ use k256::Scalar;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 
+/// Keccak256 hash function matching the EVM delta proof convention.
+pub fn hash_msg_keccak(msg: &[u8]) -> [u8; 32] {
+    use sha3::{Digest, Keccak256};
+    Keccak256::digest(msg).into()
+}
+
 // Test logic proving key / test logic guest ELF binary
 pub const TEST_LOGIC_PK: &[u8] = include_bytes!("../elf/logic-test-guest.bin");
 
@@ -182,8 +188,8 @@ pub fn generate_test_transaction(
         actions,
         Delta::Witness(CoreDeltaWitness(delta_witness.to_bytes())),
     );
-    let balanced_tx = tx.generate_delta_proof().unwrap();
-    balanced_tx.clone().verify().unwrap();
+    let balanced_tx = tx.generate_delta_proof(hash_msg_keccak).unwrap();
+    balanced_tx.clone().verify(hash_msg_keccak).unwrap();
     balanced_tx
 }
 
@@ -278,6 +284,9 @@ fn test_cannot_aggregate_invalid_proofs() {
         verifying_key: Digest::try_from([66u8; 32].as_slice()).unwrap(), // Bad key.
         tag: tx.actions[0].logic_verifier_inputs[0].tag,
         app_data: tx.actions[0].logic_verifier_inputs[0].app_data.clone(),
+        instance_journal: tx.actions[0].logic_verifier_inputs[0]
+            .instance_journal
+            .clone(),
     };
 
     let bad_action = Action {
