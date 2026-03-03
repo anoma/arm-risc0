@@ -4,6 +4,10 @@ use crate::{compliance_unit::ComplianceUnit, logic_instance::LogicVerifierInputs
 use serde::{Deserialize, Serialize};
 
 /// An action consists of compliance units and logic verifier inputs.
+#[cfg_attr(
+    feature = "borsh",
+    derive(borsh::BorshSerialize, borsh::BorshDeserialize)
+)]
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct Action {
     /// The compliance units in this action.

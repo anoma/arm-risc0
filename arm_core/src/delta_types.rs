@@ -3,10 +3,18 @@
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 /// Opaque 65-byte delta proof (signature bytes + recovery ID).
+#[cfg_attr(
+    feature = "borsh",
+    derive(borsh::BorshSerialize, borsh::BorshDeserialize)
+)]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DeltaProof(pub [u8; 65]);
 
 /// Opaque 32-byte delta witness (signing key bytes).
+#[cfg_attr(
+    feature = "borsh",
+    derive(borsh::BorshSerialize, borsh::BorshDeserialize)
+)]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DeltaWitness(pub [u8; 32]);
 

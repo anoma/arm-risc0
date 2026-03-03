@@ -52,6 +52,8 @@ pub enum ArmError {
     ProofVerificationFailed(String),
     #[error("Invalid compliance instance")]
     InvalidComplianceInstance,
+    #[error("Logic instance does not match action context")]
+    LogicInstanceMismatch,
     #[error("Delta proof generation failed")]
     DeltaProofGenerationFailed,
     #[error("Invalid Random Commitment Value")]

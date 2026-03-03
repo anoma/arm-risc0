@@ -14,3 +14,4 @@ pub mod transaction;
 pub mod utils;
 
 pub use digest::Digest;
+pub use digest::DIGEST_WORDS;

@@ -11,8 +11,12 @@ pub const DIGEST_WORDS: usize = 8;
 ///
 /// This type is wire-compatible with `risc0_zkvm::sha::Digest`:
 /// both store `[u32; 8]` and expose bytes via `bytemuck::cast_slice`.
+#[cfg_attr(
+    feature = "borsh",
+    derive(borsh::BorshSerialize, borsh::BorshDeserialize)
+)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct Digest([u32; DIGEST_WORDS]);
+pub struct Digest(pub [u32; DIGEST_WORDS]);
 
 impl Digest {
     /// Creates a new Digest from u32 words.
@@ -28,6 +32,22 @@ impl Digest {
     /// Returns the digest as a byte slice.
     pub fn as_bytes(&self) -> &[u8] {
         bytemuck::cast_slice(&self.0)
+    }
+
+    /// Returns the digest as an owned 32-byte array.
+    pub fn to_bytes(&self) -> [u8; 32] {
+        let mut bytes = [0u8; 32];
+        bytes.copy_from_slice(self.as_bytes());
+        bytes
+    }
+
+    /// Creates a Digest from an owned 32-byte array.
+    pub fn from_bytes(bytes: [u8; 32]) -> Self {
+        let mut words = [0u32; DIGEST_WORDS];
+        for (i, chunk) in bytes.chunks_exact(4).enumerate() {
+            words[i] = u32::from_ne_bytes(chunk.try_into().unwrap());
+        }
+        Digest(words)
     }
 }
 

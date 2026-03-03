@@ -11,6 +11,10 @@ pub fn initial_root() -> Digest {
 }
 
 /// The compliance instance contains all public inputs to the compliance proof.
+#[cfg_attr(
+    feature = "borsh",
+    derive(borsh::BorshSerialize, borsh::BorshDeserialize)
+)]
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct ComplianceInstance {
     /// The nullifier of the consumed resource.
@@ -32,6 +36,10 @@ pub struct ComplianceInstance {
 /// The compliance instance represented as an array of u32 words for
 /// serialization(used in the aggregation circuit).
 #[serde_as]
+#[cfg_attr(
+    feature = "borsh",
+    derive(borsh::BorshSerialize, borsh::BorshDeserialize)
+)]
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct ComplianceInstanceWords {
     /// The compliance instance as an array of u32 words.
