@@ -245,4 +245,236 @@ mod tests {
         let tx = make_signed_transaction(&signing_key);
         verify_delta_proof(&tx).unwrap();
     }
+
+    // =========================================================================
+    // Helpers for curve point testing
+    // =========================================================================
+
+    /// Get the secp256k1 generator point G as `[u32; 8]` word arrays.
+    fn generator_words() -> ([u32; 8], [u32; 8]) {
+        use k256::elliptic_curve::sec1::ToEncodedPoint;
+
+        let g = k256::AffinePoint::GENERATOR;
+        let encoded = g.to_encoded_point(false);
+        let x: [u8; 32] = encoded.x().unwrap().as_slice().try_into().unwrap();
+        let y: [u8; 32] = encoded.y().unwrap().as_slice().try_into().unwrap();
+        (words_from_bytes(x), words_from_bytes(y))
+    }
+
+    /// Get the negated generator point -G as `[u32; 8]` word arrays.
+    fn neg_generator_words() -> ([u32; 8], [u32; 8]) {
+        use k256::elliptic_curve::sec1::ToEncodedPoint;
+
+        let neg_g = (-k256::ProjectivePoint::GENERATOR).to_affine();
+        let encoded = neg_g.to_encoded_point(false);
+        let x: [u8; 32] = encoded.x().unwrap().as_slice().try_into().unwrap();
+        let y: [u8; 32] = encoded.y().unwrap().as_slice().try_into().unwrap();
+        (words_from_bytes(x), words_from_bytes(y))
+    }
+
+    /// Build a Transaction with a single compliance unit having the given delta point.
+    fn make_tx_with_delta(delta_x: [u32; 8], delta_y: [u32; 8]) -> Transaction {
+        let instance = ComplianceInstance {
+            consumed_nullifier: Digest::default(),
+            consumed_logic_ref: Digest::default(),
+            consumed_commitment_tree_root: Digest::default(),
+            created_commitment: Digest::default(),
+            created_logic_ref: Digest::default(),
+            delta_x,
+            delta_y,
+        };
+        let cu = ComplianceUnit {
+            proof: None,
+            instance,
+        };
+        let action = Action {
+            compliance_units: vec![cu],
+            logic_verifier_inputs: vec![],
+        };
+        Transaction {
+            actions: vec![action],
+            delta_proof: Delta::Witness(arm_core::delta_types::DeltaWitness([0u8; 32])),
+            expected_balance: None,
+            aggregation_proof: None,
+        }
+    }
+
+    /// Build a Transaction with two compliance units having distinct tags and given delta points.
+    fn make_tx_with_two_deltas(
+        d1x: [u32; 8],
+        d1y: [u32; 8],
+        d2x: [u32; 8],
+        d2y: [u32; 8],
+    ) -> Transaction {
+        let i1 = ComplianceInstance {
+            consumed_nullifier: Digest::from_bytes([1u8; 32]),
+            consumed_logic_ref: Digest::default(),
+            consumed_commitment_tree_root: Digest::default(),
+            created_commitment: Digest::from_bytes([2u8; 32]),
+            created_logic_ref: Digest::default(),
+            delta_x: d1x,
+            delta_y: d1y,
+        };
+        let i2 = ComplianceInstance {
+            consumed_nullifier: Digest::from_bytes([3u8; 32]),
+            consumed_logic_ref: Digest::default(),
+            consumed_commitment_tree_root: Digest::default(),
+            created_commitment: Digest::from_bytes([4u8; 32]),
+            created_logic_ref: Digest::default(),
+            delta_x: d2x,
+            delta_y: d2y,
+        };
+        let action = Action {
+            compliance_units: vec![
+                ComplianceUnit {
+                    proof: None,
+                    instance: i1,
+                },
+                ComplianceUnit {
+                    proof: None,
+                    instance: i2,
+                },
+            ],
+            logic_verifier_inputs: vec![],
+        };
+        Transaction {
+            actions: vec![action],
+            delta_proof: Delta::Witness(arm_core::delta_types::DeltaWitness([0u8; 32])),
+            expected_balance: None,
+            aggregation_proof: None,
+        }
+    }
+
+    // =========================================================================
+    // Curve point validation (accumulate_deltas)
+    // =========================================================================
+
+    #[test]
+    fn test_valid_generator_point() {
+        let (gx, gy) = generator_words();
+        let tx = make_tx_with_delta(gx, gy);
+        let result = accumulate_deltas(&tx);
+        assert!(
+            result.is_ok(),
+            "Generator point G must be on secp256k1: {:?}",
+            result.err()
+        );
+        assert!(result.unwrap().is_some(), "G is not identity");
+    }
+
+    #[test]
+    fn test_zero_point_rejected() {
+        let tx = make_tx_with_delta([0u32; 8], [0u32; 8]);
+        let result = accumulate_deltas(&tx);
+        match result {
+            Err(SolanaArmError::DeltaPointNotOnCurve) => {}
+            other => panic!("(0,0) should return DeltaPointNotOnCurve, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_wrong_y_coordinate_rejected() {
+        let (gx, _) = generator_words();
+        let tx = make_tx_with_delta(gx, [0u32; 8]);
+        let result = accumulate_deltas(&tx);
+        match result {
+            Err(SolanaArmError::DeltaPointNotOnCurve) => {}
+            other => panic!(
+                "Valid x with zero y should return DeltaPointNotOnCurve, got {:?}",
+                other
+            ),
+        }
+    }
+
+    #[test]
+    fn test_invalid_coordinates_rejected() {
+        // (1, 1) in big-endian representation: y^2 = 1, x^3 + 7 = 8, so 1 != 8.
+        let mut x_be = [0u8; 32];
+        x_be[31] = 1;
+        let mut y_be = [0u8; 32];
+        y_be[31] = 1;
+        let tx = make_tx_with_delta(words_from_bytes(x_be), words_from_bytes(y_be));
+        let result = accumulate_deltas(&tx);
+        match result {
+            Err(SolanaArmError::DeltaPointNotOnCurve) => {}
+            other => panic!(
+                "(1,1) should return DeltaPointNotOnCurve (1 != 8 mod p), got {:?}",
+                other
+            ),
+        }
+    }
+
+    #[test]
+    fn test_negated_y_is_valid() {
+        let (neg_gx, neg_gy) = neg_generator_words();
+        let tx = make_tx_with_delta(neg_gx, neg_gy);
+        let result = accumulate_deltas(&tx);
+        assert!(
+            result.is_ok(),
+            "-G must be on secp256k1: {:?}",
+            result.err()
+        );
+        assert!(result.unwrap().is_some(), "-G is not identity");
+    }
+
+    // =========================================================================
+    // Point arithmetic (accumulate_deltas)
+    // =========================================================================
+
+    #[test]
+    fn test_point_doubling() {
+        let (gx, gy) = generator_words();
+        let g_point = accumulate_deltas(&make_tx_with_delta(gx, gy))
+            .unwrap()
+            .unwrap();
+        let two_g_point = accumulate_deltas(&make_tx_with_two_deltas(gx, gy, gx, gy))
+            .unwrap()
+            .unwrap();
+        assert_ne!(
+            g_point.0, two_g_point.0,
+            "2G must have different coordinates than G"
+        );
+    }
+
+    #[test]
+    fn test_inverse_points_cancel() {
+        let (gx, gy) = generator_words();
+        let (neg_gx, neg_gy) = neg_generator_words();
+        let result = accumulate_deltas(&make_tx_with_two_deltas(gx, gy, neg_gx, neg_gy));
+        assert!(
+            result.is_ok(),
+            "G + (-G) should succeed: {:?}",
+            result.err()
+        );
+        assert!(
+            result.unwrap().is_none(),
+            "G + (-G) should equal identity (None)"
+        );
+    }
+
+    // =========================================================================
+    // Tag collection and verifying key
+    // =========================================================================
+
+    #[test]
+    fn test_collect_tags_order() {
+        let (gx, gy) = generator_words();
+        let tx = make_tx_with_two_deltas(gx, gy, gx, gy);
+        let tags = collect_tags(&tx);
+        assert_eq!(tags.len(), 4, "2 CUs should produce 4 tags");
+        assert_eq!(tags[0], [1u8; 32], "first tag = CU0 nullifier");
+        assert_eq!(tags[1], [2u8; 32], "second tag = CU0 commitment");
+        assert_eq!(tags[2], [3u8; 32], "third tag = CU1 nullifier");
+        assert_eq!(tags[3], [4u8; 32], "fourth tag = CU1 commitment");
+    }
+
+    #[test]
+    fn test_verifying_key_deterministic() {
+        let (gx, gy) = generator_words();
+        let tx = make_tx_with_delta(gx, gy);
+        let tags = collect_tags(&tx);
+        let vk1 = compute_verifying_key(&tags);
+        let vk2 = compute_verifying_key(&tags);
+        assert_eq!(vk1, vk2, "Same tags must produce identical verifying key");
+    }
 }
