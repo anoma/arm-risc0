@@ -97,8 +97,8 @@ impl Action {
     }
 
     /// Verifies all proofs and consistencies in the action.
-    pub fn verify(self) -> Result<(), ArmError> {
-        for unit in &self.compliance_units {
+    pub fn verify(&self) -> Result<(), ArmError> {
+        for unit in self.compliance_units.iter() {
             unit.verify()?;
         }
 

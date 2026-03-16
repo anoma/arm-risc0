@@ -75,8 +75,8 @@ impl Transaction {
     }
 
     /// Verifies all the proofs and corresponding checks in the transaction.
-    pub fn verify(self) -> Result<(), ArmError> {
-        match &self.delta_proof {
+    pub fn verify(&self) -> Result<(), ArmError> {
+        match self.delta_proof {
             Delta::Proof(ref proof) => {
                 let msg = self.get_delta_msg()?;
                 let instance = self.delta()?;
@@ -95,7 +95,7 @@ impl Transaction {
                     self.verify_aggregation()?;
                 } else {
                     // Try verifying individually.
-                    for action in self.actions {
+                    for action in self.actions.iter() {
                         action.verify()?;
                     }
                 }
