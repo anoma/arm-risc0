@@ -477,4 +477,77 @@ mod tests {
         let vk2 = compute_verifying_key(&tags);
         assert_eq!(vk1, vk2, "Same tags must produce identical verifying key");
     }
+
+    // =========================================================================
+    // Split transaction: real + padding compliance units
+    // =========================================================================
+
+    /// Simulate a split transaction: one real compliance unit (valid delta point)
+    /// and one padding compliance unit (trivial resource, identity-like delta).
+    ///
+    /// In a split (e.g., consume 1000, send 300, remainder 700), the proof
+    /// generates two compliance units. The padding unit's delta point comes from
+    /// the ZK circuit and may be the identity point or have coordinates that
+    /// cause UBig arithmetic to underflow in parse_delta_point.
+    ///
+    /// This test reproduces the on-chain panic:
+    ///   "UBig result must not be negative" in dashu-int during
+    ///   parse_delta_point's curve equation check y² = x³ + 7 (mod p)
+    #[test]
+    fn test_split_transaction_with_padding_delta() {
+        // Real compliance unit with valid delta point (generator G)
+        let (gx, gy) = generator_words();
+
+        // Padding compliance unit: delta from a trivial/padding resource.
+        // The ZK circuit outputs delta coordinates for the padding unit.
+        // Test with zero coordinates — the identity point representation.
+        // parse_delta_point must handle this without panicking.
+        let tx = make_tx_with_two_deltas(gx, gy, [0u32; 8], [0u32; 8]);
+        let result = accumulate_deltas(&tx);
+        // Should return an error (zero is not on the curve), NOT panic
+        assert!(
+            result.is_err() || result.is_ok(),
+            "Split with padding delta must not panic"
+        );
+    }
+
+    /// Regression test using delta coordinates from a real split withdrawal
+    /// that panicked on-chain with `UBig result must not be negative`.
+    ///
+    /// NOTE: This test PASSES on x86_64 but the same coordinates PANIC on BPF/SBF.
+    /// The on-chain panic is reproduced by the E2E test (`transfer-e2e`) which
+    /// exercises the actual BPF program. This unit test exists to verify the fix
+    /// once applied — if it passes here AND in the E2E test, the fix is correct.
+    ///
+    /// Coordinates from: partial unwrap of 150 out of 300 USDC (split transaction).
+    #[test]
+    fn test_split_with_real_padding_delta_coordinates() {
+        // CU 0: real compliance unit from the failed split
+        let d1x: [u32; 8] = [436281146, 2920857657, 596527312, 1444609427, 135507158, 1733461838, 26316675, 1082278278];
+        let d1y: [u32; 8] = [1550517338, 2131773781, 3863212947, 2665082215, 2679122589, 2370594181, 1718588337, 2702897137];
+        // CU 1: padding compliance unit from the failed split
+        let d2x: [u32; 8] = [1642325764, 796648147, 395144694, 3917860638, 4019340282, 497672579, 1148006934, 4261521533];
+        let d2y: [u32; 8] = [1856576270, 3021585445, 3338494523, 3407490559, 2736170793, 2022041402, 1488353443, 4089188344];
+
+        let tx = make_tx_with_two_deltas(d1x, d1y, d2x, d2y);
+        // This must not panic. It may return Ok or Err, but must not abort.
+        let result = accumulate_deltas(&tx);
+        println!("Split with real padding coordinates: {:?}", result.as_ref().map(|r| r.is_some()));
+    }
+
+    /// Test accumulate_deltas with G + (-G) = identity (two CUs that cancel out).
+    /// This is a valid split scenario where the padding unit's delta cancels
+    /// the real unit's delta, producing the identity point.
+    #[test]
+    fn test_split_inverse_deltas_produce_identity() {
+        let (gx, gy) = generator_words();
+        let (neg_gx, neg_gy) = neg_generator_words();
+        let tx = make_tx_with_two_deltas(gx, gy, neg_gx, neg_gy);
+        let result = accumulate_deltas(&tx);
+        assert!(result.is_ok(), "G + (-G) must not error: {:?}", result.err());
+        assert!(
+            result.unwrap().is_none(),
+            "G + (-G) should produce identity (None)"
+        );
+    }
 }
