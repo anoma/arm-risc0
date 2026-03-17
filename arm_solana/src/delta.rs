@@ -44,15 +44,29 @@ pub fn compute_verifying_key(tags: &[[u8; 32]]) -> [u8; 32] {
 
 /// Parse delta coordinates from a compliance instance and return as an UncompressedPoint.
 ///
-/// `delta_x` and `delta_y` in `ComplianceInstance` store secp256k1 field elements as `[u32; 8]`.
-/// The byte-level encoding is platform-native (little-endian on SBF and x86_64).
-/// `bytemuck::cast_ref` reinterprets the memory directly, preserving the byte sequence.
+/// # Why `u32::to_be_bytes` instead of `bytemuck::cast_ref`
+///
+/// Delta coordinates are secp256k1 field elements stored as `[u32; 8]` in the
+/// `ComplianceInstance`. These words represent a 256-bit big-endian integer:
+/// word 0 is the most significant 32 bits, word 7 is the least significant.
+///
+/// To convert to the 32-byte big-endian representation needed by `UBig::from_be_bytes`
+/// and the uncompressed SEC1 point format, each word must be written as big-endian bytes.
+///
+/// `bytemuck::cast_ref` reinterprets memory using the platform's native byte order.
+/// On little-endian platforms (x86_64, SBF), this reverses the bytes within each word,
+/// producing a LITTLE-endian byte layout — not the big-endian layout that
+/// `UBig::from_be_bytes` expects. This works on x86_64 only by coincidence (the test
+/// helper `words_from_bytes` uses `u32::from_ne_bytes` which inverts the same way,
+/// so the double-inversion cancels out). On BPF/SBF, the mismatch causes
+/// `UBig` arithmetic to operate on wrong values, leading to the panic:
+/// `UBig result must not be negative` during the curve equation check.
 fn parse_delta_point(
     x_words: &[u32; 8],
     y_words: &[u32; 8],
 ) -> Result<UncompressedPoint, SolanaArmError> {
-    let x_bytes: [u8; 32] = *bytemuck::cast_ref(x_words);
-    let y_bytes: [u8; 32] = *bytemuck::cast_ref(y_words);
+    let x_bytes = words_to_be_bytes(x_words);
+    let y_bytes = words_to_be_bytes(y_words);
 
     // Validate point lies on curve: y^2 = x^3 + 7 (mod p)
     let p = UBig::from_be_bytes(&Curve::P);
@@ -70,6 +84,17 @@ fn parse_delta_point(
     point_bytes[..32].copy_from_slice(&x_bytes);
     point_bytes[32..].copy_from_slice(&y_bytes);
     Ok(UncompressedPoint(point_bytes))
+}
+
+/// Convert `[u32; 8]` words (big-endian word order, i.e. word 0 = most significant)
+/// to a 32-byte big-endian byte array. Each word is written in big-endian byte order
+/// regardless of the host platform's native endianness.
+fn words_to_be_bytes(words: &[u32; 8]) -> [u8; 32] {
+    let mut bytes = [0u8; 32];
+    for (i, word) in words.iter().enumerate() {
+        bytes[i * 4..(i + 1) * 4].copy_from_slice(&word.to_be_bytes());
+    }
+    bytes
 }
 
 /// Accumulate delta points from all compliance instances using EC point addition.
@@ -178,12 +203,12 @@ mod tests {
     use k256::ecdsa::SigningKey;
     use k256::elliptic_curve::rand_core::OsRng;
 
-    /// Convert a 32-byte array to [u32; 8] using native-endian byte interpretation.
-    /// Alignment-safe: uses u32::from_ne_bytes instead of bytemuck::cast.
+    /// Convert a 32-byte big-endian array to [u32; 8] (big-endian word order).
+    /// Inverse of `words_to_be_bytes`: bytes[0..4] → word[0] (most significant).
     fn words_from_bytes(bytes: [u8; 32]) -> [u32; 8] {
         let mut words = [0u32; 8];
         for (i, chunk) in bytes.chunks_exact(4).enumerate() {
-            words[i] = u32::from_ne_bytes(chunk.try_into().unwrap());
+            words[i] = u32::from_be_bytes(chunk.try_into().unwrap());
         }
         words
     }
@@ -523,16 +548,31 @@ mod tests {
     #[test]
     fn test_split_with_real_padding_delta_coordinates() {
         // CU 0: real compliance unit from the failed split
-        let d1x: [u32; 8] = [436281146, 2920857657, 596527312, 1444609427, 135507158, 1733461838, 26316675, 1082278278];
-        let d1y: [u32; 8] = [1550517338, 2131773781, 3863212947, 2665082215, 2679122589, 2370594181, 1718588337, 2702897137];
+        let d1x: [u32; 8] = [
+            436281146, 2920857657, 596527312, 1444609427, 135507158, 1733461838, 26316675,
+            1082278278,
+        ];
+        let d1y: [u32; 8] = [
+            1550517338, 2131773781, 3863212947, 2665082215, 2679122589, 2370594181, 1718588337,
+            2702897137,
+        ];
         // CU 1: padding compliance unit from the failed split
-        let d2x: [u32; 8] = [1642325764, 796648147, 395144694, 3917860638, 4019340282, 497672579, 1148006934, 4261521533];
-        let d2y: [u32; 8] = [1856576270, 3021585445, 3338494523, 3407490559, 2736170793, 2022041402, 1488353443, 4089188344];
+        let d2x: [u32; 8] = [
+            1642325764, 796648147, 395144694, 3917860638, 4019340282, 497672579, 1148006934,
+            4261521533,
+        ];
+        let d2y: [u32; 8] = [
+            1856576270, 3021585445, 3338494523, 3407490559, 2736170793, 2022041402, 1488353443,
+            4089188344,
+        ];
 
         let tx = make_tx_with_two_deltas(d1x, d1y, d2x, d2y);
         // This must not panic. It may return Ok or Err, but must not abort.
         let result = accumulate_deltas(&tx);
-        println!("Split with real padding coordinates: {:?}", result.as_ref().map(|r| r.is_some()));
+        println!(
+            "Split with real padding coordinates: {:?}",
+            result.as_ref().map(|r| r.is_some())
+        );
     }
 
     /// Test accumulate_deltas with G + (-G) = identity (two CUs that cancel out).
@@ -544,7 +584,11 @@ mod tests {
         let (neg_gx, neg_gy) = neg_generator_words();
         let tx = make_tx_with_two_deltas(gx, gy, neg_gx, neg_gy);
         let result = accumulate_deltas(&tx);
-        assert!(result.is_ok(), "G + (-G) must not error: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "G + (-G) must not error: {:?}",
+            result.err()
+        );
         assert!(
             result.unwrap().is_none(),
             "G + (-G) should produce identity (None)"
