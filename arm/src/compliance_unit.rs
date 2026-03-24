@@ -6,7 +6,7 @@ use k256::ProjectivePoint;
 use risc0_zkvm::InnerReceipt;
 
 use crate::{
-    compliance::{ComplianceInstanceExt, ComplianceInstanceJournalExt, ComplianceWitness},
+    compliance::{ComplianceInstanceExt, ComplianceInstanceJournalExt},
     constants::COMPLIANCE_VK,
     error::ArmError,
 };
@@ -15,6 +15,7 @@ use crate::{
 use crate::{
     constants::COMPLIANCE_PK,
     proving_system::{prove, ProofType},
+    compliance::ComplianceWitness,
 };
 
 /// Extension methods for compliance units that require zkvm/k256 functionality.

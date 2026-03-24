@@ -56,13 +56,14 @@ pub fn main() {
     let witness: ExecutionProofWitness = env::read();
 
     // -----------------------------------------------------------------------
-    // 1. Initialise running tree roots from the declared old roots.
+    // 1. Initialise running tree state from the witness.
     // -----------------------------------------------------------------------
-    let mut commitment_root = witness.old_commitment_tree_root;
+    let mut commitment_tree = witness.commitment_tree;
+    let old_commitment_tree_root = commitment_tree.root();
     let mut nullifier_root = witness.old_nullifier_tree_root;
     let empty = padding_leaf();
 
-    // Index into commitment_paths / nullifier_paths consumed so far.
+    // Index into nullifier_paths consumed so far.
     let mut path_idx: usize = 0;
 
     // -----------------------------------------------------------------------
@@ -115,13 +116,12 @@ pub fn main() {
         env::verify(batch_agg_vk_risc0, &agg_words)
             .expect("aggregation proof verification failed");
 
-        // --- 3c. Tree updates via sibling paths ---
+        // --- 3c. Tree updates ---
         //
         // For each compliance unit:
         // 1. Use the nullifier path to prove non-inclusion (the slot currently
         //    holds the empty/padding leaf) and derive the new nullifier root.
-        // 2. Use the commitment path to append the created commitment and
-        //    derive the new commitment root.
+        // 2. Insert the created commitment into the incremental tree.
         for action in &tx.actions {
             for cu in action.get_compliance_units() {
                 let nf = cu.instance.consumed_nullifier;
@@ -131,10 +131,6 @@ pub fn main() {
                     .nullifier_paths
                     .get(path_idx)
                     .expect("missing nullifier path");
-                let cm_path = witness
-                    .commitment_paths
-                    .get(path_idx)
-                    .expect("missing commitment path");
 
                 // Non-inclusion: the target slot must currently be empty.
                 assert_eq!(
@@ -146,14 +142,10 @@ pub fn main() {
                 // Append nullifier: derive new nullifier root.
                 nullifier_root = nf_path.root(&nf);
 
-                // Append commitment: derive new commitment root.
-                // The slot must also be empty before insertion.
-                assert_eq!(
-                    cm_path.root(&empty),
-                    commitment_root,
-                    "commitment path does not lead to current commitment root"
-                );
-                commitment_root = cm_path.root(&commitment);
+                // Append commitment into the incremental tree.
+                commitment_tree
+                    .insert(commitment)
+                    .expect("commitment tree insert failed");
 
                 path_idx += 1;
             }
@@ -161,12 +153,12 @@ pub fn main() {
     }
 
     // -----------------------------------------------------------------------
-    // 4. Commit the instance with the updated roots.
+    // 4. Commit the instance with the updated state.
     // -----------------------------------------------------------------------
     env::commit(&ExecutionProofInstance {
-        old_commitment_tree_root: witness.old_commitment_tree_root,
+        old_commitment_tree_root,
         old_nullifier_tree_root: witness.old_nullifier_tree_root,
-        new_commitment_tree_root: commitment_root,
+        new_commitment_tree: commitment_tree,
         new_nullifier_tree_root: nullifier_root,
     });
 }
