@@ -261,6 +261,7 @@ dependencies = [
  "risc0-zkvm",
  "serde",
  "serde_with",
+ "sha3",
  "thiserror 2.0.17",
 ]
 
@@ -1734,6 +1735,23 @@ checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
  "windows-sys 0.61.1",
+]
+
+[[package]]
+name = "execution-proof"
+version = "1.0.0"
+dependencies = [
+ "anoma-rm-risc0",
+ "bincode",
+ "execution-proof-methods",
+ "risc0-zkvm",
+]
+
+[[package]]
+name = "execution-proof-methods"
+version = "1.0.0"
+dependencies = [
+ "risc0-build",
 ]
 
 [[package]]
