@@ -17,6 +17,7 @@ pub mod error;
 #[cfg(feature = "execution_circuit")]
 pub mod execution_proof;
 pub mod incremental_merkle_tree;
+pub mod indexed_merkle_tree;
 pub mod logic_instance;
 #[cfg(feature = "transaction")]
 pub mod logic_proof;

@@ -68,9 +68,7 @@ fn print_execution_proof_elf_id() {
 
 /// Verifies a proved execution receipt against the expected image ID.
 #[cfg(feature = "prove")]
-pub fn verify(
-    receipt: &risc0_zkvm::Receipt,
-) -> Result<(), Box<dyn std::error::Error>> {
+pub fn verify(receipt: &risc0_zkvm::Receipt) -> Result<(), Box<dyn std::error::Error>> {
     use execution_proof_methods::EXECUTION_PROOF_GUEST_ID;
     receipt.verify(EXECUTION_PROOF_GUEST_ID)?;
     Ok(())
