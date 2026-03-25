@@ -14,7 +14,6 @@ pub mod constants;
 #[cfg(feature = "transaction")]
 pub mod delta_proof;
 pub mod error;
-#[cfg(feature = "execution_circuit")]
 pub mod execution_proof;
 pub mod incremental_merkle_tree;
 pub mod indexed_merkle_tree;

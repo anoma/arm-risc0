@@ -11,7 +11,7 @@ risc0-zkvm = { version = "3.0.3", features = [
   "unstable",
 ], default-features = false }
 anoma-rm-risc0 = { path = "../../../../arm", features = [
-  "execution_circuit",
+  "transaction",
 ], default-features = false }
 arm-core = { package = "anoma-rm-core", path = "../../../../arm_core" }
 
