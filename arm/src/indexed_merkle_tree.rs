@@ -16,19 +16,25 @@
 //!
 //! # Insertion
 //!
-//! Inserting `v` with predecessor `(lo → hi)`:
+//! Inserting `v` with predecessor `(lo → hi)` requires exactly two tree
+//! operations regardless of tree size:
 //!
-//! 1. Update the predecessor leaf to `(lo → v)`.
-//! 2. Append a new leaf `(v → hi)`.
+//! 1. **Predecessor update**: rewrite the predecessor leaf from `(lo → hi)`
+//!    to `(lo → v)` via a Merkle path update.
+//! 2. **New leaf append**: insert a new leaf `(v → hi)` at the next free slot.
 //!
-//! Only **one path update** and **one append** are needed regardless of tree size.
+//! # Host vs circuit split
 //!
-//! # Storage
+//! [`IndexedMerkleTree`] is a **host-side** data structure.  It holds the full
+//! leaf array and a [`BTreeMap`] secondary index for O(log n) predecessor
+//! lookup, and it generates [`NonMembershipProof`]s and [`InsertionWitness`]es
+//! that the circuit verifies cheaply without touching the full tree.
 //!
-//! | field | description |
-//! |-------|-------------|
-//! | `leaves` | physical leaf array in insertion order |
-//! | `depth` | current Merkle tree depth (auto-grows) |
+//! | struct | where it runs | purpose |
+//! |--------|---------------|---------|
+//! | [`IndexedMerkleTree`] | host only | generates witnesses |
+//! | [`NonMembershipProof`] | host + circuit | proves `v ∉ S` |
+//! | [`InsertionWitness`] | host + circuit | proves non-membership and updates root |
 
 use crate::{
     error::ArmError,
@@ -38,23 +44,25 @@ use crate::{
     Digest,
 };
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 
 lazy_static::lazy_static! {
     /// Minimum sentinel value (lower bound; always the first leaf).
     ///
     /// Equal to the all-zeros digest.  Real nullifiers are SHA-256 outputs and
-    /// will never equal this value.
+    /// will never collide with this value.
     pub static ref MIN_VALUE: Digest = Digest::new([0u32; 8]);
 
     /// Maximum sentinel value (`∞`; upper bound of the last leaf's range).
     ///
-    /// Equal to the all-`0xFFFFFFFF` digest.  Real nullifiers are SHA-256 outputs
-    /// and will never equal this value.
+    /// Equal to the all-`0xFFFFFFFF` digest.  Real nullifiers are SHA-256
+    /// outputs and will never collide with this value.
     pub static ref MAX_VALUE: Digest = Digest::new([u32::MAX; 8]);
 }
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
+/// Hashes two [`Digest`]s together via the RISC0 SHA-256 implementation.
 fn hash_pair(left: &Digest, right: &Digest) -> Digest {
     risc0_to_core_digest(hash_two(
         &core_to_risc0_digest(left),
@@ -62,17 +70,34 @@ fn hash_pair(left: &Digest, right: &Digest) -> Digest {
     ))
 }
 
-/// Returns `true` if `a < b`, treating the `[u32; 8]` words as a big-endian
-/// integer (word 0 is most significant).
+/// Returns `true` if `a < b` under a big-endian word-by-word comparison
+/// (word 0 most significant).
+///
+/// This is identical to the lexicographic order that `[u32]::cmp` already
+/// provides, so the implementation delegates directly to slice comparison.
 fn digest_lt(a: &Digest, b: &Digest) -> bool {
-    for (&wa, &wb) in a.as_words().iter().zip(b.as_words().iter()) {
-        match wa.cmp(&wb) {
-            std::cmp::Ordering::Less => return true,
-            std::cmp::Ordering::Greater => return false,
-            std::cmp::Ordering::Equal => {}
-        }
+    a.as_words() < b.as_words()
+}
+
+/// Newtype wrapper around [`Digest`] that exposes a total order consistent
+/// with [`digest_lt`] (big-endian word-by-word comparison).
+///
+/// Used as the key type in [`IndexedMerkleTree::sorted_index`] so that a
+/// [`BTreeMap`] can answer predecessor queries with `range(..key).next_back()`
+/// in O(log n).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+struct DigestKey(Digest);
+
+impl PartialOrd for DigestKey {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
     }
-    false // equal
+}
+
+impl Ord for DigestKey {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.0.as_words().cmp(other.0.as_words())
+    }
 }
 
 // ── Public types ──────────────────────────────────────────────────────────────
@@ -100,11 +125,13 @@ impl IndexedLeaf {
 
 /// Proof that a value is **not** in the indexed Merkle tree.
 ///
-/// Identifies the predecessor leaf `(lo → hi)` with `lo < target < hi` and
-/// provides its Merkle authentication path against the tree root.
+/// The proof identifies the predecessor leaf `(lo → hi)` satisfying
+/// `lo < target < hi` and provides its Merkle authentication path.  Because
+/// the linked list is sorted and covers the entire value space, the existence
+/// of such an interval is sufficient to conclude `target ∉ S`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NonMembershipProof {
-    /// Predecessor leaf: `value < target < next_value`.
+    /// Predecessor leaf satisfying `predecessor.value < target < predecessor.next_value`.
     pub predecessor: IndexedLeaf,
     /// Merkle path authenticating `predecessor` against the tree root.
     pub path: MerklePath,
@@ -113,7 +140,10 @@ pub struct NonMembershipProof {
 impl NonMembershipProof {
     /// Verifies that `target` is not in the tree with the given `root`.
     ///
-    /// Returns an error if the proof is invalid.
+    /// Checks the interval bound `predecessor.value < target < predecessor.next_value`
+    /// and that the predecessor is authenticated by `path` against `root`.
+    ///
+    /// Returns an error if any check fails.
     pub fn verify(&self, target: &Digest, root: &Digest) -> Result<(), ArmError> {
         if !digest_lt(&self.predecessor.value, target) {
             return Err(ArmError::ProofVerificationFailed(
@@ -136,37 +166,57 @@ impl NonMembershipProof {
 
 /// Witness for inserting a single value into the indexed Merkle tree.
 ///
-/// Inserting `v` with predecessor `(lo → hi)` performs two tree operations:
+/// Inserting `v` with predecessor `(lo → hi)` performs two operations:
 ///
-/// 1. Update predecessor from `(lo → hi)` to `(lo → v)` — path update.
-/// 2. Append new leaf `(v → hi)` — incremental insert.
+/// 1. **Predecessor update**: rewrite `(lo → hi)` to `(lo → v)` in-place via
+///    `predecessor_path`.
+/// 2. **New leaf append**: insert `(v → hi)` at the next free slot via
+///    `new_leaf_path`.
 ///
-/// When the tree's depth increases to accommodate the new leaf, `grew = true`
-/// and `predecessor_path` is computed at the new (larger) depth.
+/// The two paths are computed at the *post-growth* depth: if the tree had to
+/// grow to fit the new leaf, `grew = true` and both paths have length
+/// `new_depth = old_depth + 1`.  [`apply`] accounts for this by first
+/// reconstructing the grown root before checking `predecessor_path`.
+///
+/// [`apply`]: InsertionWitness::apply
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InsertionWitness {
-    /// Predecessor leaf before insertion.
+    /// Predecessor leaf before insertion: `predecessor.value < v < predecessor.next_value`.
     pub predecessor: IndexedLeaf,
-    /// Merkle path for the predecessor leaf, valid against the *insertion root*.
+    /// Merkle path for the predecessor, valid against the *insertion root*.
     ///
-    /// The insertion root equals `old_root` when `grew = false`, or
-    /// `H(old_root, ZEROS[d - 1])` when `grew = true` (where
-    /// `d = predecessor_path.len()`).
+    /// The insertion root is `old_root` when `grew = false`, or
+    /// `H(old_root, ZEROS[old_depth])` when `grew = true`
+    /// (where `old_depth = predecessor_path.len() - 1`).
     pub predecessor_path: MerklePath,
-    /// Merkle path for the new leaf `(v → hi)`, valid against the *intermediate
-    /// root* (after updating the predecessor).
+    /// Merkle path for the new leaf `(v → hi)`, valid against the
+    /// *intermediate root* produced after rewriting the predecessor.
     pub new_leaf_path: MerklePath,
-    /// `true` if the tree depth increased by 1 to fit the new leaf.
+    /// `true` if the tree depth increased by 1 to accommodate the new leaf.
     pub grew: bool,
 }
 
 impl InsertionWitness {
-    /// Verifies non-membership of `value`, applies the insertion, and returns
-    /// the new Merkle root.
+    /// Verifies non-membership of `value`, applies the two-step insertion, and
+    /// returns the new Merkle root.
     ///
-    /// Returns an error if the witness is inconsistent with `old_root`.
+    /// Steps performed in the circuit:
+    ///
+    /// 1. **Non-membership**: check `predecessor.value < value < predecessor.next_value`.
+    /// 2. **Growth**: if `grew`, derive `insertion_root = H(old_root, ZEROS[old_depth])`.
+    ///    Otherwise `insertion_root = old_root`.
+    /// 3. **Predecessor authentication**: verify `predecessor_path` against
+    ///    `insertion_root`.
+    /// 4. **Predecessor update**: compute `intermediate_root` by rehashing the
+    ///    path with the updated predecessor `(lo → value)`.
+    /// 5. **Empty slot check**: verify `new_leaf_path` points to a padding leaf
+    ///    in the tree at `intermediate_root`.
+    /// 6. **New leaf**: return the root obtained by placing `(value → hi)` at
+    ///    that slot.
+    ///
+    /// Returns an error if any step fails.
     pub fn apply(&self, value: &Digest, old_root: &Digest) -> Result<Digest, ArmError> {
-        // --- Non-membership check ---
+        // Step 1 — non-membership interval check.
         if !digest_lt(&self.predecessor.value, value) {
             return Err(ArmError::ProofVerificationFailed(
                 "insertion invalid: value ≤ predecessor value".into(),
@@ -176,10 +226,11 @@ impl InsertionWitness {
             return Err(ArmError::NullifierDuplication);
         }
 
-        // --- Compute root at insertion depth (account for possible growth) ---
+        // Step 2 — derive the root at insertion depth.
         //
-        // When the tree grew, the insertion root is H(old_root, ZEROS[old_depth])
-        // where old_depth = predecessor_path.len() - 1 (the depth *before* growth).
+        // When the tree grew, both paths were computed at `new_depth = old_depth + 1`.
+        // We reconstruct the root at that depth by hashing the old root (the entire
+        // left subtree) with `ZEROS[old_depth]` (an all-empty right subtree).
         let insertion_root = if self.grew {
             let old_depth = self
                 .predecessor_path
@@ -191,28 +242,29 @@ impl InsertionWitness {
             *old_root
         };
 
-        // --- Verify predecessor exists at the insertion root ---
+        // Step 3 — authenticate the predecessor.
         if self.predecessor_path.root(&self.predecessor.hash()) != insertion_root {
             return Err(ArmError::ProofVerificationFailed(
                 "insertion invalid: predecessor path does not match root".into(),
             ));
         }
 
-        // --- Compute intermediate root after updating the predecessor ---
+        // Step 4 — rewrite predecessor to `(lo → value)` and compute the
+        // intermediate root.  Same path, different leaf hash.
         let updated_pred = IndexedLeaf {
             value: self.predecessor.value,
             next_value: *value,
         };
         let intermediate_root = self.predecessor_path.root(&updated_pred.hash());
 
-        // --- Verify the new leaf slot is currently empty ---
+        // Step 5 — verify the target slot is currently empty.
         if self.new_leaf_path.root(&padding_leaf()) != intermediate_root {
             return Err(ArmError::ProofVerificationFailed(
                 "insertion invalid: new leaf slot is not empty".into(),
             ));
         }
 
-        // --- Append new leaf and return the new root ---
+        // Step 6 — place the new leaf `(value → hi)` and return the new root.
         let new_leaf = IndexedLeaf {
             value: *value,
             next_value: self.predecessor.next_value,
@@ -223,11 +275,11 @@ impl InsertionWitness {
 
 // ── Host-side helpers ─────────────────────────────────────────────────────────
 
-/// Builds a complete Merkle tree of the given `depth` from `leaf_hashes`.
+/// Builds a complete binary Merkle tree of the given `depth` from `leaf_hashes`.
 ///
-/// Positions `>= leaf_hashes.len()` are padded with [`padding_leaf()`].
-/// Returns `layers` where `layers[0]` is the leaf level and
-/// `layers[depth]` is `[root]`.
+/// Leaf positions `>= leaf_hashes.len()` are padded with [`padding_leaf()`].
+/// Returns `layers` where `layers[0]` is the leaf level (width `2^depth`) and
+/// `layers[depth]` is `[root]`.  Runs in O(2^depth) — host only.
 fn build_layers(leaf_hashes: &[Digest], depth: usize) -> Vec<Vec<Digest>> {
     let capacity = 1usize << depth;
     let mut level: Vec<Digest> = (0..capacity)
@@ -244,7 +296,13 @@ fn build_layers(leaf_hashes: &[Digest], depth: usize) -> Vec<Vec<Digest>> {
     layers
 }
 
-/// Extracts a [`MerklePath`] for leaf `index` from a prebuilt layer array.
+/// Extracts a [`MerklePath`] for the leaf at `index` from a prebuilt layer
+/// array produced by [`build_layers`].
+///
+/// Each path element is `(sibling_hash, is_right_child)`, where
+/// `is_right_child = true` means the *current* node is a right child (sibling
+/// is to the left), matching the [`MerklePath`] encoding used by
+/// [`MerklePathExt::root`].
 fn extract_path(layers: &[Vec<Digest>], index: usize) -> MerklePath {
     let depth = layers.len().saturating_sub(1);
     let mut path = Vec::with_capacity(depth);
@@ -252,7 +310,6 @@ fn extract_path(layers: &[Vec<Digest>], index: usize) -> MerklePath {
     for level in &layers[..depth] {
         let is_right_child = idx % 2 == 1;
         let sibling_idx = if is_right_child { idx - 1 } else { idx + 1 };
-        // second element: true = sibling is to the left (current is right child)
         path.push((level[sibling_idx], is_right_child));
         idx /= 2;
     }
@@ -262,31 +319,33 @@ fn extract_path(layers: &[Vec<Digest>], index: usize) -> MerklePath {
 // ── Host-side tree ────────────────────────────────────────────────────────────
 
 /// Host-side indexed Merkle tree: generates [`NonMembershipProof`]s and
-/// [`InsertionWitness`]es.
+/// [`InsertionWitness`]es to be verified by the execution proof circuit.
 ///
-/// Leaves are stored in **insertion order** (not sorted); the sorted linked
-/// list is maintained through each leaf's `next_value` pointer.  Path
-/// generation rebuilds the full Merkle tree at the current depth, which is
-/// O(2^depth) but runs only on the host.
+/// Leaves are stored in **insertion order** (not sorted by value); the sorted
+/// linked list is maintained through each leaf's `next_value` pointer.  Path
+/// generation rebuilds the full tree from scratch on every call — O(2^depth)
+/// — but this runs only on the host, never inside the circuit.
 ///
-/// A secondary `sorted_index` — a `Vec<(Digest, usize)>` kept sorted by
-/// `Digest` value — enables O(log n) predecessor lookup via binary search.
+/// A `sorted_index` [`BTreeMap`] keyed by [`DigestKey`] provides O(log n)
+/// predecessor lookup and O(log n) insertion (no element shifting).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IndexedMerkleTree {
-    /// Physical leaf array (insertion order).
+    /// Physical leaf array in insertion order.  Index 0 is always the
+    /// `MIN_VALUE → MAX_VALUE` sentinel.
     leaves: Vec<IndexedLeaf>,
-    /// Current Merkle tree depth.
+    /// Current Merkle tree depth.  Grows automatically when `leaves.len()`
+    /// would exceed `2^depth`.
     depth: usize,
-    /// Sorted index: `(leaf.value, physical_index_in_leaves)`, ordered by
-    /// value using the same big-endian word comparison as [`digest_lt`].
-    sorted_index: Vec<(Digest, usize)>,
+    /// Maps each leaf value to its physical index in `leaves`, kept in sorted
+    /// order via [`DigestKey`] for O(log n) predecessor range queries.
+    sorted_index: BTreeMap<DigestKey, usize>,
 }
 
 impl IndexedMerkleTree {
     /// Creates a new empty indexed Merkle tree.
     ///
-    /// Inserts the initial sentinel leaf `(MIN_VALUE → MAX_VALUE)` so that
-    /// every real value has a valid predecessor.
+    /// Seeds the tree with the sentinel leaf `(MIN_VALUE → MAX_VALUE)` at
+    /// physical index 0, so every insertable value has a valid predecessor.
     pub fn new() -> Self {
         Self {
             leaves: vec![IndexedLeaf {
@@ -294,33 +353,37 @@ impl IndexedMerkleTree {
                 next_value: *MAX_VALUE,
             }],
             depth: 0,
-            sorted_index: vec![(*MIN_VALUE, 0)],
+            sorted_index: BTreeMap::from([(DigestKey(*MIN_VALUE), 0)]),
         }
     }
 
     /// Returns the current Merkle root.
     pub fn root(&self) -> Digest {
         let hashes: Vec<Digest> = self.leaves.iter().map(|l| l.hash()).collect();
-        // build_layers always returns at least one layer with at least one element.
+        // build_layers always returns depth+1 layers, each non-empty.
         build_layers(&hashes, self.depth)[self.depth][0]
     }
 
-    /// Returns the number of leaves (including the [`MIN_VALUE`] sentinel).
+    /// Returns the number of leaves, including the [`MIN_VALUE`] sentinel.
     pub fn len(&self) -> usize {
         self.leaves.len()
     }
 
-    /// Returns `true` if the tree contains only the sentinel leaf.
+    /// Returns `true` if the tree contains only the sentinel leaf (no real
+    /// values have been inserted).
     pub fn is_empty(&self) -> bool {
         self.leaves.len() == 1
     }
 
-    /// Generates a [`NonMembershipProof`] for `value`.
+    /// Generates a [`NonMembershipProof`] showing that `value` is not in the
+    /// tree.
     ///
-    /// Returns an error if `value` is already in the set or equals [`MIN_VALUE`].
+    /// Returns an error if `value` is already in the set or equals
+    /// [`MIN_VALUE`] (which has no valid predecessor).
     pub fn prove_non_membership(&self, value: &Digest) -> Result<NonMembershipProof, ArmError> {
         let pred_idx = self.predecessor_index(value)?;
         let predecessor = self.leaves[pred_idx].clone();
+        // If value >= predecessor.next_value, value is already in the set.
         if !digest_lt(value, &predecessor.next_value) {
             return Err(ArmError::NullifierDuplication);
         }
@@ -332,7 +395,7 @@ impl IndexedMerkleTree {
         })
     }
 
-    /// Inserts `value` and returns the [`InsertionWitness`].
+    /// Inserts `value` into the tree and returns the [`InsertionWitness`].
     ///
     /// Returns an error if `value` is already in the set, equals [`MIN_VALUE`],
     /// or equals [`MAX_VALUE`].
@@ -350,16 +413,18 @@ impl IndexedMerkleTree {
             return Err(ArmError::NullifierDuplication);
         }
 
-        let n = self.leaves.len();
+        let n = self.leaves.len(); // physical index of the new leaf
         let grew = n + 1 > (1 << self.depth);
         let new_depth = if grew { self.depth + 1 } else { self.depth };
 
-        // predecessor_path at new_depth against the insertion root
+        // Build the tree at new_depth.  When grew=true this is the "insertion
+        // root" depth; the extra right-subtree slots are all padding leaves.
         let current_hashes: Vec<Digest> = self.leaves.iter().map(|l| l.hash()).collect();
         let tree_before = build_layers(&current_hashes, new_depth);
         let predecessor_path = extract_path(&tree_before, pred_idx);
 
-        // rebuild with updated predecessor, then get new_leaf_path
+        // Rewrite the predecessor leaf hash and rebuild to get the intermediate
+        // root (after step 1 of the two-step insertion).
         let mut updated_hashes = current_hashes;
         updated_hashes[pred_idx] = IndexedLeaf {
             value: predecessor.value,
@@ -367,19 +432,17 @@ impl IndexedMerkleTree {
         }
         .hash();
         let tree_after_update = build_layers(&updated_hashes, new_depth);
+        // The new leaf lands at index n; its slot is currently a padding leaf.
         let new_leaf_path = extract_path(&tree_after_update, n);
 
-        // apply mutation
+        // Commit mutations.
         self.leaves[pred_idx].next_value = value;
         self.leaves.push(IndexedLeaf {
             value,
             next_value: predecessor.next_value,
         });
         self.depth = new_depth;
-        let ins = self
-            .sorted_index
-            .partition_point(|(v, _)| digest_lt(v, &value));
-        self.sorted_index.insert(ins, (value, n));
+        self.sorted_index.insert(DigestKey(value), n);
 
         Ok(InsertionWitness {
             predecessor,
@@ -389,21 +452,19 @@ impl IndexedMerkleTree {
         })
     }
 
-    /// Returns the physical index of the predecessor leaf for `value`.
+    /// Returns the physical index in `leaves` of the predecessor of `value`.
     ///
-    /// Uses binary search on `sorted_index` (O(log n)): finds the last entry
-    /// whose value is strictly less than `value`.
+    /// The predecessor is the leaf whose value is the largest value strictly
+    /// less than `value`.  Uses `BTreeMap::range(..key).next_back()` — O(log n).
+    ///
+    /// Returns [`ArmError::InvalidLeaf`] if no predecessor exists (i.e.
+    /// `value ≤ MIN_VALUE`).
     fn predecessor_index(&self, value: &Digest) -> Result<usize, ArmError> {
-        // partition_point returns the first position where the predicate is
-        // false, i.e. the first entry with value >= target.  The predecessor
-        // is the entry immediately before it.
-        let pos = self
-            .sorted_index
-            .partition_point(|(v, _)| digest_lt(v, value));
-        if pos == 0 {
-            return Err(ArmError::InvalidLeaf);
-        }
-        Ok(self.sorted_index[pos - 1].1)
+        self.sorted_index
+            .range(..DigestKey(*value))
+            .next_back()
+            .map(|(_, &idx)| idx)
+            .ok_or(ArmError::InvalidLeaf)
     }
 }
 
@@ -443,19 +504,9 @@ mod tests {
 
     #[test]
     fn leaf_hash_is_deterministic() {
-        let l = IndexedLeaf {
-            value: d(10),
-            next_value: d(20),
-        };
+        let l = IndexedLeaf { value: d(10), next_value: d(20) };
         assert_eq!(l.hash(), l.hash());
-        assert_ne!(
-            l.hash(),
-            IndexedLeaf {
-                value: d(10),
-                next_value: d(30)
-            }
-            .hash()
-        );
+        assert_ne!(l.hash(), IndexedLeaf { value: d(10), next_value: d(30) }.hash());
     }
 
     // ── non-membership proof ─────────────────────────────────────────────────
@@ -474,7 +525,7 @@ mod tests {
         tree.insert(d(10)).unwrap();
         tree.insert(d(30)).unwrap();
 
-        // 20 is between 10 and 30 → not in set
+        // 20 is strictly between 10 and 30 → not in the set
         let target = d(20);
         let proof = tree.prove_non_membership(&target).unwrap();
         proof.verify(&target, &tree.root()).unwrap();
@@ -521,13 +572,13 @@ mod tests {
         let nm_proof = tree.prove_non_membership(&target).unwrap();
         nm_proof.verify(&target, &tree.root()).unwrap();
 
-        // inserting the same value changes the root
+        // Inserting the value changes the root.
         let old_root = tree.root();
         let witness = tree.insert(target).unwrap();
         let new_root = tree.root();
         assert_eq!(witness.apply(&target, &old_root).unwrap(), new_root);
 
-        // 20 is now in the set; non-membership for 25 should still work
+        // 20 is now in the set; non-membership for 25 (between 20 and 30) still works.
         let proof2 = tree.prove_non_membership(&d(25)).unwrap();
         proof2.verify(&d(25), &tree.root()).unwrap();
     }
@@ -535,17 +586,20 @@ mod tests {
     #[test]
     fn insertion_triggers_tree_growth() {
         let mut tree = IndexedMerkleTree::new();
-        // depth=0 → capacity=1 (full with sentinel); first insert must grow
-        let witness = tree.insert(d(1)).unwrap();
-        assert!(witness.grew);
+
+        // depth=0, capacity=1.  The sentinel occupies the only slot, so the
+        // first real insertion must grow the tree to depth=1 (capacity=2).
+        let w1 = tree.insert(d(1)).unwrap();
+        assert!(w1.grew);
         assert_eq!(tree.depth, 1);
 
-        // second insert stays at depth=1 (capacity=2, now has 3 leaves after sentinel)
-        // actually depth=1 → capacity=2; with sentinel + 1 we have 2, full again
+        // depth=1, capacity=2, leaves=[sentinel, d(1)].  The next insertion
+        // needs a third slot, so the tree must grow again to depth=2.
         let old_root = tree.root();
-        let witness2 = tree.insert(d(2)).unwrap();
-        assert!(witness2.grew); // 2+1=3 > 2^1=2 → must grow to depth 2
-        assert_eq!(witness2.apply(&d(2), &old_root).unwrap(), tree.root());
+        let w2 = tree.insert(d(2)).unwrap();
+        assert!(w2.grew);
+        assert_eq!(tree.depth, 2);
+        assert_eq!(w2.apply(&d(2), &old_root).unwrap(), tree.root());
     }
 
     // ── build_layers / extract_path consistency ───────────────────────────────
@@ -554,7 +608,10 @@ mod tests {
     fn build_layers_root_matches_direct_hash() {
         let leaves = vec![d(1), d(2), d(3), d(4)];
         let layers = build_layers(&leaves, 2);
-        let expected = hash_pair(&hash_pair(&d(1), &d(2)), &hash_pair(&d(3), &d(4)));
+        let expected = hash_pair(
+            &hash_pair(&d(1), &d(2)),
+            &hash_pair(&d(3), &d(4)),
+        );
         assert_eq!(*layers.last().unwrap().first().unwrap(), expected);
     }
 
