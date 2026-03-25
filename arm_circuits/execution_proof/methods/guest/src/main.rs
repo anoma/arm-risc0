@@ -164,7 +164,7 @@ pub fn main() {
     env::commit(&ExecutionProofInstance {
         old_commitment_tree_root,
         old_nullifier_tree_root: witness.old_nullifier_tree_root,
-        new_commitment_tree: commitment_tree,
+        new_commitment_root: commitment_tree.root(),
         new_nullifier_tree_root: nullifier_root,
     });
 }

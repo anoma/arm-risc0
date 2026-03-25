@@ -33,12 +33,8 @@ pub struct ExecutionProofInstance {
     pub old_commitment_tree_root: Digest,
     /// Nullifier tree root before the batch was executed.
     pub old_nullifier_tree_root: Digest,
-    /// Full commitment tree state after executing the batch.
-    ///
-    /// Carries the incremental tree so the next proof can continue inserting
-    /// commitments without re-proving the prior state.
-    /// `new_commitment_tree.root()` gives the updated commitment root.
-    pub new_commitment_tree: IncrementalMerkleTree,
+    /// Commitment tree root after executing the batch.
+    pub new_commitment_root: Digest,
     /// Nullifier tree root after executing the batch.
     pub new_nullifier_tree_root: Digest,
 }
