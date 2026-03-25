@@ -13,9 +13,9 @@ use crate::{
 
 #[cfg(feature = "prove")]
 use crate::{
+    compliance::ComplianceWitness,
     constants::COMPLIANCE_PK,
     proving_system::{prove, ProofType},
-    compliance::ComplianceWitness,
 };
 
 /// Extension methods for compliance units that require zkvm/k256 functionality.

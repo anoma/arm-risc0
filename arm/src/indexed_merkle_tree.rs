@@ -376,7 +376,9 @@ impl IndexedMerkleTree {
             next_value: predecessor.next_value,
         });
         self.depth = new_depth;
-        let ins = self.sorted_index.partition_point(|(v, _)| digest_lt(v, &value));
+        let ins = self
+            .sorted_index
+            .partition_point(|(v, _)| digest_lt(v, &value));
         self.sorted_index.insert(ins, (value, n));
 
         Ok(InsertionWitness {
@@ -395,7 +397,9 @@ impl IndexedMerkleTree {
         // partition_point returns the first position where the predicate is
         // false, i.e. the first entry with value >= target.  The predecessor
         // is the entry immediately before it.
-        let pos = self.sorted_index.partition_point(|(v, _)| digest_lt(v, value));
+        let pos = self
+            .sorted_index
+            .partition_point(|(v, _)| digest_lt(v, value));
         if pos == 0 {
             return Err(ArmError::InvalidLeaf);
         }
@@ -439,9 +443,19 @@ mod tests {
 
     #[test]
     fn leaf_hash_is_deterministic() {
-        let l = IndexedLeaf { value: d(10), next_value: d(20) };
+        let l = IndexedLeaf {
+            value: d(10),
+            next_value: d(20),
+        };
         assert_eq!(l.hash(), l.hash());
-        assert_ne!(l.hash(), IndexedLeaf { value: d(10), next_value: d(30) }.hash());
+        assert_ne!(
+            l.hash(),
+            IndexedLeaf {
+                value: d(10),
+                next_value: d(30)
+            }
+            .hash()
+        );
     }
 
     // ── non-membership proof ─────────────────────────────────────────────────
@@ -540,10 +554,7 @@ mod tests {
     fn build_layers_root_matches_direct_hash() {
         let leaves = vec![d(1), d(2), d(3), d(4)];
         let layers = build_layers(&leaves, 2);
-        let expected = hash_pair(
-            &hash_pair(&d(1), &d(2)),
-            &hash_pair(&d(3), &d(4)),
-        );
+        let expected = hash_pair(&hash_pair(&d(1), &d(2)), &hash_pair(&d(3), &d(4)));
         assert_eq!(*layers.last().unwrap().first().unwrap(), expected);
     }
 
