@@ -1,6 +1,11 @@
 use std::time::Instant;
 
 fn main() {
+    // Construct witness on the host and serialize
+    let witness = guest::compliance::ComplianceWitness::default();
+    let witness_bytes = witness.to_bytes();
+    println!("Witness: {} bytes", witness_bytes.len());
+
     println!("Compiling guest...");
     let target_dir = "/tmp/jolt-compliance-inline";
     let mut program = guest::compile_compliance_prove(target_dir);
@@ -16,7 +21,7 @@ fn main() {
 
     println!("Proving compliance circuit (with inlines)...");
     let start = Instant::now();
-    let (output, proof, io_device) = prove();
+    let (output, proof, io_device) = prove(&witness_bytes);
     let prove_duration = start.elapsed();
 
     let (lo, hi) = output;
@@ -25,7 +30,7 @@ fn main() {
 
     println!("\nVerifying...");
     let start = Instant::now();
-    let is_valid = verify(output, io_device.panic, proof);
+    let is_valid = verify(&witness_bytes, output, io_device.panic, proof);
     let verify_duration = start.elapsed();
     println!("Verification: {} ({:?})", is_valid, verify_duration);
 }

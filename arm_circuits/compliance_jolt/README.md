@@ -69,7 +69,6 @@ Jolt with secp256k1 + SHA-256 inlines is ~16x faster than risc0 for the complian
 
 ## Caveats
 
-- **Hardcoded witness**: Uses `ComplianceWitness::default()`. Production requires witness I/O from host.
 - **hash-to-curve**: `kind()` uses hash-to-scalar * G instead of RFC 9380 hash-to-curve. Exercises the same EC operations but the discrete log of kind points is known. Not suitable for production.
 - **No on-chain verification**: Jolt produces a Spartan+Dory proof, not Groth16. No Groth16 wrapping pipeline exists yet.
 - **Requires Jolt `main` branch**: secp256k1 inlines are not in any tagged release as of v0.3.0-alpha.

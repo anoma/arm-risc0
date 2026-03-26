@@ -103,6 +103,56 @@ fn scalar_mul_point(point: &Secp256k1Point, scalar: &Secp256k1Fr) -> Secp256k1Po
     p1.add(&p2)
 }
 
+
+impl ComplianceWitness {
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut out = Vec::new();
+        out.extend_from_slice(self.consumed_resource.to_bytes().as_slice());
+        out.extend_from_slice(self.created_resource.to_bytes().as_slice());
+        out.extend_from_slice(self.ephemeral_root.as_bytes());
+        out.extend_from_slice(self.nf_key.inner());
+        // merkle path: length (u8) + entries (32 + 1 each)
+        out.push(self.merkle_path.0.len() as u8);
+        for (digest, is_right) in &self.merkle_path.0 {
+            out.extend_from_slice(digest.as_bytes());
+            out.push(*is_right as u8);
+        }
+        out.extend_from_slice(&self.rcv);
+        out
+    }
+
+    pub fn from_bytes(data: &[u8]) -> Self {
+        use crate::digest::{Digest, DIGEST_BYTES};
+        use crate::nullifier_key::NullifierKey;
+        use crate::merkle_path::MerklePath;
+        use crate::resource::Resource;
+        let mut o = 0;
+        let consumed_resource = Resource::from_bytes(&data[o..]); o += Resource::SERIALIZED_SIZE;
+        let created_resource = Resource::from_bytes(&data[o..]); o += Resource::SERIALIZED_SIZE;
+        let mut eph = [0u8; DIGEST_BYTES];
+        eph.copy_from_slice(&data[o..o + DIGEST_BYTES]); o += DIGEST_BYTES;
+        let mut nk = [0u8; DIGEST_BYTES];
+        nk.copy_from_slice(&data[o..o + DIGEST_BYTES]); o += DIGEST_BYTES;
+        let path_len = data[o] as usize; o += 1;
+        let mut path = Vec::with_capacity(path_len);
+        for _ in 0..path_len {
+            let mut d = [0u8; DIGEST_BYTES];
+            d.copy_from_slice(&data[o..o + DIGEST_BYTES]); o += DIGEST_BYTES;
+            let is_right = data[o] != 0; o += 1;
+            path.push((Digest::from(d), is_right));
+        }
+        let rcv = data[o..o + 32].to_vec();
+        ComplianceWitness {
+            consumed_resource,
+            created_resource,
+            ephemeral_root: Digest::from(eph),
+            nf_key: NullifierKey::from_bytes(nk),
+            merkle_path: MerklePath(path),
+            rcv,
+        }
+    }
+}
+
 impl Default for ComplianceWitness {
     fn default() -> Self {
         let initial_root = Digest::from_hex(INITIAL_ROOT_HEX).unwrap();

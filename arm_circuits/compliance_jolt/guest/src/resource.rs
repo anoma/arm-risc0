@@ -140,3 +140,44 @@ impl Default for Resource {
         }
     }
 }
+
+impl Resource {
+    pub const SERIALIZED_SIZE: usize = DIGEST_BYTES * 4 + QUANTITY_BYTES + 1 + DIGEST_BYTES + DIGEST_BYTES + DIGEST_BYTES;
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut out = Vec::with_capacity(Self::SERIALIZED_SIZE);
+        out.extend_from_slice(self.logic_ref.as_ref());
+        out.extend_from_slice(self.label_ref.as_ref());
+        out.extend_from_slice(&self.quantity.to_be_bytes());
+        out.extend_from_slice(self.value_ref.as_ref());
+        out.push(self.is_ephemeral as u8);
+        out.extend_from_slice(&self.nonce);
+        out.extend_from_slice(self.nk_commitment.as_bytes());
+        out.extend_from_slice(&self.rand_seed);
+        out
+    }
+
+    pub fn from_bytes(data: &[u8]) -> Self {
+        use crate::digest::{Digest, DIGEST_BYTES};
+        use crate::nullifier_key::NullifierKeyCommitment;
+        let mut o = 0;
+        let mut read32 = |o: &mut usize| -> [u8; 32] {
+            let mut buf = [0u8; 32];
+            buf.copy_from_slice(&data[*o..*o + 32]);
+            *o += 32;
+            buf
+        };
+        let logic_ref = Digest::from(read32(&mut o));
+        let label_ref = Digest::from(read32(&mut o));
+        let mut qty_bytes = [0u8; 16];
+        qty_bytes.copy_from_slice(&data[o..o + 16]); o += 16;
+        let quantity = u128::from_be_bytes(qty_bytes);
+        let value_ref = Digest::from(read32(&mut o));
+        let is_ephemeral = data[o] != 0; o += 1;
+        let nonce = read32(&mut o);
+        let nk_bytes = read32(&mut o);
+        let nk_commitment = NullifierKeyCommitment::from_bytes(&nk_bytes);
+        let rand_seed = read32(&mut o);
+        Resource { logic_ref, label_ref, quantity, value_ref, is_ephemeral, nonce, nk_commitment, rand_seed }
+    }
+}
