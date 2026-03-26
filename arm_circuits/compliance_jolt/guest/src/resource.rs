@@ -142,7 +142,8 @@ impl Default for Resource {
 }
 
 impl Resource {
-    pub const SERIALIZED_SIZE: usize = DIGEST_BYTES * 4 + QUANTITY_BYTES + 1 + DIGEST_BYTES + DIGEST_BYTES + DIGEST_BYTES;
+    // logic_ref(32) + label_ref(32) + quantity(16) + value_ref(32) + ephemeral(1) + nonce(32) + nk_commitment(32) + rand_seed(32) = 209
+    pub const SERIALIZED_SIZE: usize = DIGEST_BYTES * 6 + QUANTITY_BYTES + 1;
 
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut out = Vec::with_capacity(Self::SERIALIZED_SIZE);
