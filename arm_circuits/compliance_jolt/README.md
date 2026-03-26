@@ -62,10 +62,10 @@ Public output: `SHA-256(ComplianceInstance)` — a binding commitment to the ful
 |-----------|-------|--------|
 | Jolt fib(50) v0.2.1 | 6s | - |
 | risc0 fib(50) v3.0 | 13.6s | 13ms |
-| **Jolt compliance (inlines)** | **63s** | **248ms** |
+| **Jolt compliance (inlines)** | **54s** | **153ms** |
 | risc0 compliance (STARK succinct) | 986s | 19ms |
 
-Jolt with secp256k1 + SHA-256 inlines is ~16x faster than risc0 for the compliance proof.
+Jolt with secp256k1 + SHA-256 inlines is ~18x faster than risc0 for the compliance proof.
 
 ## Caveats
 
