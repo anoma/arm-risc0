@@ -1,0 +1,13 @@
+[package]
+name = "compliance-jolt-guest"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+guest = []
+
+[dependencies]
+jolt = { package = "jolt-sdk", path = "../../../jolt-sdk" }
+jolt-inlines-sha2.workspace = true
+jolt-inlines-secp256k1.workspace = true
+hex = { version = "0.4", default-features = false, features = ["alloc"] }

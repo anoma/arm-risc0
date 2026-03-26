@@ -1,0 +1,10 @@
+[package]
+name = "fibonacci-risc0"
+version = "0.1.0"
+edition = "2021"
+
+[workspace]
+
+[dependencies]
+fibonacci-risc0-methods = { path = "methods" }
+risc0-zkvm = { version = "3.0.3", features = ["prove", "unstable"] }

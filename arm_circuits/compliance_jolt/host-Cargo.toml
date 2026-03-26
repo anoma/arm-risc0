@@ -1,0 +1,10 @@
+[package]
+name = "compliance-jolt-host"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+jolt-sdk = { path = "../../jolt-sdk", features = ["host"] }
+guest = { package = "compliance-jolt-guest", path = "./guest" }
+jolt-inlines-secp256k1 = { path = "../../jolt-inlines/secp256k1", features = ["host"] }
+hex = "0.4"
