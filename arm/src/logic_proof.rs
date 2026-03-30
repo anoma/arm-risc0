@@ -221,3 +221,71 @@ fn test_padding_logic_prover() {
     let proof = trivial_logic.prove(ProofType::Succinct).unwrap();
     proof.verify().unwrap();
 }
+
+/// Regression test: the app_data_hash must be the last 32 bytes of the journal
+/// in BOTH the borsh (to_journal) and risc0 serde (env::commit) formats.
+/// The on-chain PA extracts the hash via a tail slice, so this invariant is
+/// security-critical.
+#[test]
+fn test_app_data_hash_tail_invariant_borsh_and_risc0_serde() {
+    use arm_core::logic_instance::{AppData, ExpirableBlob, LogicInstance};
+
+    // Build a non-trivial LogicInstance with actual app_data content.
+    let mut app_data = AppData::new();
+    app_data.add_external_payload(ExpirableBlob {
+        blob: vec![0xDEAD_BEEF, 0xCAFE_BABE, 0x1234_5678],
+        deletion_criterion: 42,
+    });
+    app_data.add_resource_payload(ExpirableBlob {
+        blob: vec![1, 2, 3, 4, 5],
+        deletion_criterion: 0,
+    });
+
+    let mut instance = LogicInstance {
+        tag: Digest::from_bytes([0x11; 32]),
+        is_consumed: true,
+        root: Digest::from_bytes([0x22; 32]),
+        app_data,
+        app_data_hash: Digest::default(),
+    };
+    instance.compute_and_set_app_data_hash();
+
+    let expected_hash = instance.app_data_hash;
+    assert_ne!(
+        expected_hash,
+        Digest::default(),
+        "Hash of non-empty app_data must not be default"
+    );
+
+    // Path 1: borsh to_journal (used in tests)
+    let borsh_journal = instance.to_journal().unwrap();
+    assert!(borsh_journal.len() >= 32);
+    assert_eq!(borsh_journal.len() % 4, 0, "Journal must be 4-byte aligned");
+    let borsh_tail: [u8; 32] = borsh_journal[borsh_journal.len() - 32..]
+        .try_into()
+        .unwrap();
+    let borsh_tail_digest = Digest::from_bytes(borsh_tail);
+
+    // Path 2: risc0 serde (used in production by env::commit)
+    let risc0_words =
+        risc0_zkvm::serde::to_vec(&instance).expect("risc0 serde should succeed");
+    let risc0_bytes: Vec<u8> = risc0_words
+        .iter()
+        .flat_map(|w| w.to_le_bytes())
+        .collect();
+    assert!(risc0_bytes.len() >= 32);
+    let risc0_tail: [u8; 32] = risc0_bytes[risc0_bytes.len() - 32..]
+        .try_into()
+        .unwrap();
+    let risc0_tail_digest = Digest::from_bytes(risc0_tail);
+
+    // Both tails must equal the computed hash.
+    assert_eq!(
+        borsh_tail_digest, expected_hash,
+        "borsh to_journal tail must contain app_data_hash"
+    );
+    assert_eq!(
+        risc0_tail_digest, expected_hash,
+        "risc0 serde tail must contain app_data_hash"
+    );
+}
