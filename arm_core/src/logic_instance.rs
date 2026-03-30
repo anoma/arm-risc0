@@ -140,13 +140,29 @@ impl LogicInstance {
 
     /// Serializes this instance to journal bytes (Borsh format).
     ///
-    /// Output is zero-padded to 4-byte alignment because risc0's env::verify
-    /// operates on &[u32] journals.
+    /// Layout: `borsh(fields_except_hash) | padding_to_4byte | borsh(app_data_hash)`
+    ///
+    /// The hash is always the last 32 bytes of the output, making extraction
+    /// trivial for the on-chain verifier. Padding ensures the hash starts at
+    /// a 4-byte aligned offset for risc0's `env::verify` which operates on
+    /// `&[u32]` journals.
     pub fn to_journal(&self) -> Result<Vec<u8>, crate::error::ArmError> {
-        let mut bytes =
-            borsh::to_vec(self).map_err(|_| crate::error::ArmError::InstanceSerializationFailed)?;
+        let err = |_| crate::error::ArmError::InstanceSerializationFailed;
+
+        // Serialize everything except app_data_hash.
+        let mut bytes = Vec::new();
+        borsh::BorshSerialize::serialize(&self.tag, &mut bytes).map_err(err)?;
+        borsh::BorshSerialize::serialize(&self.is_consumed, &mut bytes).map_err(err)?;
+        borsh::BorshSerialize::serialize(&self.root, &mut bytes).map_err(err)?;
+        borsh::BorshSerialize::serialize(&self.app_data, &mut bytes).map_err(err)?;
+
+        // Pad to 4-byte alignment before the hash.
         let padding = (4 - bytes.len() % 4) % 4;
         bytes.resize(bytes.len() + padding, 0);
+
+        // Append the hash (32 bytes, already 4-byte aligned).
+        borsh::BorshSerialize::serialize(&self.app_data_hash, &mut bytes).map_err(err)?;
+
         Ok(bytes)
     }
 }
