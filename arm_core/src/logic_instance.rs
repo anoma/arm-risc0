@@ -18,6 +18,9 @@ pub struct LogicInstance {
     pub root: Digest,
     /// The application data associated with the logic instance.
     pub app_data: AppData,
+    /// SHA-256 hash of borsh-serialized app_data. Committed by the logic circuit
+    /// and verified on-chain to bind app_data to the ZK proof.
+    pub app_data_hash: Digest,
 }
 
 /// Application data contains four different types of payloads.
@@ -71,12 +74,15 @@ pub struct LogicVerifierInputs {
 
 impl LogicVerifierInputs {
     /// Converts to a LogicInstance given consumed/created flag and action tree root.
+    /// The `app_data_hash` is set to default; callers that need the hash must call
+    /// `compute_and_set_app_data_hash()` on the result.
     pub fn to_instance(&self, is_consumed: bool, root: Digest) -> LogicInstance {
         LogicInstance {
             tag: self.tag,
             is_consumed,
             root,
             app_data: self.app_data.clone(),
+            app_data_hash: Digest::default(),
         }
     }
 }
@@ -114,7 +120,24 @@ impl AppData {
 }
 
 #[cfg(feature = "borsh")]
+impl AppData {
+    /// Computes SHA-256 hash of the borsh-serialized AppData.
+    pub fn compute_hash(&self) -> Digest {
+        use sha2::{Digest as Sha2Digest, Sha256};
+        let bytes = borsh::to_vec(self).expect("AppData borsh serialization cannot fail");
+        let hash: [u8; 32] = Sha256::digest(&bytes).into();
+        crate::digest::Digest::from_bytes(hash)
+    }
+}
+
+#[cfg(feature = "borsh")]
 impl LogicInstance {
+    /// Sets `app_data_hash` to the SHA-256 hash of borsh-serialized `app_data`.
+    /// Must be called before committing in a logic circuit guest.
+    pub fn compute_and_set_app_data_hash(&mut self) {
+        self.app_data_hash = self.app_data.compute_hash();
+    }
+
     /// Serializes this instance to journal bytes (Borsh format).
     ///
     /// Output is zero-padded to 4-byte alignment because risc0's env::verify

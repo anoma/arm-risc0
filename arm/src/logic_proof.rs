@@ -92,7 +92,8 @@ pub trait LogicVerifierInputsExt {
 
 impl LogicVerifierInputsExt for LogicVerifierInputs {
     fn to_logic_verifier(self, is_consumed: bool, root: Digest) -> Result<LogicVerifier, ArmError> {
-        let expected_instance = self.to_instance(is_consumed, root);
+        let mut expected_instance = self.to_instance(is_consumed, root);
+        expected_instance.compute_and_set_app_data_hash();
         let provided_instance: LogicInstance = journal_to_instance(&self.instance_journal)?;
         if provided_instance != expected_instance {
             return Err(ArmError::LogicInstanceMismatch);

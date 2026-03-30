@@ -76,11 +76,13 @@ impl LogicCircuit for TestLogicWitness {
             application_payload,
         };
 
+        let app_data_hash = app_data.compute_hash();
         Ok(LogicInstance {
             tag,
             is_consumed: self.is_consumed, // It can be either consumed or created to reduce padding resources
             root,
             app_data,
+            app_data_hash,
         })
     }
 }

@@ -41,11 +41,14 @@ impl LogicCircuit for TrivialLogicWitness {
         assert_eq!(self.resource.quantity, 0);
         assert!(self.resource.is_ephemeral);
 
+        let app_data = AppData::default();
+        let app_data_hash = app_data.compute_hash();
         Ok(LogicInstance {
             tag,
             is_consumed: self.is_consumed, // It can be either consumed or created to reduce padding resources
             root: self.action_tree_root,
-            app_data: AppData::default(), // No app data for trivial logic
+            app_data,
+            app_data_hash,
         })
     }
 }

@@ -58,11 +58,13 @@ name = "anoma-rm-core"
 version = "1.0.0"
 dependencies = [
  "bincode",
+ "borsh",
  "bytemuck",
  "hex",
  "hex-literal",
  "serde",
  "serde_with",
+ "sha2",
  "thiserror",
 ]
 
