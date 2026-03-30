@@ -91,6 +91,8 @@ mod tests {
             old_nullifier_tree_root: d(2),
             new_commitment_root: d(3),
             new_nullifier_tree_root: d(4),
+            consumed_resource_app_data: vec![],
+            created_resource_app_data: vec![],
         };
         let encoded = bincode::serialize(&instance).unwrap();
         let decoded: ExecutionProofInstance = bincode::deserialize(&encoded).unwrap();

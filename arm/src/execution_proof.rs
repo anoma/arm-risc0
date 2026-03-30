@@ -17,10 +17,21 @@
 //!    incremental commitment tree.
 
 use crate::{
-    incremental_merkle_tree::IncrementalMerkleTree, indexed_merkle_tree::InsertionWitness, Digest,
-    Transaction,
+    incremental_merkle_tree::IncrementalMerkleTree, indexed_merkle_tree::InsertionWitness, AppData,
+    Digest, Transaction,
 };
 use serde::{Deserialize, Serialize};
+
+/// Application data associated with a single resource in the execution proof.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ResourceAppData {
+    /// The resource tag (nullifier for consumed, commitment for created).
+    pub tag: Digest,
+    /// The verifying key of the resource's logic proof.
+    pub vk: Digest,
+    /// The application data payload for this resource.
+    pub app_data: AppData,
+}
 
 /// Public outputs of the execution proof, committed to the journal.
 ///
@@ -37,6 +48,10 @@ pub struct ExecutionProofInstance {
     pub new_commitment_root: Digest,
     /// Nullifier tree root after executing the batch.
     pub new_nullifier_tree_root: Digest,
+    /// Application data for each consumed resource in this execution batch.
+    pub consumed_resource_app_data: Vec<ResourceAppData>,
+    /// Application data for each created resource in this execution batch.
+    pub created_resource_app_data: Vec<ResourceAppData>,
 }
 
 /// Private witness consumed by the execution proof circuit.

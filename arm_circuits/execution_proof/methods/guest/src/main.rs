@@ -1,14 +1,14 @@
 use anoma_rm_risc0::{
+    action::Action,
+    action_tree::MerkleTree,
     compliance::ComplianceInstanceWords,
     constants::{BATCH_AGGREGATION_VK_BYTES, COMPLIANCE_VK_BYTES},
     delta_proof::DeltaProof,
-    execution_proof::{ExecutionProofInstance, ExecutionProofWitness},
+    execution_proof::{ExecutionProofInstance, ExecutionProofWitness, ResourceAppData},
     transaction::{Delta, TransactionExt},
-    utils::bytes_to_words,
-    Digest,
+    Digest, LogicInstance,
 };
 use risc0_zkvm::guest::env;
-use std::collections::HashSet;
 
 /// Converts a 32-byte VK constant to the `risc0_zkvm::sha::Digest` expected by `env::verify`.
 fn vk_to_risc0(bytes: &[u8; 32]) -> risc0_zkvm::sha::Digest {
@@ -18,15 +18,112 @@ fn vk_to_risc0(bytes: &[u8; 32]) -> risc0_zkvm::sha::Digest {
     risc0_zkvm::sha::Digest::new(words)
 }
 
+/// Output of [`collect_action_logic`]: the serialised logic proof data needed
+/// for the aggregation instance, plus the resource app-data split by role.
+struct ActionLogicData {
+    /// Serialised logic instances, one per resource (consumed then created per CU).
+    lp_instances_u32: Vec<Vec<u32>>,
+    /// Verifying keys parallel to `lp_instances_u32`.
+    lp_vks: Vec<Digest>,
+    /// App-data for consumed resources (nullifier tags), in CU order.
+    consumed_resource_app_data: Vec<ResourceAppData>,
+    /// App-data for created resources (commitment tags), in CU order.
+    created_resource_app_data: Vec<ResourceAppData>,
+}
+
+/// Processes a single action in one pass over its compliance units:
+///
+/// - Builds the ordered tag / logic-ref lists for the action tree.
+/// - Asserts that each input's `verifying_key` matches the corresponding
+///   `logic_ref` committed inside the compliance instance.
+/// - Serialises each [`LogicInstance`] for the aggregation proof.
+/// - Splits [`ResourceAppData`] into consumed and created buckets.
+fn collect_action_logic(action: &Action) -> ActionLogicData {
+    let mut tags = Vec::new();
+    let mut logic_refs = Vec::new();
+
+    for cu in action.get_compliance_units() {
+        // Ordered as [consumed, created] per CU to match proof construction.
+        tags.push(cu.instance.consumed_nullifier);
+        logic_refs.push(cu.instance.consumed_logic_ref);
+        tags.push(cu.instance.created_commitment);
+        logic_refs.push(cu.instance.created_logic_ref);
+    }
+
+    let root = MerkleTree::from(tags.clone())
+        .root()
+        .expect("action tree root");
+
+    let mut lp_vks = Vec::new();
+    let mut lp_instances_u32 = Vec::new();
+    let mut consumed_resource_app_data = Vec::new();
+    let mut created_resource_app_data = Vec::new();
+
+    for (index, (tag, logic_ref)) in tags.iter().zip(logic_refs.iter()).enumerate() {
+        let is_consumed = index % 2 == 0;
+
+        let input = action
+            .get_logic_verifier_inputs()
+            .iter()
+            .find(|i| i.tag == *tag)
+            .expect("logic verifier input not found for tag");
+
+        assert_eq!(
+            input.verifying_key, *logic_ref,
+            "verifying key does not match logic ref for tag"
+        );
+
+        lp_instances_u32.push(
+            risc0_zkvm::serde::to_vec(&LogicInstance {
+                tag: input.tag,
+                is_consumed,
+                root,
+                app_data: input.app_data.clone(),
+            })
+            .expect("serialize logic instance"),
+        );
+        lp_vks.push(input.verifying_key);
+
+        let resource_app_data = ResourceAppData {
+            tag: input.tag,
+            vk: input.verifying_key,
+            app_data: input.app_data.clone(),
+        };
+        if is_consumed {
+            consumed_resource_app_data.push(resource_app_data);
+        } else {
+            created_resource_app_data.push(resource_app_data);
+        }
+    }
+
+    ActionLogicData {
+        lp_instances_u32,
+        lp_vks,
+        consumed_resource_app_data,
+        created_resource_app_data,
+    }
+}
+
+/// All data produced by [`aggregation_instance_words`] for one transaction.
+struct TxVerificationData {
+    /// Serialised aggregation instance ready for `env::verify`.
+    agg_words: Vec<u32>,
+    /// App-data for consumed resources across all actions.
+    consumed_resource_app_data: Vec<ResourceAppData>,
+    /// App-data for created resources across all actions.
+    created_resource_app_data: Vec<ResourceAppData>,
+}
+
 /// Serialises the batch-aggregation circuit journal as `u32` words for `env::verify`.
 ///
-/// Replicates `TransactionExt::construct_aggregation_instance` without
-/// requiring the host-only `aggregation` feature flag (which pulls in the
-/// RISC0 prover stack).
+/// Delegates per-action work to [`collect_action_logic`], which visits each
+/// action's compliance units and `logic_verifier_inputs` exactly once.
+/// The returned [`TxVerificationData`] carries everything needed for tree
+/// updates and the final instance, so callers need no further iteration.
 fn aggregation_instance_words(
     tx: &anoma_rm_risc0::Transaction,
     compliance_vk: &Digest,
-) -> Vec<u32> {
+) -> TxVerificationData {
     let compliance_instances_u32: Vec<ComplianceInstanceWords> = tx
         .get_compliance_instances()
         .expect("compliance instances")
@@ -34,22 +131,32 @@ fn aggregation_instance_words(
         .map(|b| ComplianceInstanceWords::from_bytes(b).expect("compliance instance words"))
         .collect();
 
-    let (lp_vks, lp_instances) = tx
-        .get_logic_vks_and_instances()
-        .expect("logic vks and instances");
+    let mut lp_vks = Vec::new();
+    let mut lp_instances_u32 = Vec::new();
+    let mut consumed_resource_app_data = Vec::new();
+    let mut created_resource_app_data = Vec::new();
 
-    let lp_instances_u32: Vec<Vec<u32>> = lp_instances
-        .iter()
-        .map(|b| bytes_to_words(b))
-        .collect();
+    for action in &tx.actions {
+        let data = collect_action_logic(action);
+        lp_vks.extend(data.lp_vks);
+        lp_instances_u32.extend(data.lp_instances_u32);
+        consumed_resource_app_data.extend(data.consumed_resource_app_data);
+        created_resource_app_data.extend(data.created_resource_app_data);
+    }
 
-    risc0_zkvm::serde::to_vec(&(
+    let agg_words = risc0_zkvm::serde::to_vec(&(
         compliance_instances_u32,
         compliance_vk,
         lp_instances_u32,
         lp_vks,
     ))
-    .expect("serialize aggregation instance")
+    .expect("serialize aggregation instance");
+
+    TxVerificationData {
+        agg_words,
+        consumed_resource_app_data,
+        created_resource_app_data,
+    }
 }
 
 pub fn main() {
@@ -65,10 +172,6 @@ pub fn main() {
     let old_commitment_tree_root = commitment_tree.root();
     let mut nullifier_root = witness.old_nullifier_tree_root;
 
-    // Flat cursor into `witness.nullifier_witnesses`, advanced once per
-    // compliance unit across all transactions and actions.
-    let mut nullifier_witness_idx: usize = 0;
-
     // -----------------------------------------------------------------------
     // 2. Batch-wide nullifier uniqueness check.
     //
@@ -76,17 +179,31 @@ pub fn main() {
     //    that was inserted in a prior batch.  This check additionally prevents
     //    two compliance units *within this batch* from consuming the same
     //    nullifier before any of them reach the tree-update step.
+    //
+    //    Nullifiers and commitments are collected here for reuse in the
+    //    tree-update step, avoiding a second pass over the transactions.
     // -----------------------------------------------------------------------
-    let mut seen_nullifiers = HashSet::<Digest>::new();
+    let mut nullifiers: Vec<Digest> = Vec::new();
+    let mut commitments: Vec<Digest> = Vec::new();
     for tx in &witness.transactions {
         for action in &tx.actions {
             for cu in action.get_compliance_units() {
-                assert!(
-                    seen_nullifiers.insert(cu.instance.consumed_nullifier),
-                    "duplicate nullifier across transactions"
-                );
+                nullifiers.push(cu.instance.consumed_nullifier);
+                commitments.push(cu.instance.created_commitment);
             }
         }
+    }
+
+    // Sort a copy of the nullifiers and check adjacent pairs for duplicates.
+    // Sorting with integer comparisons is far cheaper in the zkVM than hashing
+    // with HashSet (SipHash has no RISC0 accelerator and costs many cycles per call).
+    let mut sorted_nullifiers = nullifiers.clone();
+    sorted_nullifiers.sort_by_key(|d| *d.as_words());
+    for window in sorted_nullifiers.windows(2) {
+        assert_ne!(
+            window[0], window[1],
+            "duplicate nullifier across transactions"
+        );
     }
 
     // -----------------------------------------------------------------------
@@ -95,6 +212,9 @@ pub fn main() {
     let batch_agg_vk_risc0 = vk_to_risc0(&BATCH_AGGREGATION_VK_BYTES);
     let compliance_vk_core =
         Digest::try_from(COMPLIANCE_VK_BYTES.as_slice()).expect("compliance VK bytes");
+
+    let mut consumed_resource_app_data: Vec<ResourceAppData> = Vec::new();
+    let mut created_resource_app_data: Vec<ResourceAppData> = Vec::new();
 
     for tx in &witness.transactions {
         // --- 3a. Delta proof ---
@@ -105,57 +225,51 @@ pub fn main() {
         let delta_instance = tx.delta().expect("delta instance");
         match &tx.delta_proof {
             Delta::Proof(core_proof) => {
-                let proof =
-                    DeltaProof::from_bytes(&core_proof.0).expect("deserialize delta proof");
+                let proof = DeltaProof::from_bytes(&core_proof.0).expect("deserialize delta proof");
                 DeltaProof::verify(&msg, &proof, delta_instance).expect("delta proof invalid");
             }
             Delta::Witness(_) => panic!("expected delta proof, got witness"),
         }
 
-        // --- 3b. Batch aggregation proof ---
+        // --- 3b. Batch aggregation proof + data collection ---
         //
         // Confirms that every compliance proof and logic proof inside this
         // transaction has been verified by the batch aggregation circuit.
-        // Transactions without an aggregation proof are rejected.
+        // Nullifiers, commitments, and ResourceAppData are all collected in the
+        // same pass, so no further iteration over actions is needed.
         assert!(
             tx.aggregation_proof.is_some(),
             "transaction is missing an aggregation proof"
         );
-        let agg_words = aggregation_instance_words(tx, &compliance_vk_core);
-        env::verify(batch_agg_vk_risc0, &agg_words)
+        let tx_data = aggregation_instance_words(tx, &compliance_vk_core);
+        env::verify(batch_agg_vk_risc0, &tx_data.agg_words)
             .expect("aggregation proof verification failed");
+        consumed_resource_app_data.extend(tx_data.consumed_resource_app_data);
+        created_resource_app_data.extend(tx_data.created_resource_app_data);
+    }
 
-        // --- 3c. Per-compliance-unit tree updates ---
-        //
-        // For each compliance unit, in order:
-        //
-        // Nullifier:  `InsertionWitness::apply` proves that `consumed_nullifier`
-        //             is not yet in the indexed nullifier tree (non-membership),
-        //             inserts it, and returns the new nullifier root.
-        //
-        // Commitment: `IncrementalMerkleTree::insert` appends `created_commitment`
-        //             to the incremental commitment tree.
-        for action in &tx.actions {
-            for cu in action.get_compliance_units() {
-                let nf = cu.instance.consumed_nullifier;
-                let commitment = cu.instance.created_commitment;
+    // -----------------------------------------------------------------------
+    // 3c. Per-compliance-unit tree updates (across all transactions).
+    //
+    // Nullifier:  `InsertionWitness::apply` proves that `consumed_nullifier`
+    //             is not yet in the indexed nullifier tree (non-membership),
+    //             inserts it, and returns the new nullifier root.
+    //
+    // Commitment: `IncrementalMerkleTree::insert` appends `created_commitment`
+    //             to the incremental commitment tree.
+    // -----------------------------------------------------------------------
+    for ((nf, commitment), nf_witness) in nullifiers
+        .iter()
+        .zip(commitments.iter())
+        .zip(witness.nullifier_witnesses.iter())
+    {
+        nullifier_root = nf_witness
+            .apply(nf, &nullifier_root)
+            .expect("nullifier insertion witness invalid");
 
-                let nf_witness = witness
-                    .nullifier_witnesses
-                    .get(nullifier_witness_idx)
-                    .expect("missing nullifier insertion witness");
-
-                nullifier_root = nf_witness
-                    .apply(&nf, &nullifier_root)
-                    .expect("nullifier insertion witness invalid");
-
-                commitment_tree
-                    .insert(commitment)
-                    .expect("commitment tree insert failed");
-
-                nullifier_witness_idx += 1;
-            }
-        }
+        commitment_tree
+            .insert(*commitment)
+            .expect("commitment tree insert failed");
     }
 
     // -----------------------------------------------------------------------
@@ -166,5 +280,7 @@ pub fn main() {
         old_nullifier_tree_root: witness.old_nullifier_tree_root,
         new_commitment_root: commitment_tree.root(),
         new_nullifier_tree_root: nullifier_root,
+        consumed_resource_app_data,
+        created_resource_app_data,
     });
 }
