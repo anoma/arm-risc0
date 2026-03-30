@@ -2,7 +2,6 @@ use anoma_rm_risc0::{
     action::Action,
     action_tree::MerkleTree,
     compliance::ComplianceInstanceWords,
-    constants::{BATCH_AGGREGATION_VK_BYTES, COMPLIANCE_VK_BYTES},
     delta_proof::DeltaProof,
     execution_proof::{ExecutionProofInstance, ExecutionProofWitness, ResourceAppData},
     transaction::{Delta, TransactionExt},
@@ -10,12 +9,9 @@ use anoma_rm_risc0::{
 };
 use risc0_zkvm::guest::env;
 
-/// Converts a 32-byte VK constant to the `risc0_zkvm::sha::Digest` expected by `env::verify`.
-fn vk_to_risc0(bytes: &[u8; 32]) -> risc0_zkvm::sha::Digest {
-    let words: [u32; 8] = arm_core::utils::bytes_to_words(bytes)
-        .try_into()
-        .expect("32 bytes always yields 8 words");
-    risc0_zkvm::sha::Digest::new(words)
+/// Converts an ARM [`Digest`] to the `risc0_zkvm::sha::Digest` expected by `env::verify`.
+fn vk_to_risc0(vk: &Digest) -> risc0_zkvm::sha::Digest {
+    risc0_zkvm::sha::Digest::new(*vk.as_words())
 }
 
 /// Output of [`collect_action_logic`]: the serialised logic proof data needed
@@ -116,10 +112,14 @@ struct TxVerificationData {
 
 /// Serialises the batch-aggregation circuit journal as `u32` words for `env::verify`.
 ///
+/// Combines the compliance instances with the per-action logic data (collected
+/// by [`collect_action_logic`]) and `compliance_vk` into the tuple expected by
+/// the batch aggregation circuit, then serialises it with `risc0_zkvm::serde`.
+///
 /// Delegates per-action work to [`collect_action_logic`], which visits each
 /// action's compliance units and `logic_verifier_inputs` exactly once.
-/// The returned [`TxVerificationData`] carries everything needed for tree
-/// updates and the final instance, so callers need no further iteration.
+/// The returned [`TxVerificationData`] also carries the [`ResourceAppData`]
+/// for all resources in the transaction.
 fn aggregation_instance_words(
     tx: &anoma_rm_risc0::Transaction,
     compliance_vk: &Digest,
@@ -180,8 +180,8 @@ pub fn main() {
     //    two compliance units *within this batch* from consuming the same
     //    nullifier before any of them reach the tree-update step.
     //
-    //    Nullifiers and commitments are collected here for reuse in the
-    //    tree-update step, avoiding a second pass over the transactions.
+    //    Nullifiers and commitments are collected here in tx → action → CU
+    //    order for reuse in step 3c, avoiding a second pass over the witness.
     // -----------------------------------------------------------------------
     let mut nullifiers: Vec<Digest> = Vec::new();
     let mut commitments: Vec<Digest> = Vec::new();
@@ -195,8 +195,8 @@ pub fn main() {
     }
 
     // Sort a copy of the nullifiers and check adjacent pairs for duplicates.
-    // Sorting with integer comparisons is far cheaper in the zkVM than hashing
-    // with HashSet (SipHash has no RISC0 accelerator and costs many cycles per call).
+    // Sorting uses only integer comparisons (Digest is [u32; 8]), which is far
+    // cheaper in the zkVM than HashSet whose SipHash has no RISC0 accelerator.
     let mut sorted_nullifiers = nullifiers.clone();
     sorted_nullifiers.sort_by_key(|d| *d.as_words());
     for window in sorted_nullifiers.windows(2) {
@@ -208,10 +208,12 @@ pub fn main() {
 
     // -----------------------------------------------------------------------
     // 3. Per-transaction verification and state transition.
+    //
+    //    VKs are taken from the witness rather than hardcoded constants so the
+    //    circuit is not tied to a specific deployment.
     // -----------------------------------------------------------------------
-    let batch_agg_vk_risc0 = vk_to_risc0(&BATCH_AGGREGATION_VK_BYTES);
-    let compliance_vk_core =
-        Digest::try_from(COMPLIANCE_VK_BYTES.as_slice()).expect("compliance VK bytes");
+    let batch_agg_vk_risc0 = vk_to_risc0(&witness.batch_aggregation_vk);
+    let compliance_vk = witness.compliance_vk;
 
     let mut consumed_resource_app_data: Vec<ResourceAppData> = Vec::new();
     let mut created_resource_app_data: Vec<ResourceAppData> = Vec::new();
@@ -231,17 +233,17 @@ pub fn main() {
             Delta::Witness(_) => panic!("expected delta proof, got witness"),
         }
 
-        // --- 3b. Batch aggregation proof + data collection ---
+        // --- 3b. Batch aggregation proof ---
         //
-        // Confirms that every compliance proof and logic proof inside this
-        // transaction has been verified by the batch aggregation circuit.
-        // Nullifiers, commitments, and ResourceAppData are all collected in the
-        // same pass, so no further iteration over actions is needed.
+        // Verifies that every compliance proof and logic proof inside this
+        // transaction was verified by the batch aggregation circuit.
+        // `aggregation_instance_words` also collects ResourceAppData in the
+        // same pass over logic_verifier_inputs (see TxVerificationData).
         assert!(
             tx.aggregation_proof.is_some(),
             "transaction is missing an aggregation proof"
         );
-        let tx_data = aggregation_instance_words(tx, &compliance_vk_core);
+        let tx_data = aggregation_instance_words(tx, &compliance_vk);
         env::verify(batch_agg_vk_risc0, &tx_data.agg_words)
             .expect("aggregation proof verification failed");
         consumed_resource_app_data.extend(tx_data.consumed_resource_app_data);
@@ -251,12 +253,15 @@ pub fn main() {
     // -----------------------------------------------------------------------
     // 3c. Per-compliance-unit tree updates (across all transactions).
     //
-    // Nullifier:  `InsertionWitness::apply` proves that `consumed_nullifier`
-    //             is not yet in the indexed nullifier tree (non-membership),
-    //             inserts it, and returns the new nullifier root.
+    //    Nullifier:  `InsertionWitness::apply` proves non-membership of the
+    //                consumed nullifier in the current indexed nullifier tree,
+    //                inserts it, and returns the updated root.
     //
-    // Commitment: `IncrementalMerkleTree::insert` appends `created_commitment`
-    //             to the incremental commitment tree.
+    //    Commitment: `IncrementalMerkleTree::insert` appends the created
+    //                commitment to the incremental commitment tree.
+    //
+    //    `nullifiers` and `commitments` were pre-collected in step 2, so no
+    //    further iteration over the witness transactions is required here.
     // -----------------------------------------------------------------------
     for ((nf, commitment), nf_witness) in nullifiers
         .iter()
@@ -274,6 +279,9 @@ pub fn main() {
 
     // -----------------------------------------------------------------------
     // 4. Commit the instance.
+    //
+    //    The VKs are committed alongside the tree roots and resource app-data
+    //    so verifiers can inspect which circuit versions were used.
     // -----------------------------------------------------------------------
     env::commit(&ExecutionProofInstance {
         old_commitment_tree_root,
@@ -282,5 +290,7 @@ pub fn main() {
         new_nullifier_tree_root: nullifier_root,
         consumed_resource_app_data,
         created_resource_app_data,
+        batch_aggregation_vk: witness.batch_aggregation_vk,
+        compliance_vk: witness.compliance_vk,
     });
 }

@@ -51,11 +51,16 @@ pub fn prove(
 #[cfg(test)]
 mod tests {
     use anoma_rm_risc0::{
+        constants::{BATCH_AGGREGATION_VK_BYTES, COMPLIANCE_VK_BYTES},
         execution_proof::{ExecutionProofInstance, ExecutionProofWitness},
         incremental_merkle_tree::IncrementalMerkleTree,
         indexed_merkle_tree::IndexedMerkleTree,
         Digest,
     };
+
+    fn vk(bytes: &[u8; 32]) -> Digest {
+        Digest::try_from(bytes.as_slice()).expect("vk bytes")
+    }
 
     fn empty_witness() -> ExecutionProofWitness {
         let nullifier_tree = IndexedMerkleTree::new();
@@ -64,6 +69,8 @@ mod tests {
             commitment_tree: IncrementalMerkleTree::new(3),
             old_nullifier_tree_root: nullifier_tree.root(),
             nullifier_witnesses: vec![],
+            batch_aggregation_vk: vk(&BATCH_AGGREGATION_VK_BYTES),
+            compliance_vk: vk(&COMPLIANCE_VK_BYTES),
         }
     }
 
@@ -93,6 +100,8 @@ mod tests {
             new_nullifier_tree_root: d(4),
             consumed_resource_app_data: vec![],
             created_resource_app_data: vec![],
+            batch_aggregation_vk: vk(&BATCH_AGGREGATION_VK_BYTES),
+            compliance_vk: vk(&COMPLIANCE_VK_BYTES),
         };
         let encoded = bincode::serialize(&instance).unwrap();
         let decoded: ExecutionProofInstance = bincode::deserialize(&encoded).unwrap();
@@ -149,6 +158,8 @@ mod tests {
             commitment_tree,
             old_nullifier_tree_root: old_nullifier_root,
             nullifier_witnesses: vec![],
+            batch_aggregation_vk: vk(&BATCH_AGGREGATION_VK_BYTES),
+            compliance_vk: vk(&COMPLIANCE_VK_BYTES),
         };
 
         let receipt = super::prove(&witness, risc0_zkvm::ProverOpts::succinct()).unwrap();
@@ -209,6 +220,8 @@ mod tests {
             commitment_tree,
             old_nullifier_tree_root: old_nullifier_root,
             nullifier_witnesses,
+            batch_aggregation_vk: vk(&BATCH_AGGREGATION_VK_BYTES),
+            compliance_vk: vk(&COMPLIANCE_VK_BYTES),
         };
 
         let receipt = super::prove(&witness, risc0_zkvm::ProverOpts::succinct()).unwrap();
@@ -280,6 +293,8 @@ mod tests {
             commitment_tree,
             old_nullifier_tree_root: old_nullifier_root,
             nullifier_witnesses,
+            batch_aggregation_vk: vk(&BATCH_AGGREGATION_VK_BYTES),
+            compliance_vk: vk(&COMPLIANCE_VK_BYTES),
         };
 
         let receipt = super::prove(&witness, risc0_zkvm::ProverOpts::succinct()).unwrap();
