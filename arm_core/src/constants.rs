@@ -11,7 +11,7 @@ pub const PADDING_LOGIC_VK_BYTES: [u8; 32] =
 
 /// Batch aggregation verification key bytes.
 pub const BATCH_AGGREGATION_VK_BYTES: [u8; 32] =
-    hex!("df441ff50f7748c05f154a7aa539a6a77dcade1dba8a8f29d2187e3e355eb4f9");
+    hex!("3bacb935ecdebd8f356cf6d0eb88dd237611030c9144ec6b33bb9770c95f0a33");
 
 /// Hash of the empty string - used for PADDING_LEAF and INITIAL_ROOT.
 pub const EMPTY_HASH_BYTES: [u8; 32] =
