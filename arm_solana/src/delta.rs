@@ -165,14 +165,6 @@ pub fn accumulate_deltas(tx: &Transaction) -> Result<Option<UncompressedPoint>, 
     Ok(accumulated)
 }
 
-/// Derive an address from 64 uncompressed public key bytes: SHA-256, then last 20 bytes.
-fn pubkey_to_address(pubkey_bytes: &[u8; 64]) -> [u8; 20] {
-    let hash: [u8; 32] = hashv(&[pubkey_bytes]).to_bytes();
-    let mut address = [0u8; 20];
-    address.copy_from_slice(&hash[12..32]);
-    address
-}
-
 /// Verify the delta proof using Solana syscalls.
 pub fn verify_delta_proof(tx: &Transaction) -> Result<(), SolanaArmError> {
     // 1. Check delta_proof type
@@ -207,16 +199,16 @@ pub fn verify_delta_proof(tx: &Transaction) -> Result<(), SolanaArmError> {
     let recovered_pubkey = secp256k1_recover(&verifying_key, recid, &sig_bytes)
         .map_err(|_| SolanaArmError::DeltaProofVerificationFailed)?;
 
-    // 7. Convert recovered key to address
-    let recovered_address = pubkey_to_address(&recovered_pubkey.0);
-
-    // 8. Compare with expected address
-    let expected_address = match accumulated {
-        Some(point) => pubkey_to_address(&point.0),
+    // 7. Compare full 64-byte uncompressed public keys directly.
+    // The EVM PA uses Ethereum-style 20-byte address derivation (hash + truncate),
+    // which reduces collision resistance from 256-bit to 160-bit unnecessarily.
+    // On Solana, secp256k1_recover returns the full key — compare it directly.
+    let expected_pubkey = match accumulated {
+        Some(point) => point.0,
         None => return Err(SolanaArmError::DeltaProofVerificationFailed),
     };
 
-    if recovered_address != expected_address {
+    if recovered_pubkey.0 != expected_pubkey {
         return Err(SolanaArmError::DeltaMismatch);
     }
 

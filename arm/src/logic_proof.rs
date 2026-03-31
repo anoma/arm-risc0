@@ -267,16 +267,10 @@ fn test_app_data_hash_tail_invariant_borsh_and_risc0_serde() {
     let borsh_tail_digest = Digest::from_bytes(borsh_tail);
 
     // Path 2: risc0 serde (used in production by env::commit)
-    let risc0_words =
-        risc0_zkvm::serde::to_vec(&instance).expect("risc0 serde should succeed");
-    let risc0_bytes: Vec<u8> = risc0_words
-        .iter()
-        .flat_map(|w| w.to_le_bytes())
-        .collect();
+    let risc0_words = risc0_zkvm::serde::to_vec(&instance).expect("risc0 serde should succeed");
+    let risc0_bytes: Vec<u8> = risc0_words.iter().flat_map(|w| w.to_le_bytes()).collect();
     assert!(risc0_bytes.len() >= 32);
-    let risc0_tail: [u8; 32] = risc0_bytes[risc0_bytes.len() - 32..]
-        .try_into()
-        .unwrap();
+    let risc0_tail: [u8; 32] = risc0_bytes[risc0_bytes.len() - 32..].try_into().unwrap();
     let risc0_tail_digest = Digest::from_bytes(risc0_tail);
 
     // Both tails must equal the computed hash.
