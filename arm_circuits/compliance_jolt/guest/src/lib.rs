@@ -8,10 +8,11 @@ pub mod merkle_path;
 pub mod nullifier_key;
 pub mod resource;
 pub mod utils;
+pub mod hash_to_curve;
 
 /// Takes a serialized ComplianceWitness, runs constraints,
 /// returns SHA-256(ComplianceInstance) as (lo_128, hi_128).
-#[jolt::provable(heap_size = 67108864, max_trace_length = 67108864)]
+#[jolt::provable(stack_size = 1048576, heap_size = 67108864, max_trace_length = 67108864)]
 fn compliance_prove(witness_bytes: &[u8]) -> (u128, u128) {
     let witness = compliance::ComplianceWitness::from_bytes(witness_bytes);
     let instance = witness.constrain().expect("constrain failed");

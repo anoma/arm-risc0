@@ -5,7 +5,7 @@ use crate::error::ArmError;
 use crate::merkle_path::MerklePath;
 use crate::nullifier_key::NullifierKey;
 use crate::resource::{Resource, scalar_mul_generator};
-use jolt_inlines_secp256k1::{Secp256k1Fr, Secp256k1Point};
+use jolt_inlines_secp256k1::{Secp256k1Fr, Secp256k1Point, Secp256k1PointExt};
 
 const INITIAL_ROOT_HEX: &str = "cc1d2f838445db7aec431df9ee8a871f40e7aa5e064fc056633ef8c60fab7b06";
 
@@ -94,7 +94,7 @@ fn be_bytes_to_u64_limbs(b: &[u8; 32]) -> [u64; 4] {
 /// GLV-accelerated scalar multiplication: scalar * point.
 fn scalar_mul_point(point: &Secp256k1Point, scalar: &Secp256k1Fr) -> Secp256k1Point {
     use crate::resource::scalar_mul_128;
-    let [(k1_neg, k1_abs), (k2_neg, k2_abs)] = Secp256k1Point::decompose_scalar(scalar);
+    let [(k1_neg, k1_abs), (k2_neg, k2_abs)] = scalar.glv_decompose();
     let p_endo = point.endomorphism();
     let p1 = scalar_mul_128(point, k1_abs);
     let p1 = if k1_neg { p1.neg() } else { p1 };

@@ -4,6 +4,7 @@ use crate::digest::{hash_bytes, Digest, DIGEST_BYTES};
 use crate::error::ArmError;
 use crate::nullifier_key::{NullifierKey, NullifierKeyCommitment};
 use jolt_inlines_secp256k1::{Secp256k1Fr, Secp256k1Point};
+use jolt_inlines_secp256k1::Secp256k1PointExt;
 
 const PRF_EXPAND_PERSONALIZATION: &[u8; 16] = b"RISC0_ExpandSeed";
 const PRF_EXPAND_PSI: u8 = 0;
@@ -30,22 +31,12 @@ impl Resource {
         Secp256k1Fr::from_u64_arr_unchecked(&[lo, hi, 0, 0])
     }
 
-    /// Map (logic_ref, label_ref) to a secp256k1 point via hash-to-scalar * G.
-    /// NOTE: for benchmarking. Production needs proper hash-to-curve.
+    /// RFC 9380 hash-to-curve (OSSWU + 3-isogeny) for secp256k1.
     pub fn kind(&self) -> Result<Secp256k1Point, ArmError> {
         let mut bytes = [0u8; DIGEST_BYTES * 2];
         bytes[0..DIGEST_BYTES].copy_from_slice(self.logic_ref.as_ref());
         bytes[DIGEST_BYTES..DIGEST_BYTES * 2].copy_from_slice(self.label_ref.as_ref());
-        let hash = hash_bytes(&bytes);
-        let b = hash.as_bytes();
-        let limbs = [
-            u64::from_be_bytes([b[24], b[25], b[26], b[27], b[28], b[29], b[30], b[31]]),
-            u64::from_be_bytes([b[16], b[17], b[18], b[19], b[20], b[21], b[22], b[23]]),
-            u64::from_be_bytes([b[8], b[9], b[10], b[11], b[12], b[13], b[14], b[15]]),
-            u64::from_be_bytes([b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7]]),
-        ];
-        let scalar = Secp256k1Fr::from_u64_arr_unchecked(&limbs);
-        Ok(scalar_mul_generator(&scalar))
+        Ok(crate::hash_to_curve::hash_to_curve(&bytes))
     }
 
     fn prf_expand(&self, tag: u8) -> Vec<u8> {
@@ -98,7 +89,7 @@ impl Resource {
 /// GLV-accelerated scalar multiplication: scalar * G.
 /// Uses the secp256k1 endomorphism to halve the number of doublings.
 pub fn scalar_mul_generator(scalar: &Secp256k1Fr) -> Secp256k1Point {
-    let [(k1_neg, k1_abs), (k2_neg, k2_abs)] = Secp256k1Point::decompose_scalar(scalar);
+    let [(k1_neg, k1_abs), (k2_neg, k2_abs)] = scalar.glv_decompose();
     let g = Secp256k1Point::generator();
     let g_endo = g.endomorphism(); // lambda * G
 
