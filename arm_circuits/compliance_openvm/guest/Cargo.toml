@@ -1,0 +1,26 @@
+[package]
+name = "compliance-openvm"
+version = "0.0.0"
+edition = "2021"
+
+[workspace]
+members = []
+
+[dependencies]
+openvm = { git = "https://github.com/openvm-org/openvm.git", features = ["std"] }
+openvm-sha2 = { git = "https://github.com/openvm-org/openvm.git" }
+openvm-algebra-guest = { git = "https://github.com/openvm-org/openvm.git" }
+openvm-ecc-guest = { git = "https://github.com/openvm-org/openvm.git" }
+openvm-k256 = { git = "https://github.com/openvm-org/openvm.git", package = "k256" }
+hex = "0.4"
+
+[features]
+default = []
+
+# local path patches for building inside monorepo
+[patch."https://github.com/openvm-org/openvm.git"]
+openvm = { path = "../../crates/toolchain/openvm" }
+openvm-sha2 = { path = "../../guest-libs/sha2" }
+openvm-algebra-guest = { path = "../../extensions/algebra/guest" }
+openvm-ecc-guest = { path = "../../extensions/ecc/guest" }
+k256 = { path = "../../guest-libs/k256" }
