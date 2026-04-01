@@ -1,3 +1,6 @@
+extern crate alloc;
+use alloc::vec;
+use alloc::vec::Vec;
 use openvm_algebra_guest::IntMod;
 use openvm_ecc_guest::{weierstrass::WeierstrassPoint, Group};
 use openvm_k256::{Secp256k1Coord, Secp256k1Point};
@@ -104,14 +107,12 @@ impl Resource {
         hash_bytes(&bytes)
     }
 
-    /// hash(logic_ref || label_ref) -> scalar -> scalar * G
+    /// RFC 9380 hash-to-curve (OSSWU + 3-isogeny)
     pub fn kind(&self) -> Secp256k1Point {
         let mut bytes = [0u8; 2 * DIGEST_BYTES];
-        bytes[..32].copy_from_slice(self.logic_ref.as_bytes());
-        bytes[32..].copy_from_slice(self.label_ref.as_bytes());
-        let hash = hash_bytes(&bytes);
-        // Use hash as LE scalar bytes for generator mul
-        scalar_mul_generator(hash.as_bytes())
+        bytes[..DIGEST_BYTES].copy_from_slice(self.logic_ref.as_bytes());
+        bytes[DIGEST_BYTES..].copy_from_slice(self.label_ref.as_bytes());
+        crate::hash_to_curve::hash_to_curve(&bytes)
     }
 
     pub fn quantity_bytes_le(&self) -> [u8; 32] {

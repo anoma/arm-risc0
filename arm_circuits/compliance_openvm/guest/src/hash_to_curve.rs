@@ -1,0 +1,276 @@
+use openvm_algebra_guest::{Field, Reduce};
+// RFC 9380 hash-to-curve for secp256k1 using OpenVM accelerated field ops.
+// Implements: ExpandMsgXmd<SHA-256> → OSSWU on isogenous curve → 3-isogeny → secp256k1 point
+
+use openvm_algebra_guest::IntMod;
+use openvm_k256::Secp256k1Coord as Fq;
+use openvm_k256::Secp256k1Point;
+use openvm_ecc_guest::weierstrass::WeierstrassPoint;
+use openvm_sha2::sha256;
+
+const DST: &[u8] = b"QUUX-V01-CS02-with-secp256k1_XMD:SHA-256_SSWU_RO_";
+
+// OSSWU parameters for the isogenous curve y^2 = x^3 + A'x + B'
+fn map_a() -> Fq {
+    Fq::from_be_bytes_unchecked(&[
+        0x3f, 0x87, 0x31, 0xab, 0xdd, 0x66, 0x1a, 0xdc, 0xa0, 0x8a, 0x55, 0x58, 0xf0, 0xf5,
+        0xd2, 0x72, 0xe9, 0x53, 0xd3, 0x63, 0xcb, 0x6f, 0x0e, 0x5d, 0x40, 0x54, 0x47, 0xc0,
+        0x1a, 0x44, 0x45, 0x33,
+    ])
+}
+
+fn map_b() -> Fq {
+    Fq::from_u32(0x06eb)
+}
+
+fn z_param() -> Fq {
+    Fq::from_be_bytes_unchecked(&[
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfe,
+        0xff, 0xff, 0xfc, 0x24,
+    ])
+}
+
+fn c2_param() -> Fq {
+    Fq::from_be_bytes_unchecked(&[
+        0x25, 0xe9, 0x71, 0x1a, 0xe8, 0xc0, 0xda, 0xdc, 0x46, 0xfd, 0xbc, 0xb7, 0x2a, 0xad,
+        0xd8, 0xf4, 0x25, 0x0b, 0x65, 0x07, 0x30, 0x12, 0xec, 0x80, 0xbc, 0x6e, 0xcb, 0x9c,
+        0x12, 0x97, 0x39, 0x75,
+    ])
+}
+
+// 3-isogeny coefficients (from RFC 9380 section E.1)
+fn xnum() -> [Fq; 4] {
+    [
+        Fq::from_be_bytes_unchecked(&[0x8e,0x38,0xe3,0x8e,0x38,0xe3,0x8e,0x38,0xe3,0x8e,0x38,0xe3,0x8e,0x38,0xe3,0x8e,0x38,0xe3,0x8e,0x38,0xe3,0x8e,0x38,0xe3,0x8e,0x38,0xe3,0x8d,0xaa,0xaa,0xa8,0xc7]),
+        Fq::from_be_bytes_unchecked(&[0x07,0xd3,0xd4,0xc8,0x0b,0xc3,0x21,0xd5,0xb9,0xf3,0x15,0xce,0xa7,0xfd,0x44,0xc5,0xd5,0x95,0xd2,0xfc,0x0b,0xf6,0x3b,0x92,0xdf,0xff,0x10,0x44,0xf1,0x7c,0x65,0x81]),
+        Fq::from_be_bytes_unchecked(&[0x53,0x4c,0x32,0x8d,0x23,0xf2,0x34,0xe6,0xe2,0xa4,0x13,0xde,0xca,0x25,0xca,0xec,0xe4,0x50,0x61,0x44,0x03,0x7c,0x40,0x31,0x4e,0xcb,0xd0,0xb5,0x3d,0x9d,0xd2,0x62]),
+        Fq::from_be_bytes_unchecked(&[0x8e,0x38,0xe3,0x8e,0x38,0xe3,0x8e,0x38,0xe3,0x8e,0x38,0xe3,0x8e,0x38,0xe3,0x8e,0x38,0xe3,0x8e,0x38,0xe3,0x8e,0x38,0xe3,0x8e,0x38,0xe3,0x8d,0xaa,0xaa,0xa8,0x8c]),
+    ]
+}
+
+fn xden() -> [Fq; 3] {
+    [
+        Fq::from_be_bytes_unchecked(&[0xd3,0x57,0x71,0x19,0x3d,0x94,0x91,0x8a,0x9c,0xa3,0x4c,0xcb,0xb7,0xb6,0x40,0xdd,0x86,0xcd,0x40,0x95,0x42,0xf8,0x48,0x7d,0x9f,0xe6,0xb7,0x45,0x78,0x1e,0xb4,0x9b]),
+        Fq::from_be_bytes_unchecked(&[0xed,0xad,0xc6,0xf6,0x43,0x83,0xdc,0x1d,0xf7,0xc4,0xb2,0xd5,0x1b,0x54,0x22,0x54,0x06,0xd3,0x6b,0x64,0x1f,0x5e,0x41,0xbb,0xc5,0x2a,0x56,0x61,0x2a,0x8c,0x6d,0x14]),
+        Fq::from_u32(1),
+    ]
+}
+
+fn ynum() -> [Fq; 4] {
+    [
+        Fq::from_be_bytes_unchecked(&[0x4b,0xda,0x12,0xf6,0x84,0xbd,0xa1,0x2f,0x68,0x4b,0xda,0x12,0xf6,0x84,0xbd,0xa1,0x2f,0x68,0x4b,0xda,0x12,0xf6,0x84,0xbd,0xa1,0x2f,0x68,0x4b,0x8e,0x38,0xe2,0x3c]),
+        Fq::from_be_bytes_unchecked(&[0xc7,0x5e,0x0c,0x32,0xd5,0xcb,0x7c,0x0f,0xa9,0xd0,0xa5,0x4b,0x12,0xa0,0xa6,0xd5,0x64,0x7a,0xb0,0x46,0xd6,0x86,0xda,0x6f,0xdf,0xfc,0x90,0xfc,0x20,0x1d,0x71,0xa3]),
+        Fq::from_be_bytes_unchecked(&[0x29,0xa6,0x19,0x46,0x91,0xf9,0x1a,0x73,0x71,0x52,0x09,0xef,0x65,0x12,0xe5,0x76,0x72,0x28,0x30,0xa2,0x01,0xbe,0x20,0x18,0xa7,0x65,0xe8,0x5a,0x9e,0xce,0xe9,0x31]),
+        Fq::from_be_bytes_unchecked(&[0x2f,0x68,0x4b,0xda,0x12,0xf6,0x84,0xbd,0xa1,0x2f,0x68,0x4b,0xda,0x12,0xf6,0x84,0xbd,0xa1,0x2f,0x68,0x4b,0xda,0x12,0xf6,0x84,0xbd,0xa1,0x2f,0x38,0xe3,0x8d,0x84]),
+    ]
+}
+
+fn yden() -> [Fq; 4] {
+    [
+        Fq::from_be_bytes_unchecked(&[0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xfe,0xff,0xff,0xf9,0x3b]),
+        Fq::from_be_bytes_unchecked(&[0x7a,0x06,0x53,0x4b,0xb8,0xbd,0xb4,0x9f,0xd5,0xe9,0xe6,0x63,0x27,0x22,0xc2,0x98,0x94,0x67,0xc1,0xbf,0xc8,0xe8,0xd9,0x78,0xdf,0xb4,0x25,0xd2,0x68,0x5c,0x25,0x73]),
+        Fq::from_be_bytes_unchecked(&[0x64,0x84,0xaa,0x71,0x65,0x45,0xca,0x2c,0xf3,0xa7,0x0c,0x3f,0xa8,0xfe,0x33,0x7e,0x0a,0x3d,0x21,0x16,0x2f,0x0d,0x62,0x99,0xa7,0xbf,0x81,0x92,0xbf,0xd2,0xa7,0x6f]),
+        Fq::from_u32(1),
+    ]
+}
+
+/// ExpandMsgXmd<SHA-256>: hash msg with DST to produce `count` field elements
+/// Each field element is derived from 48 bytes (L = 48 for secp256k1)
+pub fn hash_to_field(msg: &[u8], count: usize) -> alloc::vec::Vec<Fq> {
+    use alloc::vec::Vec;
+
+    let dst_len = DST.len() as u8;
+    let len_in_bytes = count * 48; // L = 48 for secp256k1 Fq
+
+    // I2OSP(len_in_bytes, 2) || I2OSP(0, 1) || DST || I2OSP(dst_len, 1)
+    let mut msg_prime = Vec::new();
+    // Z_pad = I2OSP(0, 64) -- block size for SHA-256
+    msg_prime.extend_from_slice(&[0u8; 64]);
+    msg_prime.extend_from_slice(msg);
+    msg_prime.push((len_in_bytes >> 8) as u8);
+    msg_prime.push(len_in_bytes as u8);
+    msg_prime.push(0u8); // I2OSP(0, 1)
+    msg_prime.extend_from_slice(DST);
+    msg_prime.push(dst_len);
+
+    let b_0 = sha256(&msg_prime);
+
+    let mut b_vals: Vec<Vec<u8>> = Vec::new();
+    // b_1 = H(b_0 || I2OSP(1,1) || DST || I2OSP(dst_len,1))
+    let mut tmp = Vec::new();
+    tmp.extend_from_slice(&b_0);
+    tmp.push(1u8);
+    tmp.extend_from_slice(DST);
+    tmp.push(dst_len);
+    b_vals.push(sha256(&tmp).to_vec());
+
+    for i in 2..=(len_in_bytes / 32 + 1) {
+        let mut tmp = Vec::new();
+        // b_0 XOR b_(i-1)
+        let prev = &b_vals[b_vals.len() - 1];
+        for j in 0..32 {
+            tmp.push(b_0[j] ^ prev[j]);
+        }
+        tmp.push(i as u8);
+        tmp.extend_from_slice(DST);
+        tmp.push(dst_len);
+        b_vals.push(sha256(&tmp).to_vec());
+    }
+
+    // Concatenate b values and split into 48-byte chunks
+    let mut uniform_bytes = Vec::new();
+    for b in &b_vals {
+        uniform_bytes.extend_from_slice(b);
+    }
+
+    let mut result = Vec::new();
+    for i in 0..count {
+        let chunk = &uniform_bytes[i * 48..(i + 1) * 48];
+        // reduce 48-byte big-endian value mod p
+        // Pad to 64 bytes (multiple of 32) before reducing, since OpenVM's
+            // reduce_le_bytes panics on partial chunks
+            let mut padded = [0u8; 64];
+            padded[64 - chunk.len()..].copy_from_slice(chunk);
+            result.push(Fq::reduce_be_bytes(&padded));
+    }
+    result
+}
+
+/// Check if field element is odd (sgn0)
+fn is_odd(x: &Fq) -> bool {
+    let bytes = x.as_le_bytes();
+    bytes[0] & 1 == 1
+}
+
+/// OSSWU map: field element → (x, y) on isogenous curve
+fn osswu(u: &Fq) -> (Fq, Fq) {
+    let a = map_a();
+    let b = map_b();
+    let z = z_param();
+    let c2 = c2_param();
+    let one = Fq::from_u32(1);
+
+    let tv1 = u.square();          // u^2
+    let tv3 = &z * &tv1;           // Z * u^2
+    let mut tv2 = tv3.square();    // (Z * u^2)^2
+    let mut xd = &tv2 + &tv3;     // tv3^2 + tv3
+    let x1n = &b * &(&xd + &one); // B * (xd + 1)
+
+    let neg_a = {
+        let mut t = a.clone();
+        t.neg_assign();
+        t
+    };
+    xd = &xd * &neg_a;            // -A * xd
+
+    // if xd == 0, set xd = Z * A
+    let xd_is_zero = xd == Fq::from_u32(0);
+    if xd_is_zero {
+        xd = &z * &map_a();
+    }
+
+    tv2 = xd.square();            // xd^2
+    let gxd = &tv2 * &xd;         // xd^3
+    tv2 = &tv2 * &a;              // A * xd^2
+
+    let mut gx1 = &x1n * &(&tv2 + &x1n.square()); // x1n * (A*xd^2 + x1n^2)
+    tv2 = &gxd * &b;              // B * xd^3
+    gx1 = &gx1 + &tv2;           // complete gx1
+
+    let mut tv4 = gxd.square();   // gxd^2
+    tv2 = &gx1 * &gxd;           // gx1 * gxd
+    tv4 = &tv4 * &tv2;           // gxd^2 * gx1 * gxd
+
+    // y1 = tv4^c1 * tv2 where c1 = (p-3)/4
+    let y1 = &pow_c1(&tv4) * &tv2;
+
+    let x2n = &tv3 * &x1n;       // Z * u^2 * x1n
+    let y2 = &(&(&y1 * &c2) * &tv1) * u; // y1 * c2 * u^2 * u
+
+    // Check if y1 is correct: y1^2 * gxd == gx1
+    tv2 = &y1.square() * &gxd;
+    let e2 = tv2 == gx1;
+
+    let mut x = if e2 { x1n.clone() } else { x2n };
+    let xd_inv = xd.invert();
+    x = &x * &xd_inv;
+
+    let mut y = if e2 { y1.clone() } else { y2 };
+
+    // Fix sign of y
+    if is_odd(u) != is_odd(&y) {
+        y.neg_assign();
+    }
+
+    (x, y)
+}
+
+/// Evaluate isogeny: map point from isogenous curve to secp256k1
+fn isogeny(rx: Fq, ry: Fq) -> (Fq, Fq) {
+    let xn = xnum();
+    let xd = xden();
+    let yn = ynum();
+    let yd = yden();
+
+    // Horner evaluation for x_num, x_den, y_num, y_den
+    let x_num = horner(&xn, &rx);
+    let x_den = horner(&xd, &rx);
+    let y_num = horner(&yn, &rx);
+    let y_den = horner(&yd, &rx);
+
+    let qx = &x_num * &x_den.invert();
+    let qy = &(&ry * &y_num) * &y_den.invert();
+    (qx, qy)
+}
+
+fn horner(coeffs: &[Fq], x: &Fq) -> Fq {
+    let mut result = coeffs[coeffs.len() - 1].clone();
+    for i in (0..coeffs.len() - 1).rev() {
+        result = &(&result * x) + &coeffs[i];
+    }
+    result
+}
+
+/// Compute x^((p-3)/4) using square-and-multiply
+/// c1 = (p-3)/4 for secp256k1 where p = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F
+/// c1 = 0x3fffffffffffffffffffffffffffffffffffffffffffffffffffffffbfffff0b
+fn pow_c1(x: &Fq) -> Fq {
+    // c1 as u64 limbs (little-endian): [0xffffffffbfffff0b, 0xffffffffffffffff, 0xffffffffffffffff, 0x3fffffffffffffff]
+    let c1: [u64; 4] = [
+        0xffff_ffff_bfff_ff0b,
+        0xffff_ffff_ffff_ffff,
+        0xffff_ffff_ffff_ffff,
+        0x3fff_ffff_ffff_ffff,
+    ];
+
+    let mut result = Fq::from_u32(1);
+    let mut base = x.clone();
+    for limb in c1 {
+        let mut bits = limb;
+        for _ in 0..64 {
+            if bits & 1 == 1 {
+                result = &result * &base;
+            }
+            base = base.square();
+            bits >>= 1;
+        }
+    }
+    result
+}
+
+/// Full hash-to-curve: msg → secp256k1 point
+pub fn hash_to_curve(msg: &[u8]) -> Secp256k1Point {
+    let u = hash_to_field(msg, 2);
+
+    let (rx0, ry0) = osswu(&u[0]);
+    let (qx0, qy0) = isogeny(rx0, ry0);
+
+    let (rx1, ry1) = osswu(&u[1]);
+    let (qx1, qy1) = isogeny(rx1, ry1);
+
+    let p0 = Secp256k1Point::from_xy_nonidentity(qx0, qy0).unwrap();
+    let p1 = Secp256k1Point::from_xy_nonidentity(qx1, qy1).unwrap();
+
+    &p0 + &p1
+}
