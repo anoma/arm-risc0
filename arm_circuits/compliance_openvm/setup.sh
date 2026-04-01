@@ -62,10 +62,10 @@ EOF
 grep -q "openvm-sha256-transpiler" "$OPENVM_DIR/extensions/ecc/tests/Cargo.toml" || \
     sed -i '/openvm-ecc-transpiler/a openvm-sha256-transpiler = { workspace = true }' \
     "$OPENVM_DIR/extensions/ecc/tests/Cargo.toml"
-grep -q '^sha2' "$OPENVM_DIR/extensions/ecc/tests/Cargo.toml" || \
-    sed -i '/openvm-sha256-transpiler/a sha2 = "0.10"' "$OPENVM_DIR/extensions/ecc/tests/Cargo.toml"
-grep -q '^hex' "$OPENVM_DIR/extensions/ecc/tests/Cargo.toml" || \
-    sed -i '/^sha2/a hex = "0.4"' "$OPENVM_DIR/extensions/ecc/tests/Cargo.toml"
+grep -q 'sha2.workspace' "$OPENVM_DIR/extensions/ecc/tests/Cargo.toml" || \
+    sed -i '/openvm-sha256-transpiler/a sha2.workspace = true' "$OPENVM_DIR/extensions/ecc/tests/Cargo.toml"
+grep -q 'hex.workspace' "$OPENVM_DIR/extensions/ecc/tests/Cargo.toml" || \
+    sed -i '/sha2.workspace/a hex.workspace = true' "$OPENVM_DIR/extensions/ecc/tests/Cargo.toml"
 
 # Apply test function patch
 cp arm_circuits/compliance_openvm/test_patch.rs /tmp/test_patch.rs

@@ -1,9 +1,16 @@
+#![cfg_attr(not(feature = "std"), no_main)]
+#![cfg_attr(not(feature = "std"), no_std)]
+
+extern crate alloc;
+use alloc::vec::Vec;
 use openvm as _;
 use openvm_sha2::sha256;
 
 openvm::init!();
 
-mod compliance;
+use openvm_ecc_test_programs::compliance;
+
+openvm::entry!(main);
 
 pub fn main() {
     let witness_bytes: Vec<u8> = openvm::io::read_vec();
