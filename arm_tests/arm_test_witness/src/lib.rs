@@ -2,7 +2,7 @@ use anoma_rm_risc0::{
     error::ArmError,
     logic_instance::AppData,
     logic_instance::{ExpirableBlob, LogicInstance},
-    merkle_path::MerklePath,
+    merkle_path::{MerklePath, MerklePathExt},
     nullifier_key::NullifierKey,
     resource::Resource,
     resource_logic::LogicCircuit,

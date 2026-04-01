@@ -1,7 +1,7 @@
 //! Proving system interface for generating and verifying proofs.
 
-use crate::error::ArmError;
-use risc0_zkvm::{sha::Digest, InnerReceipt, Receipt};
+use crate::{error::ArmError, utils::core_to_risc0_digest, Digest};
+use risc0_zkvm::{InnerReceipt, Receipt};
 use serde::de::DeserializeOwned;
 
 #[cfg(feature = "prove")]
@@ -38,7 +38,8 @@ pub fn verify(verifying_key: &Digest, instance: &[u8], proof: &[u8]) -> Result<(
         bincode::deserialize(proof).map_err(|_| ArmError::InnerReceiptDeserializationError)?;
     let receipt = Receipt::new(inner, instance.to_vec());
 
-    receipt.verify(*verifying_key).map_err(|err| {
+    let verifying_key = core_to_risc0_digest(verifying_key);
+    receipt.verify(verifying_key).map_err(|err| {
         ArmError::ProofVerificationFailed(format!("Proof verification failed: {}", err))
     })
 }

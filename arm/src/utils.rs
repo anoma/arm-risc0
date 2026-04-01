@@ -1,48 +1,33 @@
 //! Utility functions for byte and word conversions and hashing.
 
-use risc0_zkvm::sha::{Digest, Impl, Sha256, DIGEST_WORDS};
-
-/// Converts a byte slice to a vector of u32 words.
-pub fn bytes_to_words(bytes: &[u8]) -> Vec<u32> {
-    let mut words = Vec::new();
-    let mut iter = bytes.chunks_exact(4);
-    for chunk in iter.by_ref() {
-        let mut word = 0u32;
-        for &byte in chunk {
-            word = (word << 8) | (byte as u32);
-        }
-        words.push(u32::from_be(word));
-    }
-
-    let rem = iter.remainder();
-    if !rem.is_empty() {
-        let mut arr = [0u8; 4];
-        arr[..rem.len()].copy_from_slice(rem);
-        let mut word = 0u32;
-        for byte in arr {
-            word = (word << 8) | (byte as u32);
-        }
-        words.push(u32::from_be(word));
-    }
-    words
-}
-
-/// Converts a slice of u32 words to a byte slice.
-pub fn words_to_bytes(words: &[u32]) -> &[u8] {
-    bytemuck::cast_slice(words)
-}
+pub use arm_core::utils::{bytes_to_words, words_to_bytes};
+use risc0_zkvm::sha::{Digest as Risc0Digest, Impl, Sha256, DIGEST_WORDS};
 
 /// Hashes two digests together using SHA-256.
-pub fn hash_two(left: &Digest, right: &Digest) -> Digest {
-    let mut words = Vec::with_capacity(2 * DIGEST_WORDS);
-    words.extend_from_slice(left.as_words());
-    words.extend_from_slice(right.as_words());
+pub fn hash_two(left: &Risc0Digest, right: &Risc0Digest) -> Risc0Digest {
+    let mut words = [0u32; 2 * DIGEST_WORDS];
+    words[..DIGEST_WORDS].copy_from_slice(left.as_words());
+    words[DIGEST_WORDS..].copy_from_slice(right.as_words());
     *Impl::hash_words(&words)
 }
 
 /// Hashes arbitrary bytes using SHA-256.
-pub fn hash_bytes(bytes: &[u8]) -> Digest {
+pub fn hash_bytes(bytes: &[u8]) -> Risc0Digest {
     *Impl::hash_bytes(bytes)
+}
+
+/// Convert arm_core::Digest to risc0_zkvm::Digest (layouts are identical: both [u32; 8]).
+pub fn core_to_risc0_digest(d: &arm_core::Digest) -> risc0_zkvm::Digest {
+    risc0_zkvm::Digest::new(*d.as_words())
+}
+
+/// Convert risc0_zkvm::Digest to arm_core::Digest.
+pub fn risc0_to_core_digest(d: risc0_zkvm::Digest) -> arm_core::Digest {
+    let words: [u32; arm_core::digest::DIGEST_WORDS] = d
+        .as_words()
+        .try_into()
+        .expect("risc0 digest must have 8 words");
+    arm_core::Digest::new(words)
 }
 
 #[test]

@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+  "arm_core",
   "arm",
   "arm_tests/arm_test_witness",
   "arm_tests/arm_test_app",

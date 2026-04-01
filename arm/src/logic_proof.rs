@@ -1,18 +1,21 @@
 //! Logic proof structures and traits for proving and verifying logic statements.
 
+use arm_core::logic_instance::LogicVerifierInputs;
+
 use crate::{
     constants::{PADDING_LOGIC_PK, PADDING_LOGIC_VK},
     error::ArmError,
-    logic_instance::{AppData, LogicInstance},
-    nullifier_key::{NullifierKey, NullifierKeyCommitment},
+    logic_instance::LogicInstance,
+    nullifier_key::{NullifierKey, NullifierKeyCommitment, NullifierKeyExt},
     proving_system::{journal_to_instance, verify as verify_proof},
     resource::Resource,
     resource_logic::TrivialLogicWitness,
     utils::words_to_bytes,
+    Digest,
 };
 use rand::rngs::OsRng;
 use rand::Rng;
-use risc0_zkvm::{serde::to_vec, sha::Digest, InnerReceipt};
+use risc0_zkvm::{serde::to_vec, InnerReceipt};
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "prove")]
@@ -60,19 +63,6 @@ pub struct LogicVerifier {
     pub verifying_key: Digest,
 }
 
-/// Inputs required to create a logic verifier.
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
-pub struct LogicVerifierInputs {
-    /// The tag (either commitment or nullifier) for the logic instance.
-    pub tag: Digest,
-    /// The verifying key for the logic proof.
-    pub verifying_key: Digest,
-    /// The application data associated with the logic instance.
-    pub app_data: AppData,
-    /// The logic proof (optional, would be absent when aggregation is enabled).
-    pub proof: Option<Vec<u8>>,
-}
-
 impl LogicVerifier {
     /// Verifies the logic proof against the instance using the provided verifying key.
     pub fn verify(&self) -> Result<(), ArmError> {
@@ -92,15 +82,24 @@ impl LogicVerifier {
     }
 }
 
-impl LogicVerifierInputs {
+/// Extension methods on `LogicVerifierInputs` requiring risc0 serialization.
+pub trait LogicVerifierInputsExt {
     /// Converts the LogicVerifierInputs into a LogicVerifier.
-    pub fn to_logic_verifier(
-        self,
-        is_consumed: bool,
-        root: Digest,
-    ) -> Result<LogicVerifier, ArmError> {
-        let instance_words = to_vec(&self.to_instance(is_consumed, root))
-            .map_err(|_| ArmError::InstanceSerializationFailed)?;
+    fn to_logic_verifier(self, is_consumed: bool, root: Digest) -> Result<LogicVerifier, ArmError>;
+
+    /// Retrieves the inner receipt from the logic proof.
+    fn get_inner_receipt(&self) -> Result<InnerReceipt, ArmError>;
+}
+
+impl LogicVerifierInputsExt for LogicVerifierInputs {
+    fn to_logic_verifier(self, is_consumed: bool, root: Digest) -> Result<LogicVerifier, ArmError> {
+        let instance_words = to_vec(&LogicInstance {
+            tag: self.tag,
+            is_consumed,
+            root,
+            app_data: self.app_data.clone(),
+        })
+        .map_err(|_| ArmError::InstanceSerializationFailed)?;
         Ok(LogicVerifier {
             proof: self.proof,
             instance: words_to_bytes(&instance_words).to_vec(),
@@ -108,18 +107,7 @@ impl LogicVerifierInputs {
         })
     }
 
-    /// Converts the LogicVerifierInputs into a LogicInstance.
-    fn to_instance(&self, is_consumed: bool, root: Digest) -> LogicInstance {
-        LogicInstance {
-            tag: self.tag,
-            is_consumed,
-            root,
-            app_data: self.app_data.clone(),
-        }
-    }
-
-    /// Retrieves the inner receipt from the logic proof.
-    pub fn get_inner_receipt(&self) -> Result<InnerReceipt, ArmError> {
+    fn get_inner_receipt(&self) -> Result<InnerReceipt, ArmError> {
         let inner: InnerReceipt = bincode::deserialize(
             self.proof
                 .as_ref()
