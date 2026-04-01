@@ -495,9 +495,9 @@ mod tests {
 
     #[test]
     fn digest_lt_sentinels() {
-        assert!(digest_lt(&*MIN_VALUE, &d(1)));
-        assert!(digest_lt(&d(1), &*MAX_VALUE));
-        assert!(!digest_lt(&*MAX_VALUE, &d(1)));
+        assert!(digest_lt(&MIN_VALUE, &d(1)));
+        assert!(digest_lt(&d(1), &MAX_VALUE));
+        assert!(!digest_lt(&MAX_VALUE, &d(1)));
     }
 
     // ── IndexedLeaf::hash ────────────────────────────────────────────────────
