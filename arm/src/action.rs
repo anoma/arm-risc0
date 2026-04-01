@@ -23,7 +23,7 @@ pub trait ActionExt {
         Self: Sized;
 
     /// Verifies all proofs and consistencies in the action.
-    fn verify(self) -> Result<(), ArmError>;
+    fn verify(&self) -> Result<(), ArmError>;
 
     /// This function computes the delta of the action by summing up the deltas
     /// of each compliance unit.
@@ -48,7 +48,7 @@ impl ActionExt for Action {
         })
     }
 
-    fn verify(self) -> Result<(), ArmError> {
+    fn verify(&self) -> Result<(), ArmError> {
         for unit in &self.compliance_units {
             unit.verify()?;
         }

@@ -31,7 +31,7 @@ pub trait TransactionExt {
     fn generate_delta_proof(self) -> Result<Transaction, ArmError>;
 
     /// Verifies all the proofs and corresponding checks in the transaction.
-    fn verify(self) -> Result<(), ArmError>;
+    fn verify(&self) -> Result<(), ArmError>;
 
     /// Returns the DeltaInstance constructed from the sum of all actions' deltas.
     fn delta(&self) -> Result<DeltaInstance, ArmError>;
@@ -88,7 +88,7 @@ impl TransactionExt for Transaction {
         }
     }
 
-    fn verify(self) -> Result<(), ArmError> {
+    fn verify(&self) -> Result<(), ArmError> {
         match &self.delta_proof {
             Delta::Proof(proof) => {
                 let proof = DeltaProof::from_bytes(&proof.0)?;
@@ -109,7 +109,7 @@ impl TransactionExt for Transaction {
                     self.verify_aggregation()?;
                 } else {
                     // Try verifying individually.
-                    for action in self.actions {
+                    for action in self.actions.iter() {
                         action.verify()?;
                     }
                 }
