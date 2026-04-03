@@ -253,6 +253,7 @@ mod tests {
 
         // Build each transaction with a distinct nonce (0 and 1) so their
         // compliance units produce different resources and unique nullifiers.
+        let t = std::time::Instant::now();
         let (action1, dw1) = create_an_action_with_multiple_compliances(1, 0, ProofType::Succinct);
         let mut tx1 = Transaction::create(
             vec![action1],
@@ -261,6 +262,7 @@ mod tests {
         .generate_delta_proof()
         .unwrap();
         tx1.aggregate(ProofType::Succinct).unwrap();
+        println!("tx1 generation time: {:?}", t.elapsed());
 
         let (action2, dw2) = create_an_action_with_multiple_compliances(1, 1, ProofType::Succinct);
         let mut tx2 = Transaction::create(
@@ -297,7 +299,9 @@ mod tests {
             compliance_vk: vk(&COMPLIANCE_VK_BYTES),
         };
 
+        let t0 = std::time::Instant::now();
         let receipt = super::prove(&witness, risc0_zkvm::ProverOpts::succinct()).unwrap();
+        println!("proof generation time: {:?}", t0.elapsed());
 
         let instance: ExecutionProofInstance = receipt.journal.decode().unwrap();
         assert_eq!(instance.old_nullifier_tree_root, old_nullifier_root);

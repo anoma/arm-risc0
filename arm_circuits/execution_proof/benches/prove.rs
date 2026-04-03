@@ -46,9 +46,9 @@ use anoma_rm_risc0::{
 };
 use anoma_rm_risc0_test_app::create_an_action_with_multiple_compliances;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use std::time::Duration;
 use execution_proof_methods::EXECUTION_PROOF_GUEST_ELF;
 use risc0_zkvm::{default_prover, ExecutorEnv, InnerReceipt, ProverOpts, VerifierContext};
+use std::time::Duration;
 
 fn vk(bytes: &[u8; 32]) -> Digest {
     Digest::try_from(bytes.as_slice()).expect("vk bytes")
@@ -79,7 +79,7 @@ fn do_prove(witness: &ExecutionProofWitness) -> risc0_zkvm::Receipt {
             env,
             &VerifierContext::default(),
             EXECUTION_PROOF_GUEST_ELF,
-            &ProverOpts::succinct(),
+            &ProverOpts::groth16(),
         )
         .unwrap()
         .receipt
@@ -132,9 +132,10 @@ fn build_witness(transactions: Vec<Transaction>) -> ExecutionProofWitness {
 fn bench_by_tx_count(c: &mut Criterion) {
     let mut group = c.benchmark_group("execution_proof/tx_count");
     group.sample_size(10);
-    group.measurement_time(Duration::from_secs(22000));
+    group.warm_up_time(Duration::from_secs(1));
+    group.measurement_time(Duration::from_secs(1));
 
-    for n_txs in [1usize, 2] {
+    for n_txs in [1usize, 2, 4, 8, 16] {
         // Build all transactions outside the timing loop.
         let transactions: Vec<Transaction> = (0..n_txs)
             .map(|i| build_aggregated_tx(1, i as u8))
@@ -156,7 +157,8 @@ fn bench_by_tx_count(c: &mut Criterion) {
 fn bench_by_compliance_count(c: &mut Criterion) {
     let mut group = c.benchmark_group("execution_proof/compliance_count");
     group.sample_size(10);
-    group.measurement_time(Duration::from_secs(22000));
+    group.warm_up_time(Duration::from_secs(1));
+    group.measurement_time(Duration::from_secs(1));
 
     for n_compliances in [1usize, 2, 4] {
         let tx = build_aggregated_tx(n_compliances, 0);
