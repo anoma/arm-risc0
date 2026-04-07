@@ -2,7 +2,56 @@
 use anoma_rm_risc0::execution_proof::ExecutionProofWitness;
 
 pub fn main() {
-    // Do nothing; this is just a placeholder main function.
+    #[cfg(feature = "prove")]
+    {
+        use anoma_rm_risc0::{
+            constants::{BATCH_AGGREGATION_VK_BYTES, COMPLIANCE_VK_BYTES},
+            incremental_merkle_tree::IncrementalMerkleTree,
+            indexed_merkle_tree::IndexedMerkleTree,
+            proving_system::ProofType,
+            transaction::{Delta, Transaction},
+            CoreDeltaWitness, Digest, TransactionExt,
+        };
+        use anoma_rm_risc0_test_app::create_an_action_with_multiple_compliances;
+
+        fn vk(bytes: &[u8; 32]) -> Digest {
+            Digest::try_from(bytes.as_slice()).expect("vk bytes")
+        }
+
+        let (action, dw) = create_an_action_with_multiple_compliances(1, 0, ProofType::Succinct);
+        let mut tx = Transaction::create(
+            vec![action],
+            Delta::Witness(CoreDeltaWitness(dw.to_bytes())),
+        )
+        .generate_delta_proof()
+        .unwrap();
+        tx.aggregate(ProofType::Succinct).unwrap();
+
+        let mut nullifier_tree = IndexedMerkleTree::new();
+        let mut nullifier_witnesses = Vec::new();
+        for action in &tx.actions {
+            for cu in action.get_compliance_units() {
+                nullifier_witnesses.push(
+                    nullifier_tree
+                        .insert(cu.instance.consumed_nullifier)
+                        .unwrap(),
+                );
+            }
+        }
+
+        let witness = ExecutionProofWitness {
+            transactions: vec![tx],
+            commitment_tree: IncrementalMerkleTree::new(3),
+            old_nullifier_tree_root: IndexedMerkleTree::new().root(),
+            nullifier_witnesses,
+            batch_aggregation_vk: vk(&BATCH_AGGREGATION_VK_BYTES),
+            compliance_vk: vk(&COMPLIANCE_VK_BYTES),
+        };
+
+        let t = std::time::Instant::now();
+        prove(&witness, risc0_zkvm::ProverOpts::succinct()).unwrap();
+        println!("proof generation time: {:?}", t.elapsed());
+    }
 }
 
 /// Builds an ExecutorEnv with all inner receipts from the witness added as
