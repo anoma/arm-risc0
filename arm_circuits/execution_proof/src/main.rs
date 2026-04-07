@@ -59,7 +59,6 @@ pub fn prove(
     witness: &ExecutionProofWitness,
     proof_type: risc0_zkvm::ProverOpts,
 ) -> Result<risc0_zkvm::Receipt, Box<dyn std::error::Error>> {
-    use anoma_rm_risc0::TransactionExt;
     use execution_proof_methods::EXECUTION_PROOF_GUEST_ELF;
     use risc0_zkvm::{default_prover, ExecutorEnv, InnerReceipt, VerifierContext};
 
@@ -71,13 +70,8 @@ pub fn prove(
             let inner: InnerReceipt = bincode::deserialize(agg_bytes)?;
             env_builder.add_assumption(inner);
         } else {
-            // Add individual compliance and logic inner receipts as assumptions.
-            for inner in tx.get_compliance_inner_receipts()? {
-                env_builder.add_assumption(inner);
-            }
-            for inner in tx.get_logic_inner_receipts()? {
-                env_builder.add_assumption(inner);
-            }
+            // Return an error
+            return Err("Expected aggregation proof for transaction, got none".into());
         }
     }
 
