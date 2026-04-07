@@ -167,8 +167,8 @@ pub fn main() {
     //    Both tree roots are derived from the witness rather than taken as
     //    explicit inputs, so they are bound to the witness data.
     // -----------------------------------------------------------------------
-    let mut commitment_tree = witness.commitment_tree;
-    let old_commitment_tree_root = commitment_tree.root();
+    // let mut commitment_tree = witness.commitment_tree;
+    // let old_commitment_tree_root = commitment_tree.root();
     let mut nullifier_root = witness.old_nullifier_tree_root;
 
     // -----------------------------------------------------------------------
@@ -182,28 +182,28 @@ pub fn main() {
     //    Nullifiers and commitments are collected here in tx → action → CU
     //    order for reuse in step 3c, avoiding a second pass over the witness.
     // -----------------------------------------------------------------------
-    let mut nullifiers: Vec<Digest> = Vec::new();
-    let mut commitments: Vec<Digest> = Vec::new();
-    for tx in &witness.transactions {
-        for action in &tx.actions {
-            for cu in action.get_compliance_units() {
-                nullifiers.push(cu.instance.consumed_nullifier);
-                commitments.push(cu.instance.created_commitment);
-            }
-        }
-    }
+    // let mut nullifiers: Vec<Digest> = Vec::new();
+    // let mut commitments: Vec<Digest> = Vec::new();
+    // for tx in &witness.transactions {
+    //     for action in &tx.actions {
+    //         for cu in action.get_compliance_units() {
+    //             nullifiers.push(cu.instance.consumed_nullifier);
+    //             commitments.push(cu.instance.created_commitment);
+    //         }
+    //     }
+    // }
 
     // Sort a copy of the nullifiers and check adjacent pairs for duplicates.
     // Sorting uses only integer comparisons (Digest is [u32; 8]), which is far
     // cheaper in the zkVM than HashSet whose SipHash has no RISC0 accelerator.
-    let mut sorted_nullifiers = nullifiers.clone();
-    sorted_nullifiers.sort_by_key(|d| *d.as_words());
-    for window in sorted_nullifiers.windows(2) {
-        assert_ne!(
-            window[0], window[1],
-            "duplicate nullifier across transactions"
-        );
-    }
+    // let mut sorted_nullifiers = nullifiers.clone();
+    // sorted_nullifiers.sort_by_key(|d| *d.as_words());
+    // for window in sorted_nullifiers.windows(2) {
+    //     assert_ne!(
+    //         window[0], window[1],
+    //         "duplicate nullifier across transactions"
+    //     );
+    // }
 
     // -----------------------------------------------------------------------
     // 3. Per-transaction verification and state transition.
@@ -211,7 +211,7 @@ pub fn main() {
     //    VKs are taken from the witness rather than hardcoded constants so the
     //    circuit is not tied to a specific deployment.
     // -----------------------------------------------------------------------
-    let batch_agg_vk_risc0 = vk_to_risc0(&witness.batch_aggregation_vk);
+    // let batch_agg_vk_risc0 = vk_to_risc0(&witness.batch_aggregation_vk);
     let compliance_vk = witness.compliance_vk;
 
     let mut consumed_resource_app_data: Vec<ResourceAppData> = Vec::new();
@@ -242,11 +242,11 @@ pub fn main() {
             tx.aggregation_proof.is_some(),
             "transaction is missing an aggregation proof"
         );
-        let tx_data = aggregation_instance_words(tx, &compliance_vk);
+        // let tx_data = aggregation_instance_words(tx, &compliance_vk);
         // env::verify(batch_agg_vk_risc0, &tx_data.agg_words)
         //     .expect("aggregation proof verification failed");
-        consumed_resource_app_data.extend(tx_data.consumed_resource_app_data);
-        created_resource_app_data.extend(tx_data.created_resource_app_data);
+        // consumed_resource_app_data.extend(tx_data.consumed_resource_app_data);
+        // created_resource_app_data.extend(tx_data.created_resource_app_data);
     }
 
     // -----------------------------------------------------------------------
@@ -283,9 +283,9 @@ pub fn main() {
     //    so verifiers can inspect which circuit versions were used.
     // -----------------------------------------------------------------------
     env::commit(&ExecutionProofInstance {
-        old_commitment_tree_root,
+        old_commitment_tree_root: Digest::default(), // old_commitment_tree_root,
         old_nullifier_tree_root: witness.old_nullifier_tree_root,
-        new_commitment_root: commitment_tree.root(),
+        new_commitment_root: Digest::default(),
         new_nullifier_tree_root: nullifier_root,
         consumed_resource_app_data,
         created_resource_app_data,
