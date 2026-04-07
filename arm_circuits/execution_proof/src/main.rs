@@ -6,6 +6,7 @@ pub fn main() {
     {
         use anoma_rm_risc0::{
             constants::{BATCH_AGGREGATION_VK_BYTES, COMPLIANCE_VK_BYTES},
+            execution_proof::TxInfo,
             incremental_merkle_tree::IncrementalMerkleTree,
             indexed_merkle_tree::IndexedMerkleTree,
             proving_system::ProofType,
@@ -39,8 +40,9 @@ pub fn main() {
             }
         }
 
+        let tx_info = TxInfo::from_transaction(&tx).unwrap();
         let witness = ExecutionProofWitness {
-            transactions: vec![tx],
+            transactions: vec![tx_info],
             commitment_tree: IncrementalMerkleTree::new(3),
             old_nullifier_tree_root: IndexedMerkleTree::new().root(),
             nullifier_witnesses,
@@ -54,33 +56,21 @@ pub fn main() {
     }
 }
 
-/// Builds an ExecutorEnv with all inner receipts from the witness added as
-/// assumptions, then proves the execution circuit.
+/// Deserialises each transaction's aggregation receipt, registers it as an
+/// assumption, writes the witness to the guest, and proves the execution circuit.
 #[cfg(feature = "prove")]
 pub fn prove(
     witness: &ExecutionProofWitness,
     proof_type: risc0_zkvm::ProverOpts,
 ) -> Result<risc0_zkvm::Receipt, Box<dyn std::error::Error>> {
-    use anoma_rm_risc0::TransactionExt;
     use execution_proof_methods::EXECUTION_PROOF_GUEST_ELF;
     use risc0_zkvm::{default_prover, ExecutorEnv, InnerReceipt, VerifierContext};
 
     let mut env_builder = ExecutorEnv::builder();
 
     for tx in &witness.transactions {
-        if let Some(agg_bytes) = &tx.aggregation_proof {
-            // Add the aggregation inner receipt as an assumption.
-            let inner: InnerReceipt = bincode::deserialize(agg_bytes)?;
-            env_builder.add_assumption(inner);
-        } else {
-            // Add individual compliance and logic inner receipts as assumptions.
-            for inner in tx.get_compliance_inner_receipts()? {
-                env_builder.add_assumption(inner);
-            }
-            for inner in tx.get_logic_inner_receipts()? {
-                env_builder.add_assumption(inner);
-            }
-        }
+        let inner: InnerReceipt = bincode::deserialize(&tx.aggregation_proof)?;
+        env_builder.add_assumption(inner);
     }
 
     let env = env_builder.write(witness)?.build()?;
@@ -101,7 +91,7 @@ pub fn prove(
 mod tests {
     use anoma_rm_risc0::{
         constants::{BATCH_AGGREGATION_VK_BYTES, COMPLIANCE_VK_BYTES},
-        execution_proof::{ExecutionProofInstance, ExecutionProofWitness},
+        execution_proof::{ExecutionProofInstance, ExecutionProofWitness, TxInfo},
         incremental_merkle_tree::IncrementalMerkleTree,
         indexed_merkle_tree::IndexedMerkleTree,
         Digest,
@@ -137,6 +127,23 @@ mod tests {
             decoded.old_nullifier_tree_root,
             witness.old_nullifier_tree_root
         );
+    }
+
+    #[test]
+    fn tx_info_serde_roundtrip() {
+        // aggregation_proof is #[serde(skip)] so it is stripped from both
+        // bincode and risc0 serde output.  The host reads it directly from
+        // the in-memory TxInfo before calling env_builder.write(), so it
+        // never needs to cross any serialisation boundary.
+        let tx_info = TxInfo {
+            actions: vec![],
+            delta_proof: vec![0u8; 65],
+            aggregation_proof: vec![1, 2, 3],
+        };
+        let encoded = bincode::serialize(&tx_info).unwrap();
+        let decoded: TxInfo = bincode::deserialize(&encoded).unwrap();
+        assert_eq!(decoded.delta_proof, tx_info.delta_proof);
+        assert_eq!(decoded.aggregation_proof, Vec::<u8>::new());
     }
 
     #[test]
@@ -264,8 +271,9 @@ mod tests {
         let old_nullifier_root = IndexedMerkleTree::new().root();
         let old_commitment_root = commitment_tree.root();
 
+        let tx_info = TxInfo::from_transaction(&tx).unwrap();
         let witness = ExecutionProofWitness {
-            transactions: vec![tx],
+            transactions: vec![tx_info],
             commitment_tree,
             old_nullifier_tree_root: old_nullifier_root,
             nullifier_witnesses,
@@ -339,8 +347,12 @@ mod tests {
         let commitment_tree = IncrementalMerkleTree::new(3);
         let old_nullifier_root = IndexedMerkleTree::new().root();
 
+        let tx_infos: Vec<TxInfo> = [&tx1, &tx2]
+            .iter()
+            .map(|tx| TxInfo::from_transaction(tx).unwrap())
+            .collect();
         let witness = ExecutionProofWitness {
-            transactions: vec![tx1, tx2],
+            transactions: tx_infos,
             commitment_tree,
             old_nullifier_tree_root: old_nullifier_root,
             nullifier_witnesses,
@@ -361,6 +373,7 @@ mod tests {
 
 // Updates the ELF binary and prints the image ID.
 // Run with: cargo test --features prove print_execution_proof_elf_id -- --nocapture
+#[ignore]
 #[test]
 fn print_execution_proof_elf_id() {
     use execution_proof_methods::{EXECUTION_PROOF_GUEST_ELF, EXECUTION_PROOF_GUEST_ID};

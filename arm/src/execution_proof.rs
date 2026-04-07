@@ -29,7 +29,7 @@
 
 use crate::{
     incremental_merkle_tree::IncrementalMerkleTree, indexed_merkle_tree::InsertionWitness, AppData,
-    Digest, Transaction,
+    ComplianceInstance, Delta, Digest, Transaction,
 };
 use serde::{Deserialize, Serialize};
 
@@ -71,6 +71,114 @@ pub struct ExecutionProofInstance {
     pub compliance_vk: Digest,
 }
 
+/// Compact logic verifier input for the execution proof circuit.
+///
+/// A stripped-down version of [`LogicVerifierInputs`] carrying only the three
+/// fields the guest actually reads.  The `proof` bytes (potentially hundreds
+/// of kilobytes) are deliberately omitted so they are never written to the
+/// zkVM's input channel.
+///
+/// [`LogicVerifierInputs`]: crate::LogicVerifierInputs
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct LogicVerifierInfo {
+    /// The resource tag (nullifier for consumed, commitment for created).
+    pub tag: Digest,
+    /// The verifying key of the resource's logic proof circuit.
+    pub verifying_key: Digest,
+    /// The application data payload for this resource.
+    pub app_data: AppData,
+}
+
+/// Compact action data for the execution proof circuit.
+///
+/// Contains only the data the guest needs: the compliance instances (for delta
+/// computation and aggregation instance construction) and the stripped logic
+/// verifier inputs (for app-data collection and logic-ref consistency checks).
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ActionInfo {
+    /// Compliance instances for this action, one per compliance unit.
+    pub compliance_instances: Vec<ComplianceInstance>,
+    /// Logic verifier inputs stripped of their proof bytes.
+    pub logic_verifier_inputs: Vec<LogicVerifierInfo>,
+}
+
+/// Compact transaction data for the execution proof circuit.
+///
+/// Replaces [`Transaction`] in [`ExecutionProofWitness`] so that only the
+/// data the guest actually needs is serialised over the `env::write` channel.
+/// The aggregation proof receipt (potentially megabytes as a full STARK
+/// receipt) is excluded from serialisation via `#[serde(skip)]` and kept
+/// host-side only, where it is registered with `add_assumption`.
+///
+/// [`Transaction`]: crate::Transaction
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct TxInfo {
+    /// Per-action compliance and logic data for this transaction.
+    pub actions: Vec<ActionInfo>,
+    /// The 65-byte ECDSA delta proof bytes.
+    pub delta_proof: Vec<u8>,
+    /// The serialised aggregation proof `InnerReceipt` (host-only).
+    ///
+    /// This field is skipped during serialisation so it is never written to
+    /// the guest.  The host extracts it, deserialises it as an
+    /// `InnerReceipt`, and registers it with `env_builder.add_assumption`.
+    #[serde(skip)]
+    pub aggregation_proof: Vec<u8>,
+}
+
+impl TxInfo {
+    /// Converts a fully-proved [`Transaction`] into a [`TxInfo`].
+    ///
+    /// Strips every field not needed by the guest (individual compliance and
+    /// logic proof bytes, delta witness) while preserving `aggregation_proof`
+    /// for the host to register as an assumption.
+    ///
+    /// Returns an error if `tx.delta_proof` is still a witness, or if the
+    /// transaction is missing its aggregation proof.
+    pub fn from_transaction(tx: &Transaction) -> Result<Self, crate::ArmError> {
+        let actions = tx
+            .actions
+            .iter()
+            .map(|action| {
+                let compliance_instances = action
+                    .compliance_units
+                    .iter()
+                    .map(|cu| cu.instance.clone())
+                    .collect();
+                let logic_verifier_inputs = action
+                    .logic_verifier_inputs
+                    .iter()
+                    .map(|lvi| LogicVerifierInfo {
+                        tag: lvi.tag,
+                        verifying_key: lvi.verifying_key,
+                        app_data: lvi.app_data.clone(),
+                    })
+                    .collect();
+                ActionInfo {
+                    compliance_instances,
+                    logic_verifier_inputs,
+                }
+            })
+            .collect();
+
+        let delta_proof = match &tx.delta_proof {
+            Delta::Proof(proof) => proof.0.to_vec(),
+            Delta::Witness(_) => return Err(crate::ArmError::ExpectedDeltaProof),
+        };
+
+        let aggregation_proof = tx
+            .aggregation_proof
+            .clone()
+            .ok_or(crate::ArmError::MissingField("aggregation_proof"))?;
+
+        Ok(TxInfo {
+            actions,
+            delta_proof,
+            aggregation_proof,
+        })
+    }
+}
+
 /// Private witness consumed by the execution proof circuit.
 ///
 /// Commitment updates are driven by [`commitment_tree`], whose state is
@@ -88,8 +196,8 @@ pub struct ExecutionProofInstance {
 /// [`compliance_vk`]: ExecutionProofWitness::compliance_vk
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ExecutionProofWitness {
-    /// The transactions to execute and verify.
-    pub transactions: Vec<Transaction>,
+    /// The transactions to execute and verify, in compact [`TxInfo`] form.
+    pub transactions: Vec<TxInfo>,
     /// Incremental commitment tree state before the batch.
     pub commitment_tree: IncrementalMerkleTree,
     /// Indexed nullifier tree root before the batch.

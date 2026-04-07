@@ -1,10 +1,8 @@
 use anoma_rm_risc0::{
-    action::Action,
     action_tree::MerkleTree,
-    compliance::ComplianceInstanceWords,
-    delta_proof::DeltaProof,
-    execution_proof::{ExecutionProofInstance, ExecutionProofWitness, ResourceAppData},
-    transaction::{Delta, TransactionExt},
+    compliance::{ComplianceInstanceExt, ComplianceInstanceWords},
+    delta_proof::{DeltaInstance, DeltaProof},
+    execution_proof::{ActionInfo, ExecutionProofInstance, ExecutionProofWitness, ResourceAppData},
     Digest, LogicInstance,
 };
 use risc0_zkvm::guest::env;
@@ -27,23 +25,23 @@ struct ActionLogicData {
     created_resource_app_data: Vec<ResourceAppData>,
 }
 
-/// Processes a single action in one pass over its compliance units:
+/// Processes a single action in one pass over its compliance instances:
 ///
 /// - Builds the ordered tag / logic-ref lists for the action tree.
 /// - Asserts that each input's `verifying_key` matches the corresponding
 ///   `logic_ref` committed inside the compliance instance.
 /// - Serialises each [`LogicInstance`] for the aggregation proof.
 /// - Splits [`ResourceAppData`] into consumed and created buckets.
-fn collect_action_logic(action: &Action) -> ActionLogicData {
+fn collect_action_logic(action: &ActionInfo) -> ActionLogicData {
     let mut tags = Vec::new();
     let mut logic_refs = Vec::new();
 
-    for cu in action.get_compliance_units() {
+    for ci in &action.compliance_instances {
         // Ordered as [consumed, created] per CU to match proof construction.
-        tags.push(cu.instance.consumed_nullifier);
-        logic_refs.push(cu.instance.consumed_logic_ref);
-        tags.push(cu.instance.created_commitment);
-        logic_refs.push(cu.instance.created_logic_ref);
+        tags.push(ci.consumed_nullifier);
+        logic_refs.push(ci.consumed_logic_ref);
+        tags.push(ci.created_commitment);
+        logic_refs.push(ci.created_logic_ref);
     }
 
     let root = MerkleTree::from(tags.clone())
@@ -59,7 +57,7 @@ fn collect_action_logic(action: &Action) -> ActionLogicData {
         let is_consumed = index % 2 == 0;
 
         let input = action
-            .get_logic_verifier_inputs()
+            .logic_verifier_inputs
             .iter()
             .find(|i| i.tag == *tag)
             .expect("logic verifier input not found for tag");
@@ -112,23 +110,26 @@ struct TxVerificationData {
 
 /// Serialises the batch-aggregation circuit journal as `u32` words for `env::verify`.
 ///
-/// Combines the compliance instances with the per-action logic data (collected
-/// by [`collect_action_logic`]) and `compliance_vk` into the tuple expected by
-/// the batch aggregation circuit, then serialises it with `risc0_zkvm::serde`.
+/// Combines the compliance instances (derived directly from [`ActionInfo`])
+/// with the per-action logic data (collected by [`collect_action_logic`]) and
+/// `compliance_vk` into the tuple expected by the batch aggregation circuit,
+/// then serialises it with `risc0_zkvm::serde`.
 ///
 /// Delegates per-action work to [`collect_action_logic`], which visits each
-/// action's compliance units and `logic_verifier_inputs` exactly once.
+/// action's compliance instances and logic verifier inputs exactly once.
 /// The returned [`TxVerificationData`] also carries the [`ResourceAppData`]
 /// for all resources in the transaction.
 fn aggregation_instance_words(
-    tx: &anoma_rm_risc0::Transaction,
+    tx: &anoma_rm_risc0::execution_proof::TxInfo,
     compliance_vk: &Digest,
 ) -> TxVerificationData {
+    // Build compliance instance words directly from the ActionInfo structs —
+    // no journal byte parsing needed.
     let compliance_instances_u32: Vec<ComplianceInstanceWords> = tx
-        .get_compliance_instances()
-        .expect("compliance instances")
+        .actions
         .iter()
-        .map(|b| ComplianceInstanceWords::from_bytes(b).expect("compliance instance words"))
+        .flat_map(|a| a.compliance_instances.iter())
+        .map(ComplianceInstanceWords::from)
         .collect();
 
     let mut lp_vks = Vec::new();
@@ -187,9 +188,9 @@ pub fn main() {
     let mut commitments: Vec<Digest> = Vec::new();
     for tx in &witness.transactions {
         for action in &tx.actions {
-            for cu in action.get_compliance_units() {
-                nullifiers.push(cu.instance.consumed_nullifier);
-                commitments.push(cu.instance.created_commitment);
+            for ci in &action.compliance_instances {
+                nullifiers.push(ci.consumed_nullifier);
+                commitments.push(ci.created_commitment);
             }
         }
     }
@@ -221,17 +222,32 @@ pub fn main() {
     for tx in &witness.transactions {
         // --- 3a. Delta proof ---
         //
-        // Verifies that the net value change (Σ created − Σ consumed) across
-        // all compliance units in the transaction is zero.
-        let msg = tx.get_delta_msg();
-        let delta_instance = tx.delta().expect("delta instance");
-        match &tx.delta_proof {
-            Delta::Proof(core_proof) => {
-                let proof = DeltaProof::from_bytes(&core_proof.0).expect("deserialize delta proof");
-                DeltaProof::verify(&msg, &proof, delta_instance).expect("delta proof invalid");
-            }
-            Delta::Witness(_) => panic!("expected delta proof, got witness"),
-        }
+        // Compute the delta message (concat of nullifier+commitment bytes for
+        // each compliance unit) and the delta instance (sum of delta EC points
+        // from each compliance instance) directly from the ActionInfo data.
+        // No Transaction object or journal parsing is needed.
+        let msg: Vec<u8> = tx
+            .actions
+            .iter()
+            .flat_map(|a| a.compliance_instances.iter())
+            .flat_map(|ci| {
+                let mut bytes = Vec::with_capacity(64);
+                bytes.extend_from_slice(ci.consumed_nullifier.as_bytes());
+                bytes.extend_from_slice(ci.created_commitment.as_bytes());
+                bytes
+            })
+            .collect();
+
+        let delta_points: Vec<_> = tx
+            .actions
+            .iter()
+            .flat_map(|a| a.compliance_instances.iter())
+            .map(|ci| ci.delta_projective().expect("delta projective"))
+            .collect();
+        let delta_instance = DeltaInstance::from_deltas(&delta_points).expect("delta instance");
+
+        let proof = DeltaProof::from_bytes(&tx.delta_proof).expect("deserialize delta proof");
+        DeltaProof::verify(&msg, &proof, delta_instance).expect("delta proof invalid");
 
         // --- 3b. Batch aggregation proof ---
         //
@@ -239,10 +255,11 @@ pub fn main() {
         // transaction was verified by the batch aggregation circuit.
         // `aggregation_instance_words` also collects ResourceAppData in the
         // same pass over logic_verifier_inputs (see TxVerificationData).
-        assert!(
-            tx.aggregation_proof.is_some(),
-            "transaction is missing an aggregation proof"
-        );
+        //
+        // Note: `aggregation_proof` is host-only (`#[serde(skip)]`) so it is
+        // always empty in the guest; the corresponding InnerReceipt was
+        // registered as an assumption by the host and is resolved here by
+        // `env::verify`.
         let tx_data = aggregation_instance_words(tx, &compliance_vk);
         env::verify(batch_agg_vk_risc0, &tx_data.agg_words)
             .expect("aggregation proof verification failed");

@@ -15,7 +15,12 @@ anoma-rm-risc0-test-app = { path = "../../arm_tests/arm_test_app", optional = tr
 [features]
 default = []
 cuda = ["risc0-zkvm/cuda"]
-prove = ["risc0-zkvm/prove", "anoma-rm-risc0/aggregation", "anoma-rm-risc0/prove", "dep:anoma-rm-risc0-test-app"]
+prove = [
+  "risc0-zkvm/prove",
+  "anoma-rm-risc0/aggregation",
+  "anoma-rm-risc0/prove",
+  "dep:anoma-rm-risc0-test-app",
+]
 bonsai = ["risc0-zkvm/bonsai"]
 
 [dev-dependencies]
@@ -27,4 +32,3 @@ criterion = { version = "0.5", features = ["html_reports"] }
 name = "prove"
 harness = false
 required-features = ["prove"]
-
