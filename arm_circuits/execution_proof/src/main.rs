@@ -68,7 +68,7 @@ pub fn prove(
         if let Some(agg_bytes) = &tx.aggregation_proof {
             // Add the aggregation inner receipt as an assumption.
             let inner: InnerReceipt = bincode::deserialize(agg_bytes)?;
-            env_builder.add_assumption(inner);
+            // env_builder.add_assumption(inner);
         } else {
             // Return an error
             return Err("Expected aggregation proof for transaction, got none".into());

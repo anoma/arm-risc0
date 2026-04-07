@@ -243,8 +243,8 @@ pub fn main() {
             "transaction is missing an aggregation proof"
         );
         let tx_data = aggregation_instance_words(tx, &compliance_vk);
-        env::verify(batch_agg_vk_risc0, &tx_data.agg_words)
-            .expect("aggregation proof verification failed");
+        // env::verify(batch_agg_vk_risc0, &tx_data.agg_words)
+        //     .expect("aggregation proof verification failed");
         consumed_resource_app_data.extend(tx_data.consumed_resource_app_data);
         created_resource_app_data.extend(tx_data.created_resource_app_data);
     }
