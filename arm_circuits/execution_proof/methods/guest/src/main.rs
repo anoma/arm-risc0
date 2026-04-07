@@ -2,9 +2,8 @@ use anoma_rm_risc0::{
     action::Action,
     action_tree::MerkleTree,
     compliance::ComplianceInstanceWords,
-    delta_proof::DeltaProof,
     execution_proof::{ExecutionProofInstance, ExecutionProofWitness, ResourceAppData},
-    transaction::{Delta, TransactionExt},
+    transaction::TransactionExt,
     Digest, LogicInstance,
 };
 use risc0_zkvm::guest::env;

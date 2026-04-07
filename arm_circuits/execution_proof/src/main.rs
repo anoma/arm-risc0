@@ -48,9 +48,7 @@ pub fn main() {
             compliance_vk: vk(&COMPLIANCE_VK_BYTES),
         };
 
-        let t = std::time::Instant::now();
         prove(&witness, risc0_zkvm::ProverOpts::succinct()).unwrap();
-        println!("proof generation time: {:?}", t.elapsed());
     }
 }
 
@@ -85,6 +83,7 @@ pub fn prove(
 
     let env = env_builder.write(witness)?.build()?;
 
+    let t = std::time::Instant::now();
     let receipt = default_prover()
         .prove_with_ctx(
             env,
@@ -94,6 +93,7 @@ pub fn prove(
         )?
         .receipt;
 
+    println!("proof generation time: {:?}", t.elapsed());
     Ok(receipt)
 }
 
