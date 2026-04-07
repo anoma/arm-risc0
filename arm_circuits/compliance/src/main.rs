@@ -1,6 +1,6 @@
 use anoma_rm_risc0::compliance::{ComplianceInstance, ComplianceWitness};
 use compliance_methods::{COMPLIANCE_GUEST_ELF, COMPLIANCE_GUEST_ID};
-use risc0_zkvm::{default_prover, ExecutorEnv};
+use risc0_zkvm::{default_prover, ExecutorEnv, ProverOpts, VerifierContext};
 use std::time::Instant;
 
 pub fn main() {
@@ -16,8 +16,16 @@ pub fn main() {
 
     let prove_start_timer = Instant::now();
 
-    // Produce a receipt by proving the specified ELF binary.
-    let receipt = prover.prove(env, COMPLIANCE_GUEST_ELF).unwrap().receipt;
+    // Produce a succinct receipt.
+    let receipt = prover
+        .prove_with_ctx(
+            env,
+            &VerifierContext::default(),
+            COMPLIANCE_GUEST_ELF,
+            &ProverOpts::succinct(),
+        )
+        .unwrap()
+        .receipt;
 
     let prove_duration = prove_start_timer.elapsed();
     println!("Prove duration time: {:?}", prove_duration);
