@@ -262,19 +262,19 @@ pub fn main() {
     //    `nullifiers` and `commitments` were pre-collected in step 2, so no
     //    further iteration over the witness transactions is required here.
     // -----------------------------------------------------------------------
-    for ((nf, commitment), nf_witness) in nullifiers
-        .iter()
-        .zip(commitments.iter())
-        .zip(witness.nullifier_witnesses.iter())
-    {
-        nullifier_root = nf_witness
-            .apply(nf, &nullifier_root)
-            .expect("nullifier insertion witness invalid");
+    // for ((nf, commitment), nf_witness) in nullifiers
+    //     .iter()
+    //     .zip(commitments.iter())
+    //     .zip(witness.nullifier_witnesses.iter())
+    // {
+    //     nullifier_root = nf_witness
+    //         .apply(nf, &nullifier_root)
+    //         .expect("nullifier insertion witness invalid");
 
-        commitment_tree
-            .insert(*commitment)
-            .expect("commitment tree insert failed");
-    }
+    //     commitment_tree
+    //         .insert(*commitment)
+    //         .expect("commitment tree insert failed");
+    // }
 
     // -----------------------------------------------------------------------
     // 4. Commit the instance.
