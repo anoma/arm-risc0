@@ -55,6 +55,7 @@ pub use crate::compliance::{ComplianceInstanceExt, ComplianceInstanceJournalExt}
 pub use crate::compliance_unit::ComplianceUnitExt;
 #[cfg(feature = "transaction")]
 pub use crate::logic_proof::LogicVerifierInputsExt;
+pub use crate::execution_proof::{ActionInfo, LogicVerifierInfo, TxInfo};
 pub use crate::merkle_path::MerklePathExt;
 pub use crate::nullifier_key::NullifierKeyExt;
 #[cfg(feature = "transaction")]

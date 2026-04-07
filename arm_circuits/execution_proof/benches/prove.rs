@@ -37,7 +37,7 @@
 /// ```
 use anoma_rm_risc0::{
     constants::{BATCH_AGGREGATION_VK_BYTES, COMPLIANCE_VK_BYTES},
-    execution_proof::ExecutionProofWitness,
+    execution_proof::{ExecutionProofWitness, TxInfo},
     incremental_merkle_tree::IncrementalMerkleTree,
     indexed_merkle_tree::IndexedMerkleTree,
     proving_system::ProofType,
@@ -59,17 +59,8 @@ fn do_prove(witness: &ExecutionProofWitness) -> risc0_zkvm::Receipt {
     let mut env_builder = ExecutorEnv::builder();
 
     for tx in &witness.transactions {
-        if let Some(agg_bytes) = &tx.aggregation_proof {
-            let inner: InnerReceipt = bincode::deserialize(agg_bytes).unwrap();
-            env_builder.add_assumption(inner);
-        } else {
-            for inner in tx.get_compliance_inner_receipts().unwrap() {
-                env_builder.add_assumption(inner);
-            }
-            for inner in tx.get_logic_inner_receipts().unwrap() {
-                env_builder.add_assumption(inner);
-            }
-        }
+        let inner: InnerReceipt = bincode::deserialize(&tx.aggregation_proof).unwrap();
+        env_builder.add_assumption(inner);
     }
 
     let env = env_builder.write(witness).unwrap().build().unwrap();
@@ -118,8 +109,13 @@ fn build_witness(transactions: Vec<Transaction>) -> ExecutionProofWitness {
         }
     }
 
+    let tx_infos: Vec<TxInfo> = transactions
+        .iter()
+        .map(|tx| TxInfo::from_transaction(tx).expect("tx to tx_info"))
+        .collect();
+
     ExecutionProofWitness {
-        transactions,
+        transactions: tx_infos,
         commitment_tree: IncrementalMerkleTree::new(3),
         old_nullifier_tree_root: IndexedMerkleTree::new().root(),
         nullifier_witnesses,
