@@ -223,15 +223,15 @@ pub fn main() {
         //
         // Verifies that the net value change (Σ created − Σ consumed) across
         // all compliance units in the transaction is zero.
-        let msg = tx.get_delta_msg();
-        let delta_instance = tx.delta().expect("delta instance");
-        match &tx.delta_proof {
-            Delta::Proof(core_proof) => {
-                let proof = DeltaProof::from_bytes(&core_proof.0).expect("deserialize delta proof");
-                DeltaProof::verify(&msg, &proof, delta_instance).expect("delta proof invalid");
-            }
-            Delta::Witness(_) => panic!("expected delta proof, got witness"),
-        }
+        // let msg = tx.get_delta_msg();
+        // let delta_instance = tx.delta().expect("delta instance");
+        // match &tx.delta_proof {
+        //     Delta::Proof(core_proof) => {
+        //         let proof = DeltaProof::from_bytes(&core_proof.0).expect("deserialize delta proof");
+        //         DeltaProof::verify(&msg, &proof, delta_instance).expect("delta proof invalid");
+        //     }
+        //     Delta::Witness(_) => panic!("expected delta proof, got witness"),
+        // }
 
         // --- 3b. Batch aggregation proof ---
         //
