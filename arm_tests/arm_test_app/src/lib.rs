@@ -272,6 +272,44 @@ fn test_verify_aggregation_fails_for_incorrect_instances() {
     assert!(tx_str.verify_aggregation().is_err());
 }
 
+/// SEC-006: Can the batch aggregation circuit produce a valid proof for
+/// a zero-action transaction?
+#[test]
+fn test_empty_transaction_aggregation() {
+    use anoma_rm_risc0::CoreDeltaProof as DeltaProof;
+
+    // Create a transaction with zero actions
+    let empty_tx = Transaction {
+        actions: vec![],
+        delta_proof: Delta::Proof(DeltaProof([0u8; 65])),
+        expected_balance: None,
+        aggregation_proof: None,
+    };
+
+    // base_proofs_are_empty returns false for zero actions (no proofs to check)
+    assert!(
+        !empty_tx.base_proofs_are_empty(),
+        "zero actions means no empty proofs — the check passes"
+    );
+
+    // Attempt aggregation — this actually runs the risc0 prover (dev mode)
+    let mut tx = empty_tx.clone();
+    let result = tx.aggregate(ProofType::Succinct);
+
+    println!("Empty tx aggregation result: {:?}", result.is_ok());
+    if let Ok(()) = &result {
+        println!("aggregation_proof present: {}", tx.aggregation_proof.is_some());
+        if let Some(proof) = &tx.aggregation_proof {
+            println!("proof size: {} bytes", proof.len());
+        }
+        // Try to verify the aggregated proof
+        let verify_result = tx.verify_aggregation();
+        println!("verify_aggregation result: {:?}", verify_result.is_ok());
+    } else {
+        println!("Aggregation failed: {:?}", result.err());
+    }
+}
+
 #[test]
 fn test_cannot_aggregate_invalid_proofs() {
     use anoma_rm_risc0::LogicVerifierInputs;
