@@ -245,7 +245,6 @@ dependencies = [
  "hex-literal",
  "serde",
  "serde_with",
- "sha2",
  "thiserror 2.0.17",
 ]
 

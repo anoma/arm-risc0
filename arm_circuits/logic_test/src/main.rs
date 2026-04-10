@@ -41,3 +41,20 @@ fn main() {
     let verify_duration = verify_start_timer.elapsed();
     println!("Test logic verify duration time: {:?}", verify_duration);
 }
+
+// This is for local testing only. It updates the elf binary and prints the ID
+// using the locally compiled circuit.
+#[test]
+fn print_logic_test_elf_id() {
+    std::fs::write(
+        "../../arm_tests/arm_test_app/elf/logic-test-guest.bin",
+        LOGIC_TEST_GUEST_ELF,
+    )
+    .expect("Failed to write logic test guest ELF binary");
+
+    use risc0_zkvm::sha::Digest;
+    println!(
+        "LOGIC_TEST_GUEST_ID: {:?}",
+        Digest::from(LOGIC_TEST_GUEST_ID)
+    );
+}

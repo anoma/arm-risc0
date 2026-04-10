@@ -3,15 +3,15 @@ use hex_literal::hex;
 
 /// Compliance verification key bytes.
 pub const COMPLIANCE_VK_BYTES: [u8; 32] =
-    hex!("c98c686cda02753e78b423eeebf98f9b4d5251c5b01e4c98fcf9e7abeb7038d4");
+    hex!("fe484ce955bd4b73bab8363bb9b959cee597a67e8691ee592a7558a624cf98c2");
 
 /// Padding logic verification key bytes.
 pub const PADDING_LOGIC_VK_BYTES: [u8; 32] =
-    hex!("14804f506f4d332fb7e3b5ea024909bf81ffa13c9f91c4e2ca2c352c17575f69");
+    hex!("49d1fd1e4c01495f8e14c0b8f7cc4fe9594e6d595edddf8cf26cae2c419cd05b");
 
 /// Batch aggregation verification key bytes.
 pub const BATCH_AGGREGATION_VK_BYTES: [u8; 32] =
-    hex!("3bacb935ecdebd8f356cf6d0eb88dd237611030c9144ec6b33bb9770c95f0a33");
+    hex!("e617093ac7e3028379b32715d3d478e91f8225898689caaa22c42ffc0cfabc7c");
 
 /// Hash of the empty string - used for PADDING_LEAF and INITIAL_ROOT.
 pub const EMPTY_HASH_BYTES: [u8; 32] =

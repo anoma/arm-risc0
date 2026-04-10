@@ -18,9 +18,6 @@ pub struct LogicInstance {
     pub root: Digest,
     /// The application data associated with the logic instance.
     pub app_data: AppData,
-    /// SHA-256 hash of borsh-serialized app_data. Committed by the logic circuit
-    /// and verified on-chain to bind app_data to the ZK proof.
-    pub app_data_hash: Digest,
 }
 
 /// Application data contains four different types of payloads.
@@ -68,21 +65,16 @@ pub struct LogicVerifierInputs {
     pub app_data: AppData,
     /// The logic proof (optional, would be absent when aggregation is enabled).
     pub proof: Option<Vec<u8>>,
-    /// Pre-serialized LogicInstance journal bytes from proving.
-    pub instance_journal: Vec<u8>,
 }
 
 impl LogicVerifierInputs {
     /// Converts to a LogicInstance given consumed/created flag and action tree root.
-    /// The `app_data_hash` is set to default; callers that need the hash must call
-    /// `compute_and_set_app_data_hash()` on the result.
     pub fn to_instance(&self, is_consumed: bool, root: Digest) -> LogicInstance {
         LogicInstance {
             tag: self.tag,
             is_consumed,
             root,
             app_data: self.app_data.clone(),
-            app_data_hash: Digest::default(),
         }
     }
 }
@@ -119,50 +111,37 @@ impl AppData {
     }
 }
 
-#[cfg(feature = "borsh")]
-impl AppData {
-    /// Computes SHA-256 hash of the borsh-serialized AppData.
-    pub fn compute_hash(&self) -> Digest {
-        use sha2::{Digest as Sha2Digest, Sha256};
-        let bytes = borsh::to_vec(self).expect("AppData borsh serialization cannot fail");
-        let hash: [u8; 32] = Sha256::digest(&bytes).into();
-        crate::digest::Digest::from_bytes(hash)
-    }
-}
-
-#[cfg(feature = "borsh")]
 impl LogicInstance {
-    /// Sets `app_data_hash` to the SHA-256 hash of borsh-serialized `app_data`.
-    /// Must be called before committing in a logic circuit guest.
-    pub fn compute_and_set_app_data_hash(&mut self) {
-        self.app_data_hash = self.app_data.compute_hash();
-    }
-
-    /// Serializes this instance to journal bytes (Borsh format).
-    ///
-    /// Layout: `borsh(fields_except_hash) | padding_to_4byte | borsh(app_data_hash)`
-    ///
-    /// The hash is always the last 32 bytes of the output, making extraction
-    /// trivial for the on-chain verifier. Padding ensures the hash starts at
-    /// a 4-byte aligned offset for risc0's `env::verify` which operates on
-    /// `&[u32]` journals.
+    /// Serializes this instance to journal bytes matching
+    /// `risc0_zkvm::serde::to_vec(&self)` byte-for-byte. Hand-rolled because
+    /// the on-chain Solana PA does not have risc0-serde available, and borsh
+    /// is not byte-equivalent — borsh encodes `bool` as one byte, risc0-serde
+    /// as a u32 word. The equivalence is pinned by a regression test in the
+    /// `arm` crate.
     pub fn to_journal(&self) -> Result<Vec<u8>, crate::error::ArmError> {
-        let err = |_| crate::error::ArmError::InstanceSerializationFailed;
-
-        // Serialize everything except app_data_hash.
-        let mut bytes = Vec::new();
-        borsh::BorshSerialize::serialize(&self.tag, &mut bytes).map_err(err)?;
-        borsh::BorshSerialize::serialize(&self.is_consumed, &mut bytes).map_err(err)?;
-        borsh::BorshSerialize::serialize(&self.root, &mut bytes).map_err(err)?;
-        borsh::BorshSerialize::serialize(&self.app_data, &mut bytes).map_err(err)?;
-
-        // Pad to 4-byte alignment before the hash.
-        let padding = (4 - bytes.len() % 4) % 4;
-        bytes.resize(bytes.len() + padding, 0);
-
-        // Append the hash (32 bytes, already 4-byte aligned).
-        borsh::BorshSerialize::serialize(&self.app_data_hash, &mut bytes).map_err(err)?;
-
-        Ok(bytes)
+        let mut out = Vec::new();
+        for word in self.tag.as_words() {
+            out.extend_from_slice(&word.to_le_bytes());
+        }
+        out.extend_from_slice(&(self.is_consumed as u32).to_le_bytes());
+        for word in self.root.as_words() {
+            out.extend_from_slice(&word.to_le_bytes());
+        }
+        for blobs in [
+            &self.app_data.resource_payload,
+            &self.app_data.discovery_payload,
+            &self.app_data.external_payload,
+            &self.app_data.application_payload,
+        ] {
+            out.extend_from_slice(&(blobs.len() as u32).to_le_bytes());
+            for blob in blobs {
+                out.extend_from_slice(&(blob.blob.len() as u32).to_le_bytes());
+                for word in &blob.blob {
+                    out.extend_from_slice(&word.to_le_bytes());
+                }
+                out.extend_from_slice(&blob.deletion_criterion.to_le_bytes());
+            }
+        }
+        Ok(out)
     }
 }

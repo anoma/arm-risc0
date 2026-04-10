@@ -5,8 +5,7 @@ use risc0_zkvm::guest::env;
 fn main() {
     let witness: TestLogicWitness = env::read();
 
-    let mut instance = witness.constrain().unwrap();
-    instance.compute_and_set_app_data_hash();
+    let instance = witness.constrain().unwrap();
 
     env::commit(&instance);
 }

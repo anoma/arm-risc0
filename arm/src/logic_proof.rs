@@ -10,11 +10,12 @@ use crate::{
     proving_system::{journal_to_instance, verify as verify_proof},
     resource::Resource,
     resource_logic::TrivialLogicWitness,
+    utils::words_to_bytes,
     Digest,
 };
 use rand::rngs::OsRng;
 use rand::Rng;
-use risc0_zkvm::InnerReceipt;
+use risc0_zkvm::{serde::to_vec, InnerReceipt};
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "prove")]
@@ -92,15 +93,16 @@ pub trait LogicVerifierInputsExt {
 
 impl LogicVerifierInputsExt for LogicVerifierInputs {
     fn to_logic_verifier(self, is_consumed: bool, root: Digest) -> Result<LogicVerifier, ArmError> {
-        let mut expected_instance = self.to_instance(is_consumed, root);
-        expected_instance.compute_and_set_app_data_hash();
-        let provided_instance: LogicInstance = journal_to_instance(&self.instance_journal)?;
-        if provided_instance != expected_instance {
-            return Err(ArmError::LogicInstanceMismatch);
-        }
+        let instance_words = to_vec(&LogicInstance {
+            tag: self.tag,
+            is_consumed,
+            root,
+            app_data: self.app_data.clone(),
+        })
+        .map_err(|_| ArmError::InstanceSerializationFailed)?;
         Ok(LogicVerifier {
             proof: self.proof,
-            instance: self.instance_journal,
+            instance: words_to_bytes(&instance_words).to_vec(),
             verifying_key: self.verifying_key,
         })
     }
@@ -126,7 +128,6 @@ impl TryFrom<LogicVerifier> for LogicVerifierInputs {
             verifying_key: logic_proof.verifying_key,
             app_data: instance.app_data,
             proof: logic_proof.proof,
-            instance_journal: logic_proof.instance,
         })
     }
 }
@@ -222,64 +223,40 @@ fn test_padding_logic_prover() {
     proof.verify().unwrap();
 }
 
-/// Regression test: the app_data_hash must be the last 32 bytes of the journal
-/// in BOTH the borsh (to_journal) and risc0 serde (env::commit) formats.
-/// The on-chain PA extracts the hash via a tail slice, so this invariant is
-/// security-critical.
+/// Pins `LogicInstance::to_journal()` against `risc0_zkvm::serde::to_vec`.
+/// The on-chain Solana PA uses the hand-rolled `to_journal` encoder; if this
+/// test fails, the encoder has drifted from risc0-serde and the PA will
+/// reject every proof until it is updated.
 #[test]
-fn test_app_data_hash_tail_invariant_borsh_and_risc0_serde() {
+fn test_to_journal_matches_risc0_serde() {
     use arm_core::logic_instance::{AppData, ExpirableBlob, LogicInstance};
 
-    // Build a non-trivial LogicInstance with actual app_data content.
     let mut app_data = AppData::new();
-    app_data.add_external_payload(ExpirableBlob {
-        blob: vec![0xDEAD_BEEF, 0xCAFE_BABE, 0x1234_5678],
-        deletion_criterion: 42,
-    });
     app_data.add_resource_payload(ExpirableBlob {
-        blob: vec![1, 2, 3, 4, 5],
-        deletion_criterion: 0,
+        blob: vec![0xDEAD_BEEF, 0xCAFE_BABE, 0x1234_5678],
+        deletion_criterion: 1,
+    });
+    app_data.add_discovery_payload(ExpirableBlob {
+        blob: vec![0xA, 0xB, 0xC, 0xD],
+        deletion_criterion: 2,
+    });
+    app_data.add_external_payload(ExpirableBlob {
+        blob: vec![0x1111_2222, 0x3333_4444, 0x5555_6666, 0x7777_8888],
+        deletion_criterion: 3,
+    });
+    app_data.add_application_payload(ExpirableBlob {
+        blob: vec![1, 2, 3, 4, 5, 6, 7, 8],
+        deletion_criterion: 4,
     });
 
-    let mut instance = LogicInstance {
+    let instance = LogicInstance {
         tag: Digest::from_bytes([0x11; 32]),
         is_consumed: true,
         root: Digest::from_bytes([0x22; 32]),
         app_data,
-        app_data_hash: Digest::default(),
     };
-    instance.compute_and_set_app_data_hash();
 
-    let expected_hash = instance.app_data_hash;
-    assert_ne!(
-        expected_hash,
-        Digest::default(),
-        "Hash of non-empty app_data must not be default"
-    );
-
-    // Path 1: borsh to_journal (used in tests)
-    let borsh_journal = instance.to_journal().unwrap();
-    assert!(borsh_journal.len() >= 32);
-    assert_eq!(borsh_journal.len() % 4, 0, "Journal must be 4-byte aligned");
-    let borsh_tail: [u8; 32] = borsh_journal[borsh_journal.len() - 32..]
-        .try_into()
-        .unwrap();
-    let borsh_tail_digest = Digest::from_bytes(borsh_tail);
-
-    // Path 2: risc0 serde (used in production by env::commit)
-    let risc0_words = risc0_zkvm::serde::to_vec(&instance).expect("risc0 serde should succeed");
-    let risc0_bytes: Vec<u8> = risc0_words.iter().flat_map(|w| w.to_le_bytes()).collect();
-    assert!(risc0_bytes.len() >= 32);
-    let risc0_tail: [u8; 32] = risc0_bytes[risc0_bytes.len() - 32..].try_into().unwrap();
-    let risc0_tail_digest = Digest::from_bytes(risc0_tail);
-
-    // Both tails must equal the computed hash.
-    assert_eq!(
-        borsh_tail_digest, expected_hash,
-        "borsh to_journal tail must contain app_data_hash"
-    );
-    assert_eq!(
-        risc0_tail_digest, expected_hash,
-        "risc0 serde tail must contain app_data_hash"
-    );
+    let hand_rolled = instance.to_journal().unwrap();
+    let risc0_bytes = words_to_bytes(&to_vec(&instance).unwrap()).to_vec();
+    assert_eq!(hand_rolled, risc0_bytes);
 }

@@ -35,7 +35,7 @@ pub const TEST_LOGIC_PK: &[u8] = include_bytes!("../elf/logic-test-guest.bin");
 lazy_static! {
     // test logic verification key / compliance image id
     pub static ref TEST_LOGIC_VK: Digest =
-        Digest::from_hex("3c1e436b47fec2d9e935ea601d6c15113fb5409d31bf97835b779f793e774132")
+        Digest::from_hex("33b1462aa2f5595f5f342a0c5628118fe1c846570b50fe91cd731cf00e26ec36")
             .unwrap();
 }
 
@@ -298,7 +298,10 @@ fn test_empty_transaction_aggregation() {
 
     println!("Empty tx aggregation result: {:?}", result.is_ok());
     if let Ok(()) = &result {
-        println!("aggregation_proof present: {}", tx.aggregation_proof.is_some());
+        println!(
+            "aggregation_proof present: {}",
+            tx.aggregation_proof.is_some()
+        );
         if let Some(proof) = &tx.aggregation_proof {
             println!("proof size: {} bytes", proof.len());
         }
@@ -322,9 +325,6 @@ fn test_cannot_aggregate_invalid_proofs() {
         verifying_key: Digest::try_from([66u8; 32].as_slice()).unwrap(), // Bad key.
         tag: tx.actions[0].logic_verifier_inputs[0].tag,
         app_data: tx.actions[0].logic_verifier_inputs[0].app_data.clone(),
-        instance_journal: tx.actions[0].logic_verifier_inputs[0]
-            .instance_journal
-            .clone(),
     };
 
     let bad_action = Action {

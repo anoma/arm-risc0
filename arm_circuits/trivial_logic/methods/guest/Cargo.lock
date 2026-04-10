@@ -64,7 +64,6 @@ dependencies = [
  "hex-literal",
  "serde",
  "serde_with",
- "sha2",
  "thiserror",
 ]
 
