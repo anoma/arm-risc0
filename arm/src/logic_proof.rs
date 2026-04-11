@@ -223,40 +223,41 @@ fn test_padding_logic_prover() {
     proof.verify().unwrap();
 }
 
-/// Pins `LogicInstance::to_journal()` against `risc0_zkvm::serde::to_vec`.
-/// The on-chain Solana PA uses the hand-rolled `to_journal` encoder; if this
-/// test fails, the encoder has drifted from risc0-serde and the PA will
-/// reject every proof until it is updated.
+/// Pins `LogicInstance::to_journal()` byte-for-byte against
+/// `risc0_zkvm::serde::to_vec`. The Solana PA reads the hand-rolled encoder;
+/// if it drifts, the PA will reject every proof until updated.
 #[test]
 fn test_to_journal_matches_risc0_serde() {
     use arm_core::logic_instance::{AppData, ExpirableBlob, LogicInstance};
 
-    let mut app_data = AppData::new();
-    app_data.add_resource_payload(ExpirableBlob {
-        blob: vec![0xDEAD_BEEF, 0xCAFE_BABE, 0x1234_5678],
-        deletion_criterion: 1,
-    });
-    app_data.add_discovery_payload(ExpirableBlob {
-        blob: vec![0xA, 0xB, 0xC, 0xD],
-        deletion_criterion: 2,
-    });
-    app_data.add_external_payload(ExpirableBlob {
-        blob: vec![0x1111_2222, 0x3333_4444, 0x5555_6666, 0x7777_8888],
-        deletion_criterion: 3,
-    });
-    app_data.add_application_payload(ExpirableBlob {
-        blob: vec![1, 2, 3, 4, 5, 6, 7, 8],
-        deletion_criterion: 4,
-    });
-
+    // Exercise all four payload categories with distinct shapes so an encoding
+    // bug in any one category surfaces here.
     let instance = LogicInstance {
         tag: Digest::from_bytes([0x11; 32]),
         is_consumed: true,
         root: Digest::from_bytes([0x22; 32]),
-        app_data,
+        app_data: AppData {
+            resource_payload: vec![ExpirableBlob {
+                blob: vec![0xDEAD_BEEF, 0xCAFE_BABE, 0x1234_5678],
+                deletion_criterion: 1,
+            }],
+            discovery_payload: vec![ExpirableBlob {
+                blob: vec![0xA, 0xB, 0xC, 0xD],
+                deletion_criterion: 2,
+            }],
+            external_payload: vec![ExpirableBlob {
+                blob: vec![0x1111_2222, 0x3333_4444, 0x5555_6666, 0x7777_8888],
+                deletion_criterion: 3,
+            }],
+            application_payload: vec![ExpirableBlob {
+                blob: vec![1, 2, 3, 4, 5, 6, 7, 8],
+                deletion_criterion: 4,
+            }],
+        },
     };
 
-    let hand_rolled = instance.to_journal().unwrap();
-    let risc0_bytes = words_to_bytes(&to_vec(&instance).unwrap()).to_vec();
-    assert_eq!(hand_rolled, risc0_bytes);
+    assert_eq!(
+        instance.to_journal().unwrap(),
+        words_to_bytes(&to_vec(&instance).unwrap()).to_vec(),
+    );
 }

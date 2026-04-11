@@ -112,12 +112,10 @@ impl AppData {
 }
 
 impl LogicInstance {
-    /// Serializes this instance to journal bytes matching
-    /// `risc0_zkvm::serde::to_vec(&self)` byte-for-byte. Hand-rolled because
-    /// the on-chain Solana PA does not have risc0-serde available, and borsh
-    /// is not byte-equivalent — borsh encodes `bool` as one byte, risc0-serde
-    /// as a u32 word. The equivalence is pinned by a regression test in the
-    /// `arm` crate.
+    /// Hand-rolled risc0-serde encoder, byte-equivalent to
+    /// `risc0_zkvm::serde::to_vec(&self)`. Exists because the Solana PA cannot
+    /// link risc0-serde on-chain. Equivalence is pinned by
+    /// `test_to_journal_matches_risc0_serde` in the `arm` crate.
     pub fn to_journal(&self) -> Result<Vec<u8>, crate::error::ArmError> {
         let mut out = Vec::new();
         for word in self.tag.as_words() {
