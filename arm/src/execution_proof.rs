@@ -15,7 +15,7 @@
 //!    circuit also asserts that the logic verifier input's `verifying_key`
 //!    matches the `logic_ref` committed in the corresponding compliance
 //!    instance, and collects [`ResourceAppData`] for consumed and created
-//!    resources.
+//!    resources, organised per-action as [`ActionInfo`].
 //! 4. **Nullifier non-membership + insertion** — each consumed nullifier is
 //!    absent from the indexed nullifier tree ([`InsertionWitness::apply`]
 //!    proves non-membership and returns the updated root atomically).
@@ -23,9 +23,24 @@
 //!    incremental commitment tree.
 //!
 //! The resulting [`ExecutionProofInstance`] binds the pre- and post-batch
-//! tree roots, the per-resource application data, and the verifying keys used
-//! during verification, so downstream verifiers can chain proofs and inspect
-//! resource payloads without re-running the circuit.
+//! tree roots, the per-transaction [`TxInfo`] (carrying per-action app-data
+//! and action tree roots), and the verifying keys used during verification,
+//! so downstream verifiers can chain proofs and inspect resource payloads
+//! without re-running the circuit.
+//!
+//! ## Type hierarchy
+//!
+//! **Inputs** (witness side, written to the zkVM):
+//! - [`ExecutionProofWitness`] — full private witness
+//! - [`TxInput`] — compact transaction data (proof bytes stripped)
+//! - [`ActionInput`] — compliance instances + stripped logic verifier inputs
+//! - [`LogicVerifierInput`] — tag, verifying key, and app data for one resource
+//!
+//! **Outputs** (instance side, committed to the journal):
+//! - [`ExecutionProofInstance`] — public outputs of the circuit
+//! - [`TxInfo`] — per-transaction structured output
+//! - [`ActionInfo`] — action tree root + app data per action
+//! - [`ResourceAppData`] — tag, logic vk, and app data for one resource
 
 use crate::{
     incremental_merkle_tree::IncrementalMerkleTree, indexed_merkle_tree::InsertionWitness, AppData,
@@ -44,13 +59,36 @@ pub struct ResourceAppData {
     pub app_data: AppData,
 }
 
+/// Per-action output committed in the execution proof instance.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ActionInfo {
+    /// The action tree root derived from the action's compliance instances.
+    pub action_tree_root: Digest,
+    /// Application data for each consumed resource in this action.
+    pub consumed_resource_app_data: Vec<ResourceAppData>,
+    /// Application data for each created resource in this action.
+    pub created_resource_app_data: Vec<ResourceAppData>,
+}
+
+/// Per-transaction output committed in the execution proof instance.
+///
+/// Wraps one [`ActionInfo`] per action in the transaction.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct TxInfo(pub Vec<ActionInfo>);
+
 /// Public outputs of the execution proof, committed to the RISC0 journal.
 ///
 /// Downstream verifiers chain proofs by checking that
 /// `old_commitment_tree_root` and `old_nullifier_tree_root` of a later proof
 /// match the outputs of the preceding one.  The committed `batch_aggregation_vk`
-/// and `compliance_vk` make the verifying keys that were used during proof
-/// verification an explicit part of the instance, binding them to the journal.
+/// and `compliance_vk` make the verifying keys used during proof verification
+/// an explicit part of the instance, binding them to the journal.
+///
+/// Per-transaction resource app-data and action tree roots are structured in
+/// [`tx_infos`]: one [`TxInfo`] per transaction, each containing one
+/// [`ActionInfo`] per action.
+///
+/// [`tx_infos`]: ExecutionProofInstance::tx_infos
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ExecutionProofInstance {
     /// Commitment tree root before the batch was executed.
@@ -61,10 +99,8 @@ pub struct ExecutionProofInstance {
     pub new_commitment_root: Digest,
     /// Nullifier tree root after executing the batch.
     pub new_nullifier_tree_root: Digest,
-    /// Application data for each consumed resource in this execution batch.
-    pub consumed_resource_app_data: Vec<ResourceAppData>,
-    /// Application data for each created resource in this execution batch.
-    pub created_resource_app_data: Vec<ResourceAppData>,
+    /// Per-transaction structured output, one entry per transaction in the batch.
+    pub tx_infos: Vec<TxInfo>,
     /// Verifying key for the batch aggregation circuit.
     pub batch_aggregation_vk: Digest,
     /// Verifying key for the compliance circuit.

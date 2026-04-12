@@ -2,7 +2,10 @@ use anoma_rm_risc0::{
     action_tree::MerkleTree,
     compliance::{ComplianceInstanceExt, ComplianceInstanceWords},
     delta_proof::{DeltaInstance, DeltaProof},
-    execution_proof::{ActionInput, ExecutionProofInstance, ExecutionProofWitness, ResourceAppData},
+    execution_proof::{
+        ActionInfo, ActionInput, ExecutionProofInstance, ExecutionProofWitness, ResourceAppData,
+        TxInfo,
+    },
     Digest, LogicInstance,
 };
 use risc0_zkvm::guest::env;
@@ -19,6 +22,8 @@ struct ActionLogicData {
     lp_instances_u32: Vec<Vec<u32>>,
     /// Verifying keys parallel to `lp_instances_u32`.
     lp_vks: Vec<Digest>,
+    /// The action tree root derived from the compliance instances.
+    action_root: Digest,
     /// App-data for consumed resources (nullifier tags), in CU order.
     consumed_resource_app_data: Vec<ResourceAppData>,
     /// App-data for created resources (commitment tags), in CU order.
@@ -93,6 +98,7 @@ fn collect_action_logic(action: &ActionInput) -> ActionLogicData {
     ActionLogicData {
         lp_instances_u32,
         lp_vks,
+        action_root: root,
         consumed_resource_app_data,
         created_resource_app_data,
     }
@@ -102,10 +108,8 @@ fn collect_action_logic(action: &ActionInput) -> ActionLogicData {
 struct TxVerificationData {
     /// Serialised aggregation instance ready for `env::verify`.
     agg_words: Vec<u32>,
-    /// App-data for consumed resources across all actions.
-    consumed_resource_app_data: Vec<ResourceAppData>,
-    /// App-data for created resources across all actions.
-    created_resource_app_data: Vec<ResourceAppData>,
+    /// Structured per-action output for the execution proof instance.
+    tx_info: TxInfo,
 }
 
 /// Serialises the batch-aggregation circuit journal as `u32` words for `env::verify`.
@@ -134,15 +138,17 @@ fn aggregation_instance_words(
 
     let mut lp_vks = Vec::new();
     let mut lp_instances_u32 = Vec::new();
-    let mut consumed_resource_app_data = Vec::new();
-    let mut created_resource_app_data = Vec::new();
+    let mut action_infos = Vec::new();
 
     for action in &tx.actions {
         let data = collect_action_logic(action);
         lp_vks.extend(data.lp_vks);
         lp_instances_u32.extend(data.lp_instances_u32);
-        consumed_resource_app_data.extend(data.consumed_resource_app_data);
-        created_resource_app_data.extend(data.created_resource_app_data);
+        action_infos.push(ActionInfo {
+            action_tree_root: data.action_root,
+            consumed_resource_app_data: data.consumed_resource_app_data,
+            created_resource_app_data: data.created_resource_app_data,
+        });
     }
 
     let agg_words = risc0_zkvm::serde::to_vec(&(
@@ -155,8 +161,7 @@ fn aggregation_instance_words(
 
     TxVerificationData {
         agg_words,
-        consumed_resource_app_data,
-        created_resource_app_data,
+        tx_info: TxInfo(action_infos),
     }
 }
 
@@ -216,8 +221,7 @@ pub fn main() {
     let batch_agg_vk_risc0 = vk_to_risc0(&witness.batch_aggregation_vk);
     let compliance_vk = witness.compliance_vk;
 
-    let mut consumed_resource_app_data: Vec<ResourceAppData> = Vec::new();
-    let mut created_resource_app_data: Vec<ResourceAppData> = Vec::new();
+    let mut tx_infos: Vec<TxInfo> = Vec::new();
 
     for tx in &witness.transactions {
         // --- 3a. Delta proof ---
@@ -263,8 +267,7 @@ pub fn main() {
         let tx_data = aggregation_instance_words(tx, &compliance_vk);
         env::verify(batch_agg_vk_risc0, &tx_data.agg_words)
             .expect("aggregation proof verification failed");
-        consumed_resource_app_data.extend(tx_data.consumed_resource_app_data);
-        created_resource_app_data.extend(tx_data.created_resource_app_data);
+        tx_infos.push(tx_data.tx_info);
     }
 
     // -----------------------------------------------------------------------
@@ -305,8 +308,7 @@ pub fn main() {
         old_nullifier_tree_root: witness.old_nullifier_tree_root,
         new_commitment_root: commitment_tree.root(),
         new_nullifier_tree_root: nullifier_root,
-        consumed_resource_app_data,
-        created_resource_app_data,
+        tx_infos,
         batch_aggregation_vk: witness.batch_aggregation_vk,
         compliance_vk: witness.compliance_vk,
     });

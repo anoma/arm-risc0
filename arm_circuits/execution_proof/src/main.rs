@@ -154,8 +154,7 @@ mod tests {
             old_nullifier_tree_root: d(2),
             new_commitment_root: d(3),
             new_nullifier_tree_root: d(4),
-            consumed_resource_app_data: vec![],
-            created_resource_app_data: vec![],
+            tx_infos: vec![],
             batch_aggregation_vk: vk(&BATCH_AGGREGATION_VK_BYTES),
             compliance_vk: vk(&COMPLIANCE_VK_BYTES),
         };
