@@ -2,7 +2,7 @@ use anoma_rm_risc0::{
     action_tree::MerkleTree,
     compliance::{ComplianceInstanceExt, ComplianceInstanceWords},
     delta_proof::{DeltaInstance, DeltaProof},
-    execution_proof::{ActionInfo, ExecutionProofInstance, ExecutionProofWitness, ResourceAppData},
+    execution_proof::{ActionInput, ExecutionProofInstance, ExecutionProofWitness, ResourceAppData},
     Digest, LogicInstance,
 };
 use risc0_zkvm::guest::env;
@@ -32,7 +32,7 @@ struct ActionLogicData {
 ///   `logic_ref` committed inside the compliance instance.
 /// - Serialises each [`LogicInstance`] for the aggregation proof.
 /// - Splits [`ResourceAppData`] into consumed and created buckets.
-fn collect_action_logic(action: &ActionInfo) -> ActionLogicData {
+fn collect_action_logic(action: &ActionInput) -> ActionLogicData {
     let mut tags = Vec::new();
     let mut logic_refs = Vec::new();
 
@@ -110,7 +110,7 @@ struct TxVerificationData {
 
 /// Serialises the batch-aggregation circuit journal as `u32` words for `env::verify`.
 ///
-/// Combines the compliance instances (derived directly from [`ActionInfo`])
+/// Combines the compliance instances (derived directly from [`ActionInput`])
 /// with the per-action logic data (collected by [`collect_action_logic`]) and
 /// `compliance_vk` into the tuple expected by the batch aggregation circuit,
 /// then serialises it with `risc0_zkvm::serde`.
@@ -120,10 +120,10 @@ struct TxVerificationData {
 /// The returned [`TxVerificationData`] also carries the [`ResourceAppData`]
 /// for all resources in the transaction.
 fn aggregation_instance_words(
-    tx: &anoma_rm_risc0::execution_proof::TxInfo,
+    tx: &anoma_rm_risc0::execution_proof::TxInput,
     compliance_vk: &Digest,
 ) -> TxVerificationData {
-    // Build compliance instance words directly from the ActionInfo structs —
+    // Build compliance instance words directly from the ActionInput structs —
     // no journal byte parsing needed.
     let compliance_instances_u32: Vec<ComplianceInstanceWords> = tx
         .actions
@@ -224,7 +224,7 @@ pub fn main() {
         //
         // Compute the delta message (concat of nullifier+commitment bytes for
         // each compliance unit) and the delta instance (sum of delta EC points
-        // from each compliance instance) directly from the ActionInfo data.
+        // from each compliance instance) directly from the ActionInput data.
         // No Transaction object or journal parsing is needed.
         let msg: Vec<u8> = tx
             .actions

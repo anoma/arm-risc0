@@ -37,7 +37,7 @@
 /// ```
 use anoma_rm_risc0::{
     constants::{BATCH_AGGREGATION_VK_BYTES, COMPLIANCE_VK_BYTES},
-    execution_proof::{ExecutionProofWitness, TxInfo},
+    execution_proof::{ExecutionProofWitness, TxInput},
     incremental_merkle_tree::IncrementalMerkleTree,
     indexed_merkle_tree::IndexedMerkleTree,
     proving_system::ProofType,
@@ -109,9 +109,9 @@ fn build_witness(transactions: Vec<Transaction>) -> ExecutionProofWitness {
         }
     }
 
-    let tx_infos: Vec<TxInfo> = transactions
+    let tx_infos: Vec<TxInput> = transactions
         .iter()
-        .map(|tx| TxInfo::from_transaction(tx).expect("tx to tx_info"))
+        .map(|tx| TxInput::from_transaction(tx).expect("tx to tx_info"))
         .collect();
 
     ExecutionProofWitness {

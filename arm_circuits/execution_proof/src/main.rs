@@ -6,7 +6,7 @@ pub fn main() {
     {
         use anoma_rm_risc0::{
             constants::{BATCH_AGGREGATION_VK_BYTES, COMPLIANCE_VK_BYTES},
-            execution_proof::TxInfo,
+            execution_proof::TxInput,
             incremental_merkle_tree::IncrementalMerkleTree,
             indexed_merkle_tree::IndexedMerkleTree,
             proving_system::ProofType,
@@ -40,7 +40,7 @@ pub fn main() {
             }
         }
 
-        let tx_info = TxInfo::from_transaction(&tx).unwrap();
+        let tx_info = TxInput::from_transaction(&tx).unwrap();
         let witness = ExecutionProofWitness {
             transactions: vec![tx_info],
             commitment_tree: IncrementalMerkleTree::new(3),
@@ -91,7 +91,7 @@ pub fn prove(
 mod tests {
     use anoma_rm_risc0::{
         constants::{BATCH_AGGREGATION_VK_BYTES, COMPLIANCE_VK_BYTES},
-        execution_proof::{ExecutionProofInstance, ExecutionProofWitness, TxInfo},
+        execution_proof::{ExecutionProofInstance, ExecutionProofWitness, TxInput},
         incremental_merkle_tree::IncrementalMerkleTree,
         indexed_merkle_tree::IndexedMerkleTree,
         Digest,
@@ -133,15 +133,15 @@ mod tests {
     fn tx_info_serde_roundtrip() {
         // aggregation_proof is #[serde(skip)] so it is stripped from both
         // bincode and risc0 serde output.  The host reads it directly from
-        // the in-memory TxInfo before calling env_builder.write(), so it
+        // the in-memory TxInput before calling env_builder.write(), so it
         // never needs to cross any serialisation boundary.
-        let tx_info = TxInfo {
+        let tx_info = TxInput {
             actions: vec![],
             delta_proof: vec![0u8; 65],
             aggregation_proof: vec![1, 2, 3],
         };
         let encoded = bincode::serialize(&tx_info).unwrap();
-        let decoded: TxInfo = bincode::deserialize(&encoded).unwrap();
+        let decoded: TxInput = bincode::deserialize(&encoded).unwrap();
         assert_eq!(decoded.delta_proof, tx_info.delta_proof);
         assert_eq!(decoded.aggregation_proof, Vec::<u8>::new());
     }
@@ -271,7 +271,7 @@ mod tests {
         let old_nullifier_root = IndexedMerkleTree::new().root();
         let old_commitment_root = commitment_tree.root();
 
-        let tx_info = TxInfo::from_transaction(&tx).unwrap();
+        let tx_info = TxInput::from_transaction(&tx).unwrap();
         let witness = ExecutionProofWitness {
             transactions: vec![tx_info],
             commitment_tree,
@@ -347,9 +347,9 @@ mod tests {
         let commitment_tree = IncrementalMerkleTree::new(3);
         let old_nullifier_root = IndexedMerkleTree::new().root();
 
-        let tx_infos: Vec<TxInfo> = [&tx1, &tx2]
+        let tx_infos: Vec<TxInput> = [&tx1, &tx2]
             .iter()
-            .map(|tx| TxInfo::from_transaction(tx).unwrap())
+            .map(|tx| TxInput::from_transaction(tx).unwrap())
             .collect();
         let witness = ExecutionProofWitness {
             transactions: tx_infos,

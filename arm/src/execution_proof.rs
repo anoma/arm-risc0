@@ -80,7 +80,7 @@ pub struct ExecutionProofInstance {
 ///
 /// [`LogicVerifierInputs`]: crate::LogicVerifierInputs
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
-pub struct LogicVerifierInfo {
+pub struct LogicVerifierInput {
     /// The resource tag (nullifier for consumed, commitment for created).
     pub tag: Digest,
     /// The verifying key of the resource's logic proof circuit.
@@ -95,11 +95,11 @@ pub struct LogicVerifierInfo {
 /// computation and aggregation instance construction) and the stripped logic
 /// verifier inputs (for app-data collection and logic-ref consistency checks).
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
-pub struct ActionInfo {
+pub struct ActionInput {
     /// Compliance instances for this action, one per compliance unit.
     pub compliance_instances: Vec<ComplianceInstance>,
     /// Logic verifier inputs stripped of their proof bytes.
-    pub logic_verifier_inputs: Vec<LogicVerifierInfo>,
+    pub logic_verifier_inputs: Vec<LogicVerifierInput>,
 }
 
 /// Compact transaction data for the execution proof circuit.
@@ -112,9 +112,9 @@ pub struct ActionInfo {
 ///
 /// [`Transaction`]: crate::Transaction
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct TxInfo {
+pub struct TxInput {
     /// Per-action compliance and logic data for this transaction.
-    pub actions: Vec<ActionInfo>,
+    pub actions: Vec<ActionInput>,
     /// The 65-byte ECDSA delta proof bytes.
     pub delta_proof: Vec<u8>,
     /// The serialised aggregation proof `InnerReceipt` (host-only).
@@ -126,8 +126,8 @@ pub struct TxInfo {
     pub aggregation_proof: Vec<u8>,
 }
 
-impl TxInfo {
-    /// Converts a fully-proved [`Transaction`] into a [`TxInfo`].
+impl TxInput {
+    /// Converts a fully-proved [`Transaction`] into a [`TxInput`].
     ///
     /// Strips every field not needed by the guest (individual compliance and
     /// logic proof bytes, delta witness) while preserving `aggregation_proof`
@@ -148,13 +148,13 @@ impl TxInfo {
                 let logic_verifier_inputs = action
                     .logic_verifier_inputs
                     .iter()
-                    .map(|lvi| LogicVerifierInfo {
+                    .map(|lvi| LogicVerifierInput {
                         tag: lvi.tag,
                         verifying_key: lvi.verifying_key,
                         app_data: lvi.app_data.clone(),
                     })
                     .collect();
-                ActionInfo {
+                ActionInput {
                     compliance_instances,
                     logic_verifier_inputs,
                 }
@@ -171,7 +171,7 @@ impl TxInfo {
             .clone()
             .ok_or(crate::ArmError::MissingField("aggregation_proof"))?;
 
-        Ok(TxInfo {
+        Ok(TxInput {
             actions,
             delta_proof,
             aggregation_proof,
@@ -196,8 +196,8 @@ impl TxInfo {
 /// [`compliance_vk`]: ExecutionProofWitness::compliance_vk
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ExecutionProofWitness {
-    /// The transactions to execute and verify, in compact [`TxInfo`] form.
-    pub transactions: Vec<TxInfo>,
+    /// The transactions to execute and verify, in compact [`TxInput`] form.
+    pub transactions: Vec<TxInput>,
     /// Incremental commitment tree state before the batch.
     pub commitment_tree: IncrementalMerkleTree,
     /// Indexed nullifier tree root before the batch.
