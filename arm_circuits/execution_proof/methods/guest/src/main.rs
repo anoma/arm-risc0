@@ -30,68 +30,69 @@ struct ActionLogicData {
     created_resource_app_data: Vec<ResourceAppData>,
 }
 
-/// Processes a single action in one pass over its compliance instances:
+/// Processes a single action's compliance instances and logic verifier inputs:
 ///
-/// - Builds the ordered tag / logic-ref lists for the action tree.
+/// - Builds the action tree and derives its root (one pass over CUs for tags).
 /// - Asserts that each input's `verifying_key` matches the corresponding
 ///   `logic_ref` committed inside the compliance instance.
 /// - Serialises each [`LogicInstance`] for the aggregation proof.
 /// - Splits [`ResourceAppData`] into consumed and created buckets.
 fn collect_action_logic(action: &ActionInput) -> ActionLogicData {
-    let mut tags = Vec::new();
-    let mut logic_refs = Vec::new();
+    let n = action.compliance_instances.len();
 
-    for ci in &action.compliance_instances {
-        // Ordered as [consumed, created] per CU to match proof construction.
-        tags.push(ci.consumed_nullifier);
-        logic_refs.push(ci.consumed_logic_ref);
-        tags.push(ci.created_commitment);
-        logic_refs.push(ci.created_logic_ref);
-    }
-
-    let root = MerkleTree::from(tags.clone())
+    // Pass 1: build tree tags (2 per CU) and compute the action tree root.
+    let tree_tags: Vec<Digest> = action
+        .compliance_instances
+        .iter()
+        .flat_map(|ci| [ci.consumed_nullifier, ci.created_commitment])
+        .collect();
+    let root = MerkleTree::from(tree_tags)
         .root()
         .expect("action tree root");
 
-    let mut lp_vks = Vec::new();
-    let mut lp_instances_u32 = Vec::new();
-    let mut consumed_resource_app_data = Vec::new();
-    let mut created_resource_app_data = Vec::new();
+    // Pass 2: process logic verifier inputs for each (tag, logic_ref) pair.
+    let mut lp_vks = Vec::with_capacity(2 * n);
+    let mut lp_instances_u32 = Vec::with_capacity(2 * n);
+    let mut consumed_resource_app_data = Vec::with_capacity(n);
+    let mut created_resource_app_data = Vec::with_capacity(n);
 
-    for (index, (tag, logic_ref)) in tags.iter().zip(logic_refs.iter()).enumerate() {
-        let is_consumed = index % 2 == 0;
+    for ci in &action.compliance_instances {
+        for (tag, logic_ref, is_consumed) in [
+            (ci.consumed_nullifier, ci.consumed_logic_ref, true),
+            (ci.created_commitment, ci.created_logic_ref, false),
+        ] {
+            let input = action
+                .logic_verifier_inputs
+                .iter()
+                .find(|i| i.tag == tag)
+                .expect("logic verifier input not found for tag");
 
-        let input = action
-            .logic_verifier_inputs
-            .iter()
-            .find(|i| i.tag == *tag)
-            .expect("logic verifier input not found for tag");
+            assert_eq!(
+                input.verifying_key, logic_ref,
+                "verifying key does not match logic ref for tag"
+            );
 
-        assert_eq!(
-            input.verifying_key, *logic_ref,
-            "verifying key does not match logic ref for tag"
-        );
+            lp_instances_u32.push(
+                risc0_zkvm::serde::to_vec(&LogicInstance {
+                    tag: input.tag,
+                    is_consumed,
+                    root,
+                    app_data: input.app_data.clone(),
+                })
+                .expect("serialize logic instance"),
+            );
+            lp_vks.push(input.verifying_key);
 
-        lp_instances_u32.push(
-            risc0_zkvm::serde::to_vec(&LogicInstance {
+            let resource_app_data = ResourceAppData {
                 tag: input.tag,
-                is_consumed,
-                root,
+                vk: input.verifying_key,
                 app_data: input.app_data.clone(),
-            })
-            .expect("serialize logic instance"),
-        );
-        lp_vks.push(input.verifying_key);
-
-        let resource_app_data = ResourceAppData {
-            tag: input.tag,
-            vk: input.verifying_key,
-            app_data: input.app_data.clone(),
-        };
-        if is_consumed {
-            consumed_resource_app_data.push(resource_app_data);
-        } else {
-            created_resource_app_data.push(resource_app_data);
+            };
+            if is_consumed {
+                consumed_resource_app_data.push(resource_app_data);
+            } else {
+                created_resource_app_data.push(resource_app_data);
+            }
         }
     }
 
@@ -136,9 +137,14 @@ fn aggregation_instance_words(
         .map(ComplianceInstanceWords::from)
         .collect();
 
-    let mut lp_vks = Vec::new();
-    let mut lp_instances_u32 = Vec::new();
-    let mut action_infos = Vec::new();
+    let total_cus: usize = tx
+        .actions
+        .iter()
+        .map(|a| a.compliance_instances.len())
+        .sum();
+    let mut lp_vks = Vec::with_capacity(2 * total_cus);
+    let mut lp_instances_u32 = Vec::with_capacity(2 * total_cus);
+    let mut action_infos = Vec::with_capacity(tx.actions.len());
 
     for action in &tx.actions {
         let data = collect_action_logic(action);
@@ -189,8 +195,14 @@ pub fn main() {
     //    Nullifiers and commitments are collected here in tx → action → CU
     //    order for reuse in step 3c, avoiding a second pass over the witness.
     // -----------------------------------------------------------------------
-    let mut nullifiers: Vec<Digest> = Vec::new();
-    let mut commitments: Vec<Digest> = Vec::new();
+    let total_cus: usize = witness
+        .transactions
+        .iter()
+        .flat_map(|tx| tx.actions.iter())
+        .map(|a| a.compliance_instances.len())
+        .sum();
+    let mut nullifiers: Vec<Digest> = Vec::with_capacity(total_cus);
+    let mut commitments: Vec<Digest> = Vec::with_capacity(total_cus);
     for tx in &witness.transactions {
         for action in &tx.actions {
             for ci in &action.compliance_instances {
@@ -203,8 +215,10 @@ pub fn main() {
     // Sort a copy of the nullifiers and check adjacent pairs for duplicates.
     // Sorting uses only integer comparisons (Digest is [u32; 8]), which is far
     // cheaper in the zkVM than HashSet whose SipHash has no RISC0 accelerator.
+    // The copy is necessary because `nullifiers` must stay in original order
+    // for zipping with `nullifier_witnesses` in step 3c.
     let mut sorted_nullifiers = nullifiers.clone();
-    sorted_nullifiers.sort_by_key(|d| *d.as_words());
+    sorted_nullifiers.sort_unstable_by_key(|d| *d.as_words());
     for window in sorted_nullifiers.windows(2) {
         assert_ne!(
             window[0], window[1],
@@ -221,7 +235,7 @@ pub fn main() {
     let batch_agg_vk_risc0 = vk_to_risc0(&witness.batch_aggregation_vk);
     let compliance_vk = witness.compliance_vk;
 
-    let mut tx_infos: Vec<TxInfo> = Vec::new();
+    let mut tx_infos: Vec<TxInfo> = Vec::with_capacity(witness.transactions.len());
 
     for tx in &witness.transactions {
         // --- 3a. Delta proof ---
@@ -230,24 +244,20 @@ pub fn main() {
         // each compliance unit) and the delta instance (sum of delta EC points
         // from each compliance instance) directly from the ActionInput data.
         // No Transaction object or journal parsing is needed.
-        let msg: Vec<u8> = tx
+        let tx_cus: usize = tx
             .actions
             .iter()
-            .flat_map(|a| a.compliance_instances.iter())
-            .flat_map(|ci| {
-                let mut bytes = Vec::with_capacity(64);
-                bytes.extend_from_slice(ci.consumed_nullifier.as_bytes());
-                bytes.extend_from_slice(ci.created_commitment.as_bytes());
-                bytes
-            })
-            .collect();
-
-        let delta_points: Vec<_> = tx
-            .actions
-            .iter()
-            .flat_map(|a| a.compliance_instances.iter())
-            .map(|ci| ci.delta_projective().expect("delta projective"))
-            .collect();
+            .map(|a| a.compliance_instances.len())
+            .sum();
+        let mut msg = Vec::with_capacity(tx_cus * 64);
+        let mut delta_points = Vec::with_capacity(tx_cus);
+        for a in &tx.actions {
+            for ci in &a.compliance_instances {
+                msg.extend_from_slice(ci.consumed_nullifier.as_bytes());
+                msg.extend_from_slice(ci.created_commitment.as_bytes());
+                delta_points.push(ci.delta_projective().expect("delta projective"));
+            }
+        }
         let delta_instance = DeltaInstance::from_deltas(&delta_points).expect("delta instance");
 
         let proof = DeltaProof::from_bytes(&tx.delta_proof).expect("deserialize delta proof");
