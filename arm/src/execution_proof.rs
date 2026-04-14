@@ -232,12 +232,16 @@ impl TxInput {
 /// [`compliance_vk`]: ExecutionProofWitness::compliance_vk
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ExecutionProofWitness {
-    /// The transactions to execute and verify, in compact [`TxInput`] form.
-    pub transactions: Vec<TxInput>,
     /// Incremental commitment tree state before the batch.
     pub commitment_tree: IncrementalMerkleTree,
     /// Indexed nullifier tree root before the batch.
     pub old_nullifier_tree_root: Digest,
+    /// The transactions to execute and verify, in compact [`TxInput`] form.
+    pub transactions: Vec<TxInput>,
+    /// Verifying key for the batch aggregation circuit.
+    pub batch_aggregation_vk: Digest,
+    /// Verifying key for the compliance circuit.
+    pub compliance_vk: Digest,
     /// Nullifier insertion witnesses in transaction → action → compliance-unit
     /// order; one entry per compliance unit across the entire batch.
     ///
@@ -245,8 +249,4 @@ pub struct ExecutionProofWitness {
     /// from the current nullifier tree root and returns the root after
     /// insertion, threading state forward to the next witness.
     pub nullifier_witnesses: Vec<InsertionWitness>,
-    /// Verifying key for the batch aggregation circuit.
-    pub batch_aggregation_vk: Digest,
-    /// Verifying key for the compliance circuit.
-    pub compliance_vk: Digest,
 }

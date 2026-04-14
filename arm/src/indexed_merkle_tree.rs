@@ -183,6 +183,8 @@ impl NonMembershipProof {
 pub struct InsertionWitness {
     /// Predecessor leaf before insertion: `predecessor.value < v < predecessor.next_value`.
     pub predecessor: IndexedLeaf,
+    /// `true` if the tree depth increased by 1 to accommodate the new leaf.
+    pub grew: bool,
     /// Merkle path for the predecessor, valid against the *insertion root*.
     ///
     /// The insertion root is `old_root` when `grew = false`, or
@@ -192,8 +194,6 @@ pub struct InsertionWitness {
     /// Merkle path for the new leaf `(v → hi)`, valid against the
     /// *intermediate root* produced after rewriting the predecessor.
     pub new_leaf_path: MerklePath,
-    /// `true` if the tree depth increased by 1 to accommodate the new leaf.
-    pub grew: bool,
 }
 
 impl InsertionWitness {
