@@ -1,7 +1,6 @@
 use anoma_rm_risc0::{
     action_tree::MerkleTree,
     compliance::{ComplianceInstanceExt, ComplianceInstanceWords},
-    delta_proof::{DeltaInstance, DeltaProof},
     execution_proof::{
         ActionInfo, ActionInput, ExecutionProofInstance, ExecutionProofWitness, ResourceAppData,
         TxInfo,
@@ -109,8 +108,8 @@ fn collect_action_logic(action: &ActionInput) -> ActionLogicData {
 struct TxVerificationData {
     /// Serialised aggregation instance ready for `env::verify`.
     agg_words: Vec<u32>,
-    /// Structured per-action output for the execution proof instance.
-    tx_info: TxInfo,
+    /// Structured per-action output; delta data is added by the caller.
+    action_infos: Vec<ActionInfo>,
 }
 
 /// Serialises the batch-aggregation circuit journal as `u32` words for `env::verify`.
@@ -167,7 +166,7 @@ fn aggregation_instance_words(
 
     TxVerificationData {
         agg_words,
-        tx_info: TxInfo(action_infos),
+        action_infos,
     }
 }
 
@@ -238,30 +237,13 @@ pub fn main() {
     let mut tx_infos: Vec<TxInfo> = Vec::with_capacity(witness.transactions.len());
 
     for tx in &witness.transactions {
-        // --- 3a. Delta proof ---
+        // --- 3a. Delta proof (pass-through) ---
         //
-        // Compute the delta message (concat of nullifier+commitment bytes for
-        // each compliance unit) and the delta instance (sum of delta EC points
-        // from each compliance instance) directly from the ActionInput data.
-        // No Transaction object or journal parsing is needed.
-        let tx_cus: usize = tx
-            .actions
-            .iter()
-            .map(|a| a.compliance_instances.len())
-            .sum();
-        let mut msg = Vec::with_capacity(tx_cus * 64);
-        let mut delta_points = Vec::with_capacity(tx_cus);
-        for a in &tx.actions {
-            for ci in &a.compliance_instances {
-                msg.extend_from_slice(ci.consumed_nullifier.as_bytes());
-                msg.extend_from_slice(ci.created_commitment.as_bytes());
-                delta_points.push(ci.delta_projective().expect("delta projective"));
-            }
-        }
-        let delta_instance = DeltaInstance::from_deltas(&delta_points).expect("delta instance");
-
-        let proof = DeltaProof::from_bytes(&tx.delta_proof).expect("deserialize delta proof");
-        DeltaProof::verify(&msg, &proof, delta_instance).expect("delta proof invalid");
+        // The delta proof is not verified inside the zkVM — ECDSA recovery is
+        // the dominant cost (~62% of total cycles).  The raw proof bytes are
+        // committed to the journal so an external verifier can check the
+        // signature against the delta message they reconstruct from the
+        // committed nullifiers and commitments.
 
         // --- 3b. Batch aggregation proof ---
         //
@@ -277,7 +259,10 @@ pub fn main() {
         let tx_data = aggregation_instance_words(tx, &compliance_vk);
         env::verify(batch_agg_vk_risc0, &tx_data.agg_words)
             .expect("aggregation proof verification failed");
-        tx_infos.push(tx_data.tx_info);
+        tx_infos.push(TxInfo {
+            action_infos: tx_data.action_infos,
+            delta_proof: tx.delta_proof.clone(),
+        });
     }
 
     // -----------------------------------------------------------------------

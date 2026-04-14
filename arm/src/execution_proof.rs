@@ -7,7 +7,9 @@
 //!
 //! 1. **Nullifier uniqueness** — no two compliance units in the batch consume
 //!    the same nullifier, checked via sort + adjacent comparison.
-//! 2. **Delta proof** — the transaction's delta proof is valid.
+//! 2. **Delta proof** — not verified inside the circuit; the raw proof bytes
+//!    and the per-CU delta message are passed through to the journal so an
+//!    external verifier can check the ECDSA signature outside the zkVM.
 //! 3. **Aggregation proof** — all compliance and logic proofs within the
 //!    transaction have been aggregated and verified against
 //!    [`ExecutionProofWitness::batch_aggregation_vk`] and
@@ -71,10 +73,16 @@ pub struct ActionInfo {
 }
 
 /// Per-transaction output committed in the execution proof instance.
-///
-/// Wraps one [`ActionInfo`] per action in the transaction.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
-pub struct TxInfo(pub Vec<ActionInfo>);
+pub struct TxInfo {
+    /// One [`ActionInfo`] per action in the transaction.
+    pub action_infos: Vec<ActionInfo>,
+    /// Raw delta proof bytes (65 bytes: 64-byte ECDSA signature + 1-byte
+    /// recovery ID) passed through from the witness without verification.
+    /// External verifiers reconstruct the delta message from the committed
+    /// nullifiers and commitments and check the ECDSA signature there.
+    pub delta_proof: Vec<u8>,
+}
 
 /// Public outputs of the execution proof, committed to the RISC0 journal.
 ///
