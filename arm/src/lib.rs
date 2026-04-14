@@ -14,6 +14,9 @@ pub mod constants;
 #[cfg(feature = "transaction")]
 pub mod delta_proof;
 pub mod error;
+pub mod execution_proof;
+pub mod incremental_merkle_tree;
+pub mod indexed_merkle_tree;
 pub mod logic_instance;
 #[cfg(feature = "transaction")]
 pub mod logic_proof;
@@ -50,6 +53,7 @@ pub use crate::action::ActionExt;
 pub use crate::compliance::{ComplianceInstanceExt, ComplianceInstanceJournalExt};
 #[cfg(feature = "transaction")]
 pub use crate::compliance_unit::ComplianceUnitExt;
+pub use crate::execution_proof::{ActionInfo, ActionInput, LogicVerifierInput, TxInfo, TxInput};
 #[cfg(feature = "transaction")]
 pub use crate::logic_proof::LogicVerifierInputsExt;
 pub use crate::merkle_path::MerklePathExt;

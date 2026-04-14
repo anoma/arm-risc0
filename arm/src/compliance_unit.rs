@@ -6,13 +6,14 @@ use k256::ProjectivePoint;
 use risc0_zkvm::InnerReceipt;
 
 use crate::{
-    compliance::{ComplianceInstanceExt, ComplianceInstanceJournalExt, ComplianceWitness},
+    compliance::{ComplianceInstanceExt, ComplianceInstanceJournalExt},
     constants::COMPLIANCE_VK,
     error::ArmError,
 };
 
 #[cfg(feature = "prove")]
 use crate::{
+    compliance::ComplianceWitness,
     constants::COMPLIANCE_PK,
     proving_system::{prove, ProofType},
 };

@@ -1,0 +1,34 @@
+[package]
+name = "execution-proof"
+version = "1.0.0"
+edition = "2021"
+
+[dependencies]
+execution-proof-methods = { path = "methods" }
+risc0-zkvm = "3.0.3"
+anoma-rm-risc0 = { path = "../../arm", features = [
+  "transaction",
+], default-features = false }
+bincode = "1.3.3"
+anoma-rm-risc0-test-app = { path = "../../arm_tests/arm_test_app", optional = true }
+
+[features]
+default = []
+cuda = ["risc0-zkvm/cuda"]
+prove = [
+  "risc0-zkvm/prove",
+  "anoma-rm-risc0/aggregation",
+  "anoma-rm-risc0/prove",
+  "dep:anoma-rm-risc0-test-app",
+]
+bonsai = ["risc0-zkvm/bonsai"]
+
+[dev-dependencies]
+anoma-rm-risc0 = { path = "../../arm", features = ["aggregation", "prove"] }
+anoma-rm-risc0-test-app = { path = "../../arm_tests/arm_test_app" }
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "prove"
+harness = false
+required-features = ["prove"]

@@ -12,7 +12,15 @@ pub struct DeltaWitness(pub [u8; 32]);
 
 impl Serialize for DeltaProof {
     fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
-        s.serialize_bytes(&self.0)
+        // Use serialize_seq so that RISC0 serde (which packs 4 bytes per u32
+        // word in serialize_bytes but stores 1 byte per word in serialize_seq)
+        // stays consistent with Vec<u8>::deserialize on the guest side.
+        // Bincode treats serialize_bytes and serialize_seq(u8) identically.
+        let mut seq = s.serialize_seq(Some(self.0.len()))?;
+        for byte in &self.0 {
+            serde::ser::SerializeSeq::serialize_element(&mut seq, byte)?;
+        }
+        serde::ser::SerializeSeq::end(seq)
     }
 }
 
@@ -27,7 +35,13 @@ impl<'de> Deserialize<'de> for DeltaProof {
 
 impl Serialize for DeltaWitness {
     fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
-        s.serialize_bytes(&self.0)
+        // Same rationale as DeltaProof: use serialize_seq for RISC0 serde
+        // compatibility while remaining wire-compatible with bincode.
+        let mut seq = s.serialize_seq(Some(self.0.len()))?;
+        for byte in &self.0 {
+            serde::ser::SerializeSeq::serialize_element(&mut seq, byte)?;
+        }
+        serde::ser::SerializeSeq::end(seq)
     }
 }
 

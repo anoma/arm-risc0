@@ -1,6 +1,12 @@
 [workspace]
 resolver = "2"
-members = ["compliance", "trivial_logic", "logic_test", "batch_aggregation"]
+members = [
+  "compliance",
+  "trivial_logic",
+  "logic_test",
+  "batch_aggregation",
+  "execution_proof",
+]
 
 # Always optimize; otherwise tests take excessively long.
 [profile.dev]
