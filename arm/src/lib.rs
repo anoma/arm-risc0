@@ -47,7 +47,7 @@ pub use arm_core::{
 #[cfg(feature = "transaction")]
 pub use crate::action::ActionExt;
 #[cfg(any(feature = "compliance_circuit", feature = "aggregation_circuit"))]
-pub use crate::compliance::{ComplianceInstanceExt, ComplianceInstanceJournalExt};
+pub use crate::compliance::ComplianceInstanceExt;
 #[cfg(feature = "transaction")]
 pub use crate::compliance_unit::ComplianceUnitExt;
 #[cfg(feature = "transaction")]

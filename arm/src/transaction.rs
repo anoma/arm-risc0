@@ -17,7 +17,6 @@ use risc0_zkvm::{default_prover, ExecutorEnv, ProverOpts, Receipt, VerifierConte
 
 use crate::{
     action::ActionExt,
-    compliance::ComplianceInstanceJournalExt,
     compliance_unit::ComplianceUnitExt,
     delta_proof::{DeltaInstance, DeltaProof, DeltaWitness},
     error::ArmError,

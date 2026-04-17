@@ -230,17 +230,3 @@ impl ComplianceInstanceExt for ComplianceInstance {
             .ok_or(ArmError::InvalidDelta)
     }
 }
-
-/// Extension methods to serialize compliance instances into risc0 journal bytes.
-pub trait ComplianceInstanceJournalExt {
-    /// Serialize a compliance instance to the journal byte format.
-    fn to_journal(&self) -> Result<Vec<u8>, ArmError>;
-}
-
-impl ComplianceInstanceJournalExt for ComplianceInstance {
-    fn to_journal(&self) -> Result<Vec<u8>, ArmError> {
-        let words =
-            risc0_zkvm::serde::to_vec(self).map_err(|_| ArmError::InstanceSerializationFailed)?;
-        Ok(arm_core::utils::words_to_bytes(&words).to_vec())
-    }
-}

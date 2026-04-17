@@ -55,6 +55,15 @@ impl ComplianceInstance {
         msg.extend_from_slice(self.created_commitment.as_bytes());
         msg
     }
+
+    /// Hand-rolled risc0-serde encoder, byte-equivalent to
+    /// `risc0_zkvm::serde::to_vec(&self)`. Exists because the Solana PA cannot
+    /// link risc0-serde on-chain. Equivalence is pinned by
+    /// `test_compliance_to_journal_matches_risc0_serde` in the `arm` crate.
+    pub fn to_journal(&self) -> Result<Vec<u8>, crate::error::ArmError> {
+        let words = ComplianceInstanceWords::from(self);
+        Ok(crate::utils::words_to_bytes(&words.u32_words).to_vec())
+    }
 }
 
 impl From<&ComplianceInstance> for ComplianceInstanceWords {
@@ -129,5 +138,24 @@ mod tests {
         let instance = ComplianceInstance::default();
         let words: ComplianceInstanceWords = (&instance).into();
         assert_eq!(words.u32_words, [0u32; 56]);
+    }
+
+    #[test]
+    fn to_journal_equals_words_to_bytes() {
+        let instance = ComplianceInstance {
+            consumed_nullifier: Digest::new([1, 2, 3, 4, 5, 6, 7, 8]),
+            consumed_logic_ref: Digest::new([9, 10, 11, 12, 13, 14, 15, 16]),
+            consumed_commitment_tree_root: Digest::new([17, 18, 19, 20, 21, 22, 23, 24]),
+            created_commitment: Digest::new([25, 26, 27, 28, 29, 30, 31, 32]),
+            created_logic_ref: Digest::new([33, 34, 35, 36, 37, 38, 39, 40]),
+            delta_x: [41, 42, 43, 44, 45, 46, 47, 48],
+            delta_y: [49, 50, 51, 52, 53, 54, 55, 56],
+        };
+
+        let journal = instance.to_journal().unwrap();
+        let words = ComplianceInstanceWords::from(&instance);
+        let expected = crate::utils::words_to_bytes(&words.u32_words).to_vec();
+        assert_eq!(journal, expected);
+        assert_eq!(journal.len(), 224); // 56 words * 4 bytes
     }
 }

@@ -46,3 +46,4 @@ aggregation_circuit = []
 
 [dev-dependencies]
 sha3 = "0.10"
+borsh = { version = "1.5", features = ["derive"] }

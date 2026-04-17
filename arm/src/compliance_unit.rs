@@ -6,7 +6,7 @@ use k256::ProjectivePoint;
 use risc0_zkvm::InnerReceipt;
 
 use crate::{
-    compliance::{ComplianceInstanceExt, ComplianceInstanceJournalExt, ComplianceWitness},
+    compliance::{ComplianceInstanceExt, ComplianceWitness},
     constants::COMPLIANCE_VK,
     error::ArmError,
 };
