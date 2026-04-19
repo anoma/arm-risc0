@@ -219,6 +219,7 @@ dependencies = [
  "rand 0.8.5",
  "risc0-zkvm",
  "serde",
+ "serde_json",
  "serde_with",
  "thiserror",
 ]

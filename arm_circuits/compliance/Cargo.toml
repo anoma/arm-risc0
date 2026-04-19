@@ -10,11 +10,21 @@ edition = "2021"
 compliance-methods = { path = "methods" }
 risc0-zkvm = "3.0.3"
 anoma-rm-risc0 = { path = "../../arm", features = [
-  "compliance_circuit",
+  "transaction",
 ], default-features = false }
+
+[dev-dependencies]
+anoma-rm-risc0 = { path = "../../arm", features = ["transaction", "prove"] }
+criterion = { version = "0.5", features = ["html_reports"] }
+hex = "0.4"
 
 [features]
 default = []
 cuda = ["risc0-zkvm/cuda"]
 prove = ["risc0-zkvm/prove"]
 bonsai = ["risc0-zkvm/bonsai"]
+
+[[bench]]
+name = "prove"
+harness = false
+required-features = ["prove"]
