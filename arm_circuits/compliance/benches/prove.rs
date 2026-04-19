@@ -32,7 +32,7 @@ use anoma_rm_risc0::nullifier_key::NullifierKey;
 use anoma_rm_risc0::resource::Resource;
 use compliance_methods::COMPLIANCE_GUEST_ELF;
 use criterion::{criterion_group, criterion_main, Criterion};
-use risc0_zkvm::{default_prover, Digest, ExecutorEnv};
+use risc0_zkvm::{default_prover, Digest, ExecutorEnv, ProverOpts};
 use std::time::Duration;
 
 fn do_prove(witness: &ComplianceWitness) {
@@ -41,7 +41,9 @@ fn do_prove(witness: &ComplianceWitness) {
         .unwrap()
         .build()
         .unwrap();
-    default_prover().prove(env, COMPLIANCE_GUEST_ELF).unwrap();
+    default_prover()
+        .prove_with_opts(env, COMPLIANCE_GUEST_ELF, &ProverOpts::succinct())
+        .unwrap();
 }
 
 /// Build a compliance witness whose resources use `logic_ref` and `label_ref`,
