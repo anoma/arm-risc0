@@ -80,4 +80,6 @@ pub enum ArmError {
     TreeTooLarge,
     #[error("Invalid delta proof: pls regenerate the proof")]
     InvalidDeltaProof,
+    #[error("Failed to load kind table")]
+    KindTableLoadFailed,
 }

@@ -59,6 +59,31 @@ pub struct ComplianceInstanceWords {
     pub u32_words: [u32; COMPLIANCE_INSTANCE_SIZE],
 }
 
+/// An entry in the kind lookup table, mapping (logic_ref, label_ref) to a
+/// pre-computed kind point. Avoids hash-to-curve inside the circuit for known
+/// resource types.
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+pub struct KindTableEntry {
+    /// Logic ref component of the key.
+    pub logic_ref: Digest,
+    /// Label ref component of the key.
+    pub label_ref: Digest,
+    /// Uncompressed SEC1-encoded kind point (65 bytes).
+    pub kind_point: Vec<u8>,
+}
+
+impl KindTableEntry {
+    /// Creates a new entry from a (logic_ref, label_ref) key and a pre-computed point.
+    pub fn new(logic_ref: Digest, label_ref: Digest, point: &ProjectivePoint) -> Self {
+        let encoded = point.to_encoded_point(false);
+        KindTableEntry {
+            logic_ref,
+            label_ref,
+            kind_point: encoded.as_bytes().to_vec(),
+        }
+    }
+}
+
 /// The compliance witness contains all private inputs to the compliance proof.
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub struct ComplianceWitness {
@@ -74,6 +99,10 @@ pub struct ComplianceWitness {
     pub created_resource: Resource,
     /// Random scalar for delta commitment
     pub rcv: Vec<u8>,
+    /// Optional pre-computed kind points for known resource types.
+    /// Maps (logic_ref, label_ref) → uncompressed EC point, skipping hash_to_curve.
+    /// Falls back to hash_to_curve for any resource type not present in the table.
+    pub kind_table: Vec<KindTableEntry>,
     // TODO: If we want to add function privacy, include:
     // pub input_resource_logic_cm_r: [u8; DATA_BYTES],
     // pub output_resource_logic_cm_r: [u8; DATA_BYTES],
@@ -87,6 +116,7 @@ impl ComplianceWitness {
         latest_root: Digest,
         nf_key: NullifierKey,
         created_resource: Resource,
+        kind_table: Vec<KindTableEntry>,
     ) -> Self {
         ComplianceWitness {
             consumed_resource,
@@ -95,6 +125,7 @@ impl ComplianceWitness {
             rcv: Scalar::random(&mut OsRng).to_bytes().to_vec(),
             nf_key,
             ephemeral_root: latest_root,
+            kind_table,
         }
     }
 
@@ -105,6 +136,7 @@ impl ComplianceWitness {
         nf_key: NullifierKey,
         merkle_path: MerklePath,
         created_resource: Resource,
+        kind_table: Vec<KindTableEntry>,
     ) -> Self {
         ComplianceWitness {
             consumed_resource,
@@ -113,7 +145,23 @@ impl ComplianceWitness {
             rcv: Scalar::random(&mut OsRng).to_bytes().to_vec(),
             nf_key,
             ephemeral_root: *INITIAL_ROOT,
+            kind_table,
         }
+    }
+
+    /// Looks up the kind point for a resource in the kind table.
+    /// Falls back to hash_to_curve if the resource type is not in the table.
+    fn lookup_kind(&self, resource: &Resource) -> Result<ProjectivePoint, ArmError> {
+        for entry in &self.kind_table {
+            if entry.logic_ref == resource.logic_ref && entry.label_ref == resource.label_ref {
+                let encoded = EncodedPoint::from_bytes(&entry.kind_point)
+                    .map_err(|_| ArmError::InvalidResourceKind)?;
+                return ProjectivePoint::from_encoded_point(&encoded)
+                    .into_option()
+                    .ok_or(ArmError::InvalidResourceKind);
+            }
+        }
+        resource.kind()
     }
 
     /// Compliance constraints
@@ -192,8 +240,8 @@ impl ComplianceWitness {
         let rcv_scalar = Scalar::from_repr(rcv_array.into())
             .into_option()
             .ok_or(ArmError::InvalidRcv)?;
-        let consumed_kind = self.consumed_resource.kind()?;
-        let created_kind = self.created_resource.kind()?;
+        let consumed_kind = self.lookup_kind(&self.consumed_resource)?;
+        let created_kind = self.lookup_kind(&self.created_resource)?;
         let delta = created_kind * self.created_resource.quantity_scalar()
             - consumed_kind * self.consumed_resource.quantity_scalar()
             + ProjectivePoint::GENERATOR * rcv_scalar;
@@ -250,6 +298,7 @@ impl Default for ComplianceWitness {
             merkle_path,
             rcv,
             nf_key,
+            kind_table: vec![],
         }
     }
 }

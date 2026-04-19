@@ -107,6 +107,7 @@ pub fn create_an_action_with_multiple_compliances(
             nf_key: nf_key.clone(),
             created_resource: created_resources[i],
             rcv: Scalar::ONE.to_bytes().to_vec(), // fixed rcv for test
+            kind_table: vec![],
         };
 
         let compliance_receipt = ComplianceUnit::create(&compliance_witness, proof_type).unwrap();
