@@ -76,8 +76,8 @@ pub fn create_an_action_with_multiple_compliances(
     nonce: u8,
     proof_type: ProofType,
 ) -> (Action, DeltaWitness) {
-    let kind_table_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../arm/kind_table.json");
+    let kind_table_path =
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../arm/kind_table.json");
     let _ = init_kind_table_from_file(&kind_table_path);
 
     let nf_key = NullifierKey::default();

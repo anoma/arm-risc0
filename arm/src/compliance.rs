@@ -1,7 +1,7 @@
 //! Compliance module containing the compliance instance and witness.
 
 /// Size hard-coded to two resources per unit
-const COMPLIANCE_INSTANCE_SIZE: usize = 56;
+const COMPLIANCE_INSTANCE_SIZE: usize = 64;
 
 use crate::{
     error::ArmError,
@@ -20,7 +20,10 @@ use k256::{
 };
 use lazy_static::lazy_static;
 use rand::rngs::OsRng;
-use risc0_zkvm::Digest;
+use risc0_zkvm::{
+    sha::{Impl as ShaImpl, Sha256},
+    Digest,
+};
 use serde_with::serde_as;
 
 lazy_static! {
@@ -47,6 +50,8 @@ pub struct ComplianceInstance {
     pub delta_x: [u32; 8],
     /// The delta y coordinate of the created resource(use u32 array to avoid padding issues in risc0).
     pub delta_y: [u32; 8],
+    /// SHA-256 commitment to the kind lookup table supplied with this proof.
+    pub kind_table_commitment: Digest,
 }
 
 /// The compliance instance represented as an array of u32 words for
@@ -182,6 +187,7 @@ impl ComplianceWitness {
         );
 
         let (delta_x, delta_y) = self.delta()?;
+        let kind_table_commitment = self.hash_kind_table();
 
         Ok(ComplianceInstance {
             consumed_nullifier,
@@ -191,7 +197,18 @@ impl ComplianceWitness {
             created_logic_ref,
             delta_x,
             delta_y,
+            kind_table_commitment,
         })
+    }
+
+    fn hash_kind_table(&self) -> Digest {
+        let mut bytes = Vec::new();
+        for entry in &self.kind_table {
+            bytes.extend_from_slice(entry.logic_ref.as_bytes());
+            bytes.extend_from_slice(entry.label_ref.as_bytes());
+            bytes.extend_from_slice(&entry.kind_point);
+        }
+        *ShaImpl::hash_bytes(&bytes)
     }
 
     /// Get the logic ref of consumed resource
