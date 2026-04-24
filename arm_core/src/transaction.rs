@@ -2,6 +2,7 @@
 
 use crate::{
     action::Action,
+    compliance::ComplianceInstance,
     compliance_unit::ComplianceUnit,
     delta_types::{DeltaProof, DeltaWitness},
     error::ArmError,
@@ -55,7 +56,8 @@ impl Transaction {
         let mut seen_nullifiers = std::collections::HashSet::new();
         for action in &self.actions {
             for cu in action.get_compliance_units() {
-                if !seen_nullifiers.insert(cu.instance.consumed_nullifier) {
+                let instance = ComplianceInstance::from_journal(&cu.instance)?;
+                if !seen_nullifiers.insert(instance.consumed_nullifier) {
                     return Err(ArmError::NullifierDuplication);
                 }
             }
@@ -64,12 +66,14 @@ impl Transaction {
     }
 
     /// Constructs the delta message by concatenating the delta messages
-    /// of each action.
-    pub fn get_delta_msg(&self) -> Vec<u8> {
-        self.actions
-            .iter()
-            .flat_map(|a| a.get_delta_msg())
-            .collect()
+    /// of each action. Fails if any compliance unit's journal bytes cannot
+    /// be parsed as a `ComplianceInstance`.
+    pub fn get_delta_msg(&self) -> Result<Vec<u8>, ArmError> {
+        let mut msg = Vec::new();
+        for action in &self.actions {
+            msg.extend_from_slice(&action.get_delta_msg()?);
+        }
+        Ok(msg)
     }
 
     /// Returns all compliance units in the transaction.

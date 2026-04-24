@@ -1,6 +1,9 @@
 //! An action represents a set of compliance units and logic verifiers.
 
-use crate::{compliance_unit::ComplianceUnit, logic_instance::LogicVerifierInputs};
+use crate::{
+    compliance::ComplianceInstance, compliance_unit::ComplianceUnit, error::ArmError,
+    logic_instance::LogicVerifierInputs,
+};
 use serde::{Deserialize, Serialize};
 
 /// An action consists of compliance units and logic verifier inputs.
@@ -28,11 +31,14 @@ impl Action {
     }
 
     /// Constructs the delta message by concatenating the delta messages
-    /// of each compliance unit.
-    pub fn get_delta_msg(&self) -> Vec<u8> {
-        self.compliance_units
-            .iter()
-            .flat_map(|unit| unit.instance.delta_msg())
-            .collect()
+    /// of each compliance unit. Fails if any compliance unit's journal bytes
+    /// cannot be parsed as a `ComplianceInstance`.
+    pub fn get_delta_msg(&self) -> Result<Vec<u8>, ArmError> {
+        let mut msg = Vec::new();
+        for unit in &self.compliance_units {
+            let instance = ComplianceInstance::from_journal(&unit.instance)?;
+            msg.extend_from_slice(&instance.delta_msg());
+        }
+        Ok(msg)
     }
 }

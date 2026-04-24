@@ -64,6 +64,15 @@ impl ComplianceInstance {
         let words = ComplianceInstanceWords::from(self);
         Ok(crate::utils::words_to_bytes(&words.u32_words).to_vec())
     }
+
+    /// Parses a `ComplianceInstance` from its journal bytes.
+    ///
+    /// Inverse of [`to_journal`]. Does not require risc0-serde, so it is
+    /// usable from the Solana PA on-chain program.
+    pub fn from_journal(journal_bytes: &[u8]) -> Result<Self, crate::error::ArmError> {
+        let words = ComplianceInstanceWords::from_bytes(journal_bytes)?;
+        Ok(Self::from(&words))
+    }
 }
 
 impl From<&ComplianceInstance> for ComplianceInstanceWords {
@@ -87,6 +96,21 @@ impl ComplianceInstanceWords {
             .try_into()
             .map_err(|_| ArmError::InstanceSerializationFailed)?;
         Ok(ComplianceInstanceWords { u32_words })
+    }
+}
+
+impl From<&ComplianceInstanceWords> for ComplianceInstance {
+    fn from(words: &ComplianceInstanceWords) -> Self {
+        let w = &words.u32_words;
+        ComplianceInstance {
+            consumed_nullifier: Digest::new(w[0..8].try_into().unwrap()),
+            consumed_logic_ref: Digest::new(w[8..16].try_into().unwrap()),
+            consumed_commitment_tree_root: Digest::new(w[16..24].try_into().unwrap()),
+            created_commitment: Digest::new(w[24..32].try_into().unwrap()),
+            created_logic_ref: Digest::new(w[32..40].try_into().unwrap()),
+            delta_x: w[40..48].try_into().unwrap(),
+            delta_y: w[48..56].try_into().unwrap(),
+        }
     }
 }
 

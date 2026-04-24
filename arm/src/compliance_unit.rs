@@ -2,6 +2,7 @@
 
 pub use arm_core::compliance_unit::ComplianceUnit;
 
+use arm_core::compliance::ComplianceInstance;
 use k256::ProjectivePoint;
 use risc0_zkvm::InnerReceipt;
 
@@ -32,8 +33,7 @@ pub trait ComplianceUnitExt {
 impl ComplianceUnitExt for ComplianceUnit {
     fn verify(&self) -> Result<(), ArmError> {
         if let Some(proof) = &self.proof {
-            let instance_bytes = self.instance.to_journal()?;
-            crate::proving_system::verify(&COMPLIANCE_VK, &instance_bytes, proof)
+            crate::proving_system::verify(&COMPLIANCE_VK, &self.instance, proof)
         } else {
             Err(ArmError::ProofVerificationFailed(
                 "Missing compliance proof".into(),
@@ -42,7 +42,7 @@ impl ComplianceUnitExt for ComplianceUnit {
     }
 
     fn delta(&self) -> Result<ProjectivePoint, ArmError> {
-        self.instance.delta_projective()
+        ComplianceInstance::from_journal(&self.instance)?.delta_projective()
     }
 
     fn get_inner_receipt(&self) -> Result<InnerReceipt, ArmError> {
@@ -62,8 +62,7 @@ pub fn create_compliance_unit(
     witness: &ComplianceWitness,
     proof_type: ProofType,
 ) -> Result<ComplianceUnit, ArmError> {
-    let instance = witness.constrain()?;
-    let (proof, _instance_bytes) = prove(COMPLIANCE_PK, witness, proof_type)?;
+    let (proof, instance) = prove(COMPLIANCE_PK, witness, proof_type)?;
     Ok(ComplianceUnit {
         proof: Some(proof),
         instance,

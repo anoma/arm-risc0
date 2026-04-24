@@ -19,4 +19,7 @@ pub enum SolanaArmError {
     /// Recovered public key does not match the accumulated delta point.
     #[error("Delta mismatch: recovered key does not match accumulated delta")]
     DeltaMismatch,
+    /// A compliance unit's journal bytes could not be parsed as a ComplianceInstance.
+    #[error("Failed to parse compliance instance from journal bytes")]
+    ComplianceInstanceParseFailed,
 }

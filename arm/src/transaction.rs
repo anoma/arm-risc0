@@ -73,7 +73,7 @@ impl TransactionExt for Transaction {
         match self.delta_proof {
             Delta::Witness(ref witness) => {
                 let witness = DeltaWitness::from_bytes(&witness.0)?;
-                let msg = self.get_delta_msg();
+                let msg = self.get_delta_msg()?;
                 let msg_hash = hash_fn(&msg);
                 let proof = DeltaProof::prove(&msg_hash, &witness)?;
                 let delta_proof = Delta::Proof(CoreDeltaProof(proof.to_bytes()));
@@ -92,7 +92,7 @@ impl TransactionExt for Transaction {
         match &self.delta_proof {
             Delta::Proof(proof) => {
                 let proof = DeltaProof::from_bytes(&proof.0)?;
-                let msg = self.get_delta_msg();
+                let msg = self.get_delta_msg()?;
                 let msg_hash = hash_fn(&msg);
                 let instance = self.delta()?;
                 DeltaProof::verify(&msg_hash, &proof, instance)?;
@@ -167,11 +167,11 @@ impl TransactionExt for Transaction {
     }
 
     fn get_compliance_instances(&self) -> Result<Vec<Vec<u8>>, ArmError> {
-        let mut result = Vec::new();
-        for cu in self.get_compliance_units() {
-            result.push(cu.instance.to_journal()?);
-        }
-        Ok(result)
+        Ok(self
+            .get_compliance_units()
+            .iter()
+            .map(|cu| cu.instance.clone())
+            .collect())
     }
 
     fn get_logic_verifiers(&self) -> Result<Vec<LogicVerifier>, ArmError> {

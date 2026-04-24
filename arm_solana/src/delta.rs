@@ -3,6 +3,7 @@
 //! Uses Solana syscalls (hashv, secp256k1_recover) and solana-secp256k1 for
 //! EC point arithmetic instead of k256, which exceeds SBF stack frame limits.
 
+use arm_core::compliance::ComplianceInstance;
 use arm_core::transaction::{Delta, Transaction};
 
 use crate::error::SolanaArmError;
@@ -25,15 +26,17 @@ const SCALAR_TWO: [u8; 32] = {
 /// but as separate 32-byte chunks suitable for Solana's `hashv` syscall.
 /// `hashv` concatenates its inputs before hashing, so `hashv(collect_tags(tx))` ==
 /// `SHA-256(tx.get_delta_msg())`.
-pub fn collect_tags(tx: &Transaction) -> Vec<[u8; 32]> {
+pub fn collect_tags(tx: &Transaction) -> Result<Vec<[u8; 32]>, SolanaArmError> {
     let mut tags = Vec::new();
     for action in &tx.actions {
         for cu in &action.compliance_units {
-            tags.push(cu.instance.consumed_nullifier.to_bytes());
-            tags.push(cu.instance.created_commitment.to_bytes());
+            let instance = ComplianceInstance::from_journal(&cu.instance)
+                .map_err(|_| SolanaArmError::ComplianceInstanceParseFailed)?;
+            tags.push(instance.consumed_nullifier.to_bytes());
+            tags.push(instance.created_commitment.to_bytes());
         }
     }
-    tags
+    Ok(tags)
 }
 
 /// Compute verifying key = SHA-256(concatenated tags) using Solana syscall.
@@ -133,7 +136,9 @@ pub fn accumulate_deltas(tx: &Transaction) -> Result<Option<UncompressedPoint>, 
 
     for action in &tx.actions {
         for cu in &action.compliance_units {
-            let point = parse_delta_point(&cu.instance.delta_x, &cu.instance.delta_y);
+            let instance = ComplianceInstance::from_journal(&cu.instance)
+                .map_err(|_| SolanaArmError::ComplianceInstanceParseFailed)?;
+            let point = parse_delta_point(&instance.delta_x, &instance.delta_y);
 
             accumulated = match accumulated {
                 None => Some(point),
@@ -174,7 +179,7 @@ pub fn verify_delta_proof(tx: &Transaction) -> Result<(), SolanaArmError> {
     };
 
     // 2. Collect tags
-    let tags = collect_tags(tx);
+    let tags = collect_tags(tx)?;
     if tags.is_empty() {
         return Ok(());
     }
@@ -260,7 +265,7 @@ mod tests {
 
         let cu = ComplianceUnit {
             proof: None,
-            instance,
+            instance: instance.to_journal().unwrap(),
         };
 
         let action = Action {
@@ -334,7 +339,7 @@ mod tests {
         };
         let cu = ComplianceUnit {
             proof: None,
-            instance,
+            instance: instance.to_journal().unwrap(),
         };
         let action = Action {
             compliance_units: vec![cu],
@@ -377,11 +382,11 @@ mod tests {
             compliance_units: vec![
                 ComplianceUnit {
                     proof: None,
-                    instance: i1,
+                    instance: i1.to_journal().unwrap(),
                 },
                 ComplianceUnit {
                     proof: None,
-                    instance: i2,
+                    instance: i2.to_journal().unwrap(),
                 },
             ],
             logic_verifier_inputs: vec![],
@@ -515,7 +520,7 @@ mod tests {
     fn test_collect_tags_order() {
         let (gx, gy) = generator_words();
         let tx = make_tx_with_two_deltas(gx, gy, gx, gy);
-        let tags = collect_tags(&tx);
+        let tags = collect_tags(&tx).unwrap();
         assert_eq!(tags.len(), 4, "2 CUs should produce 4 tags");
         assert_eq!(tags[0], [1u8; 32], "first tag = CU0 nullifier");
         assert_eq!(tags[1], [2u8; 32], "second tag = CU0 commitment");
@@ -527,7 +532,7 @@ mod tests {
     fn test_verifying_key_deterministic() {
         let (gx, gy) = generator_words();
         let tx = make_tx_with_delta(gx, gy);
-        let tags = collect_tags(&tx);
+        let tags = collect_tags(&tx).unwrap();
         let vk1 = compute_verifying_key(&tags);
         let vk2 = compute_verifying_key(&tags);
         assert_eq!(vk1, vk2, "Same tags must produce identical verifying key");

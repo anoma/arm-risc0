@@ -11,6 +11,7 @@ use crate::{
     logic_proof::{LogicVerifier, LogicVerifierInputsExt},
     Digest, LogicVerifierInputs,
 };
+use arm_core::compliance::ComplianceInstance;
 
 /// Extension methods for actions that require zkvm/k256 functionality.
 pub trait ActionExt {
@@ -72,26 +73,21 @@ impl ActionExt for Action {
     fn get_logic_verifiers(&self) -> Result<Vec<LogicVerifier>, ArmError> {
         let mut logic_verifiers = Vec::new();
 
+        // Parse each compliance unit's journal bytes once.
+        let instances: Vec<ComplianceInstance> = self
+            .compliance_units
+            .iter()
+            .map(|unit| ComplianceInstance::from_journal(&unit.instance))
+            .collect::<Result<_, _>>()?;
+
         // Construct the action tree.
-        let tags: Vec<Digest> = self
-            .compliance_units
+        let tags: Vec<Digest> = instances
             .iter()
-            .flat_map(|unit| {
-                [
-                    unit.instance.consumed_nullifier,
-                    unit.instance.created_commitment,
-                ]
-            })
+            .flat_map(|i| [i.consumed_nullifier, i.created_commitment])
             .collect();
-        let logics: Vec<Digest> = self
-            .compliance_units
+        let logics: Vec<Digest> = instances
             .iter()
-            .flat_map(|unit| {
-                [
-                    unit.instance.consumed_logic_ref,
-                    unit.instance.created_logic_ref,
-                ]
-            })
+            .flat_map(|i| [i.consumed_logic_ref, i.created_logic_ref])
             .collect();
         let action_tree = MerkleTree::from(tags.clone());
         let root = action_tree.root()?;
