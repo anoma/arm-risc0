@@ -202,8 +202,8 @@ impl Default for ComplianceWitness {
                 .unwrap(),
         ];
 
-        let nonce_0 = Resource::derive_nonce_from_nullifiers(0, &consumed_nullifiers).unwrap();
-        let nonce_1 = Resource::derive_nonce_from_nullifiers(1, &consumed_nullifiers).unwrap();
+        let nonce_0 = Resource::derive_nonce_from_nullifiers(0, &consumed_nullifiers);
+        let nonce_1 = Resource::derive_nonce_from_nullifiers(1, &consumed_nullifiers);
 
         let consumed_resource_0 = Resource {
             logic_ref: Digest::default(),
@@ -311,7 +311,7 @@ mod constraints {
         let mut created_memo = Vec::with_capacity(created_resources.len());
         let consumed_nullifiers_digest =
             constraints::hash_consumed_nullifiers(&consumed_nullifiers)?;
-        for (index, resource) in created_resources.iter().enumerate() {
+        for (resource, index) in created_resources.iter().zip(0u32..) {
             created_memo.push(CreatedMemorandum {
                 resource_commitment: constraints::commit(resource),
                 resource_logic_ref: constraints::read_resource_logic(resource),
@@ -410,10 +410,10 @@ mod constraints {
     // Re-derive the nonce and enforce equality.
     fn enforce_correct_nonce(
         resource: &Resource,
-        index: usize,
+        index: u32,
         consumed_nullifiers_digest: Digest,
     ) -> Result<(), ArmError> {
-        let correct_nonce = Resource::derive_nonce(index, consumed_nullifiers_digest)?;
+        let correct_nonce = Resource::derive_nonce(index, consumed_nullifiers_digest);
         if correct_nonce != resource.nonce {
             return Err(ArmError::InvalidResourceNonce);
         }

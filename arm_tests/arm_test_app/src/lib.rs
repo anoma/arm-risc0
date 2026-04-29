@@ -137,8 +137,7 @@ impl Tester {
                     quantity: 1,
                     ..Default::default()
                 };
-                created_resource.nonce =
-                    Resource::derive_nonce_from_nullifiers(index as usize, &nullifiers).unwrap();
+                created_resource.nonce = Resource::derive_nonce_from_nullifiers(index, &nullifiers);
 
                 created_resource
             })

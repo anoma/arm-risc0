@@ -6,6 +6,10 @@ const PRF_EXPAND_PERSONALIZATION_LEN: usize = 16;
 const PRF_EXPAND_PERSONALIZATION: &[u8; PRF_EXPAND_PERSONALIZATION_LEN] = b"RISC0_ExpandSeed";
 const PRF_EXPAND_PSI: u8 = 0;
 const PRF_EXPAND_RCM: u8 = 1;
+/// Domain separator for `Resource::derive_nonce`.
+const NONCE_DERIVATION_PERSONALIZATION_LEN: usize = 20;
+const NONCE_DERIVATION_PERSONALIZATION: &[u8; NONCE_DERIVATION_PERSONALIZATION_LEN] =
+    b"ARM_NONCE_DERIVATION";
 const QUANTITY_BYTES: usize = 16;
 const RESOURCE_BYTES: usize = DIGEST_BYTES
     + DIGEST_BYTES
@@ -272,30 +276,22 @@ impl Resource {
     }
 
     /// Derives the nonce based on the passed index and nullifiers.
-    /// The index must fit in a 32-bit integer.
-    pub fn derive_nonce_from_nullifiers(
-        index: usize,
-        nullifiers: &[Digest],
-    ) -> Result<[u8; 32], ArmError> {
-        let nullifiers_digest = Self::hash_nullifiers(nullifiers);
-
-        Self::derive_nonce(index, nullifiers_digest)
+    pub fn derive_nonce_from_nullifiers(index: u32, nullifiers: &[Digest]) -> [u8; DIGEST_BYTES] {
+        Self::derive_nonce(index, Self::hash_nullifiers(nullifiers))
     }
 
-    /// Derives the nonce based on the passed index and digest.
-    /// The index must fit in a 32-bit integer.
-    pub fn derive_nonce(index: usize, nullifiers_digest: Digest) -> Result<[u8; 32], ArmError> {
-        let index_u32: u32 = index
-            .try_into()
-            .map_err(|_| ArmError::InvalidResourceIndex)?;
-        let mut bytes = [0u8; DIGEST_BYTES + 4];
-        bytes[0..4].clone_from_slice(&index_u32.to_le_bytes());
-        bytes[4..DIGEST_BYTES + 4].clone_from_slice(nullifiers_digest.as_ref());
-
-        Impl::hash_bytes(&bytes)
-            .as_bytes()
-            .try_into()
-            .map_err(|_| ArmError::InvalidResourceNonce)
+    /// Derives the nonce by hashing
+    /// `ARM_NONCE_DERIVATION || index_le || nullifiers_digest`.
+    pub fn derive_nonce(index: u32, nullifiers_digest: Digest) -> [u8; DIGEST_BYTES] {
+        const LEN: usize = NONCE_DERIVATION_PERSONALIZATION_LEN + 4 + DIGEST_BYTES;
+        let mut bytes = [0u8; LEN];
+        bytes[..NONCE_DERIVATION_PERSONALIZATION_LEN]
+            .copy_from_slice(NONCE_DERIVATION_PERSONALIZATION);
+        bytes[NONCE_DERIVATION_PERSONALIZATION_LEN..NONCE_DERIVATION_PERSONALIZATION_LEN + 4]
+            .copy_from_slice(&index.to_le_bytes());
+        bytes[NONCE_DERIVATION_PERSONALIZATION_LEN + 4..]
+            .copy_from_slice(nullifiers_digest.as_bytes());
+        (*Impl::hash_bytes(&bytes)).into()
     }
 
     /// Hashes the concatenation of the passed nullifier digests.
@@ -305,7 +301,7 @@ impl Resource {
             bytes.append(&mut nf.as_bytes().to_vec().clone());
         }
 
-        Impl::hash_bytes(&bytes).as_bytes().try_into().unwrap()
+        *Impl::hash_bytes(&bytes)
     }
 }
 
