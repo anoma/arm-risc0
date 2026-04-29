@@ -202,8 +202,8 @@ impl Default for ComplianceWitness {
                 .unwrap(),
         ];
 
-        let nonce_0 = Resource::derive_nonce_from_nullifiers(0, &consumed_nullifiers);
-        let nonce_1 = Resource::derive_nonce_from_nullifiers(1, &consumed_nullifiers);
+        let nonce_0 = Resource::derive_nonce_from_nullifiers(0, &consumed_nullifiers).unwrap();
+        let nonce_1 = Resource::derive_nonce_from_nullifiers(1, &consumed_nullifiers).unwrap();
 
         let consumed_resource_0 = Resource {
             logic_ref: Digest::default(),
@@ -309,8 +309,7 @@ mod constraints {
 
         // Constrain created resources.
         let mut created_memo = Vec::with_capacity(created_resources.len());
-        let consumed_nullifiers_digest =
-            constraints::hash_consumed_nullifiers(&consumed_nullifiers)?;
+        let consumed_nullifiers_digest = Resource::hash_nullifiers(&consumed_nullifiers)?;
         for (resource, index) in created_resources.iter().zip(0u32..) {
             created_memo.push(CreatedMemorandum {
                 resource_commitment: constraints::commit(resource),
@@ -419,14 +418,5 @@ mod constraints {
         }
 
         Ok(())
-    }
-
-    /// It fails if the passed nullifiers is an empty vec. In this case,
-    /// there is no entropy to ensure uniqueness of created nonces.
-    fn hash_consumed_nullifiers(nullifiers: &[Digest]) -> Result<Digest, ArmError> {
-        if nullifiers.is_empty() {
-            return Err(ArmError::InvalidResourceNonce);
-        }
-        Ok(Resource::hash_nullifiers(nullifiers))
     }
 }

@@ -122,7 +122,7 @@ impl Tester {
 
     /// Populates the tester with `num` created resources. They all have the same logic ([TestLogic]),
     /// and their nonces are derived from the passed nullifiers.
-    pub fn populate_created_resources(&mut self, num: u32) {
+    pub fn populate_created_resources(&mut self, num: u32) -> Result<(), ArmError> {
         assert!(!self.consumed_data.is_empty());
         let nullifiers = self.consumed_data[self.current] // Grab consumed data of current CU/action
             .iter()
@@ -137,13 +137,15 @@ impl Tester {
                     quantity: 1,
                     ..Default::default()
                 };
-                created_resource.nonce = Resource::derive_nonce_from_nullifiers(index, &nullifiers);
+                created_resource.nonce =
+                    Resource::derive_nonce_from_nullifiers(index, &nullifiers)?;
 
-                created_resource
+                Ok(created_resource)
             })
-            .collect::<Vec<Resource>>();
+            .collect::<Result<Vec<Resource>, ArmError>>()?;
 
         self.created_resources.push(created_resources);
+        Ok(())
     }
 
     /// Creates a compliance unit with `old_num` consumed resources and `new_num` created resources.
@@ -153,7 +155,7 @@ impl Tester {
         new_num: u32,
     ) -> Result<ComplianceUnit, ArmError> {
         self.populate_consumed_resources(old_num);
-        self.populate_created_resources(new_num);
+        self.populate_created_resources(new_num)?;
 
         let compliance_witness = ComplianceWitness::from_resources_info(
             &self.consumed_data[self.current],

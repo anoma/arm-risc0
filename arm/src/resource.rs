@@ -276,8 +276,16 @@ impl Resource {
     }
 
     /// Derives the nonce based on the passed index and nullifiers.
-    pub fn derive_nonce_from_nullifiers(index: u32, nullifiers: &[Digest]) -> [u8; DIGEST_BYTES] {
-        Self::derive_nonce(index, Self::hash_nullifiers(nullifiers))
+    /// Fails if `nullifiers` is empty, as there is no entropy to make
+    /// the derived nonce unique.
+    pub fn derive_nonce_from_nullifiers(
+        index: u32,
+        nullifiers: &[Digest],
+    ) -> Result<[u8; DIGEST_BYTES], ArmError> {
+        Ok(Self::derive_nonce(
+            index,
+            Self::hash_nullifiers(nullifiers)?,
+        ))
     }
 
     /// Derives the nonce by hashing
@@ -295,13 +303,16 @@ impl Resource {
     }
 
     /// Hashes the concatenation of the passed nullifier digests.
-    pub fn hash_nullifiers(nullifiers: &[Digest]) -> Digest {
-        let mut bytes = Vec::new();
-        for nf in nullifiers.iter() {
-            bytes.append(&mut nf.as_bytes().to_vec().clone());
+    /// Fails if `nullifiers` is empty.
+    pub fn hash_nullifiers(nullifiers: &[Digest]) -> Result<Digest, ArmError> {
+        if nullifiers.is_empty() {
+            return Err(ArmError::EmptyNullifiers);
         }
-
-        *Impl::hash_bytes(&bytes)
+        let mut bytes = Vec::with_capacity(nullifiers.len() * DIGEST_BYTES);
+        for nf in nullifiers {
+            bytes.extend_from_slice(nf.as_bytes());
+        }
+        Ok(*Impl::hash_bytes(&bytes))
     }
 }
 

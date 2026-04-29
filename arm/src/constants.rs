@@ -17,7 +17,7 @@ pub const BATCH_AGGREGATION_PK: &[u8] = include_bytes!("../elfs/batch-aggregatio
 lazy_static! {
     /// compliance verification key / compliance image id
     pub static ref COMPLIANCE_VK: Digest =
-        Digest::from_hex("5380686a01ee9761c18d122e00d0d717ec3e42abb6d062b3196b4759fa8a42ad")
+        Digest::from_hex("7b9adbede055c6f9ecd1e999da3e2e43ca348ca739864271ad99a27f680ca403")
             .unwrap();
 
     /// padding logic verification key / compliance image id
