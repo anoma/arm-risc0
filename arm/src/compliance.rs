@@ -98,17 +98,17 @@ impl ComplianceWitness {
         Self::from_resources_info_with_eph_root(consumed_data, created_resources, *INITIAL_ROOT)
     }
 
-    /// Creates a new compliance witness from the given resources and latest
+    /// Creates a new compliance witness from the given resources and a valid
     /// root when consuming an ephemeral resource.
     pub fn from_resources_info_with_eph_root(
         consumed_data: &[ConsumedDatum],
         created_resources: &[Resource],
-        latest_root: Digest,
+        valid_root: Digest,
     ) -> Self {
         let mut rng = rand::thread_rng();
         let rcv = Scalar::random(&mut rng).to_bytes();
 
-        Self::from_all_data(consumed_data, created_resources, latest_root, &rcv[..])
+        Self::from_all_data(consumed_data, created_resources, valid_root, &rcv[..])
     }
 
     /// Creates a new compliance witness from all the given data. This is the
