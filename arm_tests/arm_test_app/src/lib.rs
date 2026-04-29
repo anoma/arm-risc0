@@ -170,7 +170,7 @@ impl Tester {
     pub fn create_an_action(&mut self, old_num: u32, new_num: u32) -> Result<Action, ArmError> {
         let compliance_unit = self.create_compliance_unit(old_num, new_num)?;
 
-        let mut tags = self.consumed_data[self.current]
+        let tags = self.consumed_data[self.current]
             .iter()
             .map(|consumed_datum| {
                 consumed_datum
@@ -185,7 +185,6 @@ impl Tester {
             )
             .collect::<Vec<Digest>>();
 
-        tags.reverse(); // test that tag ordering is unimportant
         let action_tree = Action::construct_action_tree(&tags);
 
         let logic_verifiers = self.consumed_data[self.current]

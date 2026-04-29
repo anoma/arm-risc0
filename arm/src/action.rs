@@ -137,14 +137,10 @@ impl Action {
         Ok(msg)
     }
 
-    // TODO: remove the sorting step and use the order of tags in the compliance unit
-    /// Computes the action tree from the passed tags (purported consumed nullifiers and created commitments).
-    /// A canonical ordering is settled by sorting. For consistency, should be used in both, creation
-    /// and verification of the action.
+    /// Constructs the action tree from the passed tags (purported consumed
+    /// nullifiers and created commitments). The order must be consistent with
+    /// the order of tags in the compliance instance.
     pub fn construct_action_tree(tags: &[Digest]) -> MerkleTree {
-        let mut ordered_tags = tags.to_vec();
-        ordered_tags.sort();
-
-        MerkleTree::new(ordered_tags)
+        MerkleTree::new(tags.to_vec())
     }
 }
