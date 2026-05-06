@@ -110,9 +110,9 @@ impl Transaction {
         for action in &self.actions {
             let compliance_instance = action.compliance_unit.get_instance()?;
             for consumed_nullifier in compliance_instance
-                .consumed_memorandums
+                .consumed_publics
                 .iter()
-                .map(|memo| memo.resource_nullifier)
+                .map(|r| r.resource_nullifier)
             {
                 if !seen_nullifiers.insert(consumed_nullifier) {
                     return Err(ArmError::NullifierDuplication);

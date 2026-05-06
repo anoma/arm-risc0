@@ -56,14 +56,14 @@ impl Action {
 
         // Compute the action tree root
         let tags: Vec<Digest> = compliance_instance
-            .consumed_memorandums
+            .consumed_publics
             .iter()
-            .map(|memo| memo.resource_nullifier)
+            .map(|r| r.resource_nullifier)
             .chain(
                 compliance_instance
-                    .created_memorandums
+                    .created_publics
                     .iter()
-                    .map(|memo| memo.resource_commitment),
+                    .map(|r| r.resource_commitment),
             )
             .collect();
         let action_tree_root = Self::construct_action_tree(&tags).root()?;
@@ -73,14 +73,14 @@ impl Action {
             return Err(ArmError::TagNotFound);
         }
         for tag_verifyingkey_isconsumed in compliance_instance
-            .consumed_memorandums
+            .consumed_publics
             .iter()
-            .map(|memo| (memo.resource_nullifier, memo.resource_logic_ref, true))
+            .map(|r| (r.resource_nullifier, r.resource_logic_ref, true))
             .chain(
                 compliance_instance
-                    .created_memorandums
+                    .created_publics
                     .iter()
-                    .map(|memo| (memo.resource_commitment, memo.resource_logic_ref, false)),
+                    .map(|r| (r.resource_commitment, r.resource_logic_ref, false)),
             )
         {
             let (tag, verifying_key, is_consumed) = tag_verifyingkey_isconsumed;

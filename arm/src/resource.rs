@@ -333,7 +333,7 @@ impl Default for Resource {
 
 /// Private information related to a consumed resource.
 #[derive(Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
-pub struct ConsumedDatum {
+pub struct ConsumedResourceWitness {
     /// The consumed resource.
     pub resource: Resource,
     /// The path from the consumed commitment to the root of the commitment tree.
@@ -342,10 +342,10 @@ pub struct ConsumedDatum {
     pub nf_key: NullifierKey,
 }
 
-impl ConsumedDatum {
+impl ConsumedResourceWitness {
     /// Datum constructor for an ephemeral resource.
-    pub fn from_resource(resource: Resource, nf_key: NullifierKey) -> ConsumedDatum {
-        ConsumedDatum {
+    pub fn from_resource(resource: Resource, nf_key: NullifierKey) -> ConsumedResourceWitness {
+        ConsumedResourceWitness {
             resource,
             merkle_path: MerklePath::empty(),
             nf_key: nf_key.clone(),
@@ -357,8 +357,8 @@ impl ConsumedDatum {
         resource: Resource,
         nf_key: NullifierKey,
         merkle_path: MerklePath,
-    ) -> ConsumedDatum {
-        ConsumedDatum {
+    ) -> ConsumedResourceWitness {
+        ConsumedResourceWitness {
             resource,
             merkle_path,
             nf_key: nf_key.clone(),
@@ -366,7 +366,7 @@ impl ConsumedDatum {
     }
 }
 
-impl Default for ConsumedDatum {
+impl Default for ConsumedResourceWitness {
     /// The default value is meaningless and only for testing.
     fn default() -> Self {
         let nf_key = NullifierKey::default();
@@ -394,7 +394,7 @@ impl Default for ConsumedDatum {
 
 /// Public information of consumed resources.
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
-pub struct ConsumedMemorandum {
+pub struct ConsumedResourcePublic {
     /// The nullifier of the consumed [Resource].
     pub resource_nullifier: Digest,
     /// The logic reference of the consumed [Resource].
@@ -405,7 +405,7 @@ pub struct ConsumedMemorandum {
 
 /// Public information of created resources.
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
-pub struct CreatedMemorandum {
+pub struct CreatedResourcePublic {
     /// The commitment to the created [Resource].
     pub resource_commitment: Digest,
     /// The logic reference of the created [Resource].

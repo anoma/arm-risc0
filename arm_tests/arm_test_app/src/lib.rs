@@ -12,7 +12,7 @@ use anoma_rm_risc0::{
     merkle_path::MerklePath,
     nullifier_key::NullifierKey,
     proving_system::ProofType,
-    resource::{ConsumedDatum, Resource},
+    resource::{ConsumedResourceWitness, Resource},
     transaction::{Delta, Transaction},
     Digest,
 };
@@ -72,7 +72,7 @@ impl LogicProver for TestLogic {
 #[derive(Default)]
 pub struct Tester {
     /// Consumed resources across all actions
-    pub consumed_data: Vec<Vec<ConsumedDatum>>,
+    pub consumed_data: Vec<Vec<ConsumedResourceWitness>>,
     /// Created resources across all actions
     pub created_resources: Vec<Vec<Resource>>,
     /// The randomness of the delta commitments for each CU/action.
@@ -114,8 +114,8 @@ impl Tester {
 
         let consumed_data = consumed_resources
             .into_iter()
-            .map(|resource| ConsumedDatum::from_resource(resource, nf_key.clone()))
-            .collect::<Vec<ConsumedDatum>>();
+            .map(|resource| ConsumedResourceWitness::from_resource(resource, nf_key.clone()))
+            .collect::<Vec<ConsumedResourceWitness>>();
 
         self.consumed_data.push(consumed_data);
     }
@@ -126,7 +126,7 @@ impl Tester {
         assert!(!self.consumed_data.is_empty());
         let nullifiers = self.consumed_data[self.current] // Grab consumed data of current CU/action
             .iter()
-            .map(|memo| memo.resource.nullifier(&memo.nf_key).unwrap())
+            .map(|r| r.resource.nullifier(&r.nf_key).unwrap())
             .collect::<Vec<Digest>>();
 
         let created_resources = (0..num)
@@ -157,7 +157,7 @@ impl Tester {
         self.populate_consumed_resources(old_num);
         self.populate_created_resources(new_num)?;
 
-        let compliance_witness = ComplianceWitness::from_resources_info(
+        let compliance_witness = ComplianceWitness::from_resources(
             &self.consumed_data[self.current],
             &self.created_resources[self.current],
         );
@@ -173,10 +173,10 @@ impl Tester {
 
         let tags = self.consumed_data[self.current]
             .iter()
-            .map(|consumed_datum| {
-                consumed_datum
+            .map(|consumed_witness| {
+                consumed_witness
                     .resource
-                    .nullifier(&consumed_datum.nf_key)
+                    .nullifier(&consumed_witness.nf_key)
                     .unwrap()
             })
             .chain(
@@ -190,7 +190,13 @@ impl Tester {
 
         let logic_verifiers = self.consumed_data[self.current]
             .iter()
-            .map(|consumed_datum| (consumed_datum.resource, consumed_datum.nf_key.clone(), true))
+            .map(|consumed_witness| {
+                (
+                    consumed_witness.resource,
+                    consumed_witness.nf_key.clone(),
+                    true,
+                )
+            })
             .chain(
                 self.created_resources[self.current]
                     .iter()
