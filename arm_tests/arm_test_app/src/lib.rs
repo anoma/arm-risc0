@@ -82,175 +82,144 @@ pub struct Tester {
 }
 
 impl Tester {
-    /// Populates the tester with `num` test resources, their merkle paths, and their nullifier keys.
-    /// They all have the same logic ([TestLogic]) and quantity 1.
+    /// Populates the tester with `num` test consumed-resource witnesses, all
+    /// signed by the same fresh nullifier key, with the same [TestLogic] and
+    /// quantity 1, and per-resource distinct nonces.
     pub fn populate_consumed_resources(&mut self, num: u32) {
-        let (nf_key, nf_key_cm) = NullifierKey::random_pair();
-        let consumed_resources: Vec<Resource> = (0..num)
+        let (nf_key, nk_commitment) = NullifierKey::random_pair();
+        let consumed_data = (0..num)
             .map(|index| {
-                let mut consumed_resource = Resource {
+                let resource = Resource {
                     logic_ref: TestLogic::verifying_key(),
-                    nk_commitment: nf_key_cm,
+                    nk_commitment,
                     quantity: 1,
+                    nonce: nonce_from_index(index),
                     ..Default::default()
                 };
-                consumed_resource.nonce = [
-                    index.to_be_bytes(),
-                    index.to_be_bytes(),
-                    index.to_be_bytes(),
-                    index.to_be_bytes(),
-                    index.to_be_bytes(),
-                    index.to_be_bytes(),
-                    index.to_be_bytes(),
-                    index.to_be_bytes(),
-                ]
-                .concat()
-                .try_into()
-                .unwrap();
-
-                consumed_resource
+                ConsumedResourceWitness::from_resource(resource, nf_key.clone())
             })
             .collect();
-
-        let consumed_data = consumed_resources
-            .into_iter()
-            .map(|resource| ConsumedResourceWitness::from_resource(resource, nf_key.clone()))
-            .collect::<Vec<ConsumedResourceWitness>>();
-
         self.consumed_data.push(consumed_data);
     }
 
-    /// Populates the tester with `num` created resources. They all have the same logic ([TestLogic]),
-    /// and their nonces are derived from the passed nullifiers.
+    /// Populates the tester with `num` created resources for the current action.
+    /// They share the same [TestLogic] and quantity 1; nonces are derived from
+    /// the consumed nullifiers (which must already be populated).
     pub fn populate_created_resources(&mut self, num: u32) -> Result<(), ArmError> {
-        assert!(!self.consumed_data.is_empty());
-        let nullifiers = self.consumed_data[self.current] // Grab consumed data of current CU/action
+        let consumed = self
+            .consumed_data
+            .get(self.current)
+            .expect("populate_consumed_resources must run first");
+        let nullifiers: Vec<Digest> = consumed
             .iter()
-            .map(|r| r.resource.nullifier(&r.nf_key).unwrap())
-            .collect::<Vec<Digest>>();
+            .map(|w| w.resource.nullifier(&w.nf_key).unwrap())
+            .collect();
 
         let created_resources = (0..num)
-            .map(|index| {
-                let mut created_resource = Resource {
+            .map(|index| -> Result<Resource, ArmError> {
+                Ok(Resource {
                     logic_ref: TestLogic::verifying_key(),
                     nk_commitment: NullifierKey::default().commit(),
                     quantity: 1,
+                    nonce: Resource::derive_nonce_from_nullifiers(index, &nullifiers)?,
                     ..Default::default()
-                };
-                created_resource.nonce =
-                    Resource::derive_nonce_from_nullifiers(index, &nullifiers)?;
-
-                Ok(created_resource)
+                })
             })
-            .collect::<Result<Vec<Resource>, ArmError>>()?;
+            .collect::<Result<Vec<_>, _>>()?;
 
         self.created_resources.push(created_resources);
         Ok(())
     }
 
-    /// Creates a compliance unit with `old_num` consumed resources and `new_num` created resources.
+    /// Creates a compliance unit with `consumed_num` consumed and `created_num` created
+    /// resources for the current action.
     pub fn create_compliance_unit(
         &mut self,
-        old_num: u32,
-        new_num: u32,
+        consumed_num: u32,
+        created_num: u32,
     ) -> Result<ComplianceUnit, ArmError> {
-        self.populate_consumed_resources(old_num);
-        self.populate_created_resources(new_num)?;
+        self.populate_consumed_resources(consumed_num);
+        self.populate_created_resources(created_num)?;
 
         let compliance_witness = ComplianceWitness::from_resources(
             &self.consumed_data[self.current],
             &self.created_resources[self.current],
         );
-
         self.rcvs.push(compliance_witness.rcv.clone());
 
         ComplianceUnit::create(&compliance_witness, ProofType::Succinct)
     }
 
-    /// Creates an action with `old_num` consumed resources and `new_num`  created resources.
-    pub fn create_an_action(&mut self, old_num: u32, new_num: u32) -> Result<Action, ArmError> {
-        let compliance_unit = self.create_compliance_unit(old_num, new_num)?;
+    /// Creates an action with `consumed_num` consumed and `created_num` created resources.
+    pub fn create_an_action(&mut self, consumed_num: u32, created_num: u32) -> Result<Action, ArmError> {
+        let compliance_unit = self.create_compliance_unit(consumed_num, created_num)?;
 
-        let tags = self.consumed_data[self.current]
+        // Build (tag, resource, nf_key, is_consumed) entries in compliance-unit
+        // order: consumed nullifiers first, then created commitments. Computing
+        // the tag once here avoids re-deriving it inside the verifier loop.
+        let consumed = &self.consumed_data[self.current];
+        let created = &self.created_resources[self.current];
+        let entries: Vec<(Digest, Resource, NullifierKey, bool)> = consumed
             .iter()
-            .map(|consumed_witness| {
-                consumed_witness
-                    .resource
-                    .nullifier(&consumed_witness.nf_key)
-                    .unwrap()
+            .map(|w| {
+                let tag = w.resource.nullifier(&w.nf_key).unwrap();
+                (tag, w.resource, w.nf_key.clone(), true)
             })
-            .chain(
-                self.created_resources[self.current]
-                    .iter()
-                    .map(|created_resource| created_resource.commitment()),
-            )
-            .collect::<Vec<Digest>>();
+            .chain(created.iter().map(|r| {
+                (r.commitment(), *r, NullifierKey::default(), false)
+            }))
+            .collect();
 
+        let tags: Vec<Digest> = entries.iter().map(|(tag, ..)| *tag).collect();
         let action_tree = Action::construct_action_tree(&tags);
 
-        let logic_verifiers = self.consumed_data[self.current]
-            .iter()
-            .map(|consumed_witness| {
-                (
-                    consumed_witness.resource,
-                    consumed_witness.nf_key.clone(),
-                    true,
-                )
-            })
-            .chain(
-                self.created_resources[self.current]
-                    .iter()
-                    .map(|created_resource| (*created_resource, NullifierKey::default(), false)),
-            )
-            .map(|res_nfkey_isconsumed| {
-                let (resource, nf_key, is_consumed) = res_nfkey_isconsumed;
-
-                let tag = if is_consumed {
-                    resource.nullifier(&nf_key).unwrap()
-                } else {
-                    resource.commitment()
-                };
-
+        let logic_verifiers = entries
+            .into_iter()
+            .map(|(tag, resource, nf_key, is_consumed)| {
                 let receive_existence_path = action_tree.generate_path(&tag).unwrap();
-
-                let test_logic =
-                    TestLogic::new(resource, receive_existence_path, nf_key, is_consumed);
-                test_logic.prove(ProofType::Succinct).unwrap()
+                TestLogic::new(resource, receive_existence_path, nf_key, is_consumed)
+                    .prove(ProofType::Succinct)
+                    .unwrap()
             })
             .collect::<Vec<LogicVerifier>>();
 
         let action = Action::new(compliance_unit, logic_verifiers).unwrap();
-
-        self.current += 1; // Update to next action
-
+        self.current += 1;
         Ok(action)
     }
 
-    /// Creates several actions, each with the passed number of consumed (old) resources, and created (new) resources.
+    /// Creates several actions; each `(consumed, created)` pair becomes one action.
     pub fn create_multiple_actions(
         &mut self,
-        old_new_resources_nums: &[(u32, u32)],
+        consumed_created_nums: &[(u32, u32)],
     ) -> Result<Vec<Action>, ArmError> {
-        let mut actions = Vec::new();
-        for (old_num, new_num) in old_new_resources_nums.iter() {
-            actions.push(self.create_an_action(*old_num, *new_num)?);
-        }
-        Ok(actions)
+        consumed_created_nums
+            .iter()
+            .map(|(consumed, created)| self.create_an_action(*consumed, *created))
+            .collect()
     }
 
-    /// Creates a test transaction with several actions. Each action with the passed number of consumed (old) resources, and created (new) resources.
+    /// Creates a test transaction with one action per `(consumed, created)`
+    /// pair, and generates the delta proof.
     pub fn generate_test_transaction(
         &mut self,
-        old_new_resources_nums: &[(u32, u32)],
+        consumed_created_nums: &[(u32, u32)],
     ) -> Result<Transaction, ArmError> {
-        let actions = self.create_multiple_actions(old_new_resources_nums)?;
+        let actions = self.create_multiple_actions(consumed_created_nums)?;
         let delta_witness = DeltaWitness::from_bytes_vec(&self.rcvs).unwrap();
 
-        let tx = Transaction::create(actions, Delta::Witness(delta_witness));
-        let tx_with_delta = tx.generate_delta_proof().unwrap();
-
-        Ok(tx_with_delta)
+        Transaction::create(actions, Delta::Witness(delta_witness)).generate_delta_proof()
     }
+}
+
+/// A 32-byte nonce that varies per index. The exact bytes don't matter as long
+/// as nonces are distinct across consumed resources within a CU.
+fn nonce_from_index(index: u32) -> [u8; 32] {
+    let mut bytes = [0u8; 32];
+    for chunk in bytes.chunks_exact_mut(4) {
+        chunk.copy_from_slice(&index.to_be_bytes());
+    }
+    bytes
 }
 
 #[test]
@@ -345,4 +314,67 @@ fn test_verify_aggregation_fails_for_incorrect_instances() {
     tx_str.actions[0].logic_verifier_inputs.pop();
 
     assert!(tx_str.verify_aggregation().is_err());
+}
+
+/// A balanced action with no created resources (1 ephemeral consumed, 0
+/// created). Per-action verification only checks the unit + logic proofs;
+/// balance is enforced at the transaction level.
+#[test]
+fn test_action_with_zero_created() {
+    let action = Tester::default().create_an_action(1, 0).unwrap();
+    assert!(action.verify().is_ok());
+}
+
+/// `Tester` defaults consume same-kind resources, so summing 2 consumed and 2
+/// created of quantity 1 each must net to zero in the delta — covering the
+/// per-kind aggregation path inside `constrain_delta`.
+#[test]
+fn test_compliance_unit_balanced_same_kind() {
+    let unit = Tester::default().create_compliance_unit(2, 2).unwrap();
+    assert!(unit.verify().is_ok());
+}
+
+/// Composing two balanced witness-form transactions yields a balanced
+/// transaction once its delta proof is generated.
+#[test]
+fn test_compose_transactions() {
+    let mut tester_a = Tester::default();
+    let actions_a = tester_a.create_multiple_actions(&[(1, 1)]).unwrap();
+    let tx_a = Transaction::create(
+        actions_a,
+        Delta::Witness(DeltaWitness::from_bytes_vec(&tester_a.rcvs).unwrap()),
+    );
+
+    let mut tester_b = Tester::default();
+    let actions_b = tester_b.create_multiple_actions(&[(2, 2)]).unwrap();
+    let tx_b = Transaction::create(
+        actions_b,
+        Delta::Witness(DeltaWitness::from_bytes_vec(&tester_b.rcvs).unwrap()),
+    );
+
+    let composed = Transaction::compose(tx_a, tx_b)
+        .generate_delta_proof()
+        .unwrap();
+    assert!(composed.verify().is_ok());
+}
+
+/// Constructing a compliance witness with a wrong created-resource nonce must
+/// be rejected by `constrain` with `InvalidResourceNonce`.
+#[test]
+fn test_invalid_created_nonce_rejected() {
+    let mut tester = Tester::default();
+    tester.populate_consumed_resources(1);
+    tester.populate_created_resources(1).unwrap();
+    // Tamper with the created resource's nonce.
+    tester.created_resources[0][0].nonce = [0xAA; 32];
+
+    let witness = ComplianceWitness::from_resources(
+        &tester.consumed_data[0],
+        &tester.created_resources[0],
+    );
+
+    assert!(matches!(
+        witness.constrain(),
+        Err(ArmError::InvalidResourceNonce)
+    ));
 }

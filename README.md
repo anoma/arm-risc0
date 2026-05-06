@@ -102,12 +102,11 @@ We have the following feature flags in arm lib:
 | Feature                 | Implies                              | Description                                                                                                                                        |
 | ----------------------- | ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `compliance_circuit`    |                                      | A specific feature for compliance circuit                                                                                                          |
-| `transaction (default)` | `compliance_circuit`, `client`       | It provides full transaction processing capabilities and supports Succinct(STARK) and Groth16 proof types. Groth16 proofs require x86_64 machines. |
-| `prove`                 |                                      | Enables RISC0 proving capabilities (required for actual proof generation)                                                                          |
+| `transaction (default)` | `compliance_circuit`                 | It provides full transaction processing capabilities and supports Succinct(STARK) and Groth16 proof types. Groth16 proofs require x86_64 machines. |
+| `prove (default)`       |                                      | Enables RISC0 proving capabilities (required for actual proof generation)                                                                          |
 | `bonsai`                |                                      | Enables RISC0 bonsai sdk                                                                                                                           |
-| `client`                |                                      | Enables RISC0 client sdk                                                                                                                           |
 | `cuda`                  |                                      | Enables CUDA GPU acceleration for the prover. Requires CUDA toolkit to be installed.                                                               |
-| `aggregation_circuit`   |                                      | A specific feature for (pcd-based) aggregation circuits                                                                                            |
+| `aggregation_circuit`   |                                      | A specific feature for batch aggregation circuit                                                                                                   |
 | `aggregation`           | `aggregation_circuit`, `transaction` | Enables proof aggregation (only succinct proofs can be aggregated)                                                                                 |
 
 ### Usage Examples
@@ -168,14 +167,14 @@ The aggregation proof type is specified by the ProofType argument. The inner pro
 We support the batch aggregation strategy. The _batch_ strategy aggregates all proofs in the transaction in a single run.
 
 ```rust
-use anoma_rm_risc0::transaction;
+use anoma_rm_risc0::{proving_system::ProofType, transaction::Transaction};
 
 // Just a dummy tx, for illustration. The inner proofs must be Succinct.
-let mut tx = generate_test_transaction(1, 1, ProofType::Succinct);
+let mut tx: Transaction = /* a transaction with succinct compliance and logic proofs */;
 
-// Upon succesful aggregation, compliance and resource logic proofs are erased.
-// The aggregated proof_type can be ProofType::Succinct or ProofType::Groth16
-assert!(tx.aggregate(proof_type).is_ok());
+// Upon successful aggregation, compliance and resource logic proofs are erased.
+// `proof_type` can be ProofType::Succinct or ProofType::Groth16.
+assert!(tx.aggregate(ProofType::Succinct).is_ok());
 ```
 
 **Warning:** Once again, aggregation erases all the individual proofs from `tx` and replaces them with the (single) aggregation proof in a dedicated field. This is why the transaction must be `mut`. This is true independently of the strategy used.
@@ -186,7 +185,7 @@ Use `tx.verify()`, as when there is no aggregated proof. Feature `aggregation` m
 
 ### External verification of the aggregation proof
 
-Use `tx.get_raw_aggregation_proof()` to get the RISC0 `InnerReceipt` (the actual proof). The verifier would also need to derive the aggregation instance from `tx` on its own, and wrap both in a RISC0 `Receipt`.
+`tx.aggregation_proof` is the bincode-serialized `InnerReceipt`. Combined with the public instance returned by `tx.construct_aggregation_instance()`, an external verifier can reconstruct the RISC0 `Receipt` and verify it against `BATCH_AGGREGATION_VK` directly.
 
 ### Comparison
 
