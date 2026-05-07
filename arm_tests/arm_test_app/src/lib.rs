@@ -104,12 +104,12 @@ impl Tester {
 
     /// Populates the tester with `num` created resources for the current action.
     /// They share the same [TestLogic] and quantity 1; nonces are derived from
-    /// the consumed nullifiers (which must already be populated).
+    /// the consumed nullifiers, which must already be populated for this action.
     pub fn populate_created_resources(&mut self, num: u32) -> Result<(), ArmError> {
         let consumed = self
             .consumed_data
             .get(self.current)
-            .expect("populate_consumed_resources must run first");
+            .ok_or(ArmError::MissingField("consumed_data"))?;
         let nullifiers: Vec<Digest> = consumed
             .iter()
             .map(|w| w.resource.nullifier(&w.nf_key).unwrap())
@@ -151,12 +151,18 @@ impl Tester {
     }
 
     /// Creates an action with `consumed_num` consumed and `created_num` created resources.
-    pub fn create_an_action(&mut self, consumed_num: u32, created_num: u32) -> Result<Action, ArmError> {
+    pub fn create_an_action(
+        &mut self,
+        consumed_num: u32,
+        created_num: u32,
+    ) -> Result<Action, ArmError> {
         let compliance_unit = self.create_compliance_unit(consumed_num, created_num)?;
 
-        // Build (tag, resource, nf_key, is_consumed) entries in compliance-unit
-        // order: consumed nullifiers first, then created commitments. Computing
-        // the tag once here avoids re-deriving it inside the verifier loop.
+        // Build (tag, resource, nf_key, is_consumed) entries in the compliance
+        // unit's canonical tag order (consumed nullifiers, then created
+        // commitments) — exactly what `ComplianceInstance::tags()` returns.
+        // Computing the tag once here avoids re-deriving it inside the
+        // verifier loop.
         let consumed = &self.consumed_data[self.current];
         let created = &self.created_resources[self.current];
         let entries: Vec<(Digest, Resource, NullifierKey, bool)> = consumed
@@ -165,9 +171,11 @@ impl Tester {
                 let tag = w.resource.nullifier(&w.nf_key).unwrap();
                 (tag, w.resource, w.nf_key.clone(), true)
             })
-            .chain(created.iter().map(|r| {
-                (r.commitment(), *r, NullifierKey::default(), false)
-            }))
+            .chain(
+                created
+                    .iter()
+                    .map(|r| (r.commitment(), *r, NullifierKey::default(), false)),
+            )
             .collect();
 
         let tags: Vec<Digest> = entries.iter().map(|(tag, ..)| *tag).collect();
@@ -206,9 +214,20 @@ impl Tester {
         consumed_created_nums: &[(u32, u32)],
     ) -> Result<Transaction, ArmError> {
         let actions = self.create_multiple_actions(consumed_created_nums)?;
-        let delta_witness = DeltaWitness::from_bytes_vec(&self.rcvs).unwrap();
+        Transaction::create(actions, Delta::Witness(self.delta_witness())).generate_delta_proof()
+    }
 
-        Transaction::create(actions, Delta::Witness(delta_witness)).generate_delta_proof()
+    /// Builds a `DeltaWitness` from the per-CU randomness collected so far.
+    /// Use this rather than reaching into the `rcvs` field directly.
+    pub fn delta_witness(&self) -> DeltaWitness {
+        DeltaWitness::from_bytes_vec(&self.rcvs).unwrap()
+    }
+
+    /// Test-only escape hatch: overwrites the nonce of an already-populated
+    /// created resource. Reaching into `created_resources` directly is
+    /// possible but couples the test to an internal layout that may change.
+    pub fn set_created_nonce(&mut self, action_idx: usize, resource_idx: usize, nonce: [u8; 32]) {
+        self.created_resources[action_idx][resource_idx].nonce = nonce;
     }
 }
 
@@ -303,6 +322,21 @@ fn test_aggregation_works() {
     assert!(tx_str.verify_aggregation().is_ok());
 }
 
+/// Same as `test_aggregation_works` but with a Groth16 outer aggregation
+/// proof. Ignored because Groth16 proving is slow even in dev mode and
+/// requires x86_64.
+#[test]
+#[ignore]
+fn test_aggregation_works_groth16() {
+    let tx = Tester::default()
+        .generate_test_transaction(&[(2, 2), (2, 2)])
+        .unwrap();
+    let mut tx_str = tx.clone();
+    assert!(tx_str.aggregate(ProofType::Groth16).is_ok());
+    assert!(tx_str.aggregation_proof.is_some());
+    assert!(tx_str.verify_aggregation().is_ok());
+}
+
 #[test]
 fn test_verify_aggregation_fails_for_incorrect_instances() {
     let tx = Tester::default()
@@ -340,17 +374,11 @@ fn test_compliance_unit_balanced_same_kind() {
 fn test_compose_transactions() {
     let mut tester_a = Tester::default();
     let actions_a = tester_a.create_multiple_actions(&[(1, 1)]).unwrap();
-    let tx_a = Transaction::create(
-        actions_a,
-        Delta::Witness(DeltaWitness::from_bytes_vec(&tester_a.rcvs).unwrap()),
-    );
+    let tx_a = Transaction::create(actions_a, Delta::Witness(tester_a.delta_witness()));
 
     let mut tester_b = Tester::default();
     let actions_b = tester_b.create_multiple_actions(&[(2, 2)]).unwrap();
-    let tx_b = Transaction::create(
-        actions_b,
-        Delta::Witness(DeltaWitness::from_bytes_vec(&tester_b.rcvs).unwrap()),
-    );
+    let tx_b = Transaction::create(actions_b, Delta::Witness(tester_b.delta_witness()));
 
     let composed = Transaction::compose(tx_a, tx_b)
         .generate_delta_proof()
@@ -365,13 +393,10 @@ fn test_invalid_created_nonce_rejected() {
     let mut tester = Tester::default();
     tester.populate_consumed_resources(1);
     tester.populate_created_resources(1).unwrap();
-    // Tamper with the created resource's nonce.
-    tester.created_resources[0][0].nonce = [0xAA; 32];
+    tester.set_created_nonce(0, 0, [0xAA; 32]);
 
-    let witness = ComplianceWitness::from_resources(
-        &tester.consumed_data[0],
-        &tester.created_resources[0],
-    );
+    let witness =
+        ComplianceWitness::from_resources(&tester.consumed_data[0], &tester.created_resources[0]);
 
     assert!(matches!(
         witness.constrain(),

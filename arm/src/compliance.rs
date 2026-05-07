@@ -76,7 +76,7 @@ pub struct ComplianceWitness {
     pub created_resources: Vec<Resource>,
     /// The existing root for ephemeral resources
     pub ephemeral_root: Digest,
-    /// Bytes of randommness for the delta commitments `rcv`
+    /// Bytes of randomness for the delta commitment `rcv`
     pub rcv: Vec<u8>,
     /// Optional pre-computed kind points for known resource types.
     /// Maps (logic_ref, label_ref) → uncompressed EC point, skipping hash_to_curve.
@@ -107,7 +107,7 @@ impl ComplianceWitness {
         let mut rng = rand::thread_rng();
         let rcv = Scalar::random(&mut rng).to_bytes();
 
-        Self::from_parts(consumed_data, created_resources, valid_root, &rcv[..])
+        Self::from_parts(consumed_data, created_resources, valid_root, rcv.as_ref())
     }
 
     /// Creates a new compliance witness from each of its component parts.
@@ -243,6 +243,12 @@ impl ComplianceWitness {
 
 /// Adds `signed_quantity` to the running sum for `kind`, inserting a new
 /// (kind, sum) pair when the kind is seen for the first time.
+///
+/// The lookup is a linear scan, so this is O(N²) in the number of distinct
+/// kinds. That is intentional: in a circuit, a scalar multiplication is far
+/// more expensive than a curve-point equality, so trading per-resource scalar
+/// mults for a few extra comparisons is the right side of the trade-off for
+/// the unit sizes we expect.
 fn accumulate_kind(
     kinds: &mut Vec<ProjectivePoint>,
     sums: &mut Vec<Scalar>,
@@ -283,49 +289,28 @@ impl Default for ComplianceWitness {
     fn default() -> Self {
         let consumed_data = vec![ConsumedResourceWitness::default(); 3];
 
-        let consumed_nullifiers = vec![
-            consumed_data[0]
-                .resource
-                .nullifier(&consumed_data[0].nf_key)
-                .unwrap(),
-            consumed_data[1]
-                .resource
-                .nullifier(&consumed_data[1].nf_key)
-                .unwrap(),
-            consumed_data[2]
-                .resource
-                .nullifier(&consumed_data[1].nf_key)
-                .unwrap(),
-        ];
+        let consumed_nullifiers: Vec<Digest> = consumed_data
+            .iter()
+            .map(|w| w.resource.nullifier(&w.nf_key).unwrap())
+            .collect();
 
         let nonce_0 = Resource::derive_nonce_from_nullifiers(0, &consumed_nullifiers).unwrap();
         let nonce_1 = Resource::derive_nonce_from_nullifiers(1, &consumed_nullifiers).unwrap();
 
-        let consumed_resource_0 = Resource {
+        let make_created = |nonce| Resource {
             logic_ref: Digest::default(),
             label_ref: Digest::default(),
             quantity: 1u128,
             value_ref: Digest::default(),
             is_ephemeral: false,
-            nonce: nonce_0,
-            nk_commitment: NullifierKey::default().commit(),
-            rand_seed: [0u8; 32],
-        };
-
-        let consumed_resource_1 = Resource {
-            logic_ref: Digest::default(),
-            label_ref: Digest::default(),
-            quantity: 1u128,
-            value_ref: Digest::default(),
-            is_ephemeral: false,
-            nonce: nonce_1,
+            nonce,
             nk_commitment: NullifierKey::default().commit(),
             rand_seed: [0u8; 32],
         };
 
         ComplianceWitness {
             consumed_data,
-            created_resources: vec![consumed_resource_0, consumed_resource_1],
+            created_resources: vec![make_created(nonce_0), make_created(nonce_1)],
             ephemeral_root: *INITIAL_ROOT,
             rcv: Scalar::ONE.to_bytes().to_vec(),
             kind_table: vec![],
@@ -350,14 +335,20 @@ impl ComplianceInstance {
     /// Namely, the list of tags as bytes.
     pub fn delta_msg(&self) -> Vec<u8> {
         let mut msg = Vec::new();
-        for tag in self
-            .consumed_publics
-            .iter()
-            .map(|r| r.resource_nullifier)
-            .chain(self.created_publics.iter().map(|r| r.resource_commitment))
-        {
+        for tag in self.tags() {
             msg.extend_from_slice(tag.as_bytes());
         }
         msg
+    }
+
+    /// Canonical ordering of the unit's tags: consumed nullifiers first, then
+    /// created commitments. Both the action tree and the per-resource logic
+    /// verifier proofs MUST be built against this order; any other ordering
+    /// will produce a different action-tree root and verification will fail.
+    pub fn tags(&self) -> impl Iterator<Item = Digest> + '_ {
+        self.consumed_publics
+            .iter()
+            .map(|r| r.resource_nullifier)
+            .chain(self.created_publics.iter().map(|r| r.resource_commitment))
     }
 }

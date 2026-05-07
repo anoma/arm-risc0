@@ -54,25 +54,15 @@ impl Action {
 
         let compliance_instance = self.compliance_unit.get_instance()?;
 
-        // Compute the action tree root
-        let tags: Vec<Digest> = compliance_instance
-            .consumed_publics
-            .iter()
-            .map(|r| r.resource_nullifier)
-            .chain(
-                compliance_instance
-                    .created_publics
-                    .iter()
-                    .map(|r| r.resource_commitment),
-            )
-            .collect();
+        // Compute the action tree root over the unit's canonical tag order.
+        let tags: Vec<Digest> = compliance_instance.tags().collect();
         let action_tree_root = Self::construct_action_tree(&tags).root()?;
 
         // Match logic verifier inputs with the tags in the action tree
         if tags.len() != self.logic_verifier_inputs.len() {
             return Err(ArmError::TagNotFound);
         }
-        for tag_verifyingkey_isconsumed in compliance_instance
+        let entries = compliance_instance
             .consumed_publics
             .iter()
             .map(|r| (r.resource_nullifier, r.resource_logic_ref, true))
@@ -81,27 +71,22 @@ impl Action {
                     .created_publics
                     .iter()
                     .map(|r| (r.resource_commitment, r.resource_logic_ref, false)),
-            )
-        {
-            let (tag, verifying_key, is_consumed) = tag_verifyingkey_isconsumed;
-
+            );
+        for (tag, verifying_key, is_consumed) in entries {
             // Look up the tag in the `logic_verifier_inputs`.
-            if let Some(input) = self
+            let input = self
                 .logic_verifier_inputs
                 .iter()
                 .find(|input| input.tag == tag)
-            {
-                if input.verifying_key != verifying_key {
-                    return Err(ArmError::VerifyingKeyMismatch);
-                }
-
-                let verifier = input
-                    .clone()
-                    .to_logic_verifier(is_consumed, action_tree_root)?;
-                logic_verifiers.push(verifier);
-            } else {
-                return Err(ArmError::TagNotFound);
+                .ok_or(ArmError::TagNotFound)?;
+            if input.verifying_key != verifying_key {
+                return Err(ArmError::VerifyingKeyMismatch);
             }
+            logic_verifiers.push(
+                input
+                    .clone()
+                    .to_logic_verifier(is_consumed, action_tree_root)?,
+            );
         }
 
         Ok(logic_verifiers)
@@ -137,9 +122,13 @@ impl Action {
         Ok(msg)
     }
 
-    /// Constructs the action tree from the passed tags (purported consumed
-    /// nullifiers and created commitments). The order must be consistent with
-    /// the order of tags in the compliance instance.
+    /// Constructs the action tree from the passed tags.
+    ///
+    /// The caller MUST pass tags in the canonical order produced by
+    /// [`ComplianceInstance::tags`] — consumed nullifiers first, then created
+    /// commitments. Any other ordering (e.g. sorting) will produce a different
+    /// root and the resulting action's logic proofs will fail to verify with
+    /// a generic proof-verification error.
     pub fn construct_action_tree(tags: &[Digest]) -> MerkleTree {
         MerkleTree::new(tags.to_vec())
     }

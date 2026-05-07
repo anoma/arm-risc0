@@ -289,14 +289,14 @@ impl Resource {
     }
 
     /// Derives the nonce by hashing
-    /// `ARM_NONCE_DERIVATION || index_le || nullifiers_digest`.
+    /// `ARM_NONCE_DERIVATION || index_be || nullifiers_digest`.
     pub fn derive_nonce(index: u32, nullifiers_digest: Digest) -> [u8; DIGEST_BYTES] {
         const LEN: usize = NONCE_DERIVATION_PERSONALIZATION_LEN + 4 + DIGEST_BYTES;
         let mut bytes = [0u8; LEN];
         bytes[..NONCE_DERIVATION_PERSONALIZATION_LEN]
             .copy_from_slice(NONCE_DERIVATION_PERSONALIZATION);
         bytes[NONCE_DERIVATION_PERSONALIZATION_LEN..NONCE_DERIVATION_PERSONALIZATION_LEN + 4]
-            .copy_from_slice(&index.to_le_bytes());
+            .copy_from_slice(&index.to_be_bytes());
         bytes[NONCE_DERIVATION_PERSONALIZATION_LEN + 4..]
             .copy_from_slice(nullifiers_digest.as_bytes());
         (*Impl::hash_bytes(&bytes)).into()
@@ -343,16 +343,17 @@ pub struct ConsumedResourceWitness {
 }
 
 impl ConsumedResourceWitness {
-    /// Datum constructor for an ephemeral resource.
+    /// Constructor for an ephemeral resource (uses an empty merkle path).
     pub fn from_resource(resource: Resource, nf_key: NullifierKey) -> ConsumedResourceWitness {
         ConsumedResourceWitness {
             resource,
             merkle_path: MerklePath::empty(),
-            nf_key: nf_key.clone(),
+            nf_key,
         }
     }
 
-    /// Datum constructor for a persistent resource.
+    /// Constructor for a persistent resource with a merkle path proving the
+    /// resource commitment is in the commitment tree.
     pub fn from_resource_with_path(
         resource: Resource,
         nf_key: NullifierKey,
@@ -361,7 +362,7 @@ impl ConsumedResourceWitness {
         ConsumedResourceWitness {
             resource,
             merkle_path,
-            nf_key: nf_key.clone(),
+            nf_key,
         }
     }
 }
