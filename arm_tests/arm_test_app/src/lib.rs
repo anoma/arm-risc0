@@ -7,6 +7,7 @@ use anoma_rm_risc0::{
     action_tree::MerkleTree,
     compliance::{ComplianceWitness, INITIAL_ROOT},
     compliance_unit::ComplianceUnit,
+    constants::{global_kind_table, init_kind_table_from_file},
     delta_proof::DeltaWitness,
     logic_proof::LogicProver,
     merkle_path::MerklePath,
@@ -75,6 +76,10 @@ pub fn create_an_action_with_multiple_compliances(
     nonce: u8,
     proof_type: ProofType,
 ) -> (Action, DeltaWitness) {
+    let kind_table_path =
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../arm/kind_table.json");
+    let _ = init_kind_table_from_file(&kind_table_path);
+
     let nf_key = NullifierKey::default();
     let nf_key_cm = nf_key.commit();
 
@@ -107,6 +112,7 @@ pub fn create_an_action_with_multiple_compliances(
             nf_key: nf_key.clone(),
             created_resource: created_resources[i],
             rcv: Scalar::ONE.to_bytes().to_vec(), // fixed rcv for test
+            kind_table: global_kind_table().to_vec(),
         };
 
         let compliance_receipt = ComplianceUnit::create(&compliance_witness, proof_type).unwrap();
