@@ -45,7 +45,7 @@ pub struct ComplianceInstance {
 /// An entry in the kind lookup table, mapping (logic_ref, label_ref) to a
 /// pre-computed kind point. Avoids hash-to-curve inside the circuit for known
 /// resource types.
-#[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct KindTableEntry {
     /// Logic ref component of the key.
     pub logic_ref: Digest,
@@ -93,8 +93,14 @@ impl ComplianceWitness {
     pub fn from_resources(
         consumed_data: &[ConsumedResourceWitness],
         created_resources: &[Resource],
+        kind_table: Vec<KindTableEntry>,
     ) -> Self {
-        Self::from_resources_with_ephemeral_root(consumed_data, created_resources, *INITIAL_ROOT)
+        Self::from_resources_with_ephemeral_root(
+            consumed_data,
+            created_resources,
+            *INITIAL_ROOT,
+            kind_table,
+        )
     }
 
     /// Creates a new compliance witness from the given resources and a valid
@@ -103,11 +109,18 @@ impl ComplianceWitness {
         consumed_data: &[ConsumedResourceWitness],
         created_resources: &[Resource],
         valid_root: Digest,
+        kind_table: Vec<KindTableEntry>,
     ) -> Self {
         let mut rng = rand::thread_rng();
         let rcv = Scalar::random(&mut rng).to_bytes();
 
-        Self::from_parts(consumed_data, created_resources, valid_root, rcv.as_ref())
+        Self::from_parts(
+            consumed_data,
+            created_resources,
+            valid_root,
+            rcv.as_ref(),
+            kind_table,
+        )
     }
 
     /// Creates a new compliance witness from each of its component parts.
@@ -117,13 +130,14 @@ impl ComplianceWitness {
         created_resources: &[Resource],
         ephemeral_root: Digest,
         rcv: &[u8],
+        kind_table: Vec<KindTableEntry>,
     ) -> ComplianceWitness {
         ComplianceWitness {
             consumed_data: consumed_data.to_vec(),
             created_resources: created_resources.to_vec(),
             ephemeral_root,
             rcv: rcv.to_vec(),
-            kind_table: vec![],
+            kind_table,
         }
     }
 
@@ -184,7 +198,7 @@ impl ComplianceWitness {
             accumulate_kind(
                 &mut kinds,
                 &mut sums,
-                w.resource.kind()?,
+                self.lookup_kind(&w.resource)?,
                 w.resource.quantity_scalar(),
             );
         }
@@ -204,7 +218,7 @@ impl ComplianceWitness {
             accumulate_kind(
                 &mut kinds,
                 &mut sums,
-                resource.kind()?,
+                self.lookup_kind(resource)?,
                 -resource.quantity_scalar(),
             );
         }

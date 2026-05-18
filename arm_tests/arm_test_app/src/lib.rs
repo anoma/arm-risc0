@@ -6,6 +6,7 @@ use anoma_rm_risc0::{
     action::Action,
     compliance::ComplianceWitness,
     compliance_unit::ComplianceUnit,
+    constants::{global_kind_table, init_kind_table_from_file},
     delta_proof::DeltaWitness,
     error::ArmError,
     logic_proof::{LogicProver, LogicVerifier},
@@ -27,7 +28,7 @@ pub const TEST_LOGIC_PK: &[u8] = include_bytes!("../elf/logic-test-guest.bin");
 lazy_static! {
     // test logic verification key / compliance image id
     pub static ref TEST_LOGIC_VK: Digest =
-        Digest::from_hex("73167841dd698323eb04209f89e6c19c5559e83841277621ab538feb8a715dfe")
+        Digest::from_hex("d4afb06da047f01dbd33417f8a01088aff72d27e82af32bf9013f2c9748b25ed")
             .unwrap();
 }
 
@@ -141,9 +142,11 @@ impl Tester {
         self.populate_consumed_resources(consumed_num);
         self.populate_created_resources(created_num)?;
 
+        init_test_kind_table();
         let compliance_witness = ComplianceWitness::from_resources(
             &self.consumed_data[self.current],
             &self.created_resources[self.current],
+            global_kind_table().to_vec(),
         );
         self.rcvs.push(compliance_witness.rcv.clone());
 
@@ -229,6 +232,12 @@ impl Tester {
     pub fn set_created_nonce(&mut self, action_idx: usize, resource_idx: usize, nonce: [u8; 32]) {
         self.created_resources[action_idx][resource_idx].nonce = nonce;
     }
+}
+
+fn init_test_kind_table() {
+    let path =
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../arm/kind_table.json");
+    init_kind_table_from_file(&path).expect("Failed to load kind_table.json");
 }
 
 /// A 32-byte nonce that varies per index. The exact bytes don't matter as long
@@ -386,6 +395,34 @@ fn test_compose_transactions() {
     assert!(composed.verify().is_ok());
 }
 
+/// Aggregating a transaction where one logic verifier has a bad verifying key
+/// must fail; the aggregation proof must remain absent.
+#[test]
+fn test_cannot_aggregate_invalid_proofs() {
+    use anoma_rm_risc0::logic_proof::LogicVerifierInputs;
+
+    let tx = Tester::default()
+        .generate_test_transaction(&[(2, 2), (2, 2)])
+        .unwrap();
+
+    let bad_lproof = LogicVerifierInputs {
+        proof: tx.actions[0].logic_verifier_inputs[0].proof.clone(),
+        verifying_key: Digest::from([66u8; 32]),
+        tag: tx.actions[0].logic_verifier_inputs[0].tag,
+        app_data: tx.actions[0].logic_verifier_inputs[0].app_data.clone(),
+    };
+
+    let bad_action = Action {
+        compliance_unit: tx.actions[0].compliance_unit.clone(),
+        logic_verifier_inputs: vec![bad_lproof],
+    };
+    let bad_tx = Transaction::create(vec![bad_action, tx.actions[1].clone()], tx.delta_proof);
+
+    let mut bad_tx_str = bad_tx.clone();
+    assert!(bad_tx_str.aggregate(ProofType::Succinct).is_err());
+    assert!(bad_tx_str.aggregation_proof.is_none());
+}
+
 /// Constructing a compliance witness with a wrong created-resource nonce must
 /// be rejected by `constrain` with `InvalidResourceNonce`.
 #[test]
@@ -395,8 +432,12 @@ fn test_invalid_created_nonce_rejected() {
     tester.populate_created_resources(1).unwrap();
     tester.set_created_nonce(0, 0, [0xAA; 32]);
 
-    let witness =
-        ComplianceWitness::from_resources(&tester.consumed_data[0], &tester.created_resources[0]);
+    init_test_kind_table();
+    let witness = ComplianceWitness::from_resources(
+        &tester.consumed_data[0],
+        &tester.created_resources[0],
+        global_kind_table().to_vec(),
+    );
 
     assert!(matches!(
         witness.constrain(),
