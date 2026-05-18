@@ -45,7 +45,7 @@ pub struct ComplianceInstance {
 /// An entry in the kind lookup table, mapping (logic_ref, label_ref) to a
 /// pre-computed kind point. Avoids hash-to-curve inside the circuit for known
 /// resource types.
-#[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct KindTableEntry {
     /// Logic ref component of the key.
     pub logic_ref: Digest,
@@ -184,7 +184,7 @@ impl ComplianceWitness {
             accumulate_kind(
                 &mut kinds,
                 &mut sums,
-                w.resource.kind()?,
+                self.lookup_kind(&w.resource)?,
                 w.resource.quantity_scalar(),
             );
         }
@@ -204,7 +204,7 @@ impl ComplianceWitness {
             accumulate_kind(
                 &mut kinds,
                 &mut sums,
-                resource.kind()?,
+                self.lookup_kind(resource)?,
                 -resource.quantity_scalar(),
             );
         }
