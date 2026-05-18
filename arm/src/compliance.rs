@@ -1,13 +1,9 @@
 //! Compliance module containing the compliance instance and witness.
 
-/// Size hard-coded to two resources per unit
-const COMPLIANCE_INSTANCE_SIZE: usize = 64;
-
 use crate::{
     error::ArmError,
-    merkle_path::MerklePath,
     nullifier_key::NullifierKey,
-    resource::Resource,
+    resource::{ConsumedResourcePublic, ConsumedResourceWitness, CreatedResourcePublic, Resource},
     utils::{bytes_to_words, words_to_bytes},
 };
 use hex::FromHex;
@@ -19,12 +15,10 @@ use k256::{
     EncodedPoint, ProjectivePoint, Scalar,
 };
 use lazy_static::lazy_static;
-use rand::rngs::OsRng;
 use risc0_zkvm::{
     sha::{Impl as ShaImpl, Sha256},
     Digest,
 };
-use serde_with::serde_as;
 
 lazy_static! {
     /// The initial root of the empty commitment tree is the hash of an empty string.
@@ -36,16 +30,10 @@ lazy_static! {
 /// The compliance instance contains all public inputs to the compliance proof.
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct ComplianceInstance {
-    /// The nullifier of the consumed resource.
-    pub consumed_nullifier: Digest,
-    /// The logic ref of the consumed resource.
-    pub consumed_logic_ref: Digest,
-    /// The commitment tree root for the consumed resource.
-    pub consumed_commitment_tree_root: Digest,
-    /// The commitment of the created resource.
-    pub created_commitment: Digest,
-    /// The logic ref of the created resource.
-    pub created_logic_ref: Digest,
+    /// Public information of consumed resources
+    pub consumed_publics: Vec<ConsumedResourcePublic>,
+    /// Public information of created resources
+    pub created_publics: Vec<CreatedResourcePublic>,
     /// The delta x coordinate of the created resource(use u32 array to avoid padding issues in risc0).
     pub delta_x: [u32; 8],
     /// The delta y coordinate of the created resource(use u32 array to avoid padding issues in risc0).
@@ -54,20 +42,10 @@ pub struct ComplianceInstance {
     pub kind_table_commitment: Digest,
 }
 
-/// The compliance instance represented as an array of u32 words for
-/// serialization(used in the aggregation circuit).
-#[serde_as]
-#[derive(serde::Serialize, serde::Deserialize)]
-pub struct ComplianceInstanceWords {
-    /// The compliance instance as an array of u32 words.
-    #[serde_as(as = "[_; COMPLIANCE_INSTANCE_SIZE]")]
-    pub u32_words: [u32; COMPLIANCE_INSTANCE_SIZE],
-}
-
 /// An entry in the kind lookup table, mapping (logic_ref, label_ref) to a
 /// pre-computed kind point. Avoids hash-to-curve inside the circuit for known
 /// resource types.
-#[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct KindTableEntry {
     /// Logic ref component of the key.
     pub logic_ref: Digest,
@@ -90,19 +68,15 @@ impl KindTableEntry {
 }
 
 /// The compliance witness contains all private inputs to the compliance proof.
-#[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct ComplianceWitness {
-    /// The consumed resource
-    pub consumed_resource: Resource,
-    /// The path from the consumed commitment to the root in the commitment tree
-    pub merkle_path: MerklePath,
-    /// The existing root for the ephemeral resource
+    /// Private information of consumed resources
+    pub consumed_data: Vec<ConsumedResourceWitness>,
+    /// Private information of created resources
+    pub created_resources: Vec<Resource>,
+    /// The existing root for ephemeral resources
     pub ephemeral_root: Digest,
-    /// Nullifier key of the consumed resource
-    pub nf_key: NullifierKey,
-    /// The created resource
-    pub created_resource: Resource,
-    /// Random scalar for delta commitment
+    /// Bytes of randomness for the delta commitment `rcv`
     pub rcv: Vec<u8>,
     /// Optional pre-computed kind points for known resource types.
     /// Maps (logic_ref, label_ref) → uncompressed EC point, skipping hash_to_curve.
@@ -114,42 +88,55 @@ pub struct ComplianceWitness {
 }
 
 impl ComplianceWitness {
-    /// Creates a new compliance witness from the given resources and latest
-    /// root when consuming an ephemeral resource.
+    /// Creates a new compliance witness from the given resources. It uses the
+    /// initial root for ephemeral resources.
     pub fn from_resources(
-        consumed_resource: Resource,
-        latest_root: Digest,
-        nf_key: NullifierKey,
-        created_resource: Resource,
+        consumed_data: &[ConsumedResourceWitness],
+        created_resources: &[Resource],
         kind_table: Vec<KindTableEntry>,
     ) -> Self {
-        ComplianceWitness {
-            consumed_resource,
-            created_resource,
-            merkle_path: MerklePath::empty(),
-            rcv: Scalar::random(&mut OsRng).to_bytes().to_vec(),
-            nf_key,
-            ephemeral_root: latest_root,
+        Self::from_resources_with_ephemeral_root(
+            consumed_data,
+            created_resources,
+            *INITIAL_ROOT,
             kind_table,
-        }
+        )
     }
 
-    /// Creates a new compliance witness from the given resources and merkle
-    /// path when consuming a non-ephemeral resource.
-    pub fn from_resources_with_path(
-        consumed_resource: Resource,
-        nf_key: NullifierKey,
-        merkle_path: MerklePath,
-        created_resource: Resource,
+    /// Creates a new compliance witness from the given resources and a valid
+    /// root when consuming an ephemeral resource.
+    pub fn from_resources_with_ephemeral_root(
+        consumed_data: &[ConsumedResourceWitness],
+        created_resources: &[Resource],
+        valid_root: Digest,
         kind_table: Vec<KindTableEntry>,
     ) -> Self {
+        let mut rng = rand::thread_rng();
+        let rcv = Scalar::random(&mut rng).to_bytes();
+
+        Self::from_parts(
+            consumed_data,
+            created_resources,
+            valid_root,
+            rcv.as_ref(),
+            kind_table,
+        )
+    }
+
+    /// Creates a new compliance witness from each of its component parts.
+    /// The other constructors are convenience wrappers that fill in defaults.
+    fn from_parts(
+        consumed_data: &[ConsumedResourceWitness],
+        created_resources: &[Resource],
+        ephemeral_root: Digest,
+        rcv: &[u8],
+        kind_table: Vec<KindTableEntry>,
+    ) -> ComplianceWitness {
         ComplianceWitness {
-            consumed_resource,
-            created_resource,
-            merkle_path,
-            rcv: Scalar::random(&mut OsRng).to_bytes().to_vec(),
-            nf_key,
-            ephemeral_root: *INITIAL_ROOT,
+            consumed_data: consumed_data.to_vec(),
+            created_resources: created_resources.to_vec(),
+            ephemeral_root,
+            rcv: rcv.to_vec(),
             kind_table,
         }
     }
@@ -169,32 +156,88 @@ impl ComplianceWitness {
         resource.kind()
     }
 
-    /// Compliance constraints
+    /// Compliance constraints. Produces the public outputs of the unit by
+    /// re-computing nullifiers, commitments, tree roots, and the delta
+    /// commitment from the witness data.
+    ///
+    /// Each input resource is touched in a single pass: the same loop over
+    /// `consumed_data` (and over `created_resources`) builds the public outputs
+    /// and accumulates the (kind, signed-quantity) contributions used for the
+    /// delta commitment, so each `commitment()`, `kind()`, and field load
+    /// happens once.
     pub fn constrain(&self) -> Result<ComplianceInstance, ArmError> {
-        let consumed_cm = self.consumed_commitment();
-        let consumed_logic_ref = self.consumed_resource_logic();
-        let consumed_commitment_tree_root = self.consumed_commitment_tree_root(&consumed_cm);
+        let rcv_scalar = parse_rcv(&self.rcv)?;
 
-        let consumed_nullifier = self.consumed_nullifier(&consumed_cm)?;
-        let created_logic_ref = self.created_resource_logic();
-        let created_commitment = self.created_commitment();
+        let n_consumed = self.consumed_data.len();
+        let n_created = self.created_resources.len();
+        let mut consumed_nullifiers = Vec::with_capacity(n_consumed);
+        let mut consumed_publics = Vec::with_capacity(n_consumed);
+        let mut kinds: Vec<ProjectivePoint> = Vec::with_capacity(n_consumed + n_created);
+        let mut sums: Vec<Scalar> = Vec::with_capacity(n_consumed + n_created);
 
-        // constrain created_resource.nonce and consumed_resource.nf
-        assert_eq!(
-            self.created_resource.nonce,
-            consumed_nullifier.as_bytes(),
-            "Created resource nonce must match consumed nullifier"
-        );
+        // Constrain consumed resources and accumulate their (kind, +quantity)
+        // contributions to the delta.
+        for w in &self.consumed_data {
+            let resource_commitment = w.resource.commitment();
+            let resource_nullifier = w
+                .resource
+                .nullifier_from_commitment(&w.nf_key, &resource_commitment)?;
+            let commitment_tree_root = if w.resource.is_ephemeral {
+                self.ephemeral_root
+            } else {
+                w.merkle_path.root(&resource_commitment)
+            };
+            // Reading `logic_ref` here forces it to be loaded from memory onto
+            // the computational trace.
+            consumed_publics.push(ConsumedResourcePublic {
+                resource_nullifier,
+                resource_logic_ref: w.resource.logic_ref,
+                commitment_tree_root,
+            });
+            consumed_nullifiers.push(resource_nullifier);
+            accumulate_kind(
+                &mut kinds,
+                &mut sums,
+                self.lookup_kind(&w.resource)?,
+                w.resource.quantity_scalar(),
+            );
+        }
 
-        let (delta_x, delta_y) = self.delta()?;
+        // Constrain created resources: re-derive each nonce from the consumed
+        // nullifiers, require it to match, and accumulate (kind, -quantity).
+        let consumed_nullifiers_digest = Resource::hash_nullifiers(&consumed_nullifiers)?;
+        let mut created_publics = Vec::with_capacity(n_created);
+        for (resource, index) in self.created_resources.iter().zip(0u32..) {
+            if Resource::derive_nonce(index, consumed_nullifiers_digest) != resource.nonce {
+                return Err(ArmError::InvalidResourceNonce);
+            }
+            created_publics.push(CreatedResourcePublic {
+                resource_commitment: resource.commitment(),
+                resource_logic_ref: resource.logic_ref,
+            });
+            accumulate_kind(
+                &mut kinds,
+                &mut sums,
+                self.lookup_kind(resource)?,
+                -resource.quantity_scalar(),
+            );
+        }
+
+        // Pedersen commit to the per-kind sums; the binding generators are the
+        // kind points themselves, plus the standard generator for `rcv`.
+        let delta = kinds
+            .iter()
+            .zip(sums.iter())
+            .fold(ProjectivePoint::IDENTITY, |acc, (kind, sum)| {
+                acc + *kind * sum
+            })
+            + ProjectivePoint::GENERATOR * rcv_scalar;
+        let (delta_x, delta_y) = encode_delta(delta)?;
         let kind_table_commitment = self.hash_kind_table();
 
         Ok(ComplianceInstance {
-            consumed_nullifier,
-            consumed_logic_ref,
-            consumed_commitment_tree_root,
-            created_commitment,
-            created_logic_ref,
+            consumed_publics,
+            created_publics,
             delta_x,
             delta_y,
             kind_table_commitment,
@@ -210,118 +253,87 @@ impl ComplianceWitness {
         }
         *ShaImpl::hash_bytes(&bytes)
     }
+}
 
-    /// Get the logic ref of consumed resource
-    pub fn consumed_resource_logic(&self) -> Digest {
-        self.consumed_resource.logic_ref
-    }
-
-    /// Get the logic ref of created resource
-    pub fn created_resource_logic(&self) -> Digest {
-        self.created_resource.logic_ref
-    }
-
-    /// Compute the commitment of created resource
-    pub fn consumed_commitment(&self) -> Digest {
-        self.consumed_resource.commitment()
-    }
-
-    /// Compute the commitment of created resource
-    pub fn created_commitment(&self) -> Digest {
-        self.created_resource.commitment()
-    }
-
-    /// Compute the nullifier of consumed resource
-    pub fn consumed_nullifier(&self, cm: &Digest) -> Result<Digest, ArmError> {
-        self.consumed_resource
-            .nullifier_from_commitment(&self.nf_key, cm)
-    }
-
-    /// Compute the commitment tree root for consumed resource
-    pub fn consumed_commitment_tree_root(&self, cm: &Digest) -> Digest {
-        if self.consumed_resource.is_ephemeral {
-            self.ephemeral_root
-        } else {
-            self.merkle_path.root(cm)
-        }
-    }
-
-    /// Compute the delta commitment
-    pub fn delta(&self) -> Result<([u32; 8], [u32; 8]), ArmError> {
-        // Compute delta and make delta commitment public
-        let rcv_array: [u8; 32] = self
-            .rcv
-            .as_slice()
-            .try_into()
-            .map_err(|_| ArmError::InvalidRcv)?;
-        let rcv_scalar = Scalar::from_repr(rcv_array.into())
-            .into_option()
-            .ok_or(ArmError::InvalidRcv)?;
-        let consumed_kind = self.lookup_kind(&self.consumed_resource)?;
-        let created_kind = self.lookup_kind(&self.created_resource)?;
-        let delta = created_kind * self.created_resource.quantity_scalar()
-            - consumed_kind * self.consumed_resource.quantity_scalar()
-            + ProjectivePoint::GENERATOR * rcv_scalar;
-
-        let encoded_delta = delta.to_encoded_point(false);
-        let delta_x: [u32; 8] = bytes_to_words(encoded_delta.x().ok_or(ArmError::InvalidDelta)?)
-            .try_into()
-            .map_err(|_| ArmError::InvalidDelta)?;
-
-        let delta_y: [u32; 8] = bytes_to_words(encoded_delta.y().ok_or(ArmError::InvalidDelta)?)
-            .try_into()
-            .map_err(|_| ArmError::InvalidDelta)?;
-
-        Ok((delta_x, delta_y))
+/// Adds `signed_quantity` to the running sum for `kind`, inserting a new
+/// (kind, sum) pair when the kind is seen for the first time.
+///
+/// The lookup is a linear scan, so this is O(N²) in the number of distinct
+/// kinds. That is intentional: in a circuit, a scalar multiplication is far
+/// more expensive than a curve-point equality, so trading per-resource scalar
+/// mults for a few extra comparisons is the right side of the trade-off for
+/// the unit sizes we expect.
+fn accumulate_kind(
+    kinds: &mut Vec<ProjectivePoint>,
+    sums: &mut Vec<Scalar>,
+    kind: ProjectivePoint,
+    signed_quantity: Scalar,
+) {
+    if let Some(i) = kinds.iter().position(|k| *k == kind) {
+        sums[i] += signed_quantity;
+    } else {
+        kinds.push(kind);
+        sums.push(signed_quantity);
     }
 }
 
+/// Decodes the 32-byte `rcv` blob into a scalar.
+fn parse_rcv(rcv: &[u8]) -> Result<Scalar, ArmError> {
+    let bytes: [u8; 32] = rcv.try_into().map_err(|_| ArmError::InvalidRcv)?;
+    Scalar::from_repr(bytes.into())
+        .into_option()
+        .ok_or(ArmError::InvalidRcv)
+}
+
+/// Encodes the affine x/y coordinates of `delta` as `[u32; 8]` arrays.
+fn encode_delta(delta: ProjectivePoint) -> Result<([u32; 8], [u32; 8]), ArmError> {
+    let encoded = delta.to_encoded_point(false);
+    let delta_x: [u32; 8] = bytes_to_words(encoded.x().ok_or(ArmError::InvalidDelta)?)
+        .try_into()
+        .map_err(|_| ArmError::InvalidDelta)?;
+    let delta_y: [u32; 8] = bytes_to_words(encoded.y().ok_or(ArmError::InvalidDelta)?)
+        .try_into()
+        .map_err(|_| ArmError::InvalidDelta)?;
+    Ok((delta_x, delta_y))
+}
+
 impl Default for ComplianceWitness {
+    /// The default value is meaningless and only for testing.
+    /// It contains three consumed and two created resources.
     fn default() -> Self {
-        let nf_key = NullifierKey::default();
+        let consumed_data = vec![ConsumedResourceWitness::default(); 3];
 
-        let consumed_resource = Resource {
+        let consumed_nullifiers: Vec<Digest> = consumed_data
+            .iter()
+            .map(|w| w.resource.nullifier(&w.nf_key).unwrap())
+            .collect();
+
+        let nonce_0 = Resource::derive_nonce_from_nullifiers(0, &consumed_nullifiers).unwrap();
+        let nonce_1 = Resource::derive_nonce_from_nullifiers(1, &consumed_nullifiers).unwrap();
+
+        let make_created = |nonce| Resource {
             logic_ref: Digest::default(),
             label_ref: Digest::default(),
             quantity: 1u128,
             value_ref: Digest::default(),
             is_ephemeral: false,
-            nonce: [0u8; 32],
-            nk_commitment: nf_key.commit(),
+            nonce,
+            nk_commitment: NullifierKey::default().commit(),
             rand_seed: [0u8; 32],
         };
-
-        let nf = consumed_resource.nullifier(&nf_key).unwrap();
-
-        let created_resource = Resource {
-            logic_ref: Digest::default(),
-            label_ref: Digest::default(),
-            quantity: 1u128,
-            value_ref: Digest::default(),
-            is_ephemeral: false,
-            nonce: nf.as_bytes().try_into().unwrap(),
-            nk_commitment: nf_key.commit(),
-            rand_seed: [0u8; 32],
-        };
-
-        let merkle_path = MerklePath::default();
-
-        let rcv = Scalar::ONE.to_bytes().to_vec();
 
         ComplianceWitness {
-            consumed_resource,
-            created_resource,
+            consumed_data,
+            created_resources: vec![make_created(nonce_0), make_created(nonce_1)],
             ephemeral_root: *INITIAL_ROOT,
-            merkle_path,
-            rcv,
-            nf_key,
+            rcv: Scalar::ONE.to_bytes().to_vec(),
             kind_table: vec![],
         }
     }
 }
 
 impl ComplianceInstance {
-    /// Converts the delta commitment from affine coordinates to a ProjectivePoint.
+    /// Returns the delta as a projective point. It fails if the delta is not a valid point.
     pub fn delta_projective(&self) -> Result<ProjectivePoint, ArmError> {
         let encoded_point = EncodedPoint::from_affine_coordinates(
             words_to_bytes(&self.delta_x).into(),
@@ -333,21 +345,24 @@ impl ComplianceInstance {
             .ok_or(ArmError::InvalidDelta)
     }
 
-    /// Retrieves the delta message used for signing.
+    /// Returns the contribution of this compliance instance to the delta message.
+    /// Namely, the list of tags as bytes.
     pub fn delta_msg(&self) -> Vec<u8> {
         let mut msg = Vec::new();
-        msg.extend_from_slice(self.consumed_nullifier.as_bytes());
-        msg.extend_from_slice(self.created_commitment.as_bytes());
+        for tag in self.tags() {
+            msg.extend_from_slice(tag.as_bytes());
+        }
         msg
     }
-}
 
-impl ComplianceInstanceWords {
-    /// Creates a ComplianceInstanceWords from a byte slice.
-    pub fn from_bytes(instance_bytes: &[u8]) -> Result<Self, ArmError> {
-        let u32_words: [u32; COMPLIANCE_INSTANCE_SIZE] = bytes_to_words(instance_bytes)
-            .try_into()
-            .map_err(|_| ArmError::InstanceSerializationFailed)?;
-        Ok(ComplianceInstanceWords { u32_words })
+    /// Canonical ordering of the unit's tags: consumed nullifiers first, then
+    /// created commitments. Both the action tree and the per-resource logic
+    /// verifier proofs MUST be built against this order; any other ordering
+    /// will produce a different action-tree root and verification will fail.
+    pub fn tags(&self) -> impl Iterator<Item = Digest> + '_ {
+        self.consumed_publics
+            .iter()
+            .map(|r| r.resource_nullifier)
+            .chain(self.created_publics.iter().map(|r| r.resource_commitment))
     }
 }

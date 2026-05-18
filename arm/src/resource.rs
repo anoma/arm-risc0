@@ -6,6 +6,10 @@ const PRF_EXPAND_PERSONALIZATION_LEN: usize = 16;
 const PRF_EXPAND_PERSONALIZATION: &[u8; PRF_EXPAND_PERSONALIZATION_LEN] = b"RISC0_ExpandSeed";
 const PRF_EXPAND_PSI: u8 = 0;
 const PRF_EXPAND_RCM: u8 = 1;
+/// Domain separator for `Resource::derive_nonce`.
+const NONCE_DERIVATION_PERSONALIZATION_LEN: usize = 20;
+const NONCE_DERIVATION_PERSONALIZATION: &[u8; NONCE_DERIVATION_PERSONALIZATION_LEN] =
+    b"ARM_NONCE_DERIVATION";
 const QUANTITY_BYTES: usize = 16;
 const RESOURCE_BYTES: usize = DIGEST_BYTES
     + DIGEST_BYTES
@@ -18,6 +22,7 @@ const RESOURCE_BYTES: usize = DIGEST_BYTES
 
 use crate::{
     error::ArmError,
+    merkle_path::MerklePath,
     nullifier_key::{NullifierKey, NullifierKeyCommitment},
 };
 
@@ -269,6 +274,46 @@ impl Resource {
             Ok(cm)
         }
     }
+
+    /// Derives the nonce based on the passed index and nullifiers.
+    /// Fails if `nullifiers` is empty, as there is no entropy to make
+    /// the derived nonce unique.
+    pub fn derive_nonce_from_nullifiers(
+        index: u32,
+        nullifiers: &[Digest],
+    ) -> Result<[u8; DIGEST_BYTES], ArmError> {
+        Ok(Self::derive_nonce(
+            index,
+            Self::hash_nullifiers(nullifiers)?,
+        ))
+    }
+
+    /// Derives the nonce by hashing
+    /// `ARM_NONCE_DERIVATION || index_be || nullifiers_digest`.
+    pub fn derive_nonce(index: u32, nullifiers_digest: Digest) -> [u8; DIGEST_BYTES] {
+        const LEN: usize = NONCE_DERIVATION_PERSONALIZATION_LEN + 4 + DIGEST_BYTES;
+        let mut bytes = [0u8; LEN];
+        bytes[..NONCE_DERIVATION_PERSONALIZATION_LEN]
+            .copy_from_slice(NONCE_DERIVATION_PERSONALIZATION);
+        bytes[NONCE_DERIVATION_PERSONALIZATION_LEN..NONCE_DERIVATION_PERSONALIZATION_LEN + 4]
+            .copy_from_slice(&index.to_be_bytes());
+        bytes[NONCE_DERIVATION_PERSONALIZATION_LEN + 4..]
+            .copy_from_slice(nullifiers_digest.as_bytes());
+        (*Impl::hash_bytes(&bytes)).into()
+    }
+
+    /// Hashes the concatenation of the passed nullifier digests.
+    /// Fails if `nullifiers` is empty.
+    pub fn hash_nullifiers(nullifiers: &[Digest]) -> Result<Digest, ArmError> {
+        if nullifiers.is_empty() {
+            return Err(ArmError::EmptyNullifiers);
+        }
+        let mut bytes = Vec::with_capacity(nullifiers.len() * DIGEST_BYTES);
+        for nf in nullifiers {
+            bytes.extend_from_slice(nf.as_bytes());
+        }
+        Ok(*Impl::hash_bytes(&bytes))
+    }
 }
 
 impl Default for Resource {
@@ -284,4 +329,86 @@ impl Default for Resource {
             rand_seed: [0; DIGEST_BYTES],
         }
     }
+}
+
+/// Private information related to a consumed resource.
+#[derive(Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct ConsumedResourceWitness {
+    /// The consumed resource.
+    pub resource: Resource,
+    /// The path from the consumed commitment to the root of the commitment tree.
+    pub merkle_path: MerklePath,
+    /// Nullifier key of the consumed resource.
+    pub nf_key: NullifierKey,
+}
+
+impl ConsumedResourceWitness {
+    /// Constructor for an ephemeral resource (uses an empty merkle path).
+    pub fn from_resource(resource: Resource, nf_key: NullifierKey) -> ConsumedResourceWitness {
+        ConsumedResourceWitness {
+            resource,
+            merkle_path: MerklePath::empty(),
+            nf_key,
+        }
+    }
+
+    /// Constructor for a persistent resource with a merkle path proving the
+    /// resource commitment is in the commitment tree.
+    pub fn from_resource_with_path(
+        resource: Resource,
+        nf_key: NullifierKey,
+        merkle_path: MerklePath,
+    ) -> ConsumedResourceWitness {
+        ConsumedResourceWitness {
+            resource,
+            merkle_path,
+            nf_key,
+        }
+    }
+}
+
+impl Default for ConsumedResourceWitness {
+    /// The default value is meaningless and only for testing.
+    fn default() -> Self {
+        let nf_key = NullifierKey::default();
+
+        let resource = Resource {
+            logic_ref: Digest::default(),
+            label_ref: Digest::default(),
+            quantity: 1u128,
+            value_ref: Digest::default(),
+            is_ephemeral: false,
+            nonce: [0u8; 32],
+            nk_commitment: nf_key.commit(),
+            rand_seed: [0u8; 32],
+        };
+
+        let merkle_path = MerklePath::default();
+
+        Self {
+            resource,
+            merkle_path,
+            nf_key,
+        }
+    }
+}
+
+/// Public information of consumed resources.
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct ConsumedResourcePublic {
+    /// The nullifier of the consumed [Resource].
+    pub resource_nullifier: Digest,
+    /// The logic reference of the consumed [Resource].
+    pub resource_logic_ref: Digest,
+    /// The root of the Merkle tree where the resource commitment is in.
+    pub commitment_tree_root: Digest,
+}
+
+/// Public information of created resources.
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct CreatedResourcePublic {
+    /// The commitment to the created [Resource].
+    pub resource_commitment: Digest,
+    /// The logic reference of the created [Resource].
+    pub resource_logic_ref: Digest,
 }

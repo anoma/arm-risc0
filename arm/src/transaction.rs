@@ -2,7 +2,6 @@
 
 #[cfg(feature = "aggregation")]
 use crate::{
-    compliance::ComplianceInstanceWords,
     constants::{BATCH_AGGREGATION_PK, BATCH_AGGREGATION_VK, COMPLIANCE_VK},
     proving_system::ProofType,
     utils::{bytes_to_words, words_to_bytes},
@@ -109,9 +108,13 @@ impl Transaction {
     pub fn nf_duplication_check(&self) -> Result<(), ArmError> {
         let mut seen_nullifiers = std::collections::HashSet::new();
         for action in &self.actions {
-            for cu in action.get_compliance_units() {
-                let instance = cu.get_instance()?;
-                if !seen_nullifiers.insert(instance.consumed_nullifier) {
+            let compliance_instance = action.compliance_unit.get_instance()?;
+            for consumed_nullifier in compliance_instance
+                .consumed_publics
+                .iter()
+                .map(|r| r.resource_nullifier)
+            {
+                if !seen_nullifiers.insert(consumed_nullifier) {
                     return Err(ArmError::NullifierDuplication);
                 }
             }
@@ -154,7 +157,7 @@ impl Transaction {
     /// Returns `true` if any compliance or resource logic proof is `None`.
     pub fn base_proofs_are_empty(&self) -> bool {
         for a in self.actions.iter() {
-            if a.get_compliance_units().iter().any(|cu| cu.proof.is_none()) {
+            if a.get_compliance_unit().proof.is_none() {
                 return true;
             }
             if a.get_logic_verifier_inputs()
@@ -170,10 +173,7 @@ impl Transaction {
 
     /// Returns all compliance units in the transaction.
     pub fn get_compliance_units(&self) -> Vec<&ComplianceUnit> {
-        self.actions
-            .iter()
-            .flat_map(|a| a.get_compliance_units().iter())
-            .collect()
+        self.actions.iter().map(|a| &a.compliance_unit).collect()
     }
 
     /// Returns all compliance inner receipts in the transaction.
@@ -246,11 +246,11 @@ impl Transaction {
         // Collect inner_receipts/proofs and instances.
         let compliance_inner_receipts = self.get_compliance_inner_receipts()?;
         let logic_inner_receipts = self.get_logic_inner_receipts()?;
-        let compliance_instances_u32: Vec<ComplianceInstanceWords> = self
+        let compliance_instances_u32: Vec<Vec<u32>> = self
             .get_compliance_instances()
             .iter()
-            .map(|instance_bytes| ComplianceInstanceWords::from_bytes(instance_bytes))
-            .collect::<Result<Vec<ComplianceInstanceWords>, ArmError>>()?;
+            .map(|instance_bytes| bytes_to_words(instance_bytes))
+            .collect();
 
         let (lp_vks, lp_instances) = self.get_logic_vks_and_instances()?;
         let lp_instances_u32: Vec<Vec<u32>> = lp_instances
@@ -334,11 +334,11 @@ impl Transaction {
 
     /// Constructs the aggregation instance by serializing all compliance and logic instances.
     pub fn construct_aggregation_instance(&self) -> Result<Vec<u8>, ArmError> {
-        let compliance_instances_u32: Vec<ComplianceInstanceWords> = self
+        let compliance_instances_u32: Vec<Vec<u32>> = self
             .get_compliance_instances()
             .iter()
-            .map(|instance_bytes| ComplianceInstanceWords::from_bytes(instance_bytes))
-            .collect::<Result<Vec<ComplianceInstanceWords>, ArmError>>()?;
+            .map(|instance_bytes| bytes_to_words(instance_bytes))
+            .collect();
 
         let (lp_vks, lp_instances) = self.get_logic_vks_and_instances()?;
         let lp_instances_u32: Vec<Vec<u32>> = lp_instances
@@ -360,9 +360,7 @@ impl Transaction {
     // Replaces all compliance and resource logic proofs with `None`.
     fn erase_base_proofs(&mut self) {
         for a in self.actions.iter_mut() {
-            for cu in a.compliance_units.iter_mut() {
-                cu.proof = None;
-            }
+            a.compliance_unit.proof = None;
             for lp in a.logic_verifier_inputs.iter_mut() {
                 lp.proof = None;
             }
