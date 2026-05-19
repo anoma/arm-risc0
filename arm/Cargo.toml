@@ -25,6 +25,10 @@ k256 = { version = "=0.13.3", features = [
   "hash2curve",
 ], default-features = false }
 sha3 = { version = "0.10", optional = true }
+borsh = { version = "1.5", default-features = false, features = [
+  "derive",
+], optional = true }
+alloy-sol-types = { version = "1", default-features = false, optional = true }
 rand = "0.8"
 bincode = "1.3.3"
 hex = "0.4"
@@ -40,5 +44,10 @@ compliance_circuit = []
 prove = ["risc0-zkvm/prove"]
 bonsai = ["risc0-zkvm/bonsai"]
 cuda = ["risc0-zkvm/cuda"]
-aggregation = ["aggregation_circuit", "transaction"]
+aggregation = [
+  "aggregation_circuit",
+  "transaction",
+  "dep:borsh",
+  "dep:alloy-sol-types",
+]
 aggregation_circuit = []

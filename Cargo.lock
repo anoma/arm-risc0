@@ -238,7 +238,9 @@ dependencies = [
 name = "anoma-rm-risc0"
 version = "1.1.1"
 dependencies = [
+ "alloy-sol-types",
  "bincode",
+ "borsh",
  "bytemuck",
  "hex",
  "k256",

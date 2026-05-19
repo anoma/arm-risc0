@@ -2,7 +2,10 @@
 
 #[cfg(feature = "aggregation")]
 use crate::{
-    constants::{BATCH_AGGREGATION_PK, BATCH_AGGREGATION_VK, COMPLIANCE_VK},
+    constants::{
+        BATCH_AGGREGATION_BORSH_PK, BATCH_AGGREGATION_BORSH_VK, BATCH_AGGREGATION_EVM_PK,
+        BATCH_AGGREGATION_EVM_VK, BATCH_AGGREGATION_PK, BATCH_AGGREGATION_VK, COMPLIANCE_VK,
+    },
     proving_system::ProofType,
     utils::{bytes_to_words, words_to_bytes},
 };
@@ -231,108 +234,56 @@ impl Transaction {
 }
 
 #[cfg(feature = "aggregation")]
+#[derive(borsh::BorshSerialize)]
+struct AggBorshOutput {
+    compliance_instances: Vec<Vec<u32>>,
+    compliance_key: [u32; 8],
+    logic_instances: Vec<Vec<u32>>,
+    logic_keys: Vec<[u32; 8]>,
+}
+
+#[cfg(feature = "aggregation")]
 impl Transaction {
-    /// Aggregates all the transaction proofs.
-    /// If aggregation is successful, `self` contains an aggregation proof and its
-    /// compliance and logic proofs are set to `None`. Else proofs are untouched.
+    /// Aggregates all proofs using the risc0-native (default) journal encoding.
     pub fn aggregate(&mut self, proof_type: ProofType) -> Result<(), ArmError> {
-        // Check base proofs exist.
-        if self.base_proofs_are_empty() {
-            return Err(ArmError::ProveFailed(
-                "Cannot aggregate: missing individual proof(s)".into(),
-            ));
-        }
-
-        // Collect inner_receipts/proofs and instances.
-        let compliance_inner_receipts = self.get_compliance_inner_receipts()?;
-        let logic_inner_receipts = self.get_logic_inner_receipts()?;
-        let compliance_instances_u32: Vec<Vec<u32>> = self
-            .get_compliance_instances()
-            .iter()
-            .map(|instance_bytes| bytes_to_words(instance_bytes))
-            .collect();
-
-        let (lp_vks, lp_instances) = self.get_logic_vks_and_instances()?;
-        let lp_instances_u32: Vec<Vec<u32>> = lp_instances
-            .iter()
-            .map(|instance_bytes| bytes_to_words(instance_bytes))
-            .collect();
-
-        // Add proofs as assumptions
-        let mut env_builder = ExecutorEnv::builder();
-        for inner_receipt in compliance_inner_receipts
-            .into_iter()
-            .chain(logic_inner_receipts.into_iter())
-        {
-            env_builder.add_assumption(inner_receipt);
-        }
-
-        // Write instances and keys to guest input.
-        let compliance_key: Digest = *COMPLIANCE_VK;
-        let env = env_builder
-            .write(&compliance_instances_u32)
-            .map_err(|_| ArmError::WriteWitnessFailed)?
-            .write(&compliance_key)
-            .map_err(|_| ArmError::WriteWitnessFailed)?
-            .write(&lp_instances_u32)
-            .map_err(|_| ArmError::WriteWitnessFailed)?
-            .write(&lp_vks)
-            .map_err(|_| ArmError::WriteWitnessFailed)?
-            .build()
-            .map_err(|_| ArmError::BuildProverEnvFailed)?;
-
-        let prover_opts = match proof_type {
-            ProofType::Succinct => {
-                ProverOpts::succinct() // Succinct receipts, constant size.
-            }
-            ProofType::Groth16 => {
-                ProverOpts::groth16() // Groth16 receipts, constant size, blockchain-friendly.
-            }
-        };
-
-        let prover = default_prover();
-
-        // Prove batch.
-        let agg_proof = prover
-            .prove_with_ctx(
-                env,
-                &VerifierContext::default(),
-                BATCH_AGGREGATION_PK,
-                &prover_opts,
-            )
-            .map_err(|err| ArmError::ProveFailed(format!("Proof generation failed: {}", err)))?
-            .receipt
-            .inner;
-
-        self.aggregation_proof =
-            Some(bincode::serialize(&agg_proof).map_err(|_| ArmError::SerializationError)?);
-
-        self.erase_base_proofs();
-        Ok(())
+        self.aggregate_with_pk(BATCH_AGGREGATION_PK, proof_type)
     }
 
-    /// Verifies the aggregated proof of the transaction.
+    /// Aggregates all proofs with a borsh-encoded journal.
+    pub fn aggregate_borsh(&mut self, proof_type: ProofType) -> Result<(), ArmError> {
+        self.aggregate_with_pk(BATCH_AGGREGATION_BORSH_PK, proof_type)
+    }
+
+    /// Aggregates all proofs with an EVM ABI-encoded journal.
+    pub fn aggregate_evm(&mut self, proof_type: ProofType) -> Result<(), ArmError> {
+        self.aggregate_with_pk(BATCH_AGGREGATION_EVM_PK, proof_type)
+    }
+
+    /// Verifies the aggregated proof produced by [`aggregate`].
     pub fn verify_aggregation(&self) -> Result<(), ArmError> {
-        if let Some(proof) = &self.aggregation_proof {
-            let instance = self.construct_aggregation_instance()?;
-
-            let inner_receipt: InnerReceipt = bincode::deserialize(proof)
-                .map_err(|_| ArmError::InnerReceiptDeserializationError)?;
-
-            // Verify proof on the batch instance.
-            let receipt = Receipt::new(inner_receipt, instance);
-
-            receipt.verify(*BATCH_AGGREGATION_VK).map_err(|err| {
-                ArmError::ProofVerificationFailed(format!("Proof verification failed: {}", err))
-            })
-        } else {
-            Err(ArmError::ProofVerificationFailed(
-                "Missing aggregation proof".into(),
-            ))
-        }
+        self.verify_aggregation_with(
+            *BATCH_AGGREGATION_VK,
+            self.construct_aggregation_instance()?,
+        )
     }
 
-    /// Constructs the aggregation instance by serializing all compliance and logic instances.
+    /// Verifies the aggregated proof produced by [`aggregate_borsh`].
+    pub fn verify_aggregation_borsh(&self) -> Result<(), ArmError> {
+        self.verify_aggregation_with(
+            *BATCH_AGGREGATION_BORSH_VK,
+            self.construct_aggregation_borsh_instance()?,
+        )
+    }
+
+    /// Verifies the aggregated proof produced by [`aggregate_evm`].
+    pub fn verify_aggregation_evm(&self) -> Result<(), ArmError> {
+        self.verify_aggregation_with(
+            *BATCH_AGGREGATION_EVM_VK,
+            self.construct_aggregation_evm_instance()?,
+        )
+    }
+
+    /// Constructs the journal instance using risc0-native (default) encoding.
     pub fn construct_aggregation_instance(&self) -> Result<Vec<u8>, ArmError> {
         let compliance_instances_u32: Vec<Vec<u32>> = self
             .get_compliance_instances()
@@ -357,7 +308,154 @@ impl Transaction {
         Ok(words_to_bytes(&instance).to_vec())
     }
 
-    // Replaces all compliance and resource logic proofs with `None`.
+    /// Constructs the journal instance using borsh encoding.
+    /// The layout matches the `AggBorshOutput` struct committed by the borsh guest.
+    pub fn construct_aggregation_borsh_instance(&self) -> Result<Vec<u8>, ArmError> {
+        let compliance_instances_u32: Vec<Vec<u32>> = self
+            .get_compliance_instances()
+            .iter()
+            .map(|instance_bytes| bytes_to_words(instance_bytes))
+            .collect();
+
+        let (lp_vks, lp_instances) = self.get_logic_vks_and_instances()?;
+        let lp_instances_u32: Vec<Vec<u32>> = lp_instances
+            .iter()
+            .map(|instance_bytes| bytes_to_words(instance_bytes))
+            .collect();
+
+        let output = AggBorshOutput {
+            compliance_instances: compliance_instances_u32,
+            compliance_key: *COMPLIANCE_VK.as_ref(),
+            logic_instances: lp_instances_u32,
+            logic_keys: lp_vks.iter().map(|k| *k.as_ref()).collect(),
+        };
+
+        borsh::to_vec(&output).map_err(|_| ArmError::InstanceSerializationFailed)
+    }
+
+    /// Constructs the journal instance using EVM ABI encoding.
+    /// The Solidity type is `(uint32[][], bytes32, uint32[][], bytes32[])`.
+    pub fn construct_aggregation_evm_instance(&self) -> Result<Vec<u8>, ArmError> {
+        use alloy_sol_types::{sol_data, SolType};
+
+        type AggOutputType = (
+            sol_data::Array<sol_data::Array<sol_data::Uint<32>>>,
+            sol_data::FixedBytes<32>,
+            sol_data::Array<sol_data::Array<sol_data::Uint<32>>>,
+            sol_data::Array<sol_data::FixedBytes<32>>,
+        );
+
+        let compliance_instances_u32: Vec<Vec<u32>> = self
+            .get_compliance_instances()
+            .iter()
+            .map(|instance_bytes| bytes_to_words(instance_bytes))
+            .collect();
+
+        let (lp_vks, lp_instances) = self.get_logic_vks_and_instances()?;
+        let lp_instances_u32: Vec<Vec<u32>> = lp_instances
+            .iter()
+            .map(|instance_bytes| bytes_to_words(instance_bytes))
+            .collect();
+
+        let compliance_key_bytes: [u8; 32] = COMPLIANCE_VK
+            .as_bytes()
+            .try_into()
+            .map_err(|_| ArmError::InstanceSerializationFailed)?;
+        let logic_keys_bytes: Vec<[u8; 32]> = lp_vks
+            .iter()
+            .map(|k| {
+                k.as_bytes()
+                    .try_into()
+                    .map_err(|_| ArmError::InstanceSerializationFailed)
+            })
+            .collect::<Result<_, _>>()?;
+
+        Ok(AggOutputType::abi_encode_params(&(
+            compliance_instances_u32,
+            compliance_key_bytes,
+            lp_instances_u32,
+            logic_keys_bytes,
+        )))
+    }
+
+    // --- private helpers ---
+
+    fn aggregate_with_pk(&mut self, pk: &[u8], proof_type: ProofType) -> Result<(), ArmError> {
+        if self.base_proofs_are_empty() {
+            return Err(ArmError::ProveFailed(
+                "Cannot aggregate: missing individual proof(s)".into(),
+            ));
+        }
+
+        let compliance_inner_receipts = self.get_compliance_inner_receipts()?;
+        let logic_inner_receipts = self.get_logic_inner_receipts()?;
+        let compliance_instances_u32: Vec<Vec<u32>> = self
+            .get_compliance_instances()
+            .iter()
+            .map(|instance_bytes| bytes_to_words(instance_bytes))
+            .collect();
+
+        let (lp_vks, lp_instances) = self.get_logic_vks_and_instances()?;
+        let lp_instances_u32: Vec<Vec<u32>> = lp_instances
+            .iter()
+            .map(|instance_bytes| bytes_to_words(instance_bytes))
+            .collect();
+
+        let mut env_builder = ExecutorEnv::builder();
+        for inner_receipt in compliance_inner_receipts
+            .into_iter()
+            .chain(logic_inner_receipts)
+        {
+            env_builder.add_assumption(inner_receipt);
+        }
+
+        let compliance_key: Digest = *COMPLIANCE_VK;
+        let env = env_builder
+            .write(&compliance_instances_u32)
+            .map_err(|_| ArmError::WriteWitnessFailed)?
+            .write(&compliance_key)
+            .map_err(|_| ArmError::WriteWitnessFailed)?
+            .write(&lp_instances_u32)
+            .map_err(|_| ArmError::WriteWitnessFailed)?
+            .write(&lp_vks)
+            .map_err(|_| ArmError::WriteWitnessFailed)?
+            .build()
+            .map_err(|_| ArmError::BuildProverEnvFailed)?;
+
+        let prover_opts = match proof_type {
+            ProofType::Succinct => ProverOpts::succinct(),
+            ProofType::Groth16 => ProverOpts::groth16(),
+        };
+
+        let agg_proof = default_prover()
+            .prove_with_ctx(env, &VerifierContext::default(), pk, &prover_opts)
+            .map_err(|err| ArmError::ProveFailed(format!("Proof generation failed: {}", err)))?
+            .receipt
+            .inner;
+
+        self.aggregation_proof =
+            Some(bincode::serialize(&agg_proof).map_err(|_| ArmError::SerializationError)?);
+
+        self.erase_base_proofs();
+        Ok(())
+    }
+
+    fn verify_aggregation_with(&self, vk: Digest, instance: Vec<u8>) -> Result<(), ArmError> {
+        let proof = self
+            .aggregation_proof
+            .as_ref()
+            .ok_or_else(|| ArmError::ProofVerificationFailed("Missing aggregation proof".into()))?;
+
+        let inner_receipt: InnerReceipt =
+            bincode::deserialize(proof).map_err(|_| ArmError::InnerReceiptDeserializationError)?;
+
+        Receipt::new(inner_receipt, instance)
+            .verify(vk)
+            .map_err(|err| {
+                ArmError::ProofVerificationFailed(format!("Proof verification failed: {}", err))
+            })
+    }
+
     fn erase_base_proofs(&mut self) {
         for a in self.actions.iter_mut() {
             a.compliance_unit.proof = None;

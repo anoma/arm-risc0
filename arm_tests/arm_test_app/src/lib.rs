@@ -346,6 +346,30 @@ fn test_aggregation_works_groth16() {
     assert!(tx_str.verify_aggregation().is_ok());
 }
 
+/// Tests the borsh-encoded aggregation journal.
+#[test]
+fn test_aggregation_borsh_works() {
+    let tx = Tester::default()
+        .generate_test_transaction(&[(2, 2), (2, 2)])
+        .unwrap();
+    let mut tx_str = tx.clone();
+    assert!(tx_str.aggregate_borsh(ProofType::Succinct).is_ok());
+    assert!(tx_str.aggregation_proof.is_some());
+    assert!(tx_str.verify_aggregation_borsh().is_ok());
+}
+
+/// Tests the EVM ABI-encoded aggregation journal.
+#[test]
+fn test_aggregation_evm_works() {
+    let tx = Tester::default()
+        .generate_test_transaction(&[(2, 2), (2, 2)])
+        .unwrap();
+    let mut tx_str = tx.clone();
+    assert!(tx_str.aggregate_evm(ProofType::Succinct).is_ok());
+    assert!(tx_str.aggregation_proof.is_some());
+    assert!(tx_str.verify_aggregation_evm().is_ok());
+}
+
 #[test]
 fn test_verify_aggregation_fails_for_incorrect_instances() {
     let tx = Tester::default()

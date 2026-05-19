@@ -13,3 +13,11 @@ risc0-zkvm = { version = "3.0.3", features = [
 anoma-rm-risc0 = { path = "../../../../arm", features = [
   "aggregation_circuit",
 ], default-features = false }
+borsh = { version = "1.5", default-features = false, features = [
+  "derive",
+], optional = true }
+alloy-sol-types = { version = "1", default-features = false, optional = true }
+
+[features]
+borsh = ["dep:borsh"]
+evm = ["dep:alloy-sol-types"]

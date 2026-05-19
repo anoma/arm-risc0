@@ -15,6 +15,8 @@ anoma-rm-risc0 = { path = "../../arm", features = [
 
 [features]
 default = []
+borsh = ["batch-aggregation-methods/borsh"]
+evm = ["batch-aggregation-methods/evm"]
 cuda = ["risc0-zkvm/cuda"]
 prove = ["risc0-zkvm/prove"]
 bonsai = ["risc0-zkvm/bonsai"]
