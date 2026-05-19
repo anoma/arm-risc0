@@ -236,10 +236,37 @@ impl Transaction {
 #[cfg(feature = "aggregation")]
 #[derive(borsh::BorshSerialize)]
 struct AggBorshOutput {
-    compliance_instances: Vec<Vec<u32>>,
-    compliance_key: [u32; 8],
-    logic_instances: Vec<Vec<u32>>,
-    logic_keys: Vec<[u32; 8]>,
+    compliance_instances: Vec<Vec<u8>>,
+    compliance_key: [u8; 32],
+    logic_instances: Vec<Vec<u8>>,
+    logic_keys: Vec<[u8; 32]>,
+}
+
+#[cfg(feature = "aggregation")]
+struct AggEvmOutput {
+    compliance_instances: Vec<Vec<u8>>,
+    compliance_key: [u8; 32],
+    logic_instances: Vec<Vec<u8>>,
+    logic_keys: Vec<[u8; 32]>,
+}
+
+#[cfg(feature = "aggregation")]
+impl AggEvmOutput {
+    fn abi_encode(self) -> Vec<u8> {
+        use alloy_sol_types::{sol_data, SolType};
+        type T = (
+            sol_data::Array<sol_data::Bytes>,
+            sol_data::FixedBytes<32>,
+            sol_data::Array<sol_data::Bytes>,
+            sol_data::Array<sol_data::FixedBytes<32>>,
+        );
+        T::abi_encode_params(&(
+            self.compliance_instances,
+            self.compliance_key,
+            self.logic_instances,
+            self.logic_keys,
+        ))
+    }
 }
 
 #[cfg(feature = "aggregation")]
@@ -311,71 +338,51 @@ impl Transaction {
     /// Constructs the journal instance using borsh encoding.
     /// The layout matches the `AggBorshOutput` struct committed by the borsh guest.
     pub fn construct_aggregation_borsh_instance(&self) -> Result<Vec<u8>, ArmError> {
-        let compliance_instances_u32: Vec<Vec<u32>> = self
-            .get_compliance_instances()
-            .iter()
-            .map(|instance_bytes| bytes_to_words(instance_bytes))
-            .collect();
-
         let (lp_vks, lp_instances) = self.get_logic_vks_and_instances()?;
-        let lp_instances_u32: Vec<Vec<u32>> = lp_instances
-            .iter()
-            .map(|instance_bytes| bytes_to_words(instance_bytes))
-            .collect();
 
         let output = AggBorshOutput {
-            compliance_instances: compliance_instances_u32,
-            compliance_key: *COMPLIANCE_VK.as_ref(),
-            logic_instances: lp_instances_u32,
-            logic_keys: lp_vks.iter().map(|k| *k.as_ref()).collect(),
+            compliance_instances: self.get_compliance_instances(),
+            compliance_key: COMPLIANCE_VK
+                .as_bytes()
+                .try_into()
+                .map_err(|_| ArmError::InstanceSerializationFailed)?,
+            logic_instances: lp_instances,
+            logic_keys: lp_vks
+                .iter()
+                .map(|k| {
+                    k.as_bytes()
+                        .try_into()
+                        .map_err(|_| ArmError::InstanceSerializationFailed)
+                })
+                .collect::<Result<_, _>>()?,
         };
 
         borsh::to_vec(&output).map_err(|_| ArmError::InstanceSerializationFailed)
     }
 
     /// Constructs the journal instance using EVM ABI encoding.
-    /// The Solidity type is `(uint32[][], bytes32, uint32[][], bytes32[])`.
+    /// The Solidity type is `(bytes[], bytes32, bytes[], bytes32[])`.
     pub fn construct_aggregation_evm_instance(&self) -> Result<Vec<u8>, ArmError> {
-        use alloy_sol_types::{sol_data, SolType};
-
-        type AggOutputType = (
-            sol_data::Array<sol_data::Array<sol_data::Uint<32>>>,
-            sol_data::FixedBytes<32>,
-            sol_data::Array<sol_data::Array<sol_data::Uint<32>>>,
-            sol_data::Array<sol_data::FixedBytes<32>>,
-        );
-
-        let compliance_instances_u32: Vec<Vec<u32>> = self
-            .get_compliance_instances()
-            .iter()
-            .map(|instance_bytes| bytes_to_words(instance_bytes))
-            .collect();
-
         let (lp_vks, lp_instances) = self.get_logic_vks_and_instances()?;
-        let lp_instances_u32: Vec<Vec<u32>> = lp_instances
-            .iter()
-            .map(|instance_bytes| bytes_to_words(instance_bytes))
-            .collect();
 
-        let compliance_key_bytes: [u8; 32] = COMPLIANCE_VK
-            .as_bytes()
-            .try_into()
-            .map_err(|_| ArmError::InstanceSerializationFailed)?;
-        let logic_keys_bytes: Vec<[u8; 32]> = lp_vks
-            .iter()
-            .map(|k| {
-                k.as_bytes()
-                    .try_into()
-                    .map_err(|_| ArmError::InstanceSerializationFailed)
-            })
-            .collect::<Result<_, _>>()?;
+        let output = AggEvmOutput {
+            compliance_instances: self.get_compliance_instances(),
+            compliance_key: COMPLIANCE_VK
+                .as_bytes()
+                .try_into()
+                .map_err(|_| ArmError::InstanceSerializationFailed)?,
+            logic_instances: lp_instances,
+            logic_keys: lp_vks
+                .iter()
+                .map(|k| {
+                    k.as_bytes()
+                        .try_into()
+                        .map_err(|_| ArmError::InstanceSerializationFailed)
+                })
+                .collect::<Result<_, _>>()?,
+        };
 
-        Ok(AggOutputType::abi_encode_params(&(
-            compliance_instances_u32,
-            compliance_key_bytes,
-            lp_instances_u32,
-            logic_keys_bytes,
-        )))
+        Ok(output.abi_encode())
     }
 
     // --- private helpers ---

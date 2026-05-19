@@ -39,20 +39,20 @@ lazy_static! {
 #[cfg(feature = "aggregation")]
 lazy_static! {
     /// Batch aggregation verification key / Batch aggregation image id (risc0 native encoding).
-    pub static ref BATCH_AGGREGATION_VK: Digest = Digest::from_hex("cec687c95361eae7b2f37d1aee935f56cd9ab495479715010c43d58e5b3b6ed2").unwrap();
+    pub static ref BATCH_AGGREGATION_VK: Digest = Digest::from_hex("f584f94cc0660d763022f0255756b7a56f4f92b867cdf4499d2c11d79df46d2f").unwrap();
 
     /// Batch aggregation verification key for the borsh-encoded journal variant.
     /// Update by running: cargo test --features borsh print_aggregation_borsh_elf_id
     ///   in arm_circuits/batch_aggregation (copy the printed digest here).
     pub static ref BATCH_AGGREGATION_BORSH_VK: Digest =
-        Digest::from_hex("d6ae6837af9fa14193dfb130d45ad93d8dfb5e31c5d3ec57b2c2e8d05ff477f2")
+        Digest::from_hex("39dfa4ba3c56e2c6ca20c256a11787cf8b119c25e5e1a2c38484a35e351bd8be")
             .unwrap();
 
     /// Batch aggregation verification key for the EVM ABI-encoded journal variant.
     /// Update by running: cargo test --features evm print_aggregation_evm_elf_id
     ///   in arm_circuits/batch_aggregation (copy the printed digest here).
     pub static ref BATCH_AGGREGATION_EVM_VK: Digest =
-        Digest::from_hex("bb18f7880358b7c8a52662571c6eb6d89a7e0cea5e4633a4d9a4b5317b7e821c")
+        Digest::from_hex("02f1e77f2751f49d84f14c6a38cab62d6b61950d7c0ae33e69c74a24f7c2d409")
             .unwrap();
 }
 
