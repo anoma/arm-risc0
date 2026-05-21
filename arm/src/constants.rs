@@ -17,19 +17,19 @@ pub const BATCH_AGGREGATION_PK: &[u8] = include_bytes!("../elfs/batch-aggregatio
 lazy_static! {
     /// compliance verification key / compliance image id
     pub static ref COMPLIANCE_VK: Digest =
-        Digest::from_hex("6267fb7c15f6adac78e111ac664be2fd85e2d4bab58741bed19425b845fb05dd")
+        Digest::from_hex("189e18348babf7ea166d7e66e6ef047e8d71d82f119b5ebaa5a4e9ae1f0f50a4")
             .unwrap();
 
     /// padding logic verification key / compliance image id
     pub static ref PADDING_LOGIC_VK: Digest =
-        Digest::from_hex("4065f4a8dff097e50ab0e7e6a50f18c0c61408480b481785a7f794482ea58a7e")
+        Digest::from_hex("92ffaeb55bfdcea4dba72ea10aa0532beafdd34658d37173a9cf4fe34f5f0f63")
             .unwrap();
 }
 
 #[cfg(feature = "aggregation")]
 lazy_static! {
     /// Batch aggregation verification key / Batch aggregation image id.
-    pub static ref BATCH_AGGREGATION_VK: Digest = Digest::from_hex("86499993450db4a085410ff62471f87dabee32b00ab278d9ac7fab5983b16fbd").unwrap();
+    pub static ref BATCH_AGGREGATION_VK: Digest = Digest::from_hex("66e657da6258e265863f716ca28bbe8b7a6f54afdadf5d2132bb422e6626f715").unwrap();
 }
 
 /// Global kind table, loaded once from a JSON file.
