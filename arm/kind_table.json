@@ -1,9 +1,9 @@
 [
   {
     "_comment": "Padding resource logic (PADDING_LOGIC_VK), label_ref = zero digest",
-    "logic_ref": "4065f4a8dff097e50ab0e7e6a50f18c0c61408480b481785a7f794482ea58a7e",
+    "logic_ref": "92ffaeb55bfdcea4dba72ea10aa0532beafdd34658d37173a9cf4fe34f5f0f63",
     "label_ref":  "0000000000000000000000000000000000000000000000000000000000000000",
-    "kind_point": "0482493c2cb80a877c86a9884defb3288efc0c0bbfe927d872aab191ac80875f18bca791b806da2e90cac3190982fba73c4520414762b0a003f03340d300008756"
+    "kind_point": "0439a071aac9039492c17ca9e3992eaf2f286cacef32c10c52b531938344607dda392827a2559e12b4e38661d2994ac5e4f25be78110fdd431889fb39f14ea4618"
   },
   {
     "_comment": "Test resource logic (TEST_LOGIC_VK), label_ref = zero digest",
