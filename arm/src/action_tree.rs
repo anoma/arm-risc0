@@ -1,4 +1,4 @@
-//! Merkle tree implementation for the action tree.
+//! Action tree implementation.
 
 use crate::{
     error::ArmError,
@@ -7,25 +7,25 @@ use crate::{
 };
 use risc0_zkvm::sha::Digest;
 
-/// A Merkle tree structure.
+/// The action tree.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct MerkleTree {
-    /// The leaves of the Merkle tree.
+pub struct ActionTree {
+    /// The leaves of the action tree.
     pub leaves: Vec<Digest>,
 }
 
-impl MerkleTree {
-    /// Creates a new Merkle tree from the given leaves.
+impl ActionTree {
+    /// Creates a new action tree from the given leaves.
     pub fn new(leaves: Vec<Digest>) -> Self {
-        MerkleTree { leaves }
+        ActionTree { leaves }
     }
 
-    /// Inserts a new leaf into the Merkle tree.
+    /// Inserts a new leaf into the action tree.
     pub fn insert(&mut self, value: Digest) {
         self.leaves.push(value)
     }
 
-    /// Computes the root of the Merkle tree.
+    /// Computes the root of the action tree.
     pub fn root(&self) -> Result<Digest, ArmError> {
         if self.is_empty() {
             return Err(ArmError::EmptyTree);
@@ -47,19 +47,7 @@ impl MerkleTree {
         Ok(cur_layer[0])
     }
 
-    // Generate the merkle path for the current leave
-    /// Generates the Merkle path for a given leaf in the Merkle tree.
-    ///
-    /// # Arguments
-    ///
-    /// * `cur_leave` - The leaf value for which the Merkle path is to be generated.
-    ///
-    /// # Returns
-    ///
-    /// Returns an `Option` containing a `MerklePath` if the leaf exists in the tree.
-    /// The `MerklePath` is a vector of tuples, where each tuple contains:
-    /// - A `Digest` representing the sibling node's hash.
-    /// - A `bool` indicating whether the sibling is on the left (`true`) or right (`false`).
+    /// Generates the Merkle path for a given leaf in the action tree.
     ///
     /// Returns `ArmError::InvalidLeaf` if the leaf is not found in the tree.
     pub fn generate_path(&self, cur_leave: &Digest) -> Result<MerklePath, ArmError> {
@@ -112,14 +100,14 @@ impl MerkleTree {
         }
     }
 
-    /// Checks if the Merkle tree is empty.
+    /// Checks if the action tree is empty.
     pub fn is_empty(&self) -> bool {
         self.leaves.is_empty()
     }
 }
 
-impl From<Vec<Digest>> for MerkleTree {
+impl From<Vec<Digest>> for ActionTree {
     fn from(leaves: Vec<Digest>) -> Self {
-        MerkleTree::new(leaves)
+        ActionTree::new(leaves)
     }
 }
