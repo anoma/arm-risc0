@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Serialize, Deserialize)]
 pub struct TestLogicWitness {
     pub resource: Resource,
-    pub receive_existence_path: MerklePath,
+    pub action_tree_path: MerklePath,
     pub is_consumed: bool,
     pub nf_key: NullifierKey,
 }
@@ -27,7 +27,7 @@ impl LogicCircuit for TestLogicWitness {
     fn constrain(&self) -> Result<LogicInstance, ArmError> {
         // Load the self resource
         let tag = self.resource.tag(self.is_consumed, &self.nf_key)?;
-        let root = self.receive_existence_path.root(&tag);
+        let root = self.action_tree_path.root(&tag);
 
         // The test resource is ephemeral and has one quantity
         assert_eq!(self.resource.quantity, 1);
@@ -88,13 +88,13 @@ impl LogicCircuit for TestLogicWitness {
 impl TestLogicWitness {
     pub fn new(
         resource: Resource,
-        receive_existence_path: MerklePath,
+        action_tree_path: MerklePath,
         nf_key: NullifierKey,
         is_consumed: bool,
     ) -> Self {
         Self {
             resource,
-            receive_existence_path,
+            action_tree_path,
             is_consumed,
             nf_key,
         }
@@ -108,7 +108,7 @@ impl Default for TestLogicWitness {
                 quantity: 1,
                 ..Default::default()
             },
-            receive_existence_path: MerklePath::default(),
+            action_tree_path: MerklePath::default(),
             is_consumed: false,
             nf_key: NullifierKey::default(),
         }

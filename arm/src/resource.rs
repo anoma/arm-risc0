@@ -337,7 +337,7 @@ pub struct ConsumedResourceWitness {
     /// The consumed resource.
     pub resource: Resource,
     /// The path from the consumed commitment to the root of the commitment tree.
-    pub merkle_path: MerklePath,
+    pub cm_merkle_path: MerklePath,
     /// Nullifier key of the consumed resource.
     pub nf_key: NullifierKey,
 }
@@ -347,7 +347,7 @@ impl ConsumedResourceWitness {
     pub fn from_resource(resource: Resource, nf_key: NullifierKey) -> ConsumedResourceWitness {
         ConsumedResourceWitness {
             resource,
-            merkle_path: MerklePath::empty(),
+            cm_merkle_path: MerklePath::empty(),
             nf_key,
         }
     }
@@ -357,11 +357,11 @@ impl ConsumedResourceWitness {
     pub fn from_resource_with_path(
         resource: Resource,
         nf_key: NullifierKey,
-        merkle_path: MerklePath,
+        cm_merkle_path: MerklePath,
     ) -> ConsumedResourceWitness {
         ConsumedResourceWitness {
             resource,
-            merkle_path,
+            cm_merkle_path,
             nf_key,
         }
     }
@@ -383,11 +383,11 @@ impl Default for ConsumedResourceWitness {
             rand_seed: [0u8; 32],
         };
 
-        let merkle_path = MerklePath::default();
+        let cm_merkle_path = MerklePath::default();
 
         Self {
             resource,
-            merkle_path,
+            cm_merkle_path,
             nf_key,
         }
     }

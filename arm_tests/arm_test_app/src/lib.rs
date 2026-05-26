@@ -40,13 +40,13 @@ pub struct TestLogic {
 impl TestLogic {
     pub fn new(
         resource: Resource,
-        receive_existence_path: MerklePath,
+        action_tree_path: MerklePath,
         nf_key: NullifierKey,
         is_consumed: bool,
     ) -> Self {
         let witness = TestLogicWitness {
             resource,
-            receive_existence_path,
+            action_tree_path,
             is_consumed,
             nf_key,
         };
@@ -187,8 +187,8 @@ impl Tester {
         let logic_verifiers = entries
             .into_iter()
             .map(|(tag, resource, nf_key, is_consumed)| {
-                let receive_existence_path = action_tree.generate_path(&tag).unwrap();
-                TestLogic::new(resource, receive_existence_path, nf_key, is_consumed)
+                let action_tree_path = action_tree.generate_path(&tag).unwrap();
+                TestLogic::new(resource, action_tree_path, nf_key, is_consumed)
                     .prove(ProofType::Succinct)
                     .unwrap()
             })
