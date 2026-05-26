@@ -185,7 +185,7 @@ impl ComplianceWitness {
             let commitment_tree_root = if w.resource.is_ephemeral {
                 self.ephemeral_root
             } else {
-                w.merkle_path.root(&resource_commitment)
+                w.cm_merkle_path.root(&resource_commitment)
             };
             // Reading `logic_ref` here forces it to be loaded from memory onto
             // the computational trace.

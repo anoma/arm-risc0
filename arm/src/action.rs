@@ -2,7 +2,7 @@
 //! correspond to its consumed and created resources.
 
 use crate::{
-    action_tree::MerkleTree,
+    action_tree::ActionTree,
     compliance_unit::ComplianceUnit,
     error::ArmError,
     logic_proof::{LogicVerifier, LogicVerifierInputs},
@@ -129,7 +129,7 @@ impl Action {
     /// commitments. Any other ordering (e.g. sorting) will produce a different
     /// root and the resulting action's logic proofs will fail to verify with
     /// a generic proof-verification error.
-    pub fn construct_action_tree(tags: &[Digest]) -> MerkleTree {
-        MerkleTree::new(tags.to_vec())
+    pub fn construct_action_tree(tags: &[Digest]) -> ActionTree {
+        ActionTree::new(tags.to_vec())
     }
 }
