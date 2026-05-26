@@ -5,7 +5,7 @@
 #[cfg(feature = "transaction")]
 pub mod action;
 pub mod action_tree;
-#[cfg(any(feature = "compliance_circuit", feature = "aggregation_circuit"))]
+#[cfg(feature = "compliance_circuit")]
 pub mod compliance;
 #[cfg(feature = "transaction")]
 pub mod compliance_unit;
