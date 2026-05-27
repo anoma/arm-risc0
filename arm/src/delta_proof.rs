@@ -94,41 +94,51 @@ impl DeltaProof {
     }
 
     /// Deserializes the delta proof from bytes.
+    ///
+    /// Accepts the v-byte in either the raw `{0, 1}` form or the Ethereum
+    /// `{27, 28}` form. `to_bytes` always emits the `{27, 28}` form.
     pub fn from_bytes(bytes: &[u8]) -> Result<DeltaProof, ArmError> {
+        if bytes.len() != 65 {
+            return Err(ArmError::InvalidSignature);
+        }
+        let raw_v = match bytes[64] {
+            v @ (0 | 1) => v,
+            v @ (27 | 28) => v - 27,
+            _ => return Err(ArmError::InvalidSignature),
+        };
+        let recid = RecoveryId::from_byte(raw_v).ok_or(ArmError::InvalidSignature)?;
         Ok(DeltaProof {
             signature: Signature::from_bytes((&bytes[0..64]).into())
                 .map_err(|_| ArmError::InvalidSignature)?,
-            recid: RecoveryId::from_byte(bytes[64] - 27).ok_or(ArmError::InvalidSignature)?,
+            recid,
         })
     }
 }
 
 impl DeltaWitness {
     /// Creates a delta witness from a list of secret keys by summing them up.
-    pub fn from_scalars(secret_keys: &[Scalar]) -> DeltaWitness {
-        let sum: ScalarPrimitive<_> = secret_keys
-            .iter()
-            .fold(Scalar::ZERO, |acc, x| acc + x)
-            .into();
-        let sk: SecretKey = SecretKey::new(sum);
-        let signing_key = SigningKey::from(&sk);
-        DeltaWitness { signing_key }
+    pub fn from_scalars(secret_keys: &[Scalar]) -> Result<DeltaWitness, ArmError> {
+        if secret_keys.is_empty() {
+            return Err(ArmError::EmptyDeltaWitnesses);
+        }
+        let sum = secret_keys.iter().fold(Scalar::ZERO, |acc, x| acc + x);
+        signing_key_from_scalar(sum).map(|signing_key| DeltaWitness { signing_key })
     }
 
     /// Creates a delta witness from a list of byte vectors representing secret keys.
     pub fn from_bytes_vec(keys: &[Vec<u8>]) -> Result<DeltaWitness, ArmError> {
-        let witnesses: Result<Vec<DeltaWitness>, ArmError> = keys
+        let witnesses: Vec<DeltaWitness> = keys
             .iter()
             .map(|key| DeltaWitness::from_bytes(key))
-            .collect();
-        Ok(DeltaWitness::compress(&witnesses?))
+            .collect::<Result<_, _>>()?;
+        DeltaWitness::compress(&witnesses)
     }
 
     /// Creates a delta witness from bytes.
     pub fn from_bytes(bytes: &[u8]) -> Result<DeltaWitness, ArmError> {
+        let sk = SecretKey::from_slice(bytes).map_err(|_| ArmError::InvalidSigningKey)?;
         Ok(DeltaWitness {
-            signing_key: SigningKey::from_bytes(bytes.into())
-                .map_err(|_| ArmError::InvalidSigningKey)?,
+            signing_key: SigningKey::from(&sk),
         })
     }
 
@@ -138,23 +148,26 @@ impl DeltaWitness {
     }
 
     /// Composes two delta witnesses by summing their signing keys.
-    pub fn compose(&self, other: &DeltaWitness) -> Self {
+    pub fn compose(&self, other: &DeltaWitness) -> Result<Self, ArmError> {
         let sum = self.signing_key.as_nonzero_scalar().as_ref()
             + other.signing_key.as_nonzero_scalar().as_ref();
-        let sk: SecretKey = SecretKey::new(sum.into());
-        Self {
-            signing_key: SigningKey::from(sk),
-        }
+        signing_key_from_scalar(sum).map(|signing_key| Self { signing_key })
     }
 
     /// Compresses a list of delta witnesses into a single delta witness by summing them up.
-    pub fn compress(witnesses: &[DeltaWitness]) -> DeltaWitness {
-        let mut sum = witnesses[0].clone();
-        for witness in witnesses.iter().skip(1) {
-            sum = sum.compose(witness);
-        }
-        sum
+    pub fn compress(witnesses: &[DeltaWitness]) -> Result<DeltaWitness, ArmError> {
+        let (first, rest) = witnesses
+            .split_first()
+            .ok_or(ArmError::EmptyDeltaWitnesses)?;
+        rest.iter().try_fold(first.clone(), |acc, w| acc.compose(w))
     }
+}
+
+fn signing_key_from_scalar(scalar: Scalar) -> Result<SigningKey, ArmError> {
+    let primitive: ScalarPrimitive<_> = scalar.into();
+    let sk =
+        SecretKey::from_slice(&primitive.to_bytes()).map_err(|_| ArmError::InvalidSigningKey)?;
+    Ok(SigningKey::from(&sk))
 }
 
 impl DeltaInstance {
@@ -251,6 +264,57 @@ mod tests {
         let encoded = bincode::serialize(&proof).unwrap();
         let decoded: DeltaProof = bincode::deserialize(&encoded).unwrap();
         assert_eq!(proof, decoded);
+    }
+
+    #[test]
+    fn delta_proof_from_bytes_rejects_invalid_inputs() {
+        assert_eq!(
+            DeltaProof::from_bytes(&[0u8; 64]),
+            Err(ArmError::InvalidSignature)
+        );
+
+        for bad_v in [2u8, 26, 29, 255] {
+            let mut bytes = [0u8; 65];
+            bytes[64] = bad_v;
+            assert_eq!(
+                DeltaProof::from_bytes(&bytes),
+                Err(ArmError::InvalidSignature),
+                "v={bad_v} must be rejected"
+            );
+        }
+    }
+
+    #[test]
+    fn delta_proof_from_bytes_accepts_raw_and_ethereum_v() {
+        let mut rng = OsRng;
+        let signing_key = SigningKey::random(&mut rng);
+        let witness = DeltaWitness { signing_key };
+        let proof = DeltaProof::prove(b"v-byte", &witness).unwrap();
+        let canonical = proof.to_bytes();
+
+        // Canonical Ethereum-style {27, 28} round-trips.
+        assert_eq!(DeltaProof::from_bytes(&canonical).unwrap(), proof);
+
+        // Raw {0, 1} v-byte is also accepted and yields the same proof.
+        let mut raw = canonical;
+        raw[64] = canonical[64] - 27;
+        assert_eq!(DeltaProof::from_bytes(&raw).unwrap(), proof);
+    }
+
+    #[test]
+    fn empty_delta_witness_inputs_are_rejected() {
+        assert_eq!(
+            DeltaWitness::from_scalars(&[]),
+            Err(ArmError::EmptyDeltaWitnesses)
+        );
+        assert_eq!(
+            DeltaWitness::from_bytes_vec(&[]),
+            Err(ArmError::EmptyDeltaWitnesses)
+        );
+        assert_eq!(
+            DeltaWitness::compress(&[]),
+            Err(ArmError::EmptyDeltaWitnesses)
+        );
     }
 
     /// DeltaWitness: serialize then deserialize via bincode must round-trip.

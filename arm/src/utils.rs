@@ -3,26 +3,21 @@
 use risc0_zkvm::sha::{Digest, Impl, Sha256, DIGEST_WORDS};
 
 /// Converts a byte slice to a vector of u32 words.
+///
+/// Both `bytes_to_words` and `words_to_bytes` use native-endian ordering, so
+/// they round-trip the same byte sequence on any platform. The integer values
+/// of the resulting words are not portable across endianness.
 pub fn bytes_to_words(bytes: &[u8]) -> Vec<u32> {
-    let mut words = Vec::new();
     let mut iter = bytes.chunks_exact(4);
-    for chunk in iter.by_ref() {
-        let mut word = 0u32;
-        for &byte in chunk {
-            word = (word << 8) | (byte as u32);
-        }
-        words.push(u32::from_be(word));
-    }
-
+    let mut words: Vec<u32> = iter
+        .by_ref()
+        .map(|chunk| u32::from_ne_bytes(chunk.try_into().unwrap()))
+        .collect();
     let rem = iter.remainder();
     if !rem.is_empty() {
         let mut arr = [0u8; 4];
         arr[..rem.len()].copy_from_slice(rem);
-        let mut word = 0u32;
-        for byte in arr {
-            word = (word << 8) | (byte as u32);
-        }
-        words.push(u32::from_be(word));
+        words.push(u32::from_ne_bytes(arr));
     }
     words
 }

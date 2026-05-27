@@ -228,6 +228,7 @@ impl LogicProver for TrivialLogicWitness {
     }
 }
 
+#[cfg(all(test, feature = "prove"))]
 #[test]
 fn test_padding_logic_prover() {
     let trivial_logic = PaddingResourceLogic::default();

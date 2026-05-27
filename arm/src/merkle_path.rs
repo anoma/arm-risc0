@@ -47,7 +47,7 @@ impl MerklePath {
 
     /// Creates an empty Merkle path.
     pub fn empty() -> Self {
-        MerklePath(vec![])
+        MerklePath(Vec::new())
     }
 }
 

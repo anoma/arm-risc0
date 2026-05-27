@@ -2,6 +2,7 @@
 
 use crate::{compliance::KindTableEntry, error::ArmError, resource::Resource};
 use hex::FromHex;
+use k256::{elliptic_curve::sec1::FromEncodedPoint, EncodedPoint, ProjectivePoint};
 use lazy_static::lazy_static;
 use risc0_zkvm::Digest;
 use std::{path::Path, sync::OnceLock};
@@ -74,6 +75,7 @@ pub fn init_kind_table_from_file(path: &Path) -> Result<(), ArmError> {
                 Digest::from_hex(&e.label_ref).map_err(|_| ArmError::KindTableLoadFailed)?;
             let kind_point =
                 hex::decode(&e.kind_point).map_err(|_| ArmError::KindTableLoadFailed)?;
+            validate_kind_point(logic_ref, label_ref, &kind_point)?;
             Ok(KindTableEntry {
                 logic_ref,
                 label_ref,
@@ -83,6 +85,22 @@ pub fn init_kind_table_from_file(path: &Path) -> Result<(), ArmError> {
         .collect::<Result<Vec<_>, _>>()?;
     // First call wins; subsequent calls are silently ignored.
     let _ = GLOBAL_KIND_TABLE.set(entries);
+    Ok(())
+}
+
+fn validate_kind_point(logic_ref: Digest, label_ref: Digest, bytes: &[u8]) -> Result<(), ArmError> {
+    let encoded = EncodedPoint::from_bytes(bytes).map_err(|_| ArmError::KindTableLoadFailed)?;
+    let point = ProjectivePoint::from_encoded_point(&encoded)
+        .into_option()
+        .ok_or(ArmError::KindTableLoadFailed)?;
+    let resource = Resource {
+        logic_ref,
+        label_ref,
+        ..Resource::default()
+    };
+    if point != resource.kind()? {
+        return Err(ArmError::KindTableLoadFailed);
+    }
     Ok(())
 }
 
