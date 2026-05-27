@@ -2,15 +2,15 @@
 //!
 //! Uses Solana syscalls (hashv, secp256k1_recover) and solana-secp256k1 for
 //! EC point arithmetic instead of k256, which exceeds SBF stack frame limits.
+//! Requires solana-secp256k1 >= 0.2.1 for correct modular subtraction in ecadd.
 
 use arm_core::compliance::ComplianceInstance;
 use arm_core::transaction::{Delta, Transaction};
 
 use crate::error::SolanaArmError;
-use dashu::integer::UBig;
 use solana_program::hash::hashv;
 use solana_program::secp256k1_recover::secp256k1_recover;
-use solana_secp256k1::{Curve, Secp256k1Point, UncompressedPoint};
+use solana_secp256k1::{Secp256k1, Secp256k1Point, UncompressedPoint};
 
 /// Scalar value 2 as a big-endian 32-byte array, used for EC point doubling.
 const SCALAR_TWO: [u8; 32] = {
@@ -64,10 +64,7 @@ fn words_to_bytes(words: &[u32; 8]) -> [u8; 32] {
 ///
 /// The curve equation check (y² = x³ + 7 mod p) is intentionally omitted here.
 /// The delta coordinates come from a verified Groth16 proof — the compliance circuit
-/// guarantees they are valid secp256k1 points. Performing a redundant curve check
-/// would pull in dashu big-integer arithmetic that has known issues on SBF
-/// (the `UBig` subtraction in `solana_secp256k1`'s EC point addition panics
-/// when the minuend is smaller than the subtrahend, because `UBig` is unsigned).
+/// guarantees they are valid secp256k1 points.
 fn parse_delta_point(x_words: &[u32; 8], y_words: &[u32; 8]) -> UncompressedPoint {
     let x_bytes = words_to_bytes(x_words);
     let y_bytes = words_to_bytes(y_words);
@@ -76,57 +73,6 @@ fn parse_delta_point(x_words: &[u32; 8], y_words: &[u32; 8]) -> UncompressedPoin
     point_bytes[..32].copy_from_slice(&x_bytes);
     point_bytes[32..].copy_from_slice(&y_bytes);
     UncompressedPoint(point_bytes)
-}
-
-/// Convert a `UBig` to a fixed-size 32-byte big-endian array, zero-padding on the left.
-fn ubig_to_be_bytes_32(n: &UBig) -> [u8; 32] {
-    let bytes = n.to_be_bytes();
-    let mut result = [0u8; 32];
-    let len = bytes.len().min(32);
-    result[32 - len..].copy_from_slice(&bytes[..len]);
-    result
-}
-
-/// EC point addition on secp256k1 with correct modular arithmetic.
-///
-/// This replaces the `Add<UncompressedPoint>` impl from `solana_secp256k1` which
-/// has a bug: it computes `x_q - x_p` as a raw `UBig` subtraction that panics
-/// when `x_q < x_p` (since `UBig` is unsigned and cannot represent negative values).
-/// The fix is to add the field prime `p` before subtracting, ensuring all
-/// intermediate values remain non-negative.
-fn ecadd(
-    a: &UncompressedPoint,
-    b: &UncompressedPoint,
-) -> Result<UncompressedPoint, SolanaArmError> {
-    let p = UBig::from_be_bytes(&Curve::P);
-
-    let x_a = UBig::from_be_bytes(&a.x());
-    let y_a = UBig::from_be_bytes(&a.y());
-    let x_b = UBig::from_be_bytes(&b.x());
-    let y_b = UBig::from_be_bytes(&b.y());
-
-    // dx = (x_b - x_a) mod p
-    // Add p before subtracting to prevent unsigned underflow.
-    let dx = (&x_b + &p - &x_a) % &p;
-    let dx_bytes = ubig_to_be_bytes_32(&dx);
-    let inv_dx = Curve::mod_inv_p(&dx_bytes).map_err(|_| SolanaArmError::DeltaPointNotOnCurve)?;
-    let inv_dx = UBig::from_be_bytes(&inv_dx);
-
-    // λ = (y_b - y_a) * (x_b - x_a)^{-1} mod p
-    let lambda = ((&y_b + &p - &y_a) * &inv_dx) % &p;
-
-    // x_r = λ² - x_a - x_b mod p
-    // Add 2p since x_a + x_b can be up to 2(p-1).
-    let x_r = (&lambda * &lambda + &p + &p - &x_a - &x_b) % &p;
-
-    // y_r = λ(x_a - x_r) - y_a mod p
-    let y_r = (&lambda * (&x_a + &p - &x_r) + &p - &y_a) % &p;
-
-    let mut result = [0u8; 64];
-    result[..32].copy_from_slice(&ubig_to_be_bytes_32(&x_r));
-    result[32..].copy_from_slice(&ubig_to_be_bytes_32(&y_r));
-
-    Ok(UncompressedPoint(result))
 }
 
 /// Accumulate delta points from all compliance instances using EC point addition.
@@ -150,7 +96,7 @@ pub fn accumulate_deltas(tx: &Transaction) -> Result<Option<UncompressedPoint>, 
                         if acc.y() == point.y() {
                             // Point doubling: P + P
                             Some(
-                                Curve::ecmul(&acc, &SCALAR_TWO)
+                                Secp256k1::ecmul(&acc, &SCALAR_TWO)
                                     .map_err(|_| SolanaArmError::DeltaPointNotOnCurve)?,
                             )
                         } else {
@@ -158,9 +104,7 @@ pub fn accumulate_deltas(tx: &Transaction) -> Result<Option<UncompressedPoint>, 
                             None
                         }
                     } else {
-                        // Point addition using our correct implementation,
-                        // not solana_secp256k1's buggy `+` operator.
-                        Some(ecadd(&acc, &point)?)
+                        Some(acc + point)
                     }
                 }
             };
@@ -460,7 +404,7 @@ mod tests {
         );
     }
 
-    /// Verify our ecadd produces the same result as k256 for G + 2G.
+    /// Verify the crate's + operator produces the same result as k256 for G + 2G.
     #[test]
     fn test_ecadd_matches_k256() {
         use k256::elliptic_curve::sec1::ToEncodedPoint;
@@ -472,11 +416,11 @@ mod tests {
         let expected_x: [u8; 32] = encoded.x().unwrap().as_slice().try_into().unwrap();
         let expected_y: [u8; 32] = encoded.y().unwrap().as_slice().try_into().unwrap();
 
-        // Compute G + 2G using our ecadd
+        // Compute G + 2G using solana-secp256k1's + operator
         let (gx, gy) = generator_words();
         let g_point = parse_delta_point(&gx, &gy);
-        let two_g_result = Curve::ecmul(&g_point, &SCALAR_TWO).unwrap();
-        let three_g_result = ecadd(&g_point, &two_g_result).unwrap();
+        let two_g_result = Secp256k1::ecmul(&g_point, &SCALAR_TWO).unwrap();
+        let three_g_result = g_point + two_g_result;
 
         assert_eq!(
             three_g_result.x(),
@@ -490,7 +434,7 @@ mod tests {
         );
     }
 
-    /// Verify ecadd is commutative: A + B == B + A.
+    /// Verify the + operator is commutative: A + B == B + A.
     #[test]
     fn test_ecadd_commutative() {
         use k256::elliptic_curve::sec1::ToEncodedPoint;
@@ -506,8 +450,8 @@ mod tests {
         let two_g_words = (words_from_bytes(x2), words_from_bytes(y2));
         let two_g_point = parse_delta_point(&two_g_words.0, &two_g_words.1);
 
-        let ab = ecadd(&g_point, &two_g_point).unwrap();
-        let ba = ecadd(&two_g_point, &g_point).unwrap();
+        let ab = g_point + two_g_point;
+        let ba = two_g_point + g_point;
 
         assert_eq!(ab.0, ba.0, "ecadd must be commutative");
     }
@@ -543,9 +487,8 @@ mod tests {
     // =========================================================================
 
     /// Regression test: EC point addition where the second point's x-coordinate
-    /// is numerically smaller than the first, triggering the unsigned underflow
-    /// bug in solana_secp256k1's `Add<UncompressedPoint>` impl. Our `ecadd`
-    /// handles this correctly by adding `p` before subtraction.
+    /// is numerically smaller than the first. This triggered a panic in
+    /// solana_secp256k1 < 0.2.1 due to raw UBig subtraction without adding p.
     #[test]
     fn test_ecadd_does_not_panic_on_smaller_x() {
         use k256::elliptic_curve::sec1::ToEncodedPoint;
@@ -557,33 +500,29 @@ mod tests {
         let g_encoded = k256::AffinePoint::GENERATOR.to_encoded_point(false);
         let two_g_encoded = two_g.to_encoded_point(false);
 
-        let g_x = UBig::from_be_bytes(g_encoded.x().unwrap().as_slice());
-        let two_g_x = UBig::from_be_bytes(two_g_encoded.x().unwrap().as_slice());
+        let g_x: [u8; 32] = g_encoded.x().unwrap().as_slice().try_into().unwrap();
+        let two_g_x: [u8; 32] = two_g_encoded.x().unwrap().as_slice().try_into().unwrap();
 
-        // Determine which has the smaller x, then call ecadd with smaller-x second
+        // Determine which has the smaller x, then add with smaller-x second.
+        // Big-endian [u8; 32] comparison is equivalent to numerical comparison.
         let (first, second) = if g_x > two_g_x {
-            let first_x: [u8; 32] = g_encoded.x().unwrap().as_slice().try_into().unwrap();
             let first_y: [u8; 32] = g_encoded.y().unwrap().as_slice().try_into().unwrap();
-            let second_x: [u8; 32] = two_g_encoded.x().unwrap().as_slice().try_into().unwrap();
             let second_y: [u8; 32] = two_g_encoded.y().unwrap().as_slice().try_into().unwrap();
             (
-                parse_delta_point(&words_from_bytes(first_x), &words_from_bytes(first_y)),
-                parse_delta_point(&words_from_bytes(second_x), &words_from_bytes(second_y)),
+                parse_delta_point(&words_from_bytes(g_x), &words_from_bytes(first_y)),
+                parse_delta_point(&words_from_bytes(two_g_x), &words_from_bytes(second_y)),
             )
         } else {
-            let first_x: [u8; 32] = two_g_encoded.x().unwrap().as_slice().try_into().unwrap();
             let first_y: [u8; 32] = two_g_encoded.y().unwrap().as_slice().try_into().unwrap();
-            let second_x: [u8; 32] = g_encoded.x().unwrap().as_slice().try_into().unwrap();
             let second_y: [u8; 32] = g_encoded.y().unwrap().as_slice().try_into().unwrap();
             (
-                parse_delta_point(&words_from_bytes(first_x), &words_from_bytes(first_y)),
-                parse_delta_point(&words_from_bytes(second_x), &words_from_bytes(second_y)),
+                parse_delta_point(&words_from_bytes(two_g_x), &words_from_bytes(first_y)),
+                parse_delta_point(&words_from_bytes(g_x), &words_from_bytes(second_y)),
             )
         };
 
-        // This must NOT panic (the bug in solana_secp256k1 would panic here)
-        let result = ecadd(&first, &second);
-        assert!(result.is_ok(), "ecadd must handle x_b < x_a");
+        // This must NOT panic (solana_secp256k1 < 0.2.1 would panic here)
+        let _ = first + second;
     }
 
     /// Regression test using delta coordinates from a real split withdrawal
