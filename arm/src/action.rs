@@ -43,7 +43,7 @@ impl Action {
     }
 
     /// Returns a reference to the logic verifier inputs.
-    pub fn get_logic_verifier_inputs(&self) -> &Vec<LogicVerifierInputs> {
+    pub fn get_logic_verifier_inputs(&self) -> &[LogicVerifierInputs] {
         &self.logic_verifier_inputs
     }
 

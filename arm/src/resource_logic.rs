@@ -39,8 +39,9 @@ impl LogicCircuit for TrivialLogicWitness {
         let tag = self.resource.tag(self.is_consumed, &self.nf_key)?;
 
         // The trivial resource is ephemeral and has zero quantity
-        assert_eq!(self.resource.quantity, 0);
-        assert!(self.resource.is_ephemeral);
+        if self.resource.quantity != 0 || !self.resource.is_ephemeral {
+            return Err(ArmError::InvalidPaddingResource);
+        }
 
         Ok(LogicInstance {
             tag,
@@ -65,5 +66,21 @@ impl TrivialLogicWitness {
             is_consumed,
             nf_key,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn trivial_logic_rejects_non_padding_resource() {
+        let mut witness = TrivialLogicWitness::default();
+        witness.resource.quantity = 1;
+        assert_eq!(witness.constrain(), Err(ArmError::InvalidPaddingResource));
+
+        witness.resource.quantity = 0;
+        witness.resource.is_ephemeral = false;
+        assert_eq!(witness.constrain(), Err(ArmError::InvalidPaddingResource));
     }
 }

@@ -390,6 +390,7 @@ fn test_compose_transactions() {
     let tx_b = Transaction::create(actions_b, Delta::Witness(tester_b.delta_witness()));
 
     let composed = Transaction::compose(tx_a, tx_b)
+        .unwrap()
         .generate_delta_proof()
         .unwrap();
     assert!(composed.verify().is_ok());

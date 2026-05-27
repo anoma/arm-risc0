@@ -74,10 +74,7 @@ impl Resource {
             quantity,
             value_ref,
             is_ephemeral,
-            nonce: nonce
-                .as_bytes()
-                .try_into()
-                .expect("it can not fail since the digest length is always 32 bytes"),
+            nonce: nonce.into(),
             nk_commitment,
             rand_seed: OsRng.gen(),
         }
@@ -99,50 +96,26 @@ impl Resource {
             .map_err(|_| ArmError::InvalidResourceKind)
     }
 
+    /// Core PRF: `SHA256(personalization || discriminator || rand_seed || nonce)`.
+    fn prf_expand(&self, discriminator: u8) -> Vec<u8> {
+        const LEN: usize = PRF_EXPAND_PERSONALIZATION_LEN + 1 + 2 * DIGEST_BYTES;
+        let mut bytes = [0u8; LEN];
+        bytes[..PRF_EXPAND_PERSONALIZATION_LEN].copy_from_slice(PRF_EXPAND_PERSONALIZATION);
+        bytes[PRF_EXPAND_PERSONALIZATION_LEN] = discriminator;
+        let seed_start = PRF_EXPAND_PERSONALIZATION_LEN + 1;
+        bytes[seed_start..seed_start + DIGEST_BYTES].copy_from_slice(&self.rand_seed);
+        bytes[seed_start + DIGEST_BYTES..].copy_from_slice(&self.nonce);
+        Impl::hash_bytes(&bytes).as_bytes().to_vec()
+    }
+
     /// Compute the inner psi for the resource
     fn psi(&self) -> Vec<u8> {
-        let mut bytes = [0u8; PRF_EXPAND_PERSONALIZATION_LEN + 1 + 2 * DIGEST_BYTES];
-        let mut offset: usize = 0;
-        // Write the PRF_EXPAND_PERSONALIZATION
-        bytes[offset..offset + 16].clone_from_slice(PRF_EXPAND_PERSONALIZATION);
-        offset += PRF_EXPAND_PERSONALIZATION_LEN;
-        // Write the PRF_EXPAND_PSI
-        bytes[offset..offset + 1].clone_from_slice(&PRF_EXPAND_PSI.to_be_bytes());
-        offset += 1;
-        // Write the random seed
-        bytes[offset..offset + DIGEST_BYTES].clone_from_slice(self.rand_seed.as_ref());
-        offset += DIGEST_BYTES;
-        // Write the nonce
-        bytes[offset..offset + DIGEST_BYTES].clone_from_slice(self.nonce.as_ref());
-        offset += DIGEST_BYTES;
-        assert_eq!(
-            offset,
-            PRF_EXPAND_PERSONALIZATION_LEN + 1 + 2 * DIGEST_BYTES
-        );
-        Impl::hash_bytes(&bytes).as_bytes().to_vec()
+        self.prf_expand(PRF_EXPAND_PSI)
     }
 
     /// Compute the randomness to commit the resource
     fn rcm(&self) -> Vec<u8> {
-        let mut bytes = [0u8; PRF_EXPAND_PERSONALIZATION_LEN + 1 + 2 * DIGEST_BYTES];
-        let mut offset: usize = 0;
-        // Write the PRF_EXPAND_PERSONALIZATION
-        bytes[offset..offset + 16].clone_from_slice(PRF_EXPAND_PERSONALIZATION);
-        offset += PRF_EXPAND_PERSONALIZATION_LEN;
-        // Write the PRF_EXPAND_RCM
-        bytes[offset..offset + 1].clone_from_slice(&PRF_EXPAND_RCM.to_be_bytes());
-        offset += 1;
-        // Write the random seed
-        bytes[offset..offset + DIGEST_BYTES].clone_from_slice(self.rand_seed.as_ref());
-        offset += DIGEST_BYTES;
-        // Write the nonce
-        bytes[offset..offset + DIGEST_BYTES].clone_from_slice(self.nonce.as_ref());
-        offset += DIGEST_BYTES;
-        assert_eq!(
-            offset,
-            PRF_EXPAND_PERSONALIZATION_LEN + 1 + 2 * DIGEST_BYTES
-        );
-        Impl::hash_bytes(&bytes).as_bytes().to_vec()
+        self.prf_expand(PRF_EXPAND_RCM)
     }
 
     /// Compute the commitment to the resource
@@ -244,10 +217,7 @@ impl Resource {
 
     /// Set the nonce of the resource
     pub fn set_nonce(&mut self, nf: Digest) {
-        self.nonce = nf
-            .as_bytes()
-            .try_into()
-            .expect("it can not fail since the digest length is always 32 bytes");
+        self.nonce = nf.into();
     }
 
     /// Set the nonce of the resource from consumed nullifier
@@ -256,11 +226,7 @@ impl Resource {
         resource: &Resource,
         nf_key: &NullifierKey,
     ) -> Result<(), ArmError> {
-        self.nonce = resource
-            .nullifier(nf_key)?
-            .as_bytes()
-            .try_into()
-            .map_err(|_| ArmError::InvalidResourceNonce)?;
+        self.nonce = resource.nullifier(nf_key)?.into();
         Ok(())
     }
 

@@ -84,4 +84,10 @@ pub enum ArmError {
     KindTableLoadFailed,
     #[error("Cannot derive nonces from an empty nullifier set")]
     EmptyNullifiers,
+    #[error("Cannot compose transactions with different delta types")]
+    IncompatibleDeltaTypes,
+    #[error("Cannot compress an empty set of delta witnesses")]
+    EmptyDeltaWitnesses,
+    #[error("Invalid padding resource")]
+    InvalidPaddingResource,
 }

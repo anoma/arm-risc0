@@ -142,16 +142,18 @@ impl Transaction {
     }
 
     /// Composes two transactions by concatenating their actions and combining their delta witnesses.
-    pub fn compose(tx1: Transaction, tx2: Transaction) -> Transaction {
+    /// Both transactions must carry a `Delta::Witness`; composing after a delta proof has been
+    /// generated is not supported.
+    pub fn compose(tx1: Transaction, tx2: Transaction) -> Result<Transaction, ArmError> {
         let mut actions = tx1.actions;
         actions.extend(tx2.actions);
-        let delta = match (&tx1.delta_proof, &tx2.delta_proof) {
+        let delta = match (tx1.delta_proof, tx2.delta_proof) {
             (Delta::Witness(witness1), Delta::Witness(witness2)) => {
-                Delta::Witness(witness1.compose(witness2))
+                Delta::Witness(witness1.compose(&witness2)?)
             }
-            _ => panic!("Cannot compose transactions with different delta types"),
+            _ => return Err(ArmError::IncompatibleDeltaTypes),
         };
-        Transaction::create(actions, delta)
+        Ok(Transaction::create(actions, delta))
     }
 
     /// Returns `true` if any compliance or resource logic proof is `None`.

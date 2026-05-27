@@ -1,8 +1,9 @@
 //! Compliance module containing the compliance instance and witness.
 
+#[cfg(test)]
+use crate::nullifier_key::NullifierKey;
 use crate::{
     error::ArmError,
-    nullifier_key::NullifierKey,
     resource::{ConsumedResourcePublic, ConsumedResourceWitness, CreatedResourcePublic, Resource},
     utils::{bytes_to_words, words_to_bytes},
 };
@@ -297,6 +298,7 @@ fn encode_delta(delta: ProjectivePoint) -> Result<([u32; 8], [u32; 8]), ArmError
     Ok((delta_x, delta_y))
 }
 
+#[cfg(test)]
 impl Default for ComplianceWitness {
     /// The default value is meaningless and only for testing.
     /// It contains three consumed and two created resources.
