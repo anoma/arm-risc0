@@ -39,8 +39,8 @@ pub fn collect_tags(tx: &Transaction) -> Result<Vec<[u8; 32]>, SolanaArmError> {
     Ok(tags)
 }
 
-/// Compute verifying key = SHA-256(concatenated tags) using Solana syscall.
-pub fn compute_verifying_key(tags: &[[u8; 32]]) -> [u8; 32] {
+/// Compute the delta message hash = SHA-256(concatenated tags) using Solana syscall.
+pub fn compute_delta_msg_hash(tags: &[[u8; 32]]) -> [u8; 32] {
     let refs: Vec<&[u8]> = tags.iter().map(|t| t.as_slice()).collect();
     hashv(&refs).to_bytes()
 }
@@ -128,8 +128,8 @@ pub fn verify_delta_proof(tx: &Transaction) -> Result<(), SolanaArmError> {
         return Ok(());
     }
 
-    // 3. Compute verifying key (message hash)
-    let verifying_key = compute_verifying_key(&tags);
+    // 3. Compute the delta message hash
+    let msg_hash = compute_delta_msg_hash(&tags);
 
     // 4. Accumulate delta points
     let accumulated = accumulate_deltas(tx)?;
@@ -145,7 +145,7 @@ pub fn verify_delta_proof(tx: &Transaction) -> Result<(), SolanaArmError> {
         .ok_or(SolanaArmError::InvalidDeltaProof)?;
 
     // 6. Recover public key
-    let recovered_pubkey = secp256k1_recover(&verifying_key, recid, &sig_bytes)
+    let recovered_pubkey = secp256k1_recover(&msg_hash, recid, &sig_bytes)
         .map_err(|_| SolanaArmError::DeltaProofVerificationFailed)?;
 
     // 7. Compare full 64-byte uncompressed public keys directly.
@@ -220,7 +220,7 @@ mod tests {
         // Compute message hash (same path as verify_delta_proof)
         let nf_bytes = Digest::default().to_bytes();
         let cm_bytes = Digest::default().to_bytes();
-        let msg_hash = compute_verifying_key(&[nf_bytes, cm_bytes]);
+        let msg_hash = compute_delta_msg_hash(&[nf_bytes, cm_bytes]);
 
         // Sign with k256
         let (sig, recid) = signing_key.sign_prehash_recoverable(&msg_hash).unwrap();
@@ -457,7 +457,7 @@ mod tests {
     }
 
     // =========================================================================
-    // Tag collection and verifying key
+    // Tag collection and message hash
     // =========================================================================
 
     #[test]
@@ -473,13 +473,13 @@ mod tests {
     }
 
     #[test]
-    fn test_verifying_key_deterministic() {
+    fn test_msg_hash_deterministic() {
         let (gx, gy) = generator_words();
         let tx = make_tx_with_delta(gx, gy);
         let tags = collect_tags(&tx).unwrap();
-        let vk1 = compute_verifying_key(&tags);
-        let vk2 = compute_verifying_key(&tags);
-        assert_eq!(vk1, vk2, "Same tags must produce identical verifying key");
+        let h1 = compute_delta_msg_hash(&tags);
+        let h2 = compute_delta_msg_hash(&tags);
+        assert_eq!(h1, h2, "Same tags must produce identical message hash");
     }
 
     // =========================================================================
