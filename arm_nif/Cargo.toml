@@ -1,0 +1,21 @@
+[package]
+name = "arm_nif"
+version = "0.1.0"
+edition = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+
+[lib]
+name = "arm_nif"
+path = "src/lib.rs"
+crate-type = ["cdylib"]
+
+[dependencies]
+# Verifier-only: drop the default `prove` feature so the prover toolchain is not
+# linked into the NIF .so. `transaction` pulls in the Transaction/Action API and
+# the host-side `verify` path.
+anoma-rm-risc0 = { path = "../arm", default-features = false, features = ["transaction"] }
+rustler = "0.31"
+# Match the arm crate's serialization (bincode 1.x, serde built in).
+bincode = "1.3.3"
+thiserror = "2.0.6"
