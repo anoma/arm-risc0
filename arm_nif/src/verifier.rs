@@ -100,9 +100,6 @@ fn verify_and_extract<'a>(
     Vec<Binary<'a>>,
 )> {
     let tx = decode_tx(tx_bytes.as_slice())?;
-
-    // `Transaction::verify` consumes `self`, so gather the effects from a borrow
-    // first, then verify and only return them if verification succeeds.
     let mut consumed = Vec::new();
     let mut created = Vec::new();
     let mut roots: BTreeSet<[u8; 32]> = BTreeSet::new();

@@ -7,3 +7,12 @@ deps/
 .vscode/
 .idea/
 profile.*
+
+# Elixir / mix
+*.ez
+erl_crash.dump
+/cover/
+/doc/
+
+# rustler NIF build artifact (compiled into priv/native at `mix compile`)
+*.so
