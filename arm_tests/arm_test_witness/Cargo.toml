@@ -1,7 +1,7 @@
 [package]
 name = "anoma-rm-risc0-test-witness"
 description = "An Anoma Resource Machine Test Witness using RISC0 zkVM"
-version = "2.0.0-pre.1"
+version = "2.0.0-rc.1"
 edition = { workspace = true }
 license = { workspace = true }
 repository = { workspace = true }
