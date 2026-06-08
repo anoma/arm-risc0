@@ -2,9 +2,9 @@ name: arm-risc0 CI
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, develop, solana ]
   pull_request:
-    branches: [ main, develop ]
+    branches: [ main, develop, solana ]
 
 env:
   CARGO_TERM_COLOR: always
