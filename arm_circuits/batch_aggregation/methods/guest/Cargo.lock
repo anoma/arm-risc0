@@ -31,7 +31,7 @@ dependencies = [
 
 [[package]]
 name = "anoma-rm-core"
-version = "1.0.0"
+version = "1.2.0"
 dependencies = [
  "bincode",
  "borsh",
@@ -45,7 +45,7 @@ dependencies = [
 
 [[package]]
 name = "anoma-rm-risc0"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "anoma-rm-core",
  "bincode",
@@ -312,7 +312,7 @@ checksum = "55248b47b0caf0546f7988906588779981c43bb1bc9d0c44087278f80cdb44ba"
 
 [[package]]
 name = "batch-aggregation-guest"
-version = "1.0.0"
+version = "1.2.0"
 dependencies = [
  "anoma-rm-core",
  "anoma-rm-risc0",
