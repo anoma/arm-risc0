@@ -87,7 +87,6 @@ impl MerkleTree {
             ) {
                 if cur_layer.len() > 1 {
                     let sibling = {
-                        #[allow(clippy::manual_is_multiple_of)]
                         let is_sibling_left = position % 2 != 0;
                         let sibling_value = if is_sibling_left {
                             cur_layer[position - 1]
