@@ -236,7 +236,7 @@ dependencies = [
 
 [[package]]
 name = "anoma-rm-core"
-version = "1.0.0"
+version = "1.2.0"
 dependencies = [
  "bincode",
  "borsh",
@@ -250,7 +250,7 @@ dependencies = [
 
 [[package]]
 name = "anoma-rm-risc0"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "anoma-rm-core",
  "bincode",
@@ -267,7 +267,7 @@ dependencies = [
 
 [[package]]
 name = "anoma-rm-risc0-gadgets"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "aes-gcm",
  "alloy-primitives",
@@ -283,7 +283,7 @@ dependencies = [
 
 [[package]]
 name = "anoma-rm-risc0-test-witness"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "anoma-rm-risc0",
  "anoma-rm-risc0-gadgets",
@@ -735,7 +735,7 @@ checksum = "55248b47b0caf0546f7988906588779981c43bb1bc9d0c44087278f80cdb44ba"
 
 [[package]]
 name = "batch-aggregation"
-version = "1.0.0"
+version = "1.2.0"
 dependencies = [
  "anoma-rm-risc0",
  "batch-aggregation-methods",
@@ -744,7 +744,7 @@ dependencies = [
 
 [[package]]
 name = "batch-aggregation-methods"
-version = "1.0.0"
+version = "1.2.0"
 dependencies = [
  "risc0-build",
 ]
@@ -1074,7 +1074,7 @@ dependencies = [
 
 [[package]]
 name = "compliance"
-version = "1.0.0"
+version = "1.2.0"
 dependencies = [
  "anoma-rm-risc0",
  "compliance-methods",
@@ -1083,7 +1083,7 @@ dependencies = [
 
 [[package]]
 name = "compliance-methods"
-version = "1.0.0"
+version = "1.2.0"
 dependencies = [
  "risc0-build",
 ]
@@ -2776,7 +2776,7 @@ checksum = "34080505efa8e45a4b816c349525ebe327ceaa8559756f0356cba97ef3bf7432"
 
 [[package]]
 name = "logic-test"
-version = "1.0.0"
+version = "1.2.0"
 dependencies = [
  "anoma-rm-risc0",
  "anoma-rm-risc0-test-witness",
@@ -2786,7 +2786,7 @@ dependencies = [
 
 [[package]]
 name = "logic-test-methods"
-version = "1.0.0"
+version = "1.2.0"
 dependencies = [
  "risc0-build",
 ]
@@ -5197,7 +5197,7 @@ dependencies = [
 
 [[package]]
 name = "trivial-logic"
-version = "1.0.0"
+version = "1.2.0"
 dependencies = [
  "anoma-rm-risc0",
  "risc0-zkvm",
@@ -5206,7 +5206,7 @@ dependencies = [
 
 [[package]]
 name = "trivial-logic-methods"
-version = "1.0.0"
+version = "1.2.0"
 dependencies = [
  "risc0-build",
 ]
