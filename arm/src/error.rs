@@ -90,4 +90,6 @@ pub enum ArmError {
     EmptyDeltaWitnesses,
     #[error("Invalid padding resource")]
     InvalidPaddingResource,
+    #[error("Invalid conversion entry")]
+    InvalidConversionEntry,
 }

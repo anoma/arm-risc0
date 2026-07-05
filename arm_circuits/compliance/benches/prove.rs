@@ -1,12 +1,17 @@
 /// Compliance circuit benchmarks.
 ///
-/// Measures wall-clock prove time with two kind-table configurations:
-/// - `empty_table`: the circuit falls back to `hash_to_curve` for every resource.
-/// - `file_table`:  kind points are pre-computed in `kind_table.json`; the circuit
-///                  resolves them via a table lookup, skipping `hash_to_curve`.
+/// Measures wall-clock prove time across four configurations:
 ///
-/// Each configuration is benchmarked with 1, 2, 4, and 8 consumed/created
-/// resources to measure scaling behaviour.
+/// - `empty_table`:            no pre-computed kind points; circuit uses `hash_to_curve`.
+/// - `file_table`:             kind points loaded from `kind_table.json`; circuit uses
+///                             table lookup, skipping `hash_to_curve`.
+/// - `conversion_count`:       fixed 1 resource pair, varying number of conversion
+///                             witnesses (0, 1, 2, 4, 8). Tests proving-time scaling
+///                             with conversion count.
+/// - `conversion_table_size`:  fixed 1 conversion witness, varying conversion table size
+///                             (1, 4, 16, 64 entries total). Dummy entries are prepended
+///                             so the real conversion is always found last — worst-case
+///                             linear scan.
 ///
 /// # Running on CPU
 ///
@@ -28,16 +33,24 @@
 /// ```sh
 /// RISC0_DEV_MODE=1 cargo bench --features prove -p compliance
 /// ```
-use anoma_rm_risc0::compliance::{ComplianceWitness, INITIAL_ROOT};
+use anoma_rm_risc0::compliance::{
+    ComplianceWitness, ConversionTableEntry, ConversionWitness, INITIAL_ROOT,
+};
 use anoma_rm_risc0::constants::{global_kind_table, init_kind_table_from_file};
 use anoma_rm_risc0::nullifier_key::NullifierKey;
 use anoma_rm_risc0::resource::{ConsumedResourceWitness, Resource};
 use compliance_methods::COMPLIANCE_GUEST_ELF;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use risc0_zkvm::{default_prover, Digest, ExecutorEnv, ProverOpts};
+use risc0_zkvm::{
+    default_prover,
+    sha::{Impl as ShaImpl, Sha256},
+    Digest, ExecutorEnv, ProverOpts,
+};
 use std::time::Duration;
 
 const RESOURCE_COUNTS: &[usize] = &[1, 2, 4, 8];
+const CONVERSION_COUNTS: &[usize] = &[0, 1, 2, 4, 8];
+const TABLE_SIZES: &[usize] = &[1, 4, 16, 64];
 
 fn do_prove(witness: &ComplianceWitness) {
     let env = ExecutorEnv::builder()
@@ -50,7 +63,12 @@ fn do_prove(witness: &ComplianceWitness) {
         .unwrap();
 }
 
-/// Build a compliance witness with `count` consumed/created resources.
+/// Produces a distinct `Digest` for each `seed` value by hashing the seed byte.
+fn seed_digest(seed: u8) -> Digest {
+    *ShaImpl::hash_bytes(&[seed])
+}
+
+/// Build a compliance witness with `count` consumed/created resources and no conversions.
 /// Each consumed resource gets a unique nonce via its index in the last byte.
 fn make_witness(logic_ref: Digest, label_ref: Digest, count: usize) -> ComplianceWitness {
     let nf_key = NullifierKey::default();
@@ -100,6 +118,128 @@ fn make_witness(logic_ref: Digest, label_ref: Digest, count: usize) -> Complianc
         ephemeral_root: *INITIAL_ROOT,
         rcv: [vec![0u8; 31], vec![1u8]].concat(),
         kind_table: global_kind_table().to_vec(),
+        conversions: vec![],
+        conversion_table: vec![],
+    }
+}
+
+/// Build a compliance witness with 1 consumed/created resource pair and `n_conversions`
+/// distinct kind-conversion witnesses.
+///
+/// The conversion table contains `n_table_entries` total entries. Dummy entries occupy
+/// the first `n_table_entries - n_conversions` slots so that the real entries are always
+/// found at the end of the table — exercising the worst-case O(n) linear scan.
+///
+/// Each conversion pair uses a distinct `logic_ref` derived from `seed_digest`, so every
+/// conversion contributes a new entry to the `accumulate_kind` map rather than collapsing
+/// into an existing one.
+fn make_conversion_witness(n_conversions: usize, n_table_entries: usize) -> ComplianceWitness {
+    let nf_key = NullifierKey::default();
+
+    // One balanced consumed/created pair of the base kind (logic_ref = 0x00 hash).
+    let base_logic = Digest::default();
+    let base_label = Digest::default();
+    let consumed_resource = Resource {
+        logic_ref: base_logic,
+        label_ref: base_label,
+        quantity: 1,
+        value_ref: Digest::default(),
+        is_ephemeral: false,
+        nonce: [0u8; 32],
+        nk_commitment: nf_key.commit(),
+        rand_seed: [0u8; 32],
+    };
+    let consumed_data = vec![ConsumedResourceWitness::from_resource(
+        consumed_resource,
+        nf_key.clone(),
+    )];
+    let nullifiers: Vec<Digest> = consumed_data
+        .iter()
+        .map(|w| w.resource.nullifier(&nf_key).unwrap())
+        .collect();
+    let created_nonce = Resource::derive_nonce_from_nullifiers(0, &nullifiers).unwrap();
+    let created_resources = vec![Resource {
+        logic_ref: base_logic,
+        label_ref: base_label,
+        quantity: 1,
+        value_ref: Digest::default(),
+        is_ephemeral: false,
+        nonce: created_nonce,
+        nk_commitment: nf_key.commit(),
+        rand_seed: [0u8; 32],
+    }];
+
+    // Helper: compute the kind EC point for a given logic_ref.
+    // nk_commitment is irrelevant to kind() — only logic_ref and label_ref matter.
+    let dummy_nk = nf_key.commit();
+    let kind_point_for = |logic_ref: Digest| {
+        Resource {
+            logic_ref,
+            label_ref: Digest::default(),
+            quantity: 1,
+            value_ref: Digest::default(),
+            is_ephemeral: false,
+            nonce: [0u8; 32],
+            nk_commitment: dummy_nk,
+            rand_seed: [0u8; 32],
+        }
+        .kind()
+        .unwrap()
+    };
+
+    // Dummy entries prepended (worst-case scan: real entries are found last).
+    // Seeds 200..200+2*n_dummy avoid overlapping with the real pair seeds.
+    let n_dummy = n_table_entries.saturating_sub(n_conversions);
+    let mut conversion_table = Vec::with_capacity(n_table_entries);
+    for i in 0..n_dummy {
+        let old_logic = seed_digest((200 + 2 * i) as u8);
+        let new_logic = seed_digest((201 + 2 * i) as u8);
+        let old_pt = kind_point_for(old_logic);
+        let new_pt = kind_point_for(new_logic);
+        conversion_table.push(ConversionTableEntry::new(
+            old_logic,
+            Digest::default(),
+            new_logic,
+            Digest::default(),
+            &old_pt,
+            &new_pt,
+            None,
+        ));
+    }
+
+    // Real conversion entries (seeds 1, 2, 3, 4, ... so each pair is distinct).
+    let mut conversions = Vec::with_capacity(n_conversions);
+    for i in 0..n_conversions {
+        let old_logic = seed_digest((1 + 2 * i) as u8);
+        let new_logic = seed_digest((2 + 2 * i) as u8);
+        let old_pt = kind_point_for(old_logic);
+        let new_pt = kind_point_for(new_logic);
+        conversions.push(ConversionWitness {
+            old_logic_ref: old_logic,
+            old_label_ref: Digest::default(),
+            new_logic_ref: new_logic,
+            new_label_ref: Digest::default(),
+            quantity: 1,
+        });
+        conversion_table.push(ConversionTableEntry::new(
+            old_logic,
+            Digest::default(),
+            new_logic,
+            Digest::default(),
+            &old_pt,
+            &new_pt,
+            None,
+        ));
+    }
+
+    ComplianceWitness {
+        consumed_data,
+        created_resources,
+        ephemeral_root: *INITIAL_ROOT,
+        rcv: [vec![0u8; 31], vec![1u8]].concat(),
+        kind_table: global_kind_table().to_vec(),
+        conversions,
+        conversion_table,
     }
 }
 
@@ -151,5 +291,53 @@ fn bench_file_table(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, bench_empty_table, bench_file_table);
+/// Varying conversion count: 1 balanced resource pair, 0..8 conversion witnesses.
+/// The conversion table has exactly as many entries as there are conversions.
+/// Shows how proof time scales with the number of distinct kind conversions per unit.
+fn bench_conversion_count(c: &mut Criterion) {
+    let mut group = c.benchmark_group("compliance/conversion_count");
+    group.sample_size(10);
+    group.warm_up_time(Duration::from_secs(1));
+    group.measurement_time(Duration::from_secs(1));
+
+    for &n in CONVERSION_COUNTS {
+        group.bench_with_input(BenchmarkId::new("prove", n), &n, |b, &n| {
+            b.iter_with_setup(
+                || make_conversion_witness(n, n),
+                |witness| do_prove(&witness),
+            );
+        });
+    }
+
+    group.finish();
+}
+
+/// Varying conversion table size: 1 conversion witness, table padded to 1..64 entries.
+/// Dummy entries precede the real entry (worst-case linear scan).
+/// Shows how proof time scales with table size independent of conversion count.
+fn bench_conversion_table_size(c: &mut Criterion) {
+    let mut group = c.benchmark_group("compliance/conversion_table_size");
+    group.sample_size(10);
+    group.warm_up_time(Duration::from_secs(1));
+    group.measurement_time(Duration::from_secs(1));
+
+    for &n in TABLE_SIZES {
+        group.bench_with_input(BenchmarkId::new("prove", n), &n, |b, &n| {
+            b.iter_with_setup(
+                || make_conversion_witness(1, n),
+                |witness| do_prove(&witness),
+            );
+        });
+    }
+
+    group.finish();
+}
+
+criterion_group!(
+    benches,
+    bench_empty_table,
+    bench_file_table,
+    bench_conversion_count,
+    bench_conversion_table_size
+);
 criterion_main!(benches);

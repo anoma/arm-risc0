@@ -68,6 +68,72 @@ impl KindTableEntry {
     }
 }
 
+/// An entry in the conversion table, mapping (old_kind, new_kind) to a
+/// pre-computed delta point ΔG = G(new_kind) − G(old_kind).
+///
+/// A conversion with quantity `q` contributes `q · ΔG` to the delta sum,
+/// bridging the balance gap when consuming old-kind resources and creating
+/// new-kind resources in the same compliance unit.
+#[derive(Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct ConversionTableEntry {
+    /// Logic ref of the old (source) resource kind.
+    pub old_logic_ref: Digest,
+    /// Label ref of the old (source) resource kind.
+    pub old_label_ref: Digest,
+    /// Logic ref of the new (target) resource kind.
+    pub new_logic_ref: Digest,
+    /// Label ref of the new (target) resource kind.
+    pub new_label_ref: Digest,
+    /// Uncompressed SEC1-encoded delta point ΔG = G(new_kind) − G(old_kind) (65 bytes).
+    pub delta_point: Vec<u8>,
+    /// Optional sunset block height after which the old kind may no longer be used.
+    /// Enforcement is currently out-of-circuit (verifier-side).
+    pub sunset_height: Option<u64>,
+}
+
+impl ConversionTableEntry {
+    /// Creates a new entry from the four kind refs and pre-computed kind points.
+    /// Computes ΔG = new_kind_point − old_kind_point internally.
+    pub fn new(
+        old_logic_ref: Digest,
+        old_label_ref: Digest,
+        new_logic_ref: Digest,
+        new_label_ref: Digest,
+        old_kind_point: &ProjectivePoint,
+        new_kind_point: &ProjectivePoint,
+        sunset_height: Option<u64>,
+    ) -> Self {
+        let delta = new_kind_point - old_kind_point;
+        let encoded = delta.to_encoded_point(false);
+        ConversionTableEntry {
+            old_logic_ref,
+            old_label_ref,
+            new_logic_ref,
+            new_label_ref,
+            delta_point: encoded.as_bytes().to_vec(),
+            sunset_height,
+        }
+    }
+}
+
+/// A single kind conversion included in a compliance unit.
+///
+/// The conversion contributes `quantity · ΔG` to the delta sum. `quantity`
+/// must be strictly positive; zero is rejected by `constrain`.
+#[derive(Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct ConversionWitness {
+    /// Logic ref of the old (source) resource kind.
+    pub old_logic_ref: Digest,
+    /// Label ref of the old (source) resource kind.
+    pub old_label_ref: Digest,
+    /// Logic ref of the new (target) resource kind.
+    pub new_logic_ref: Digest,
+    /// Label ref of the new (target) resource kind.
+    pub new_label_ref: Digest,
+    /// Number of units being converted. Must be > 0.
+    pub quantity: u128,
+}
+
 /// The compliance witness contains all private inputs to the compliance proof.
 #[derive(Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct ComplianceWitness {
@@ -83,14 +149,18 @@ pub struct ComplianceWitness {
     /// Maps (logic_ref, label_ref) → uncompressed EC point, skipping hash_to_curve.
     /// Falls back to hash_to_curve for any resource type not present in the table.
     pub kind_table: Vec<KindTableEntry>,
+    /// Kind conversions applied in this compliance unit. Each contributes q · ΔG to the delta.
+    pub conversions: Vec<ConversionWitness>,
+    /// Pre-computed delta points for authorized conversion pairs.
+    /// Maps (old_kind, new_kind) → ΔG = G(new_kind) − G(old_kind).
+    pub conversion_table: Vec<ConversionTableEntry>,
     // TODO: If we want to add function privacy, include:
     // pub input_resource_logic_cm_r: [u8; DATA_BYTES],
     // pub output_resource_logic_cm_r: [u8; DATA_BYTES],
 }
 
 impl ComplianceWitness {
-    /// Creates a new compliance witness from the given resources. It uses the
-    /// initial root for ephemeral resources.
+    /// Creates a new compliance witness from the given resources with no conversions.
     pub fn from_resources(
         consumed_data: &[ConsumedResourceWitness],
         created_resources: &[Resource],
@@ -105,7 +175,7 @@ impl ComplianceWitness {
     }
 
     /// Creates a new compliance witness from the given resources and a valid
-    /// root when consuming an ephemeral resource.
+    /// root when consuming an ephemeral resource. No conversions are included.
     pub fn from_resources_with_ephemeral_root(
         consumed_data: &[ConsumedResourceWitness],
         created_resources: &[Resource],
@@ -121,6 +191,30 @@ impl ComplianceWitness {
             valid_root,
             rcv.as_ref(),
             kind_table,
+            vec![],
+            vec![],
+        )
+    }
+
+    /// Creates a new compliance witness that includes kind conversions.
+    pub fn from_resources_with_conversions(
+        consumed_data: &[ConsumedResourceWitness],
+        created_resources: &[Resource],
+        kind_table: Vec<KindTableEntry>,
+        conversions: Vec<ConversionWitness>,
+        conversion_table: Vec<ConversionTableEntry>,
+    ) -> Self {
+        let mut rng = rand::thread_rng();
+        let rcv = Scalar::random(&mut rng).to_bytes();
+
+        Self::from_parts(
+            consumed_data,
+            created_resources,
+            *INITIAL_ROOT,
+            rcv.as_ref(),
+            kind_table,
+            conversions,
+            conversion_table,
         )
     }
 
@@ -132,6 +226,8 @@ impl ComplianceWitness {
         ephemeral_root: Digest,
         rcv: &[u8],
         kind_table: Vec<KindTableEntry>,
+        conversions: Vec<ConversionWitness>,
+        conversion_table: Vec<ConversionTableEntry>,
     ) -> ComplianceWitness {
         ComplianceWitness {
             consumed_data: consumed_data.to_vec(),
@@ -139,6 +235,8 @@ impl ComplianceWitness {
             ephemeral_root,
             rcv: rcv.to_vec(),
             kind_table,
+            conversions,
+            conversion_table,
         }
     }
 
@@ -157,6 +255,24 @@ impl ComplianceWitness {
         resource.kind()
     }
 
+    /// Looks up the delta point ΔG for a conversion witness in the conversion table.
+    fn lookup_conversion(&self, conv: &ConversionWitness) -> Result<ProjectivePoint, ArmError> {
+        for entry in &self.conversion_table {
+            if entry.old_logic_ref == conv.old_logic_ref
+                && entry.old_label_ref == conv.old_label_ref
+                && entry.new_logic_ref == conv.new_logic_ref
+                && entry.new_label_ref == conv.new_label_ref
+            {
+                let encoded = EncodedPoint::from_bytes(&entry.delta_point)
+                    .map_err(|_| ArmError::InvalidConversionEntry)?;
+                return ProjectivePoint::from_encoded_point(&encoded)
+                    .into_option()
+                    .ok_or(ArmError::InvalidConversionEntry);
+            }
+        }
+        Err(ArmError::InvalidConversionEntry)
+    }
+
     /// Compliance constraints. Produces the public outputs of the unit by
     /// re-computing nullifiers, commitments, tree roots, and the delta
     /// commitment from the witness data.
@@ -171,10 +287,12 @@ impl ComplianceWitness {
 
         let n_consumed = self.consumed_data.len();
         let n_created = self.created_resources.len();
+        let n_conversions = self.conversions.len();
         let mut consumed_nullifiers = Vec::with_capacity(n_consumed);
         let mut consumed_publics = Vec::with_capacity(n_consumed);
-        let mut kinds: Vec<ProjectivePoint> = Vec::with_capacity(n_consumed + n_created);
-        let mut sums: Vec<Scalar> = Vec::with_capacity(n_consumed + n_created);
+        let mut kinds: Vec<ProjectivePoint> =
+            Vec::with_capacity(n_consumed + n_created + n_conversions);
+        let mut sums: Vec<Scalar> = Vec::with_capacity(n_consumed + n_created + n_conversions);
 
         // Constrain consumed resources and accumulate their (kind, +quantity)
         // contributions to the delta.
@@ -224,6 +342,22 @@ impl ComplianceWitness {
             );
         }
 
+        // Accumulate conversion contributions: each conversion adds q · ΔG to the delta,
+        // bridging the balance gap between consumed old-kind and created new-kind resources.
+        // Conversions are strictly one-directional: q must be positive.
+        for conv in &self.conversions {
+            if conv.quantity == 0 {
+                return Err(ArmError::InvalidConversionEntry);
+            }
+            let delta_point = self.lookup_conversion(conv)?;
+            accumulate_kind(
+                &mut kinds,
+                &mut sums,
+                delta_point,
+                Scalar::from(conv.quantity),
+            );
+        }
+
         // Pedersen commit to the per-kind sums; the binding generators are the
         // kind points themselves, plus the standard generator for `rcv`.
         let delta = kinds
@@ -234,7 +368,7 @@ impl ComplianceWitness {
             })
             + ProjectivePoint::GENERATOR * rcv_scalar;
         let (delta_x, delta_y) = encode_delta(delta)?;
-        let kind_table_commitment = self.hash_kind_table();
+        let kind_table_commitment = self.hash_generator_table();
 
         Ok(ComplianceInstance {
             consumed_publics,
@@ -245,12 +379,23 @@ impl ComplianceWitness {
         })
     }
 
-    fn hash_kind_table(&self) -> Digest {
+    /// Computes a SHA-256 commitment over both the kind table and the conversion table.
+    /// Kind entries are prefixed with 0x01; conversion entries with 0x02.
+    fn hash_generator_table(&self) -> Digest {
         let mut bytes = Vec::new();
         for entry in &self.kind_table {
+            bytes.push(0x01u8);
             bytes.extend_from_slice(entry.logic_ref.as_bytes());
             bytes.extend_from_slice(entry.label_ref.as_bytes());
             bytes.extend_from_slice(&entry.kind_point);
+        }
+        for entry in &self.conversion_table {
+            bytes.push(0x02u8);
+            bytes.extend_from_slice(entry.old_logic_ref.as_bytes());
+            bytes.extend_from_slice(entry.old_label_ref.as_bytes());
+            bytes.extend_from_slice(entry.new_logic_ref.as_bytes());
+            bytes.extend_from_slice(entry.new_label_ref.as_bytes());
+            bytes.extend_from_slice(&entry.delta_point);
         }
         *ShaImpl::hash_bytes(&bytes)
     }
@@ -330,6 +475,8 @@ impl Default for ComplianceWitness {
             ephemeral_root: *INITIAL_ROOT,
             rcv: Scalar::ONE.to_bytes().to_vec(),
             kind_table: vec![],
+            conversions: vec![],
+            conversion_table: vec![],
         }
     }
 }
