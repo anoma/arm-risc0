@@ -126,6 +126,10 @@ fn make_witness(logic_ref: Digest, label_ref: Digest, count: usize) -> Complianc
 /// Build a compliance witness with 1 consumed/created resource pair and `n_conversions`
 /// distinct kind-conversion witnesses.
 ///
+/// `base_logic` / `base_label` control the kind of the balanced resource pair.  Pass a
+/// `(logic_ref, label_ref)` that exists in the loaded kind table to exercise the
+/// table-lookup path; pass `Digest::default()` for both to exercise `hash_to_curve`.
+///
 /// The conversion table contains `n_table_entries` total entries. Dummy entries occupy
 /// the first `n_table_entries - n_conversions` slots so that the real entries are always
 /// found at the end of the table — exercising the worst-case O(n) linear scan.
@@ -133,12 +137,13 @@ fn make_witness(logic_ref: Digest, label_ref: Digest, count: usize) -> Complianc
 /// Each conversion pair uses a distinct `logic_ref` derived from `seed_digest`, so every
 /// conversion contributes a new entry to the `accumulate_kind` map rather than collapsing
 /// into an existing one.
-fn make_conversion_witness(n_conversions: usize, n_table_entries: usize) -> ComplianceWitness {
+fn make_conversion_witness(
+    n_conversions: usize,
+    n_table_entries: usize,
+    base_logic: Digest,
+    base_label: Digest,
+) -> ComplianceWitness {
     let nf_key = NullifierKey::default();
-
-    // One balanced consumed/created pair of the base kind (logic_ref = 0x00 hash).
-    let base_logic = Digest::default();
-    let base_label = Digest::default();
     let consumed_resource = Resource {
         logic_ref: base_logic,
         label_ref: base_label,
@@ -291,10 +296,18 @@ fn bench_file_table(c: &mut Criterion) {
     group.finish();
 }
 
-/// Varying conversion count: 1 balanced resource pair, 0..8 conversion witnesses.
-/// The conversion table has exactly as many entries as there are conversions.
+/// Varying conversion count: 1 balanced resource pair (file-table path), 0..8 conversion
+/// witnesses. The conversion table has exactly as many entries as there are conversions.
 /// Shows how proof time scales with the number of distinct kind conversions per unit.
 fn bench_conversion_count(c: &mut Criterion) {
+    let kind_table_path =
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../arm/kind_table.json");
+    init_kind_table_from_file(&kind_table_path).expect("Failed to load kind_table.json");
+
+    let entry = &global_kind_table()[0];
+    let base_logic = entry.logic_ref;
+    let base_label = entry.label_ref;
+
     let mut group = c.benchmark_group("compliance/conversion_count");
     group.sample_size(10);
     group.warm_up_time(Duration::from_secs(1));
@@ -303,7 +316,7 @@ fn bench_conversion_count(c: &mut Criterion) {
     for &n in CONVERSION_COUNTS {
         group.bench_with_input(BenchmarkId::new("prove", n), &n, |b, &n| {
             b.iter_with_setup(
-                || make_conversion_witness(n, n),
+                || make_conversion_witness(n, n, base_logic, base_label),
                 |witness| do_prove(&witness),
             );
         });
@@ -312,10 +325,19 @@ fn bench_conversion_count(c: &mut Criterion) {
     group.finish();
 }
 
-/// Varying conversion table size: 1 conversion witness, table padded to 1..64 entries.
-/// Dummy entries precede the real entry (worst-case linear scan).
-/// Shows how proof time scales with table size independent of conversion count.
+/// Varying conversion table size: 1 balanced resource pair (file-table path) + 1
+/// conversion witness; table padded to 1..64 entries. Dummy entries precede the real
+/// entry (worst-case linear scan). Shows how proof time scales with table size
+/// independent of conversion count.
 fn bench_conversion_table_size(c: &mut Criterion) {
+    let kind_table_path =
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../arm/kind_table.json");
+    init_kind_table_from_file(&kind_table_path).expect("Failed to load kind_table.json");
+
+    let entry = &global_kind_table()[0];
+    let base_logic = entry.logic_ref;
+    let base_label = entry.label_ref;
+
     let mut group = c.benchmark_group("compliance/conversion_table_size");
     group.sample_size(10);
     group.warm_up_time(Duration::from_secs(1));
@@ -324,7 +346,7 @@ fn bench_conversion_table_size(c: &mut Criterion) {
     for &n in TABLE_SIZES {
         group.bench_with_input(BenchmarkId::new("prove", n), &n, |b, &n| {
             b.iter_with_setup(
-                || make_conversion_witness(1, n),
+                || make_conversion_witness(1, n, base_logic, base_label),
                 |witness| do_prove(&witness),
             );
         });
