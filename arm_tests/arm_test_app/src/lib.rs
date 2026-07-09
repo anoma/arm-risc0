@@ -314,12 +314,12 @@ fn test_unmatched_logic_verifier_inputs_in_action() {
     let actions = Tester::default()
         .create_multiple_actions(&[(1, 1), (1, 1)])
         .unwrap();
-    // swap logic verifier inputs to cause mismatch in action0
+    // Swap logic verifier inputs to cause tag mismatch at position 0 in action0.
     let mut action0 = actions[0].clone();
     action0.logic_verifier_inputs = actions[1].logic_verifier_inputs.clone();
     assert!(action0.verify().is_err());
 
-    // empty logic verifier inputs in action1
+    // Empty logic verifier inputs: length mismatch must be rejected.
     let mut action1 = actions[1].clone();
     action1.logic_verifier_inputs = vec![];
     assert!(action1.verify().is_err());
@@ -332,8 +332,9 @@ fn test_nullifier_duplication_check() {
         .unwrap();
     assert!(tx.nf_duplication_check().is_ok());
 
-    // Introduce a duplicate nullifier
-    tx.actions[1] = tx.actions[0].clone();
+    // Introduce a duplicate nullifier by replacing action 1 with action 0.
+    let action0 = tx.actions.as_ref().unwrap()[0].clone();
+    tx.actions.as_mut().unwrap()[1] = action0;
 
     assert!(tx.nf_duplication_check().is_err());
 }
@@ -404,8 +405,12 @@ fn test_aggregation_works() {
         .unwrap();
     let mut tx_str = tx.clone();
     assert!(tx_str.aggregate(ProofType::Succinct).is_ok());
-    assert!(tx_str.aggregation_proof.is_some());
+    // After aggregation: actions must be None, aggregation must be Some.
+    assert!(tx_str.actions.is_none());
+    assert!(tx_str.aggregation.is_some());
     assert!(tx_str.verify_aggregation().is_ok());
+    // Full verify() must also succeed on the post-aggregation transaction.
+    assert!(tx_str.verify().is_ok());
 }
 
 /// Same as `test_aggregation_works` but with a Groth16 outer aggregation
@@ -419,21 +424,33 @@ fn test_aggregation_works_groth16() {
         .unwrap();
     let mut tx_str = tx.clone();
     assert!(tx_str.aggregate(ProofType::Groth16).is_ok());
-    assert!(tx_str.aggregation_proof.is_some());
+    assert!(tx_str.actions.is_none());
+    assert!(tx_str.aggregation.is_some());
     assert!(tx_str.verify_aggregation().is_ok());
 }
 
 #[test]
-fn test_verify_aggregation_fails_for_incorrect_instances() {
-    let tx = Tester::default()
+fn test_verify_aggregation_fails_for_tampered_instance() {
+    use anoma_rm_risc0::{aggregation_instance::AggregationInstance, Digest};
+    use anoma_rm_risc0::transaction::Aggregation;
+
+    let mut tx = Tester::default()
         .generate_test_transaction(&[(2, 2), (2, 2)])
         .unwrap();
-    let mut tx_str = tx.clone();
-    assert!(tx_str.aggregate(ProofType::Succinct).is_ok());
 
-    tx_str.actions[0].logic_verifier_inputs.pop();
+    // Inject a fake Aggregation with a garbage proof and a tampered instance.
+    // verify_aggregation() must reject it without needing the new ELF.
+    let fake_instance = AggregationInstance {
+        compliance_key: Digest::from([0xFFu8; 32]),
+        kind_table_commitment: Digest::default(),
+        actions: vec![],
+    };
+    tx.aggregation = Some(Aggregation {
+        proof: vec![0u8; 64],
+        instance: fake_instance,
+    });
 
-    assert!(tx_str.verify_aggregation().is_err());
+    assert!(tx.verify_aggregation().is_err());
 }
 
 /// A balanced action with no created resources (1 ephemeral consumed, 0
@@ -483,22 +500,23 @@ fn test_cannot_aggregate_invalid_proofs() {
         .generate_test_transaction(&[(2, 2), (2, 2)])
         .unwrap();
 
+    let actions = tx.actions.as_ref().unwrap();
     let bad_lproof = LogicVerifierInputs {
-        proof: tx.actions[0].logic_verifier_inputs[0].proof.clone(),
+        proof: actions[0].logic_verifier_inputs[0].proof.clone(),
         verifying_key: Digest::from([66u8; 32]),
-        tag: tx.actions[0].logic_verifier_inputs[0].tag,
-        app_data: tx.actions[0].logic_verifier_inputs[0].app_data.clone(),
+        tag: actions[0].logic_verifier_inputs[0].tag,
+        app_data: actions[0].logic_verifier_inputs[0].app_data.clone(),
     };
 
     let bad_action = Action {
-        compliance_unit: tx.actions[0].compliance_unit.clone(),
+        compliance_unit: actions[0].compliance_unit.clone(),
         logic_verifier_inputs: vec![bad_lproof],
     };
-    let bad_tx = Transaction::create(vec![bad_action, tx.actions[1].clone()], tx.delta_proof);
+    let bad_tx = Transaction::create(vec![bad_action, actions[1].clone()], tx.delta_proof);
 
     let mut bad_tx_str = bad_tx.clone();
     assert!(bad_tx_str.aggregate(ProofType::Succinct).is_err());
-    assert!(bad_tx_str.aggregation_proof.is_none());
+    assert!(bad_tx_str.aggregation.is_none());
 }
 
 /// Constructing a compliance witness with a wrong created-resource nonce must

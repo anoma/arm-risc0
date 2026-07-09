@@ -21,8 +21,8 @@ use crate::{
 /// The vk is a constant in the compliance unit, so we don't place it here.
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct ComplianceUnit {
-    /// The compliance proof (optional, would be absent when aggregation is enabled).
-    pub proof: Option<Vec<u8>>,
+    /// The serialised `InnerReceipt` for this compliance proof.
+    pub proof: Vec<u8>,
     /// The serialized compliance instance.
     pub instance: Vec<u8>,
 }
@@ -34,21 +34,12 @@ impl ComplianceUnit {
     #[cfg(feature = "prove")]
     pub fn create(witness: &ComplianceWitness, proof_type: ProofType) -> Result<Self, ArmError> {
         let (proof, instance) = prove(COMPLIANCE_PK, witness, proof_type)?;
-        Ok(ComplianceUnit {
-            proof: Some(proof),
-            instance,
-        })
+        Ok(ComplianceUnit { proof, instance })
     }
 
     /// Verifies the compliance proof against the instance using the constant verifying key.
     pub fn verify(&self) -> Result<(), ArmError> {
-        if let Some(proof) = &self.proof {
-            verify_proof(&COMPLIANCE_VK, &self.instance, proof)
-        } else {
-            Err(ArmError::ProofVerificationFailed(
-                "Missing compliance proof".into(),
-            ))
-        }
+        verify_proof(&COMPLIANCE_VK, &self.instance, &self.proof)
     }
 
     /// Obtains the delta from the compliance instance.
@@ -63,12 +54,7 @@ impl ComplianceUnit {
 
     /// Retrieves the inner receipt from the compliance proof.
     pub fn get_inner_receipt(&self) -> Result<InnerReceipt, ArmError> {
-        let inner: InnerReceipt = bincode::deserialize(
-            self.proof
-                .as_ref()
-                .ok_or(ArmError::MissingField("Missing compliance proof"))?,
-        )
-        .map_err(|_| ArmError::InnerReceiptDeserializationError)?;
-        Ok(inner)
+        bincode::deserialize(&self.proof)
+            .map_err(|_| ArmError::InnerReceiptDeserializationError)
     }
 }
