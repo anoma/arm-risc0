@@ -1,13 +1,11 @@
 //! Proving system interface for generating and verifying proofs.
 
-use crate::error::ArmError;
+use crate::{error::ArmError, utils::words_to_bytes};
 use risc0_zkvm::{sha::Digest, InnerReceipt, Receipt};
-use serde::de::DeserializeOwned;
+use serde::{de::DeserializeOwned, Serialize};
 
 #[cfg(feature = "prove")]
 use risc0_zkvm::{default_prover, ExecutorEnv, ProverOpts, VerifierContext};
-#[cfg(feature = "prove")]
-use serde::Serialize;
 
 /// Types of proofs supported.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -41,6 +39,13 @@ pub fn verify(verifying_key: &Digest, instance: &[u8], proof: &[u8]) -> Result<(
     receipt.verify(*verifying_key).map_err(|err| {
         ArmError::ProofVerificationFailed(format!("Proof verification failed: {}", err))
     })
+}
+
+/// Serializes an instance into journal bytes (the inverse of `journal_to_instance`).
+pub fn instance_to_journal<T: Serialize>(instance: &T) -> Result<Vec<u8>, ArmError> {
+    let words =
+        risc0_zkvm::serde::to_vec(instance).map_err(|_| ArmError::InstanceSerializationFailed)?;
+    Ok(words_to_bytes(&words).to_vec())
 }
 
 /// Converts a serialized journal into an instance of the specified type.

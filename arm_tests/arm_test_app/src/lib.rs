@@ -17,6 +17,11 @@ use anoma_rm_risc0::{
     transaction::{Delta, Transaction},
     Digest,
 };
+#[cfg(test)]
+use anoma_rm_risc0::{
+    compliance::ComplianceInstance,
+    proving_system::{instance_to_journal, journal_to_instance},
+};
 use anoma_rm_risc0_test_witness::TestLogicWitness;
 use hex::FromHex;
 use lazy_static::lazy_static;
@@ -240,6 +245,19 @@ fn init_test_kind_table() {
     init_kind_table_from_file(&path).expect("Failed to load kind_table.json");
 }
 
+#[cfg(test)]
+fn encode_compliance_instance(instance: &ComplianceInstance) -> Vec<u8> {
+    instance_to_journal(instance).expect("instance must serialize")
+}
+
+#[cfg(test)]
+fn set_action_kind_table_commitment(action: &mut Action, commitment: Digest) {
+    let mut instance: ComplianceInstance =
+        journal_to_instance(&action.compliance_unit.instance).expect("instance must decode");
+    instance.kind_table_commitment = commitment;
+    action.compliance_unit.instance = encode_compliance_instance(&instance);
+}
+
 /// A 32-byte nonce that varies per index. The exact bytes don't matter as long
 /// as nonces are distinct across consumed resources within a CU.
 fn nonce_from_index(index: u32) -> [u8; 32] {
@@ -318,6 +336,65 @@ fn test_nullifier_duplication_check() {
     tx.actions[1] = tx.actions[0].clone();
 
     assert!(tx.nf_duplication_check().is_err());
+}
+
+/// All actions carry the global kind-table commitment — the check must pass.
+#[test]
+fn test_kind_table_commitment_check_accepts_global_commitment() {
+    let tx = Tester::default()
+        .generate_test_transaction(&[(1, 1)])
+        .unwrap();
+    assert!(tx.kind_table_commitment_check().is_ok());
+}
+
+/// One action has a different commitment from the other — cross-action
+/// consistency check must fire before the global check.
+#[test]
+fn test_kind_table_commitment_check_rejects_mismatched_actions() {
+    let mut tx = Tester::default()
+        .generate_test_transaction(&[(1, 1), (1, 1)])
+        .unwrap();
+
+    set_action_kind_table_commitment(&mut tx.actions[1], Digest::from([0xA5; 32]));
+
+    assert!(matches!(
+        tx.kind_table_commitment_check(),
+        Err(ArmError::KindTableCommitmentMismatch)
+    ));
+}
+
+/// Both actions agree on a fake commitment — cross-action check passes but the
+/// global check must catch the mismatch.
+#[test]
+fn test_kind_table_commitment_check_rejects_consistent_non_global() {
+    let mut tx = Tester::default()
+        .generate_test_transaction(&[(1, 1), (1, 1)])
+        .unwrap();
+
+    let fake = Digest::from([0x5A; 32]);
+    set_action_kind_table_commitment(&mut tx.actions[0], fake);
+    set_action_kind_table_commitment(&mut tx.actions[1], fake);
+
+    assert!(matches!(
+        tx.kind_table_commitment_check(),
+        Err(ArmError::KindTableGlobalMismatch)
+    ));
+}
+
+/// Single action with a non-global commitment — trivially passes cross-action
+/// check, global check must reject.
+#[test]
+fn test_kind_table_commitment_check_rejects_global_mismatch() {
+    let mut tx = Tester::default()
+        .generate_test_transaction(&[(1, 1)])
+        .unwrap();
+
+    set_action_kind_table_commitment(&mut tx.actions[0], Digest::from([0x5A; 32]));
+
+    assert!(matches!(
+        tx.kind_table_commitment_check(),
+        Err(ArmError::KindTableGlobalMismatch)
+    ));
 }
 
 #[test]
