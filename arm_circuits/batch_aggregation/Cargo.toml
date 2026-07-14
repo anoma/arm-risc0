@@ -9,6 +9,17 @@ edition = "2021"
 # If you want to try (experimental) std support, add `features = [ "std" ]` to risc0-zkvm
 batch_aggregation_methods = { path = "methods" }
 risc0-zkvm = "3.0.3"
-arm = { path = "../../arm", features = ["transaction"]}
+arm = { path = "../../arm", features = ["aggregation", "prove"]}
 bincode = "1.3.3"
 serde = "1.0.219"
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "prove"
+harness = false
+
+[features]
+default = []
+cuda = ["arm/cuda"]

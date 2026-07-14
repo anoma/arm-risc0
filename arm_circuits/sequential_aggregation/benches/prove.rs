@@ -2,7 +2,7 @@ use arm::{aggregation::sequential::SequentialAggregation, transaction::generate_
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use std::time::Duration;
 
-const ACTION_COUNTS: &[usize] = &[1, 2, 4, 8];
+const ACTION_COUNTS: &[usize] = &[1, 2, 4];
 
 fn bench_sequential_aggregation(c: &mut Criterion) {
     let mut group = c.benchmark_group("sequential_aggregation");

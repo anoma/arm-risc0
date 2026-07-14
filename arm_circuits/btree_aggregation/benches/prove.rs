@@ -7,7 +7,7 @@ use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use risc0_zkvm::Digest;
 use std::time::Duration;
 
-const ACTION_COUNTS: &[usize] = &[1, 2, 4, 8];
+const ACTION_COUNTS: &[usize] = &[1, 2, 4];
 
 struct BTreeAggregation;
 
