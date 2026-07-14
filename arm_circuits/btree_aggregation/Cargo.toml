@@ -1,0 +1,20 @@
+[package]
+name = "btree_aggregation"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+btree_aggregation_methods = { path = "methods" }
+arm = { path = "../../arm", features = ["aggregation", "prove"] }
+risc0-zkvm = "3.0.3"
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "prove"
+harness = false
+
+[features]
+default = []
+cuda = ["arm/cuda"]
