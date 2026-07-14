@@ -35,19 +35,11 @@ RISC0_DEV_MODE=1 cargo bench --bench prove -p btree_aggregation
 Measured wall time (median of 10 samples). N = number of actions in the
 transaction.
 
-| N | Batch       | Sequential  | BTree         |
-|---|-------------|-------------|---------------|
-| 1 | 1.62 s      | 2.81 s      | 5.54 s        |
-| 2 | 3.11 s      | 6.04 s      | 55.1 s †      |
-| 4 | 6.46 s      | 13.83 s     | —             |
-
-† The BTree bench uses a **linear schedule**: each step takes the single
-previous aggregation as *both* child inputs, so the final succinct step must
-recursively verify a proof whose depth doubles at every level. This produces
-2^(steps−1) inner-proof verifications and explains the 10× jump from N=1 to
-N=2. It does not represent the performance of a properly balanced parallel
-btree, where the critical path is O(log N) and independent subtrees can be
-proved concurrently.
+| N | Batch       | Sequential  | BTree    |
+|---|-------------|-------------|----------|
+| 1 | 1.62 s      | 2.81 s      | 2.62 s   |
+| 2 | 3.11 s      | 6.04 s      | 6.44 s   |
+| 4 | 6.46 s      | 13.83 s     | 15.37 s  |
 
 ### Analysis
 
