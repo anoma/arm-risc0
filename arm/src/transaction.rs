@@ -87,6 +87,14 @@ impl Transaction {
 
     /// Verifies all the proofs and corresponding checks in the transaction.
     pub fn verify(&self) -> Result<(), ArmError> {
+        // A transaction must carry exactly one representation. Rejecting the
+        // "both present" case here prevents a crafted transaction from
+        // pairing a genuine (but unrelated) aggregation proof with
+        // unverified, attacker-controlled `actions` and having the delta /
+        // nullifier checks silently run against the unverified `actions`
+        // instead of the proof-backed `aggregation.instance`.
+        self.check_representation()?;
+
         match &self.delta_proof {
             Delta::Proof(ref proof) => {
                 let msg = self.get_delta_msg()?;
@@ -114,6 +122,20 @@ impl Transaction {
                 Ok(())
             }
             Delta::Witness(_) => Err(ArmError::ExpectedDeltaProof),
+        }
+    }
+
+    /// Ensures exactly one of `actions` / `aggregation` is populated.
+    ///
+    /// A `Transaction` is a plain deserializable struct, so nothing besides
+    /// this check stops a crafted instance from carrying both fields at
+    /// once. Callers must not derive authenticated data (delta, nullifiers)
+    /// from `actions` unless this check has passed.
+    pub fn check_representation(&self) -> Result<(), ArmError> {
+        match (&self.actions, &self.aggregation) {
+            (Some(_), None) | (None, Some(_)) => Ok(()),
+            (Some(_), Some(_)) => Err(ArmError::AmbiguousTransactionRepresentation),
+            (None, None) => Err(ArmError::MissingActions),
         }
     }
 
@@ -152,9 +174,21 @@ impl Transaction {
     }
 
     /// Inner check for nullifier duplication across all compliance units.
+    ///
+    /// When `aggregation` is present it is authoritative: nullifiers are
+    /// read from the proof-backed `aggregation.instance`, never from
+    /// `actions`, even if both happen to be populated on this value.
     pub fn nf_duplication_check(&self) -> Result<(), ArmError> {
         let mut seen_nullifiers = std::collections::HashSet::new();
-        if let Some(actions) = &self.actions {
+        if let Some(agg) = &self.aggregation {
+            for action in &agg.instance.actions {
+                for consumed in &action.consumed_publics {
+                    if !seen_nullifiers.insert(consumed.resource_nullifier) {
+                        return Err(ArmError::NullifierDuplication);
+                    }
+                }
+            }
+        } else if let Some(actions) = &self.actions {
             for action in actions {
                 let compliance_instance = action.compliance_unit.get_instance()?;
                 for consumed_nullifier in compliance_instance
@@ -167,14 +201,6 @@ impl Transaction {
                     }
                 }
             }
-        } else if let Some(agg) = &self.aggregation {
-            for action in &agg.instance.actions {
-                for consumed in &action.consumed_publics {
-                    if !seen_nullifiers.insert(consumed.resource_nullifier) {
-                        return Err(ArmError::NullifierDuplication);
-                    }
-                }
-            }
         } else {
             return Err(ArmError::MissingActions);
         }
@@ -182,17 +208,20 @@ impl Transaction {
     }
 
     /// Returns the DeltaInstance constructed from the sum of all actions' deltas.
+    ///
+    /// When `aggregation` is present it is authoritative; see
+    /// [`Self::nf_duplication_check`].
     pub fn delta(&self) -> Result<DeltaInstance, ArmError> {
-        if let Some(actions) = &self.actions {
-            let mut points = Vec::with_capacity(actions.len());
-            for action in actions {
-                points.push(action.delta()?);
-            }
-            DeltaInstance::from_deltas(&points)
-        } else if let Some(agg) = &self.aggregation {
+        if let Some(agg) = &self.aggregation {
             let mut points = Vec::with_capacity(agg.instance.actions.len());
             for action in &agg.instance.actions {
                 points.push(action.delta_projective()?);
+            }
+            DeltaInstance::from_deltas(&points)
+        } else if let Some(actions) = &self.actions {
+            let mut points = Vec::with_capacity(actions.len());
+            for action in actions {
+                points.push(action.delta()?);
             }
             DeltaInstance::from_deltas(&points)
         } else {
@@ -202,14 +231,11 @@ impl Transaction {
 
     /// Constructs the delta message by concatenating the delta messages
     /// of each action.
+    ///
+    /// When `aggregation` is present it is authoritative; see
+    /// [`Self::nf_duplication_check`].
     pub fn get_delta_msg(&self) -> Result<Vec<u8>, ArmError> {
-        if let Some(actions) = &self.actions {
-            let mut msg = Vec::new();
-            for action in actions {
-                msg.extend(action.get_delta_msg()?);
-            }
-            Ok(msg)
-        } else if let Some(agg) = &self.aggregation {
+        if let Some(agg) = &self.aggregation {
             let mut msg = Vec::new();
             for action in &agg.instance.actions {
                 for consumed in &action.consumed_publics {
@@ -218,6 +244,12 @@ impl Transaction {
                 for created in &action.created_publics {
                     msg.extend_from_slice(created.resource_commitment.as_bytes());
                 }
+            }
+            Ok(msg)
+        } else if let Some(actions) = &self.actions {
+            let mut msg = Vec::new();
+            for action in actions {
+                msg.extend(action.get_delta_msg()?);
             }
             Ok(msg)
         } else {

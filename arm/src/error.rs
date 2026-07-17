@@ -100,4 +100,6 @@ pub enum ArmError {
     MissingActions,
     #[error("Cannot compose a transaction that has already been aggregated")]
     CannotComposeAggregated,
+    #[error("Transaction must carry exactly one of `actions` or `aggregation`, not both")]
+    AmbiguousTransactionRepresentation,
 }

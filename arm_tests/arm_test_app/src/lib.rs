@@ -468,6 +468,44 @@ fn test_verify_aggregation_fails_for_tampered_instance() {
     assert!(tx.verify_aggregation().is_err());
 }
 
+#[test]
+fn test_verify_rejects_transaction_with_both_actions_and_aggregation() {
+    use anoma_rm_risc0::transaction::Aggregation;
+    use anoma_rm_risc0::{aggregation_instance::AggregationInstance, Digest};
+
+    // `Transaction` is a plain deserializable struct, so nothing stops a
+    // crafted instance from carrying both `actions` (unverified, real
+    // delta proof attached) and an unrelated `aggregation`. Before the fix,
+    // `verify()` derived the delta message / instance / nullifier set from
+    // `actions` but only cryptographically verified `aggregation` — so the
+    // unverified `actions` state was silently accepted as long as *some*
+    // aggregation proof (valid or not, related or not) was attached. The
+    // guard must reject this purely on shape, before any proof is checked
+    // — which is why a garbage aggregation is sufficient to prove the fix.
+    let mut tx = Tester::default()
+        .generate_test_transaction(&[(1, 1)])
+        .unwrap();
+    assert!(tx.actions.is_some());
+
+    tx.aggregation = Some(Aggregation {
+        proof: vec![0u8; 64],
+        instance: AggregationInstance {
+            compliance_key: Digest::default(),
+            kind_table_commitment: Digest::default(),
+            actions: vec![],
+        },
+    });
+
+    assert_eq!(
+        tx.check_representation(),
+        Err(ArmError::AmbiguousTransactionRepresentation)
+    );
+    assert_eq!(
+        tx.verify(),
+        Err(ArmError::AmbiguousTransactionRepresentation)
+    );
+}
+
 /// A balanced action with no created resources (1 ephemeral consumed, 0
 /// created). Per-action verification only checks the unit + logic proofs;
 /// balance is enforced at the transaction level.
