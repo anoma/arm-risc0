@@ -7,6 +7,8 @@ pub mod action;
 pub mod action_tree;
 pub mod aggregation_instance;
 #[cfg(feature = "compliance_circuit")]
+pub mod aggregation_witness;
+#[cfg(feature = "compliance_circuit")]
 pub mod compliance;
 #[cfg(feature = "transaction")]
 pub mod compliance_unit;

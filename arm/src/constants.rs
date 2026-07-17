@@ -33,7 +33,7 @@ lazy_static! {
 #[cfg(feature = "aggregation")]
 lazy_static! {
     /// Batch aggregation verification key / Batch aggregation image id.
-    pub static ref BATCH_AGGREGATION_VK: Digest = Digest::from_hex("e39a6ab6dcf1b31cc112842594be6b70886374fe28598547d4d2379cf8c8bdf9").unwrap();
+    pub static ref BATCH_AGGREGATION_VK: Digest = Digest::from_hex("b8c6cabaf8d731624238cd9a8c2db99c985c7455b88199dfed57774f92ad6fc0").unwrap();
 }
 
 /// Global kind table and its SHA-256 commitment, loaded once from a JSON file.

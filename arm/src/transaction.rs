@@ -3,9 +3,10 @@
 use crate::{aggregation_instance::AggregationInstance, constants::global_kind_table_hash};
 #[cfg(feature = "aggregation")]
 use crate::{
+    aggregation_witness::{ActionWitness, AggregationWitness},
     constants::{BATCH_AGGREGATION_PK, BATCH_AGGREGATION_VK, COMPLIANCE_VK},
     proving_system::ProofType,
-    utils::{bytes_to_words, words_to_bytes},
+    utils::words_to_bytes,
 };
 #[cfg(feature = "aggregation")]
 use risc0_zkvm::{default_prover, ExecutorEnv, ProverOpts, Receipt, VerifierContext};
@@ -321,47 +322,58 @@ impl Transaction {
     /// `AggregationInstance`, and `self.actions` is set to `None` (the
     /// individual proofs and witnesses are no longer needed).
     pub fn aggregate(&mut self, proof_type: ProofType) -> Result<(), ArmError> {
-        // Check base proofs exist.
         if self.base_proofs_are_empty() {
             return Err(ArmError::ProveFailed(
                 "Cannot aggregate: missing individual proof(s)".into(),
             ));
         }
 
-        // Collect inner_receipts/proofs and instances.
-        let compliance_inner_receipts = self.get_compliance_inner_receipts()?;
-        let logic_inner_receipts = self.get_logic_inner_receipts()?;
-        let compliance_instances_u32: Vec<Vec<u32>> = self
-            .get_compliance_instances()
-            .iter()
-            .map(|instance_bytes| bytes_to_words(instance_bytes))
-            .collect();
+        use std::collections::HashMap;
 
-        let (lp_vks, lp_instances) = self.get_logic_vks_and_instances()?;
-        let lp_instances_u32: Vec<Vec<u32>> = lp_instances
-            .iter()
-            .map(|instance_bytes| bytes_to_words(instance_bytes))
-            .collect();
-
-        // Add proofs as assumptions
+        let actions = self.actions.as_ref().ok_or(ArmError::MissingActions)?;
         let mut env_builder = ExecutorEnv::builder();
-        for inner_receipt in compliance_inner_receipts
-            .into_iter()
-            .chain(logic_inner_receipts.into_iter())
-        {
-            env_builder.add_assumption(inner_receipt);
+        let mut action_witnesses = Vec::with_capacity(actions.len());
+
+        for action in actions {
+            let compliance_instance = action.compliance_unit.get_instance()?;
+            env_builder.add_assumption(action.compliance_unit.get_inner_receipt()?);
+
+            // Index by tag so we can look up in canonical compliance order.
+            let by_tag: HashMap<Digest, &crate::logic_proof::LogicVerifierInputs> =
+                action.logic_verifier_inputs.iter().map(|lvi| (lvi.tag, lvi)).collect();
+
+            let mut consumed_app_data =
+                Vec::with_capacity(compliance_instance.consumed_publics.len());
+            for r in &compliance_instance.consumed_publics {
+                let lvi = by_tag.get(&r.resource_nullifier).copied()
+                    .ok_or(ArmError::TagNotFound)?;
+                env_builder.add_assumption(lvi.get_inner_receipt()?);
+                consumed_app_data.push(lvi.app_data.clone());
+            }
+
+            let mut created_app_data =
+                Vec::with_capacity(compliance_instance.created_publics.len());
+            for r in &compliance_instance.created_publics {
+                let lvi = by_tag.get(&r.resource_commitment).copied()
+                    .ok_or(ArmError::TagNotFound)?;
+                env_builder.add_assumption(lvi.get_inner_receipt()?);
+                created_app_data.push(lvi.app_data.clone());
+            }
+
+            action_witnesses.push(ActionWitness {
+                compliance_instance,
+                consumed_app_data,
+                created_app_data,
+            });
         }
 
-        // Write instances and keys to guest input.
-        let compliance_key: Digest = *COMPLIANCE_VK;
+        let witnesses = AggregationWitness {
+            compliance_key: *COMPLIANCE_VK,
+            actions: action_witnesses,
+        };
+
         let env = env_builder
-            .write(&compliance_instances_u32)
-            .map_err(|_| ArmError::WriteWitnessFailed)?
-            .write(&compliance_key)
-            .map_err(|_| ArmError::WriteWitnessFailed)?
-            .write(&lp_instances_u32)
-            .map_err(|_| ArmError::WriteWitnessFailed)?
-            .write(&lp_vks)
+            .write(&witnesses)
             .map_err(|_| ArmError::WriteWitnessFailed)?
             .build()
             .map_err(|_| ArmError::BuildProverEnvFailed)?;

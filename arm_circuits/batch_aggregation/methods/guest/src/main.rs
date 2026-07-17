@@ -4,93 +4,93 @@ use anoma_rm_risc0::{
         ActionAggregated, AggregationInstance, ConsumedResourceAggregated,
         CreatedResourceAggregated,
     },
-    compliance::ComplianceInstance,
+    aggregation_witness::AggregationWitness,
     logic_instance::LogicInstance,
-    resource::{ConsumedResourcePublic, CreatedResourcePublic},
 };
-use risc0_zkvm::guest::env;
-use risc0_zkvm::Digest;
+use risc0_zkvm::{guest::env, serde::to_vec, Digest};
 
 fn main() {
-    // Read raw inputs (same API as before — no prover-side change).
-    let compliance_instances_raw: Vec<Vec<u32>> = env::read();
-    let compliance_key: Digest = env::read();
-    let logic_instances_raw: Vec<Vec<u32>> = env::read();
-    let logic_keys: Vec<Digest> = env::read();
+    let witness: AggregationWitness = env::read();
+    assert!(!witness.actions.is_empty(), "no actions provided");
 
-    assert_eq!(
-        logic_instances_raw.len(),
-        logic_keys.len(),
-        "Mismatched logic instances and keys lengths"
-    );
+    let compliance_key = witness.compliance_key;
+    let mut kind_table_commitment: Option<Digest> = None;
+    let mut actions_out = Vec::with_capacity(witness.actions.len());
 
-    // Step 1 — Verify every proof (unchanged behaviour).
-    for ci in &compliance_instances_raw {
-        env::verify(compliance_key, ci).expect("compliance proof verification failed");
-    }
-    for (li, lk) in logic_instances_raw.iter().zip(&logic_keys) {
-        env::verify(*lk, li).expect("logic proof verification failed");
-    }
+    for aw in &witness.actions {
+        let ci = &aw.compliance_instance;
 
-    // Step 2 — Deserialize into typed structs.
-    let compliance_instances: Vec<ComplianceInstance> = compliance_instances_raw
-        .iter()
-        .map(|w| {
-            risc0_zkvm::serde::from_slice(w).expect("failed to deserialize ComplianceInstance")
-        })
-        .collect();
+        // Serialize the typed compliance instance and verify the proof.
+        let ci_words = to_vec(ci).expect("failed to serialize ComplianceInstance");
+        env::verify(compliance_key, &ci_words).expect("compliance proof verification failed");
 
-    let logic_instances: Vec<LogicInstance> = logic_instances_raw
-        .iter()
-        .map(|w| risc0_zkvm::serde::from_slice(w).expect("failed to deserialize LogicInstance"))
-        .collect();
-
-    // Step 3 — Positional iterator: the prover must supply logic_instances in
-    // the same canonical order as tags appear across compliance instances
-    // (consumed nullifiers then created commitments, action by action).
-    let mut li_iter = logic_instances.iter().zip(logic_keys.iter());
-
-    // Step 4 — Assert shared kind_table_commitment.
-    assert!(
-        !compliance_instances.is_empty(),
-        "No compliance instances supplied"
-    );
-    let kind_table_commitment = compliance_instances[0].kind_table_commitment;
-    for ci in &compliance_instances {
+        // All actions must share the same kind_table_commitment.
+        let ktc = *kind_table_commitment.get_or_insert(ci.kind_table_commitment);
         assert_eq!(
-            ci.kind_table_commitment, kind_table_commitment,
+            ci.kind_table_commitment, ktc,
             "kind_table_commitment mismatch across actions"
         );
-    }
 
-    // Step 5 — Cross-check per action and build the compact structs.
-    let mut actions = Vec::with_capacity(compliance_instances.len());
+        assert_eq!(
+            aw.consumed_app_data.len(),
+            ci.consumed_publics.len(),
+            "consumed app_data count mismatch"
+        );
+        assert_eq!(
+            aw.created_app_data.len(),
+            ci.created_publics.len(),
+            "created app_data count mismatch"
+        );
 
-    for ci in &compliance_instances {
-        // Recompute the action tree root from the compliance tags (never
-        // trusted from the prover; always derived inside the guest).
+        // Recompute the action tree root from the compliance tags — never trusted from the prover.
         let tags: Vec<Digest> = ci.tags().collect();
         let action_tree_root = ActionTree::new(tags)
             .root()
             .expect("action tree root computation failed");
 
+        // For each resource, construct the LogicInstance from context and the provided app_data,
+        // serialize it, then verify the logic proof. Constraints A/B/C are enforced structurally:
+        //   A – tag  comes from the compliance nullifier/commitment
+        //   B – root comes from the in-circuit recomputed action_tree_root
+        //   C – VK   comes from resource_logic_ref in the compliance instance
         let mut consumed_publics = Vec::with_capacity(ci.consumed_publics.len());
-        for r in &ci.consumed_publics {
-            let (li, lk) = li_iter
-                .next()
-                .expect("fewer logic instances than compliance tags (prover ordering violation)");
-            consumed_publics.push(check_consumed(r, li, lk, action_tree_root));
+        for (r, app_data) in ci.consumed_publics.iter().zip(&aw.consumed_app_data) {
+            let li = LogicInstance {
+                tag: r.resource_nullifier,
+                is_consumed: true,
+                root: action_tree_root,
+                app_data: app_data.clone(),
+            };
+            let li_words = to_vec(&li).expect("failed to serialize LogicInstance");
+            env::verify(r.resource_logic_ref, &li_words)
+                .expect("logic proof verification failed (consumed)");
+            consumed_publics.push(ConsumedResourceAggregated {
+                resource_nullifier: r.resource_nullifier,
+                resource_logic_ref: r.resource_logic_ref,
+                commitment_tree_root: r.commitment_tree_root,
+                app_data: li.app_data,
+            });
         }
 
         let mut created_publics = Vec::with_capacity(ci.created_publics.len());
-        for r in &ci.created_publics {
-            let (li, lk) = li_iter
-                .next()
-                .expect("fewer logic instances than compliance tags (prover ordering violation)");
-            created_publics.push(check_created(r, li, lk, action_tree_root));
+        for (r, app_data) in ci.created_publics.iter().zip(&aw.created_app_data) {
+            let li = LogicInstance {
+                tag: r.resource_commitment,
+                is_consumed: false,
+                root: action_tree_root,
+                app_data: app_data.clone(),
+            };
+            let li_words = to_vec(&li).expect("failed to serialize LogicInstance");
+            env::verify(r.resource_logic_ref, &li_words)
+                .expect("logic proof verification failed (created)");
+            created_publics.push(CreatedResourceAggregated {
+                resource_commitment: r.resource_commitment,
+                resource_logic_ref: r.resource_logic_ref,
+                app_data: li.app_data,
+            });
         }
 
-        actions.push(ActionAggregated {
+        actions_out.push(ActionAggregated {
             consumed_publics,
             created_publics,
             delta_x: ci.delta_x,
@@ -99,57 +99,9 @@ fn main() {
         });
     }
 
-    // Assert no surplus logic instances were supplied.
-    assert!(
-        li_iter.next().is_none(),
-        "more logic instances than compliance tags"
-    );
-
-    // Step 6 — Commit the compact AggregationInstance (not the raw blobs).
     env::commit(&AggregationInstance {
         compliance_key,
-        kind_table_commitment,
-        actions,
+        kind_table_commitment: kind_table_commitment.unwrap(),
+        actions: actions_out,
     });
-}
-
-/// Enforces constraints A–C for a consumed resource and returns the aggregated struct.
-fn check_consumed(
-    r: &ConsumedResourcePublic,
-    li: &LogicInstance,
-    lk: &Digest,
-    action_tree_root: Digest,
-) -> ConsumedResourceAggregated {
-    // Constraint A: positional tag must match the compliance nullifier.
-    assert_eq!(li.tag, r.resource_nullifier, "tag mismatch (consumed)");
-    // Constraint B: logic circuit ran against the same action tree.
-    assert_eq!(li.root, action_tree_root, "root mismatch (consumed)");
-    // Constraint C: verifying key matches the declared logic ref.
-    assert_eq!(*lk, r.resource_logic_ref, "VK mismatch (consumed)");
-    ConsumedResourceAggregated {
-        resource_nullifier: r.resource_nullifier,
-        resource_logic_ref: r.resource_logic_ref,
-        commitment_tree_root: r.commitment_tree_root,
-        app_data: li.app_data.clone(),
-    }
-}
-
-/// Enforces constraints A–C for a created resource and returns the aggregated struct.
-fn check_created(
-    r: &CreatedResourcePublic,
-    li: &LogicInstance,
-    lk: &Digest,
-    action_tree_root: Digest,
-) -> CreatedResourceAggregated {
-    // Constraint A: positional tag must match the compliance commitment.
-    assert_eq!(li.tag, r.resource_commitment, "tag mismatch (created)");
-    // Constraint B: logic circuit ran against the same action tree.
-    assert_eq!(li.root, action_tree_root, "root mismatch (created)");
-    // Constraint C: verifying key matches the declared logic ref.
-    assert_eq!(*lk, r.resource_logic_ref, "VK mismatch (created)");
-    CreatedResourceAggregated {
-        resource_commitment: r.resource_commitment,
-        resource_logic_ref: r.resource_logic_ref,
-        app_data: li.app_data.clone(),
-    }
 }
