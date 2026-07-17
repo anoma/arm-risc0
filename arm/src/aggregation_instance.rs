@@ -1,10 +1,6 @@
 //! Compact aggregation instance committed by the batch aggregation guest.
 
-use crate::{
-    error::ArmError,
-    logic_instance::AppData,
-    utils::words_to_bytes,
-};
+use crate::{error::ArmError, logic_instance::AppData, utils::words_to_bytes};
 use k256::{elliptic_curve::sec1::FromEncodedPoint, EncodedPoint, ProjectivePoint};
 use risc0_zkvm::Digest;
 use serde::{Deserialize, Serialize};

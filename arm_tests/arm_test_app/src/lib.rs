@@ -326,6 +326,21 @@ fn test_unmatched_logic_verifier_inputs_in_action() {
 }
 
 #[test]
+fn test_logic_verifier_input_with_wrong_verifying_key_rejected() {
+    // A logic verifier input whose tag and position are correct but whose
+    // `verifying_key` does not match the resource's declared `resource_logic_ref`
+    // must be rejected, even before any proof is checked. Without this check a
+    // proof for an unrelated logic circuit could be substituted for the
+    // resource's real logic.
+    let actions = Tester::default()
+        .create_multiple_actions(&[(1, 1)])
+        .unwrap();
+    let mut action = actions[0].clone();
+    action.logic_verifier_inputs[0].verifying_key = Digest::default();
+    assert_eq!(action.verify(), Err(ArmError::VerifyingKeyMismatch));
+}
+
+#[test]
 fn test_nullifier_duplication_check() {
     let mut tx = Tester::default()
         .generate_test_transaction(&[(1, 1), (1, 1)])
@@ -431,8 +446,8 @@ fn test_aggregation_works_groth16() {
 
 #[test]
 fn test_verify_aggregation_fails_for_tampered_instance() {
-    use anoma_rm_risc0::{aggregation_instance::AggregationInstance, Digest};
     use anoma_rm_risc0::transaction::Aggregation;
+    use anoma_rm_risc0::{aggregation_instance::AggregationInstance, Digest};
 
     let mut tx = Tester::default()
         .generate_test_transaction(&[(2, 2), (2, 2)])

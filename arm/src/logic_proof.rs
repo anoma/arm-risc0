@@ -114,8 +114,7 @@ impl LogicVerifierInputs {
 
     /// Retrieves the inner receipt from the logic proof.
     pub fn get_inner_receipt(&self) -> Result<InnerReceipt, ArmError> {
-        bincode::deserialize(&self.proof)
-            .map_err(|_| ArmError::InnerReceiptDeserializationError)
+        bincode::deserialize(&self.proof).map_err(|_| ArmError::InnerReceiptDeserializationError)
     }
 }
 

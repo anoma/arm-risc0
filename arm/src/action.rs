@@ -66,22 +66,30 @@ impl Action {
         let entries = compliance_instance
             .consumed_publics
             .iter()
-            .map(|r| (r.resource_nullifier, true))
+            .map(|r| (r.resource_nullifier, r.resource_logic_ref, true))
             .chain(
                 compliance_instance
                     .created_publics
                     .iter()
-                    .map(|r| (r.resource_commitment, false)),
+                    .map(|r| (r.resource_commitment, r.resource_logic_ref, false)),
             );
 
         entries
             .zip(self.logic_verifier_inputs.iter())
-            .map(|((tag, is_consumed), input)| {
+            .map(|((tag, resource_logic_ref, is_consumed), input)| {
                 // Positional tag assertion — catches wrong ordering or missing instances.
                 if input.tag != tag {
                     return Err(ArmError::TagNotFound);
                 }
-                input.clone().to_logic_verifier(is_consumed, action_tree_root)
+                // The proof must be for the logic circuit the resource itself declares;
+                // otherwise a proof for an unrelated (e.g. trivially-passing) circuit
+                // could be substituted for the resource's real logic.
+                if input.verifying_key != resource_logic_ref {
+                    return Err(ArmError::VerifyingKeyMismatch);
+                }
+                input
+                    .clone()
+                    .to_logic_verifier(is_consumed, action_tree_root)
             })
             .collect()
     }

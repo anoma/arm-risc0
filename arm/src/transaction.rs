@@ -106,10 +106,7 @@ impl Transaction {
                     #[cfg(feature = "aggregation")]
                     self.verify_aggregation()?;
                 } else {
-                    let actions = self
-                        .actions
-                        .as_ref()
-                        .ok_or(ArmError::MissingActions)?;
+                    let actions = self.actions.as_ref().ok_or(ArmError::MissingActions)?;
                     for action in actions {
                         action.verify()?;
                     }
@@ -339,13 +336,18 @@ impl Transaction {
             env_builder.add_assumption(action.compliance_unit.get_inner_receipt()?);
 
             // Index by tag so we can look up in canonical compliance order.
-            let by_tag: HashMap<Digest, &crate::logic_proof::LogicVerifierInputs> =
-                action.logic_verifier_inputs.iter().map(|lvi| (lvi.tag, lvi)).collect();
+            let by_tag: HashMap<Digest, &crate::logic_proof::LogicVerifierInputs> = action
+                .logic_verifier_inputs
+                .iter()
+                .map(|lvi| (lvi.tag, lvi))
+                .collect();
 
             let mut consumed_app_data =
                 Vec::with_capacity(compliance_instance.consumed_publics.len());
             for r in &compliance_instance.consumed_publics {
-                let lvi = by_tag.get(&r.resource_nullifier).copied()
+                let lvi = by_tag
+                    .get(&r.resource_nullifier)
+                    .copied()
                     .ok_or(ArmError::TagNotFound)?;
                 env_builder.add_assumption(lvi.get_inner_receipt()?);
                 consumed_app_data.push(lvi.app_data.clone());
@@ -354,7 +356,9 @@ impl Transaction {
             let mut created_app_data =
                 Vec::with_capacity(compliance_instance.created_publics.len());
             for r in &compliance_instance.created_publics {
-                let lvi = by_tag.get(&r.resource_commitment).copied()
+                let lvi = by_tag
+                    .get(&r.resource_commitment)
+                    .copied()
                     .ok_or(ArmError::TagNotFound)?;
                 env_builder.add_assumption(lvi.get_inner_receipt()?);
                 created_app_data.push(lvi.app_data.clone());
@@ -402,8 +406,8 @@ impl Transaction {
             .decode()
             .map_err(|_| ArmError::InstanceSerializationFailed)?;
 
-        let proof = bincode::serialize(&agg_receipt.inner)
-            .map_err(|_| ArmError::SerializationError)?;
+        let proof =
+            bincode::serialize(&agg_receipt.inner).map_err(|_| ArmError::SerializationError)?;
 
         self.aggregation = Some(Aggregation { proof, instance });
         self.actions = None;
