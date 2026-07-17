@@ -371,7 +371,10 @@ fn test_kind_table_commitment_check_rejects_mismatched_actions() {
         .generate_test_transaction(&[(1, 1), (1, 1)])
         .unwrap();
 
-    set_action_kind_table_commitment(&mut tx.actions[1], Digest::from([0xA5; 32]));
+    set_action_kind_table_commitment(
+        &mut tx.actions.as_mut().unwrap()[1],
+        Digest::from([0xA5; 32]),
+    );
 
     assert!(matches!(
         tx.kind_table_commitment_check(),
@@ -388,8 +391,9 @@ fn test_kind_table_commitment_check_rejects_consistent_non_global() {
         .unwrap();
 
     let fake = Digest::from([0x5A; 32]);
-    set_action_kind_table_commitment(&mut tx.actions[0], fake);
-    set_action_kind_table_commitment(&mut tx.actions[1], fake);
+    let actions = tx.actions.as_mut().unwrap();
+    set_action_kind_table_commitment(&mut actions[0], fake);
+    set_action_kind_table_commitment(&mut actions[1], fake);
 
     assert!(matches!(
         tx.kind_table_commitment_check(),
@@ -405,7 +409,10 @@ fn test_kind_table_commitment_check_rejects_global_mismatch() {
         .generate_test_transaction(&[(1, 1)])
         .unwrap();
 
-    set_action_kind_table_commitment(&mut tx.actions[0], Digest::from([0x5A; 32]));
+    set_action_kind_table_commitment(
+        &mut tx.actions.as_mut().unwrap()[0],
+        Digest::from([0x5A; 32]),
+    );
 
     assert!(matches!(
         tx.kind_table_commitment_check(),
