@@ -1,5 +1,6 @@
 //! Transaction structure and associated methods.
 
+use crate::constants::global_kind_table_hash;
 #[cfg(feature = "aggregation")]
 use crate::{
     constants::{BATCH_AGGREGATION_PK, BATCH_AGGREGATION_VK, COMPLIANCE_VK},
@@ -83,6 +84,7 @@ impl Transaction {
 
                 // Check for nullifier duplication across all compliance units
                 self.nf_duplication_check()?;
+                self.kind_table_commitment_check()?;
 
                 if self.aggregation_proof.is_some() {
                     #[cfg(not(feature = "aggregation"))]
@@ -102,6 +104,27 @@ impl Transaction {
             }
             Delta::Witness(_) => Err(ArmError::ExpectedDeltaProof),
         }
+    }
+
+    /// Checks that all compliance units in the transaction commit to the same kind table,
+    /// and that the commitment matches the loaded global kind table.
+    pub fn kind_table_commitment_check(&self) -> Result<(), ArmError> {
+        let mut iter = self.actions.iter();
+        let Some(first) = iter.next() else {
+            return Ok(());
+        };
+        let expected = first.compliance_unit.get_instance()?.kind_table_commitment;
+        for action in iter {
+            let commitment = action.compliance_unit.get_instance()?.kind_table_commitment;
+            if commitment != expected {
+                return Err(ArmError::KindTableCommitmentMismatch);
+            }
+        }
+        let global_hash = global_kind_table_hash().ok_or(ArmError::KindTableNotLoaded)?;
+        if expected != *global_hash {
+            return Err(ArmError::KindTableGlobalMismatch);
+        }
+        Ok(())
     }
 
     /// Inner check for nullifier duplication across all compliance units

@@ -4,7 +4,10 @@ use crate::{compliance::KindTableEntry, error::ArmError, resource::Resource};
 use hex::FromHex;
 use k256::{elliptic_curve::sec1::FromEncodedPoint, EncodedPoint, ProjectivePoint};
 use lazy_static::lazy_static;
-use risc0_zkvm::Digest;
+use risc0_zkvm::{
+    sha::{Impl as ShaImpl, Sha256},
+    Digest,
+};
 use std::{path::Path, sync::OnceLock};
 
 /// Compliance proving key / compliance guest ELF binary
@@ -33,8 +36,8 @@ lazy_static! {
     pub static ref BATCH_AGGREGATION_VK: Digest = Digest::from_hex("67382671772a832be0ece0b7ce52019f015a364788559a12328c15850e721952").unwrap();
 }
 
-/// Global kind table, loaded once from a JSON file.
-static GLOBAL_KIND_TABLE: OnceLock<Vec<KindTableEntry>> = OnceLock::new();
+/// Global kind table and its SHA-256 commitment, loaded once from a JSON file.
+static GLOBAL_KIND_TABLE: OnceLock<(Vec<KindTableEntry>, Digest)> = OnceLock::new();
 
 /// JSON-serializable representation of a kind table entry.
 /// `logic_ref`, `label_ref`, and `kind_point` are lowercase hex strings.
@@ -84,7 +87,8 @@ pub fn init_kind_table_from_file(path: &Path) -> Result<(), ArmError> {
         })
         .collect::<Result<Vec<_>, _>>()?;
     // First call wins; subsequent calls are silently ignored.
-    let _ = GLOBAL_KIND_TABLE.set(entries);
+    let hash = hash_kind_table_entries(&entries);
+    let _ = GLOBAL_KIND_TABLE.set((entries, hash));
     Ok(())
 }
 
@@ -107,7 +111,27 @@ fn validate_kind_point(logic_ref: Digest, label_ref: Digest, bytes: &[u8]) -> Re
 /// Returns the currently loaded global kind table (empty slice if not yet
 /// initialised).
 pub fn global_kind_table() -> &'static [KindTableEntry] {
-    GLOBAL_KIND_TABLE.get().map_or(&[], Vec::as_slice)
+    GLOBAL_KIND_TABLE.get().map_or(&[], |(entries, _)| entries)
+}
+
+/// Returns the SHA-256 commitment to the global kind table, or `None` if the
+/// table has not been initialised yet.
+///
+/// The commitment is computed using the same algorithm as
+/// `ComplianceWitness::hash_kind_table`: SHA-256 over the concatenated
+/// `(logic_ref ‖ label_ref ‖ kind_point)` bytes of every entry in order.
+pub fn global_kind_table_hash() -> Option<&'static Digest> {
+    GLOBAL_KIND_TABLE.get().map(|(_, hash)| hash)
+}
+
+fn hash_kind_table_entries(entries: &[KindTableEntry]) -> Digest {
+    let mut bytes = Vec::new();
+    for entry in entries {
+        bytes.extend_from_slice(entry.logic_ref.as_bytes());
+        bytes.extend_from_slice(entry.label_ref.as_bytes());
+        bytes.extend_from_slice(&entry.kind_point);
+    }
+    *ShaImpl::hash_bytes(&bytes)
 }
 
 /// Looks up `resource` in `table` and returns its pre-computed kind point, or
