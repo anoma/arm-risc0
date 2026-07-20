@@ -363,7 +363,8 @@ impl Transaction {
     pub fn aggregate(&mut self, proof_type: ProofType) -> Result<(), ArmError> {
         if self.base_proofs_are_empty() {
             return Err(ArmError::ProveFailed(
-                "Cannot aggregate: missing individual proof(s)".into(),
+                "Cannot aggregate: transaction has already been aggregated (actions is None)"
+                    .into(),
             ));
         }
 
