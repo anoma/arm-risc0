@@ -96,7 +96,7 @@ pub enum ArmError {
     EmptyDeltaWitnesses,
     #[error("Invalid padding resource")]
     InvalidPaddingResource,
-    #[error("Actions are missing (transaction has already been aggregated)")]
+    #[error("Actions are missing (transaction has been aggregated or is otherwise invalid)")]
     MissingActions,
     #[error("Cannot compose a transaction that has already been aggregated")]
     CannotComposeAggregated,
