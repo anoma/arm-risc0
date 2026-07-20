@@ -368,8 +368,6 @@ impl Transaction {
             ));
         }
 
-        use std::collections::HashMap;
-
         let actions = self.actions.as_ref().ok_or(ArmError::MissingActions)?;
 
         if actions.is_empty() {
@@ -384,31 +382,33 @@ impl Transaction {
             let compliance_instance = action.compliance_unit.get_instance()?;
             env_builder.add_assumption(action.compliance_unit.get_inner_receipt()?);
 
-            // Index by tag so we can look up in canonical compliance order.
-            let by_tag: HashMap<Digest, &crate::logic_proof::LogicVerifierInputs> = action
-                .logic_verifier_inputs
-                .iter()
-                .map(|lvi| (lvi.tag, lvi))
-                .collect();
+            // Positional matching: logic_verifier_inputs must be in canonical
+            // tag order (consumed nullifiers then created commitments), which is
+            // the same order ComplianceInstance::tags() produces. This mirrors
+            // Action::get_logic_verifiers and avoids the silent overwrite that
+            // a HashMap would cause when duplicate tags are present.
+            let tags: Vec<Digest> = compliance_instance.tags().collect();
+            if tags.len() != action.logic_verifier_inputs.len() {
+                return Err(ArmError::TagNotFound);
+            }
+            let n_consumed = compliance_instance.consumed_publics.len();
+            let (consumed_lvis, created_lvis) = action.logic_verifier_inputs.split_at(n_consumed);
 
-            let mut consumed_app_data =
-                Vec::with_capacity(compliance_instance.consumed_publics.len());
-            for r in &compliance_instance.consumed_publics {
-                let lvi = by_tag
-                    .get(&r.resource_nullifier)
-                    .copied()
-                    .ok_or(ArmError::TagNotFound)?;
+            let mut consumed_app_data = Vec::with_capacity(n_consumed);
+            for (lvi, tag) in consumed_lvis.iter().zip(&tags[..n_consumed]) {
+                if lvi.tag != *tag {
+                    return Err(ArmError::TagNotFound);
+                }
                 env_builder.add_assumption(lvi.get_inner_receipt()?);
                 consumed_app_data.push(lvi.app_data.clone());
             }
 
             let mut created_app_data =
                 Vec::with_capacity(compliance_instance.created_publics.len());
-            for r in &compliance_instance.created_publics {
-                let lvi = by_tag
-                    .get(&r.resource_commitment)
-                    .copied()
-                    .ok_or(ArmError::TagNotFound)?;
+            for (lvi, tag) in created_lvis.iter().zip(&tags[n_consumed..]) {
+                if lvi.tag != *tag {
+                    return Err(ArmError::TagNotFound);
+                }
                 env_builder.add_assumption(lvi.get_inner_receipt()?);
                 created_app_data.push(lvi.app_data.clone());
             }
