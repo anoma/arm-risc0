@@ -75,6 +75,8 @@ impl Transaction {
 
     /// Generates the delta proof for the transaction if it contains a delta witness.
     pub fn generate_delta_proof(self) -> Result<Transaction, ArmError> {
+        self.check_representation()?;
+
         match self.delta_proof {
             Delta::Witness(ref witness) => {
                 let msg = self.get_delta_msg()?;
@@ -468,6 +470,8 @@ impl Transaction {
 impl Transaction {
     /// Verifies the aggregated proof of the transaction.
     pub fn verify_aggregation(&self) -> Result<(), ArmError> {
+        self.check_representation()?;
+
         let agg = self
             .aggregation
             .as_ref()
