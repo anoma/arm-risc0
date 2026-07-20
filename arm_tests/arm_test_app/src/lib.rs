@@ -550,6 +550,44 @@ fn test_compose_transactions() {
     assert!(composed.verify().is_ok());
 }
 
+/// `compose()` must reject any input that carries both `actions` and
+/// `aggregation` (the ambiguous "both present" shape).
+///
+/// This test deliberately avoids proof generation — the guard fires before any
+/// cryptographic work, so dummy delta witnesses and empty action vecs suffice.
+#[test]
+fn test_compose_rejects_ambiguous_transaction() {
+    use anoma_rm_risc0::transaction::Aggregation;
+    use anoma_rm_risc0::{
+        aggregation_instance::AggregationInstance, delta_proof::DeltaWitness, Digest,
+    };
+
+    let dummy_delta = || Delta::Witness(DeltaWitness::from_bytes_vec(&[vec![1u8; 32]]).unwrap());
+
+    // A well-formed transaction (actions present, no aggregation).
+    let tx_clean = Transaction::create(vec![], dummy_delta());
+
+    // A crafted transaction with both fields set — the ambiguous shape.
+    let mut tx_ambiguous = Transaction::create(vec![], dummy_delta());
+    tx_ambiguous.aggregation = Some(Aggregation {
+        proof: vec![0u8; 64],
+        instance: AggregationInstance {
+            compliance_key: Digest::from([0xFFu8; 32]),
+            kind_table_commitment: Digest::default(),
+            actions: vec![],
+        },
+    });
+
+    assert_eq!(
+        Transaction::compose(tx_ambiguous.clone(), tx_clean.clone()),
+        Err(ArmError::CannotComposeAggregated),
+    );
+    assert_eq!(
+        Transaction::compose(tx_clean, tx_ambiguous),
+        Err(ArmError::CannotComposeAggregated),
+    );
+}
+
 /// Aggregating a transaction where one logic verifier has a bad verifying key
 /// must fail; the aggregation proof must remain absent.
 #[test]

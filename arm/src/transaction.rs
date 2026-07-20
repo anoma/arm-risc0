@@ -260,6 +260,10 @@ impl Transaction {
     /// Composes two transactions by concatenating their actions and combining their delta witnesses.
     /// Both transactions must carry a `Delta::Witness` and must not have been aggregated.
     pub fn compose(tx1: Transaction, tx2: Transaction) -> Result<Transaction, ArmError> {
+        tx1.check_representation()
+            .map_err(|_| ArmError::CannotComposeAggregated)?;
+        tx2.check_representation()
+            .map_err(|_| ArmError::CannotComposeAggregated)?;
         let actions1 = tx1.actions.ok_or(ArmError::CannotComposeAggregated)?;
         let actions2 = tx2.actions.ok_or(ArmError::CannotComposeAggregated)?;
         let mut actions = actions1;
