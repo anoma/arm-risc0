@@ -473,6 +473,14 @@ impl Transaction {
 
         receipt.verify(*BATCH_AGGREGATION_VK).map_err(|err| {
             ArmError::ProofVerificationFailed(format!("Proof verification failed: {}", err))
-        })
+        })?;
+
+        if agg.instance.compliance_key != *COMPLIANCE_VK {
+            return Err(ArmError::ProofVerificationFailed(
+                "aggregation compliance_key does not match expected COMPLIANCE_VK".into(),
+            ));
+        }
+
+        Ok(())
     }
 }

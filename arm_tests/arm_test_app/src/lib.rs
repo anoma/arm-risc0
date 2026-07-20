@@ -433,6 +433,14 @@ fn test_aggregation_works() {
     assert!(tx_str.verify_aggregation().is_ok());
     // Full verify() must also succeed on the post-aggregation transaction.
     assert!(tx_str.verify().is_ok());
+
+    // Tamper the compliance_key in the decoded instance — the receipt is still
+    // valid against BATCH_AGGREGATION_VK, but the compliance_key check must
+    // now catch the mismatch before the verifier accepts the proof.
+    if let Some(ref mut agg) = tx_str.aggregation {
+        agg.instance.compliance_key = Digest::from([0xABu8; 32]);
+    }
+    assert!(tx_str.verify_aggregation().is_err());
 }
 
 /// Same as `test_aggregation_works` but with a Groth16 outer aggregation
