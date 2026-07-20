@@ -1,15 +1,21 @@
 //! Transaction structure and associated methods.
 
 use crate::{aggregation_instance::AggregationInstance, constants::global_kind_table_hash};
-#[cfg(feature = "aggregation")]
+#[cfg(all(feature = "aggregation", feature = "prove"))]
 use crate::{
     aggregation_witness::{ActionWitness, AggregationWitness},
-    constants::{BATCH_AGGREGATION_PK, BATCH_AGGREGATION_VK, COMPLIANCE_VK},
+    constants::BATCH_AGGREGATION_PK,
     proving_system::ProofType,
+};
+#[cfg(feature = "aggregation")]
+use crate::{
+    constants::{BATCH_AGGREGATION_VK, COMPLIANCE_VK},
     utils::words_to_bytes,
 };
 #[cfg(feature = "aggregation")]
-use risc0_zkvm::{default_prover, ExecutorEnv, ProverOpts, Receipt, VerifierContext};
+use risc0_zkvm::Receipt;
+#[cfg(all(feature = "aggregation", feature = "prove"))]
+use risc0_zkvm::{default_prover, ExecutorEnv, ProverOpts, VerifierContext};
 use risc0_zkvm::{Digest, InnerReceipt};
 
 use crate::{
@@ -347,7 +353,7 @@ impl Transaction {
     }
 }
 
-#[cfg(feature = "aggregation")]
+#[cfg(all(feature = "aggregation", feature = "prove"))]
 impl Transaction {
     /// Aggregates all the transaction proofs.
     ///
@@ -455,7 +461,10 @@ impl Transaction {
         self.actions = None;
         Ok(())
     }
+}
 
+#[cfg(feature = "aggregation")]
+impl Transaction {
     /// Verifies the aggregated proof of the transaction.
     pub fn verify_aggregation(&self) -> Result<(), ArmError> {
         let agg = self
