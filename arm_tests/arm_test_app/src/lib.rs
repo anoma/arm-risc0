@@ -617,6 +617,19 @@ fn test_cannot_aggregate_invalid_proofs() {
     assert!(bad_tx_str.aggregation.is_none());
 }
 
+/// aggregate() on a transaction with an empty actions vec must fail gracefully
+/// rather than panicking inside the guest.
+#[test]
+fn test_cannot_aggregate_empty_actions() {
+    let dummy_delta = Delta::Witness(DeltaWitness::from_bytes_vec(&[vec![1u8; 32]]).unwrap());
+    let mut tx = Transaction::create(vec![], dummy_delta)
+        .generate_delta_proof()
+        .unwrap();
+    let result = tx.aggregate(ProofType::Succinct);
+    assert!(result.is_err());
+    assert!(tx.aggregation.is_none());
+}
+
 /// Constructing a compliance witness with a wrong created-resource nonce must
 /// be rejected by `constrain` with `InvalidResourceNonce`.
 #[test]

@@ -364,6 +364,12 @@ impl Transaction {
         use std::collections::HashMap;
 
         let actions = self.actions.as_ref().ok_or(ArmError::MissingActions)?;
+
+        if actions.is_empty() {
+            return Err(ArmError::ProveFailed(
+                "Cannot aggregate: transaction has no actions".into(),
+            ));
+        }
         let mut env_builder = ExecutorEnv::builder();
         let mut action_witnesses = Vec::with_capacity(actions.len());
 
