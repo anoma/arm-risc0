@@ -8,7 +8,7 @@ use arm_core::compliance::ComplianceInstance;
 use arm_core::transaction::{Delta, Transaction};
 
 use crate::error::SolanaArmError;
-use solana_program::hash::hashv;
+use solana_program::keccak::hashv;
 use solana_program::secp256k1_recover::secp256k1_recover;
 use solana_secp256k1::{Secp256k1, Secp256k1Point, UncompressedPoint};
 
@@ -19,13 +19,22 @@ const SCALAR_TWO: [u8; 32] = {
     b
 };
 
+/// Half the secp256k1 scalar order, encoded big-endian.
+///
+/// Requiring `s` at or below this boundary gives every ECDSA authorization one
+/// canonical signature, matching the EVM adapter's ECDSA recovery semantics.
+const SECP256K1_HALF_ORDER: [u8; 32] = [
+    0x7f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x5d, 0x57, 0x6e, 0x73, 0x57, 0xa4, 0x50, 0x1d, 0xdf, 0xe9, 0x2f, 0x46, 0x68, 0x1b, 0x20, 0xa0,
+];
+
 /// Collect tags (nullifiers and commitments) in compliance unit order.
 /// Returns tags as 32-byte arrays in the order: [nf0, cm0, nf1, cm1, ...].
 ///
 /// This produces the same byte sequence as `Transaction::get_delta_msg()` from `arm_core`,
 /// but as separate 32-byte chunks suitable for Solana's `hashv` syscall.
 /// `hashv` concatenates its inputs before hashing, so `hashv(collect_tags(tx))` ==
-/// `SHA-256(tx.get_delta_msg())`.
+/// `Keccak-256(tx.get_delta_msg())`.
 pub fn collect_tags(tx: &Transaction) -> Result<Vec<[u8; 32]>, SolanaArmError> {
     let mut tags = Vec::new();
     for action in &tx.actions {
@@ -39,7 +48,7 @@ pub fn collect_tags(tx: &Transaction) -> Result<Vec<[u8; 32]>, SolanaArmError> {
     Ok(tags)
 }
 
-/// Compute the delta message hash = SHA-256(concatenated tags) using Solana syscall.
+/// Compute the delta message hash = Keccak-256(concatenated tags) using Solana syscall.
 pub fn compute_delta_msg_hash(tags: &[[u8; 32]]) -> [u8; 32] {
     let refs: Vec<&[u8]> = tags.iter().map(|t| t.as_slice()).collect();
     hashv(&refs).to_bytes()
@@ -139,10 +148,20 @@ pub fn verify_delta_proof(tx: &Transaction) -> Result<(), SolanaArmError> {
         .try_into()
         .map_err(|_| SolanaArmError::InvalidDeltaProof)?;
 
+    let s_bytes: [u8; 32] = sig_bytes[32..]
+        .try_into()
+        .map_err(|_| SolanaArmError::InvalidDeltaProof)?;
+    if s_bytes > SECP256K1_HALF_ORDER {
+        return Err(SolanaArmError::InvalidDeltaProof);
+    }
+
     // DeltaProof::to_bytes() stores recid as recid + 27 (Ethereum convention).
     let recid = signature_bytes[64]
         .checked_sub(27)
         .ok_or(SolanaArmError::InvalidDeltaProof)?;
+    if recid > 1 {
+        return Err(SolanaArmError::InvalidDeltaProof);
+    }
 
     // 6. Recover public key
     let recovered_pubkey = secp256k1_recover(&msg_hash, recid, &sig_bytes)
@@ -242,6 +261,42 @@ mod tests {
         let signing_key = SigningKey::random(&mut OsRng);
         let tx = make_signed_transaction(&signing_key);
         verify_delta_proof(&tx).unwrap();
+    }
+
+    #[test]
+    fn delta_hash_matches_protocol_keccak_golden() {
+        let tags: [[u8; 32]; 4] = std::array::from_fn(|index| {
+            let index = (index as u64).to_le_bytes();
+            solana_program::hash::hashv(&[b"golden-delta", &index]).to_bytes()
+        });
+        let expected = [
+            0xf4, 0x3d, 0x99, 0xe0, 0x17, 0x75, 0x19, 0x96, 0x15, 0x91, 0x11, 0x4d, 0x45, 0x39,
+            0xfd, 0xe6, 0x04, 0xed, 0xea, 0x5d, 0xce, 0xfc, 0xbd, 0xad, 0xf2, 0x77, 0x92, 0x0a,
+            0xde, 0xaf, 0x8b, 0x39,
+        ];
+
+        assert_eq!(compute_delta_msg_hash(&tags), expected);
+    }
+
+    #[test]
+    fn test_delta_proof_rejects_high_s_malleation() {
+        use k256::elliptic_curve::PrimeField;
+
+        let signing_key = SigningKey::random(&mut OsRng);
+        let mut tx = make_signed_transaction(&signing_key);
+        let Delta::Proof(DeltaProof(proof)) = &mut tx.delta_proof else {
+            unreachable!()
+        };
+
+        let s_bytes: [u8; 32] = proof[32..64].try_into().unwrap();
+        let s = k256::Scalar::from_repr(s_bytes.into()).unwrap();
+        proof[32..64].copy_from_slice(&(-s).to_bytes());
+        proof[64] = ((proof[64] - 27) ^ 1) + 27;
+
+        assert!(matches!(
+            verify_delta_proof(&tx),
+            Err(SolanaArmError::InvalidDeltaProof)
+        ));
     }
 
     // =========================================================================

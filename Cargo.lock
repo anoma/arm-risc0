@@ -324,7 +324,6 @@ dependencies = [
  "anoma-rm-core",
  "bytemuck",
  "k256",
- "sha2 0.10.9",
  "solana-program",
  "solana-secp256k1",
  "thiserror 2.0.17",
