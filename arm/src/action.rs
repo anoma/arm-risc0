@@ -48,20 +48,21 @@ impl Action {
     }
 
     /// Constructs logic verifiers from the action's compliance unit and logic verifier inputs.
-    /// It also checks consistency between compliance instances and logic verifier inputs.
+    ///
+    /// Uses positional matching: `logic_verifier_inputs` must be supplied in
+    /// the canonical tag order (consumed nullifiers then created commitments),
+    /// which is the same order `ComplianceInstance::tags()` produces and the
+    /// aggregation guest enforces.
     pub(crate) fn get_logic_verifiers(&self) -> Result<Vec<LogicVerifier>, ArmError> {
-        let mut logic_verifiers = Vec::new();
-
         let compliance_instance = self.compliance_unit.get_instance()?;
 
-        // Compute the action tree root over the unit's canonical tag order.
         let tags: Vec<Digest> = compliance_instance.tags().collect();
         let action_tree_root = Self::construct_action_tree(&tags).root()?;
 
-        // Match logic verifier inputs with the tags in the action tree
         if tags.len() != self.logic_verifier_inputs.len() {
             return Err(ArmError::TagNotFound);
         }
+
         let entries = compliance_instance
             .consumed_publics
             .iter()
@@ -72,24 +73,25 @@ impl Action {
                     .iter()
                     .map(|r| (r.resource_commitment, r.resource_logic_ref, false)),
             );
-        for (tag, verifying_key, is_consumed) in entries {
-            // Look up the tag in the `logic_verifier_inputs`.
-            let input = self
-                .logic_verifier_inputs
-                .iter()
-                .find(|input| input.tag == tag)
-                .ok_or(ArmError::TagNotFound)?;
-            if input.verifying_key != verifying_key {
-                return Err(ArmError::VerifyingKeyMismatch);
-            }
-            logic_verifiers.push(
+
+        entries
+            .zip(self.logic_verifier_inputs.iter())
+            .map(|((tag, resource_logic_ref, is_consumed), input)| {
+                // Positional tag assertion — catches wrong ordering or missing instances.
+                if input.tag != tag {
+                    return Err(ArmError::TagNotFound);
+                }
+                // The proof must be for the logic circuit the resource itself declares;
+                // otherwise a proof for an unrelated (e.g. trivially-passing) circuit
+                // could be substituted for the resource's real logic.
+                if input.verifying_key != resource_logic_ref {
+                    return Err(ArmError::VerifyingKeyMismatch);
+                }
                 input
                     .clone()
-                    .to_logic_verifier(is_consumed, action_tree_root)?,
-            );
-        }
-
-        Ok(logic_verifiers)
+                    .to_logic_verifier(is_consumed, action_tree_root)
+            })
+            .collect()
     }
 
     /// Verifies all proofs and consistencies in the action.

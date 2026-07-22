@@ -314,15 +314,30 @@ fn test_unmatched_logic_verifier_inputs_in_action() {
     let actions = Tester::default()
         .create_multiple_actions(&[(1, 1), (1, 1)])
         .unwrap();
-    // swap logic verifier inputs to cause mismatch in action0
+    // Swap logic verifier inputs to cause tag mismatch at position 0 in action0.
     let mut action0 = actions[0].clone();
     action0.logic_verifier_inputs = actions[1].logic_verifier_inputs.clone();
     assert!(action0.verify().is_err());
 
-    // empty logic verifier inputs in action1
+    // Empty logic verifier inputs: length mismatch must be rejected.
     let mut action1 = actions[1].clone();
     action1.logic_verifier_inputs = vec![];
     assert!(action1.verify().is_err());
+}
+
+#[test]
+fn test_logic_verifier_input_with_wrong_verifying_key_rejected() {
+    // A logic verifier input whose tag and position are correct but whose
+    // `verifying_key` does not match the resource's declared `resource_logic_ref`
+    // must be rejected, even before any proof is checked. Without this check a
+    // proof for an unrelated logic circuit could be substituted for the
+    // resource's real logic.
+    let actions = Tester::default()
+        .create_multiple_actions(&[(1, 1)])
+        .unwrap();
+    let mut action = actions[0].clone();
+    action.logic_verifier_inputs[0].verifying_key = Digest::default();
+    assert_eq!(action.verify(), Err(ArmError::VerifyingKeyMismatch));
 }
 
 #[test]
@@ -332,8 +347,9 @@ fn test_nullifier_duplication_check() {
         .unwrap();
     assert!(tx.nf_duplication_check().is_ok());
 
-    // Introduce a duplicate nullifier
-    tx.actions[1] = tx.actions[0].clone();
+    // Introduce a duplicate nullifier by replacing action 1 with action 0.
+    let action0 = tx.actions.as_ref().unwrap()[0].clone();
+    tx.actions.as_mut().unwrap()[1] = action0;
 
     assert!(tx.nf_duplication_check().is_err());
 }
@@ -355,7 +371,10 @@ fn test_kind_table_commitment_check_rejects_mismatched_actions() {
         .generate_test_transaction(&[(1, 1), (1, 1)])
         .unwrap();
 
-    set_action_kind_table_commitment(&mut tx.actions[1], Digest::from([0xA5; 32]));
+    set_action_kind_table_commitment(
+        &mut tx.actions.as_mut().unwrap()[1],
+        Digest::from([0xA5; 32]),
+    );
 
     assert!(matches!(
         tx.kind_table_commitment_check(),
@@ -372,8 +391,9 @@ fn test_kind_table_commitment_check_rejects_consistent_non_global() {
         .unwrap();
 
     let fake = Digest::from([0x5A; 32]);
-    set_action_kind_table_commitment(&mut tx.actions[0], fake);
-    set_action_kind_table_commitment(&mut tx.actions[1], fake);
+    let actions = tx.actions.as_mut().unwrap();
+    set_action_kind_table_commitment(&mut actions[0], fake);
+    set_action_kind_table_commitment(&mut actions[1], fake);
 
     assert!(matches!(
         tx.kind_table_commitment_check(),
@@ -389,7 +409,10 @@ fn test_kind_table_commitment_check_rejects_global_mismatch() {
         .generate_test_transaction(&[(1, 1)])
         .unwrap();
 
-    set_action_kind_table_commitment(&mut tx.actions[0], Digest::from([0x5A; 32]));
+    set_action_kind_table_commitment(
+        &mut tx.actions.as_mut().unwrap()[0],
+        Digest::from([0x5A; 32]),
+    );
 
     assert!(matches!(
         tx.kind_table_commitment_check(),
@@ -404,8 +427,20 @@ fn test_aggregation_works() {
         .unwrap();
     let mut tx_str = tx.clone();
     assert!(tx_str.aggregate(ProofType::Succinct).is_ok());
-    assert!(tx_str.aggregation_proof.is_some());
+    // After aggregation: actions must be None, aggregation must be Some.
+    assert!(tx_str.actions.is_none());
+    assert!(tx_str.aggregation.is_some());
     assert!(tx_str.verify_aggregation().is_ok());
+    // Full verify() must also succeed on the post-aggregation transaction.
+    assert!(tx_str.verify().is_ok());
+
+    // Tamper the compliance_key in the decoded instance — the receipt is still
+    // valid against BATCH_AGGREGATION_VK, but the compliance_key check must
+    // now catch the mismatch before the verifier accepts the proof.
+    if let Some(ref mut agg) = tx_str.aggregation {
+        agg.instance.compliance_key = Digest::from([0xABu8; 32]);
+    }
+    assert!(tx_str.verify_aggregation().is_err());
 }
 
 /// Same as `test_aggregation_works` but with a Groth16 outer aggregation
@@ -419,21 +454,71 @@ fn test_aggregation_works_groth16() {
         .unwrap();
     let mut tx_str = tx.clone();
     assert!(tx_str.aggregate(ProofType::Groth16).is_ok());
-    assert!(tx_str.aggregation_proof.is_some());
+    assert!(tx_str.actions.is_none());
+    assert!(tx_str.aggregation.is_some());
     assert!(tx_str.verify_aggregation().is_ok());
 }
 
 #[test]
-fn test_verify_aggregation_fails_for_incorrect_instances() {
-    let tx = Tester::default()
+fn test_verify_aggregation_fails_for_tampered_instance() {
+    use anoma_rm_risc0::transaction::Aggregation;
+    use anoma_rm_risc0::{aggregation_instance::AggregationInstance, Digest};
+
+    let mut tx = Tester::default()
         .generate_test_transaction(&[(2, 2), (2, 2)])
         .unwrap();
-    let mut tx_str = tx.clone();
-    assert!(tx_str.aggregate(ProofType::Succinct).is_ok());
 
-    tx_str.actions[0].logic_verifier_inputs.pop();
+    // Inject a fake Aggregation with a garbage proof and a tampered instance.
+    // verify_aggregation() must reject it without needing the new ELF.
+    let fake_instance = AggregationInstance {
+        compliance_key: Digest::from([0xFFu8; 32]),
+        kind_table_commitment: Digest::default(),
+        actions: vec![],
+    };
+    tx.aggregation = Some(Aggregation {
+        proof: vec![0u8; 64],
+        instance: fake_instance,
+    });
 
-    assert!(tx_str.verify_aggregation().is_err());
+    assert!(tx.verify_aggregation().is_err());
+}
+
+#[test]
+fn test_verify_rejects_transaction_with_both_actions_and_aggregation() {
+    use anoma_rm_risc0::transaction::Aggregation;
+    use anoma_rm_risc0::{aggregation_instance::AggregationInstance, Digest};
+
+    // `Transaction` is a plain deserializable struct, so nothing stops a
+    // crafted instance from carrying both `actions` (unverified, real
+    // delta proof attached) and an unrelated `aggregation`. Before the fix,
+    // `verify()` derived the delta message / instance / nullifier set from
+    // `actions` but only cryptographically verified `aggregation` — so the
+    // unverified `actions` state was silently accepted as long as *some*
+    // aggregation proof (valid or not, related or not) was attached. The
+    // guard must reject this purely on shape, before any proof is checked
+    // — which is why a garbage aggregation is sufficient to prove the fix.
+    let mut tx = Tester::default()
+        .generate_test_transaction(&[(1, 1)])
+        .unwrap();
+    assert!(tx.actions.is_some());
+
+    tx.aggregation = Some(Aggregation {
+        proof: vec![0u8; 64],
+        instance: AggregationInstance {
+            compliance_key: Digest::default(),
+            kind_table_commitment: Digest::default(),
+            actions: vec![],
+        },
+    });
+
+    assert_eq!(
+        tx.check_representation(),
+        Err(ArmError::AmbiguousTransactionRepresentation)
+    );
+    assert_eq!(
+        tx.verify(),
+        Err(ArmError::AmbiguousTransactionRepresentation)
+    );
 }
 
 /// A balanced action with no created resources (1 ephemeral consumed, 0
@@ -473,6 +558,44 @@ fn test_compose_transactions() {
     assert!(composed.verify().is_ok());
 }
 
+/// `compose()` must reject any input that carries both `actions` and
+/// `aggregation` (the ambiguous "both present" shape).
+///
+/// This test deliberately avoids proof generation — the guard fires before any
+/// cryptographic work, so dummy delta witnesses and empty action vecs suffice.
+#[test]
+fn test_compose_rejects_ambiguous_transaction() {
+    use anoma_rm_risc0::transaction::Aggregation;
+    use anoma_rm_risc0::{
+        aggregation_instance::AggregationInstance, delta_proof::DeltaWitness, Digest,
+    };
+
+    let dummy_delta = || Delta::Witness(DeltaWitness::from_bytes_vec(&[vec![1u8; 32]]).unwrap());
+
+    // A well-formed transaction (actions present, no aggregation).
+    let tx_clean = Transaction::create(vec![], dummy_delta());
+
+    // A crafted transaction with both fields set — the ambiguous shape.
+    let mut tx_ambiguous = Transaction::create(vec![], dummy_delta());
+    tx_ambiguous.aggregation = Some(Aggregation {
+        proof: vec![0u8; 64],
+        instance: AggregationInstance {
+            compliance_key: Digest::from([0xFFu8; 32]),
+            kind_table_commitment: Digest::default(),
+            actions: vec![],
+        },
+    });
+
+    assert_eq!(
+        Transaction::compose(tx_ambiguous.clone(), tx_clean.clone()),
+        Err(ArmError::CannotComposeAggregated),
+    );
+    assert_eq!(
+        Transaction::compose(tx_clean, tx_ambiguous),
+        Err(ArmError::CannotComposeAggregated),
+    );
+}
+
 /// Aggregating a transaction where one logic verifier has a bad verifying key
 /// must fail; the aggregation proof must remain absent.
 #[test]
@@ -483,22 +606,36 @@ fn test_cannot_aggregate_invalid_proofs() {
         .generate_test_transaction(&[(2, 2), (2, 2)])
         .unwrap();
 
+    let actions = tx.actions.as_ref().unwrap();
     let bad_lproof = LogicVerifierInputs {
-        proof: tx.actions[0].logic_verifier_inputs[0].proof.clone(),
+        proof: actions[0].logic_verifier_inputs[0].proof.clone(),
         verifying_key: Digest::from([66u8; 32]),
-        tag: tx.actions[0].logic_verifier_inputs[0].tag,
-        app_data: tx.actions[0].logic_verifier_inputs[0].app_data.clone(),
+        tag: actions[0].logic_verifier_inputs[0].tag,
+        app_data: actions[0].logic_verifier_inputs[0].app_data.clone(),
     };
 
     let bad_action = Action {
-        compliance_unit: tx.actions[0].compliance_unit.clone(),
+        compliance_unit: actions[0].compliance_unit.clone(),
         logic_verifier_inputs: vec![bad_lproof],
     };
-    let bad_tx = Transaction::create(vec![bad_action, tx.actions[1].clone()], tx.delta_proof);
+    let bad_tx = Transaction::create(vec![bad_action, actions[1].clone()], tx.delta_proof);
 
     let mut bad_tx_str = bad_tx.clone();
     assert!(bad_tx_str.aggregate(ProofType::Succinct).is_err());
-    assert!(bad_tx_str.aggregation_proof.is_none());
+    assert!(bad_tx_str.aggregation.is_none());
+}
+
+/// aggregate() on a transaction with an empty actions vec must fail gracefully
+/// rather than panicking inside the guest.
+#[test]
+fn test_cannot_aggregate_empty_actions() {
+    let dummy_delta = Delta::Witness(DeltaWitness::from_bytes_vec(&[vec![1u8; 32]]).unwrap());
+    let mut tx = Transaction::create(vec![], dummy_delta)
+        .generate_delta_proof()
+        .unwrap();
+    let result = tx.aggregate(ProofType::Succinct);
+    assert!(result.is_err());
+    assert!(tx.aggregation.is_none());
 }
 
 /// Constructing a compliance witness with a wrong created-resource nonce must

@@ -42,7 +42,7 @@ pub trait LogicProver: Default + Clone + Serialize + for<'de> Deserialize<'de> {
     fn prove(&self, proof_type: ProofType) -> Result<LogicVerifier, ArmError> {
         let (proof, instance) = prove(Self::proving_key(), self.witness(), proof_type)?;
         Ok(LogicVerifier {
-            proof: Some(proof),
+            proof,
             instance,
             verifying_key: Self::verifying_key(),
         })
@@ -52,8 +52,8 @@ pub trait LogicProver: Default + Clone + Serialize + for<'de> Deserialize<'de> {
 /// Represents a logic verifier with its proof, instance, and verifying key.
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct LogicVerifier {
-    /// The logic proof (optional, would be absent when aggregation is enabled).
-    pub proof: Option<Vec<u8>>,
+    /// The serialised `InnerReceipt` for this logic proof.
+    pub proof: Vec<u8>,
     /// The serialized logic instance.
     pub instance: Vec<u8>,
     /// The verifying key for the logic proof.
@@ -69,21 +69,15 @@ pub struct LogicVerifierInputs {
     pub verifying_key: Digest,
     /// The application data associated with the logic instance.
     pub app_data: AppData,
-    /// The logic proof (optional, would be absent when aggregation is enabled).
-    pub proof: Option<Vec<u8>>,
+    /// The serialised `InnerReceipt` for this logic proof.
+    pub proof: Vec<u8>,
 }
 
 impl LogicVerifier {
     /// Verifies the logic proof against the instance using the provided verifying key.
     pub fn verify(&self) -> Result<(), ArmError> {
-        if let Some(proof) = &self.proof {
-            verify_proof(&self.verifying_key, &self.instance, proof)
-                .map_err(|err| ArmError::ProofVerificationFailed(err.to_string()))
-        } else {
-            Err(ArmError::ProofVerificationFailed(
-                "Missing logic proof".into(),
-            ))
-        }
+        verify_proof(&self.verifying_key, &self.instance, &self.proof)
+            .map_err(|err| ArmError::ProofVerificationFailed(err.to_string()))
     }
 
     /// Retrieves the logic instance from the serialized instance data.
@@ -120,13 +114,7 @@ impl LogicVerifierInputs {
 
     /// Retrieves the inner receipt from the logic proof.
     pub fn get_inner_receipt(&self) -> Result<InnerReceipt, ArmError> {
-        let inner: InnerReceipt = bincode::deserialize(
-            self.proof
-                .as_ref()
-                .ok_or(ArmError::MissingField("Missing logic proof"))?,
-        )
-        .map_err(|_| ArmError::InnerReceiptDeserializationError)?;
-        Ok(inner)
+        bincode::deserialize(&self.proof).map_err(|_| ArmError::InnerReceiptDeserializationError)
     }
 }
 

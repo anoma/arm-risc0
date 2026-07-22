@@ -5,6 +5,9 @@
 #[cfg(feature = "transaction")]
 pub mod action;
 pub mod action_tree;
+pub mod aggregation_instance;
+#[cfg(feature = "compliance_circuit")]
+pub mod aggregation_witness;
 #[cfg(feature = "compliance_circuit")]
 pub mod compliance;
 #[cfg(feature = "transaction")]
@@ -27,4 +30,7 @@ pub mod resource_logic;
 pub mod transaction;
 pub mod utils;
 
+pub use aggregation_instance::{
+    ActionAggregated, AggregationInstance, ConsumedResourceAggregated, CreatedResourceAggregated,
+};
 pub use risc0_zkvm::Digest;
