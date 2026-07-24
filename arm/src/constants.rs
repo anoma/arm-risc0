@@ -21,19 +21,19 @@ pub const BATCH_AGGREGATION_PK: &[u8] = include_bytes!("../elfs/batch-aggregatio
 lazy_static! {
     /// compliance verification key / compliance image id
     pub static ref COMPLIANCE_VK: Digest =
-        Digest::from_hex("17658a4faaac46abcdf66c1f6ec9d0259c6c0f32d674ca06b041a7746d96ebe8")
+        Digest::from_hex("48064103af2e7a66f94560b0d44b7fe7e0af1fb8be848c2d56ffc5a26174b14e")
             .unwrap();
 
     /// padding logic verification key / compliance image id
     pub static ref PADDING_LOGIC_VK: Digest =
-        Digest::from_hex("44e3114ddb22d06657e5cb1edc761e64dc54e70365f306cd0a8f6135591d99ae")
+        Digest::from_hex("898f3d23ccad1ec7f07051100973815ce3687870416bc96e823a7aeaa347c367")
             .unwrap();
 }
 
 #[cfg(feature = "aggregation")]
 lazy_static! {
     /// Batch aggregation verification key / Batch aggregation image id.
-    pub static ref BATCH_AGGREGATION_VK: Digest = Digest::from_hex("b8c6cabaf8d731624238cd9a8c2db99c985c7455b88199dfed57774f92ad6fc0").unwrap();
+    pub static ref BATCH_AGGREGATION_VK: Digest = Digest::from_hex("a8c54f6bdb1086a31e28e99d53ede307f5c25881dae91af04b79835ac9b7053e").unwrap();
 }
 
 /// Global kind table and its SHA-256 commitment, loaded once from a JSON file.
@@ -190,7 +190,7 @@ mod tests {
         // cannot be imported here; its value is referenced directly.
         // Source: arm_tests/arm_test_app/src/lib.rs — TEST_LOGIC_VK
         let test_logic_vk =
-            Digest::from_hex("4dcb5900a14c792acdc5007e902e4ed9c8eccaca4865850f5b60140262a79a4a")
+            Digest::from_hex("e64012e3414a68938a942e017dc56311773c4d5649913f99ebd1a6385444bf7b")
                 .unwrap();
 
         let resources = [
