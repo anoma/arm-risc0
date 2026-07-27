@@ -112,16 +112,15 @@ impl Action {
         self.compliance_unit.delta()
     }
 
-    /// Constructs the delta message by concatenating the delta messages
-    /// of each compliance unit.
+    /// Returns this action's contribution to the delta message: its action tree root.
     pub fn get_delta_msg(&self) -> Result<Vec<u8>, ArmError> {
-        let mut msg = Vec::new();
-        if let Ok(instance) = self.compliance_unit.get_instance() {
-            msg.extend_from_slice(&instance.delta_msg());
-        } else {
-            return Err(ArmError::InvalidComplianceInstance);
-        }
-        Ok(msg)
+        let instance = self
+            .compliance_unit
+            .get_instance()
+            .map_err(|_| ArmError::InvalidComplianceInstance)?;
+        let tags: Vec<Digest> = instance.tags().collect();
+        let root = Self::construct_action_tree(&tags).root()?;
+        Ok(root.as_bytes().to_vec())
     }
 
     /// Constructs the action tree from the passed tags.

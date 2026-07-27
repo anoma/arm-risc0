@@ -220,15 +220,12 @@ impl Transaction {
     /// [`Self::nf_duplication_check`].
     fn get_delta_msg(&self) -> Result<Vec<u8>, ArmError> {
         if let Some(agg) = &self.aggregation {
-            let mut msg = Vec::new();
-            for action in &agg.instance.actions {
-                for consumed in &action.consumed_publics {
-                    msg.extend_from_slice(consumed.resource_nullifier.as_bytes());
-                }
-                for created in &action.created_publics {
-                    msg.extend_from_slice(created.resource_commitment.as_bytes());
-                }
-            }
+            let msg = agg
+                .instance
+                .actions
+                .iter()
+                .flat_map(|a| a.action_tree_root.as_bytes().to_vec())
+                .collect();
             Ok(msg)
         } else if let Some(actions) = &self.actions {
             let mut msg = Vec::new();
