@@ -26,11 +26,13 @@ pub struct DeltaWitness {
     pub signing_key: SigningKey,
 }
 
-/// The delta instance contains the verifying key used to verify the delta proof.
+/// The delta instance contains the verifying key and the message used to verify the delta proof.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DeltaInstance {
     /// The verifying key.
     pub verifying_key: VerifyingKey,
+    /// The message that was signed.
+    pub message: Vec<u8>,
 }
 
 impl DeltaProof {
@@ -54,12 +56,8 @@ impl DeltaProof {
         Ok(DeltaProof { signature, recid })
     }
 
-    /// Verifies the delta proof against the given message and instance.
-    pub fn verify(
-        message: &[u8],
-        proof: &DeltaProof,
-        instance: DeltaInstance,
-    ) -> Result<(), ArmError> {
+    /// Verifies the delta proof against the instance (which carries the message).
+    pub fn verify(proof: &DeltaProof, instance: DeltaInstance) -> Result<(), ArmError> {
         // handle recid
         if proof.recid.to_byte() > 1 {
             return Err(ArmError::InvalidDeltaProof);
@@ -74,7 +72,7 @@ impl DeltaProof {
 
         // Hash the message using Keccak256
         let mut digest = Keccak256::new();
-        digest.update(message);
+        digest.update(&instance.message);
 
         // Verify the signature
         let vk = VerifyingKey::recover_from_digest(digest, &proof.signature, proof.recid)
@@ -171,14 +169,17 @@ fn signing_key_from_scalar(scalar: Scalar) -> Result<SigningKey, ArmError> {
 }
 
 impl DeltaInstance {
-    /// Creates a delta instance from a list of projective points by summing them up.
-    pub fn from_deltas(deltas: &[ProjectivePoint]) -> Result<DeltaInstance, ArmError> {
+    /// Creates a delta instance from a list of projective points and the signed message.
+    pub fn new(deltas: &[ProjectivePoint], message: Vec<u8>) -> Result<DeltaInstance, ArmError> {
         let sum = deltas
             .iter()
             .fold(ProjectivePoint::IDENTITY, |acc, x| acc + x);
         let pk = PublicKey::from_affine(sum.to_affine()).map_err(|_| ArmError::InvalidPublicKey)?;
         let vk = VerifyingKey::from(&pk);
-        Ok(DeltaInstance { verifying_key: vk })
+        Ok(DeltaInstance {
+            verifying_key: vk,
+            message,
+        })
     }
 }
 
@@ -245,12 +246,15 @@ mod tests {
         let signing_key = SigningKey::random(&mut rng);
         let verifying_key = VerifyingKey::from(&signing_key);
 
-        let message = b"Hello, world!";
+        let message = b"Hello, world!".to_vec();
         let witness = DeltaWitness { signing_key };
-        let proof = DeltaProof::prove(message, &witness).unwrap();
-        let instance = DeltaInstance { verifying_key };
+        let proof = DeltaProof::prove(&message, &witness).unwrap();
+        let instance = DeltaInstance {
+            verifying_key,
+            message,
+        };
 
-        DeltaProof::verify(message, &proof, instance).unwrap();
+        DeltaProof::verify(&proof, instance).unwrap();
     }
 
     /// DeltaProof: serialize then deserialize via bincode must round-trip.
