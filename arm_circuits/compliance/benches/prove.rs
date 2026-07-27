@@ -127,7 +127,7 @@ fn bench_empty_table(c: &mut Criterion) {
 /// `label_ref` of the first entry in the loaded table so all resources hit the table.
 fn bench_file_table(c: &mut Criterion) {
     let kind_table_path =
-        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../arm/kind_table.json");
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../arm/data/kind_table.json");
     init_kind_table_from_file(&kind_table_path).expect("Failed to load kind_table.json");
 
     let entry = &global_kind_table()[0];

@@ -36,6 +36,19 @@ use risc0_zkvm::sha::{rust_crypto::Sha256 as Sha256Type, Impl, Sha256, DIGEST_BY
 use risc0_zkvm::Digest;
 use serde::{Deserialize, Serialize};
 
+/// Computes the kind point for the given `logic_ref` and `label_ref` without
+/// requiring a full [`Resource`] to be constructed.
+pub(crate) fn generate_resource_kind(
+    logic_ref: Digest,
+    label_ref: Digest,
+) -> Result<ProjectivePoint, ArmError> {
+    let mut bytes = [0u8; DIGEST_BYTES * 2];
+    bytes[0..DIGEST_BYTES].clone_from_slice(logic_ref.as_ref());
+    bytes[DIGEST_BYTES..DIGEST_BYTES * 2].clone_from_slice(label_ref.as_ref());
+    Secp256k1::hash_from_bytes::<ExpandMsgXmd<Sha256Type>>(&[&bytes], &[DST])
+        .map_err(|_| ArmError::InvalidResourceKind)
+}
+
 /// Resource representation in the ARM system.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Resource {
@@ -87,13 +100,7 @@ impl Resource {
 
     /// Compute the kind of the resource
     pub fn kind(&self) -> Result<ProjectivePoint, ArmError> {
-        // Concatenate the logic_ref and label_ref
-        let mut bytes = [0u8; DIGEST_BYTES * 2];
-        bytes[0..DIGEST_BYTES].clone_from_slice(self.logic_ref.as_ref());
-        bytes[DIGEST_BYTES..DIGEST_BYTES * 2].clone_from_slice(self.label_ref.as_ref());
-        // Hash to a curve point
-        Secp256k1::hash_from_bytes::<ExpandMsgXmd<Sha256Type>>(&[&bytes], &[DST])
-            .map_err(|_| ArmError::InvalidResourceKind)
+        generate_resource_kind(self.logic_ref, self.label_ref)
     }
 
     /// Core PRF: `SHA256(personalization || discriminator || rand_seed || nonce)`.

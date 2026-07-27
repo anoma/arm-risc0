@@ -1,8 +1,11 @@
 //! Constants for compliance and padding logic proving and verification keys.
 
-use crate::{compliance::KindTableEntry, error::ArmError, resource::Resource};
+use crate::{
+    compliance::KindTableEntry,
+    error::ArmError,
+    resource::{generate_resource_kind, Resource},
+};
 use hex::FromHex;
-use k256::{elliptic_curve::sec1::FromEncodedPoint, EncodedPoint, ProjectivePoint};
 use lazy_static::lazy_static;
 use risc0_zkvm::{
     sha::{Impl as ShaImpl, Sha256},
@@ -40,32 +43,34 @@ lazy_static! {
 static GLOBAL_KIND_TABLE: OnceLock<(Vec<KindTableEntry>, Digest)> = OnceLock::new();
 
 /// JSON-serializable representation of a kind table entry.
-/// `logic_ref`, `label_ref`, and `kind_point` are lowercase hex strings.
+/// `logic_ref` and `label_ref` are lowercase hex strings.
 #[derive(serde::Serialize, serde::Deserialize)]
 struct KindTableJsonEntry {
     logic_ref: String,
     label_ref: String,
-    kind_point: String,
 }
 
 /// Initializes the global kind table from a JSON file.
 ///
-/// The file must contain a JSON array of objects with `logic_ref`, `label_ref`
-/// (hex-encoded `Digest` values), and `kind_point` (hex-encoded 65-byte
-/// uncompressed SEC1 point). Calling this a second time is a no-op; the first
-/// call wins.
+/// The file must contain a JSON array of objects with `logic_ref` and
+/// `label_ref` (hex-encoded `Digest` values). The kind point for each entry
+/// is derived via `Resource::kind()` (hash-to-curve) at load time, rather
+/// than being read from the file, so the table can't drift out of sync with
+/// its keys. Calling this a second time is a no-op; the first call wins.
 ///
 /// # Example JSON
 /// ```json
 /// [
 ///   {
 ///     "logic_ref": "aabbcc...",
-///     "label_ref":  "ddeeff...",
-///     "kind_point": "04aabb..."
+///     "label_ref":  "ddeeff..."
 ///   }
 /// ]
 /// ```
 pub fn init_kind_table_from_file(path: &Path) -> Result<(), ArmError> {
+    if GLOBAL_KIND_TABLE.get().is_some() {
+        return Ok(());
+    }
     let content = std::fs::read_to_string(path).map_err(|_| ArmError::KindTableLoadFailed)?;
     let json_entries: Vec<KindTableJsonEntry> =
         serde_json::from_str(&content).map_err(|_| ArmError::KindTableLoadFailed)?;
@@ -76,35 +81,15 @@ pub fn init_kind_table_from_file(path: &Path) -> Result<(), ArmError> {
                 Digest::from_hex(&e.logic_ref).map_err(|_| ArmError::KindTableLoadFailed)?;
             let label_ref =
                 Digest::from_hex(&e.label_ref).map_err(|_| ArmError::KindTableLoadFailed)?;
-            let kind_point =
-                hex::decode(&e.kind_point).map_err(|_| ArmError::KindTableLoadFailed)?;
-            validate_kind_point(logic_ref, label_ref, &kind_point)?;
-            Ok(KindTableEntry {
-                logic_ref,
-                label_ref,
-                kind_point,
-            })
+            let point = generate_resource_kind(logic_ref, label_ref)
+                .map_err(|_| ArmError::KindTableLoadFailed)?;
+            Ok(KindTableEntry::new(logic_ref, label_ref, &point))
         })
         .collect::<Result<Vec<_>, _>>()?;
-    // First call wins; subsequent calls are silently ignored.
     let hash = hash_kind_table_entries(&entries);
+    // First call wins; a race between two threads is benign — one loses the
+    // set and returns Ok(()) with whichever table was installed first.
     let _ = GLOBAL_KIND_TABLE.set((entries, hash));
-    Ok(())
-}
-
-fn validate_kind_point(logic_ref: Digest, label_ref: Digest, bytes: &[u8]) -> Result<(), ArmError> {
-    let encoded = EncodedPoint::from_bytes(bytes).map_err(|_| ArmError::KindTableLoadFailed)?;
-    let point = ProjectivePoint::from_encoded_point(&encoded)
-        .into_option()
-        .ok_or(ArmError::KindTableLoadFailed)?;
-    let resource = Resource {
-        logic_ref,
-        label_ref,
-        ..Resource::default()
-    };
-    if point != resource.kind()? {
-        return Err(ArmError::KindTableLoadFailed);
-    }
     Ok(())
 }
 
@@ -147,71 +132,4 @@ pub fn kind_entry_for(table: &[KindTableEntry], resource: &Resource) -> Option<K
                 .ok()
                 .map(|p| KindTableEntry::new(resource.logic_ref, resource.label_ref, &p))
         })
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use k256::{
-        elliptic_curve::sec1::{FromEncodedPoint, ToEncodedPoint},
-        EncodedPoint, ProjectivePoint,
-    };
-    use std::path::PathBuf;
-
-    #[test]
-    fn kind_table_json_parses_and_resolves() {
-        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("kind_table.json");
-        init_kind_table_from_file(&path).expect("kind_table.json must parse");
-
-        let table = global_kind_table();
-        assert_eq!(table.len(), 2, "expected 2 entries");
-
-        // Each stored point must decode back to a valid curve point.
-        for entry in table {
-            let encoded =
-                EncodedPoint::from_bytes(&entry.kind_point).expect("kind_point must be valid SEC1");
-            let point = ProjectivePoint::from_encoded_point(&encoded).into_option();
-            assert!(
-                point.is_some(),
-                "kind_point for {:?} is not on curve",
-                entry.logic_ref
-            );
-        }
-    }
-
-    /// Prints the uncompressed SEC1 kind point for each named resource type.
-    /// Run with `cargo test print_kind_points -- --ignored --nocapture` to
-    /// generate entries for `kind_table.json`.
-    #[test]
-    #[ignore]
-    fn print_kind_points() {
-        use crate::resource::Resource;
-        // TEST_LOGIC_VK lives in arm_tests/arm_test_app (a separate crate) and
-        // cannot be imported here; its value is referenced directly.
-        // Source: arm_tests/arm_test_app/src/lib.rs — TEST_LOGIC_VK
-        let test_logic_vk =
-            Digest::from_hex("e64012e3414a68938a942e017dc56311773c4d5649913f99ebd1a6385444bf7b")
-                .unwrap();
-
-        let resources = [
-            ("padding", *PADDING_LOGIC_VK, Digest::default()),
-            ("test", test_logic_vk, Digest::default()),
-        ];
-
-        for (name, logic_ref, label_ref) in resources {
-            let r = Resource {
-                logic_ref,
-                label_ref,
-                ..Resource::default()
-            };
-            let point = r.kind().unwrap();
-            let encoded = point.to_encoded_point(false);
-            println!(
-                "{name}: logic_ref={} label_ref={} kind_point={}",
-                hex::encode(logic_ref.as_bytes()),
-                hex::encode(label_ref.as_bytes()),
-                hex::encode(encoded.as_bytes()),
-            );
-        }
-    }
 }
