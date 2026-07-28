@@ -57,7 +57,7 @@ impl DeltaProof {
     }
 
     /// Verifies the delta proof against the instance (which carries the message).
-    pub fn verify(proof: &DeltaProof, instance: DeltaInstance) -> Result<(), ArmError> {
+    pub fn verify(proof: &DeltaProof, instance: &DeltaInstance) -> Result<(), ArmError> {
         // handle recid
         if proof.recid.to_byte() > 1 {
             return Err(ArmError::InvalidDeltaProof);
@@ -254,7 +254,7 @@ mod tests {
             message,
         };
 
-        DeltaProof::verify(&proof, instance).unwrap();
+        DeltaProof::verify(&proof, &instance).unwrap();
     }
 
     /// DeltaProof: serialize then deserialize via bincode must round-trip.

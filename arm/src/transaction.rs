@@ -106,7 +106,7 @@ impl Transaction {
         match &self.delta_proof {
             Delta::Proof(ref proof) => {
                 let instance = self.delta()?;
-                DeltaProof::verify(proof, instance)?;
+                DeltaProof::verify(proof, &instance)?;
 
                 // Check for nullifier duplication across all compliance units
                 self.nf_duplication_check()?;
@@ -214,21 +214,21 @@ impl Transaction {
         Ok(())
     }
 
-    /// Constructs the delta message by concatenating the delta messages of each action.
+    /// Constructs the delta message as the concatenation of each action's
+    /// action tree root (32 bytes each).
     ///
     /// When `aggregation` is present it is authoritative; see
     /// [`Self::nf_duplication_check`].
     fn get_delta_msg(&self) -> Result<Vec<u8>, ArmError> {
         if let Some(agg) = &self.aggregation {
-            let msg = agg
-                .instance
-                .actions
-                .iter()
-                .flat_map(|a| a.action_tree_root.as_bytes().to_vec())
-                .collect();
+            let actions = &agg.instance.actions;
+            let mut msg = Vec::with_capacity(actions.len() * 32);
+            for a in actions {
+                msg.extend_from_slice(a.action_tree_root.as_bytes());
+            }
             Ok(msg)
         } else if let Some(actions) = &self.actions {
-            let mut msg = Vec::new();
+            let mut msg = Vec::with_capacity(actions.len() * 32);
             for action in actions {
                 msg.extend(action.get_delta_msg()?);
             }
@@ -238,7 +238,8 @@ impl Transaction {
         }
     }
 
-    /// Returns the DeltaInstance constructed from the sum of all actions' deltas and their message.
+    /// Returns the DeltaInstance constructed from the sum of all actions'
+    /// deltas and their message.
     ///
     /// When `aggregation` is present it is authoritative; see
     /// [`Self::nf_duplication_check`].

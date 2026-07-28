@@ -4,6 +4,7 @@
 
 use anoma_rm_risc0::{
     action::Action,
+    action_tree::ActionTree,
     compliance::ComplianceWitness,
     compliance_unit::ComplianceUnit,
     constants::{global_kind_table, init_kind_table_from_file},
@@ -187,7 +188,7 @@ impl Tester {
             .collect();
 
         let tags: Vec<Digest> = entries.iter().map(|(tag, ..)| *tag).collect();
-        let action_tree = Action::construct_action_tree(&tags);
+        let action_tree = ActionTree::new(tags);
 
         let logic_verifiers = entries
             .into_iter()

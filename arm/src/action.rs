@@ -57,11 +57,12 @@ impl Action {
         let compliance_instance = self.compliance_unit.get_instance()?;
 
         let tags: Vec<Digest> = compliance_instance.tags().collect();
-        let action_tree_root = Self::construct_action_tree(&tags).root()?;
 
         if tags.len() != self.logic_verifier_inputs.len() {
             return Err(ArmError::TagNotFound);
         }
+
+        let action_tree_root = ActionTree::new(tags).root()?;
 
         let entries = compliance_instance
             .consumed_publics
@@ -119,18 +120,7 @@ impl Action {
             .get_instance()
             .map_err(|_| ArmError::InvalidComplianceInstance)?;
         let tags: Vec<Digest> = instance.tags().collect();
-        let root = Self::construct_action_tree(&tags).root()?;
+        let root = ActionTree::new(tags).root()?;
         Ok(root.as_bytes().to_vec())
-    }
-
-    /// Constructs the action tree from the passed tags.
-    ///
-    /// The caller MUST pass tags in the canonical order produced by
-    /// [`ComplianceInstance::tags`] — consumed nullifiers first, then created
-    /// commitments. Any other ordering (e.g. sorting) will produce a different
-    /// root and the resulting action's logic proofs will fail to verify with
-    /// a generic proof-verification error.
-    pub fn construct_action_tree(tags: &[Digest]) -> ActionTree {
-        ActionTree::new(tags.to_vec())
     }
 }
