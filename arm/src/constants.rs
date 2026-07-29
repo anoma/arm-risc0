@@ -24,19 +24,19 @@ pub const BATCH_AGGREGATION_PK: &[u8] = include_bytes!("../elfs/batch-aggregatio
 lazy_static! {
     /// compliance verification key / compliance image id
     pub static ref COMPLIANCE_VK: Digest =
-        Digest::from_hex("5feb8b78989f95d3c8fe4d3f1f36700600ced6dba761501f63d54bc983c4a837")
+        Digest::from_hex("88df64fe233c97307dd518c1757bf6cfca1f17f7103b4069dd9e2848db9d8434")
             .unwrap();
 
     /// padding logic verification key / padding image id
     pub static ref PADDING_LOGIC_VK: Digest =
-        Digest::from_hex("9c46e96cb0f4921221d491c9f15e24293794cdbf5fbadc23370d5842e7bf2178")
+        Digest::from_hex("4527548f4dd31781b4bf48eb0c72869a9a9375728e064ddcdce5381c947fea8f")
             .unwrap();
 }
 
 #[cfg(feature = "aggregation")]
 lazy_static! {
     /// Batch aggregation verification key / Batch aggregation image id.
-    pub static ref BATCH_AGGREGATION_VK: Digest = Digest::from_hex("be862d46bbf0db334e8b71b6d125b9f3759d023a4a4329ea90748374953925a2").unwrap();
+    pub static ref BATCH_AGGREGATION_VK: Digest = Digest::from_hex("5dc2615f3d14a517a25aadfe53a882394e602740514574f3201bbe735269058e").unwrap();
 }
 
 /// Global kind table and its SHA-256 commitment, loaded once from a JSON file.
