@@ -57,11 +57,12 @@ impl Action {
         let compliance_instance = self.compliance_unit.get_instance()?;
 
         let tags: Vec<Digest> = compliance_instance.tags().collect();
-        let action_tree_root = Self::construct_action_tree(&tags).root()?;
 
         if tags.len() != self.logic_verifier_inputs.len() {
             return Err(ArmError::TagNotFound);
         }
+
+        let action_tree_root = ActionTree::new(tags).root()?;
 
         let entries = compliance_instance
             .consumed_publics
@@ -112,26 +113,14 @@ impl Action {
         self.compliance_unit.delta()
     }
 
-    /// Constructs the delta message by concatenating the delta messages
-    /// of each compliance unit.
+    /// Returns this action's contribution to the delta message: its action tree root.
     pub fn get_delta_msg(&self) -> Result<Vec<u8>, ArmError> {
-        let mut msg = Vec::new();
-        if let Ok(instance) = self.compliance_unit.get_instance() {
-            msg.extend_from_slice(&instance.delta_msg());
-        } else {
-            return Err(ArmError::InvalidComplianceInstance);
-        }
-        Ok(msg)
-    }
-
-    /// Constructs the action tree from the passed tags.
-    ///
-    /// The caller MUST pass tags in the canonical order produced by
-    /// [`ComplianceInstance::tags`] — consumed nullifiers first, then created
-    /// commitments. Any other ordering (e.g. sorting) will produce a different
-    /// root and the resulting action's logic proofs will fail to verify with
-    /// a generic proof-verification error.
-    pub fn construct_action_tree(tags: &[Digest]) -> ActionTree {
-        ActionTree::new(tags.to_vec())
+        let instance = self
+            .compliance_unit
+            .get_instance()
+            .map_err(|_| ArmError::InvalidComplianceInstance)?;
+        let tags: Vec<Digest> = instance.tags().collect();
+        let root = ActionTree::new(tags).root()?;
+        Ok(root.as_bytes().to_vec())
     }
 }
