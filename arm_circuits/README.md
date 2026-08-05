@@ -29,7 +29,12 @@ cargo risczero build --manifest-path arm_circuits/trivial_logic/methods/guest/Ca
 cargo risczero build --manifest-path arm_circuits/logic_test/methods/guest/Cargo.toml
 
 cargo risczero build --manifest-path arm_circuits/batch_aggregation/methods/guest/Cargo.toml
+
+# EVM ABI-encoded output variant (produces batch-aggregation-evm-guest.bin)
+cargo risczero build --manifest-path arm_circuits/batch_aggregation/methods/guest/Cargo.toml --features abi_encoding
 ```
+
+After building the EVM variant, update `BATCH_AGGREGATION_EVM_VK` in `arm/src/constants.rs` with the image ID printed by the command above.
 
 ## Regenerating After Changes
 

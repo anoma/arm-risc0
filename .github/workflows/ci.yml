@@ -86,6 +86,9 @@ jobs:
       - name: Run clippy (main workspace)
         run: cargo clippy --workspace --all-targets -- -D warnings
 
+      - name: Run clippy (aggregation + abi_encoding)
+        run: cargo clippy -p anoma-rm-risc0 -p anoma-rm-risc0-test-app --all-targets --features aggregation,abi_encoding -- -D warnings
+
   build:
     name: Build
     strategy:
@@ -153,6 +156,9 @@ jobs:
       - name: Run tests (main workspace)
         run: cargo test --workspace
 
+      - name: Run tests (aggregation + abi_encoding)
+        run: cargo test -p anoma-rm-risc0 -p anoma-rm-risc0-test-app --features aggregation,abi_encoding
+
   test-release:
     name: Test Release
     runs-on: macos-latest
@@ -171,4 +177,8 @@ jobs:
 
       - name: Run release tests (main workspace)
         run: cargo test --workspace --release
+        timeout-minutes: 60
+
+      - name: Run release tests (aggregation + abi_encoding)
+        run: cargo test -p anoma-rm-risc0 -p anoma-rm-risc0-test-app --release --features aggregation,abi_encoding
         timeout-minutes: 60

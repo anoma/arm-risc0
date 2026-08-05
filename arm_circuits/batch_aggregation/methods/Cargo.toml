@@ -6,5 +6,8 @@ edition = "2021"
 [build-dependencies]
 risc0-build = { version = "3.0.3", features = ["unstable"] }
 
+[features]
+abi_encoding = []
+
 [package.metadata.risc0]
 methods = ["guest"]

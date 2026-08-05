@@ -99,9 +99,18 @@ fn main() {
         });
     }
 
-    env::commit(&AggregationInstance {
+    let instance = AggregationInstance {
         compliance_key,
         kind_table_commitment: kind_table_commitment.unwrap(),
         actions: actions_out,
-    });
+    };
+
+    #[cfg(feature = "abi_encoding")]
+    {
+        use anoma_rm_risc0::aggregation_instance::abi_encode_instance;
+        env::commit_slice(&abi_encode_instance(instance));
+    }
+
+    #[cfg(not(feature = "abi_encoding"))]
+    env::commit(&instance);
 }

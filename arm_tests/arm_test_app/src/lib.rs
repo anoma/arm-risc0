@@ -444,6 +444,40 @@ fn test_aggregation_works() {
     assert!(tx_str.verify_aggregation().is_err());
 }
 
+/// After aggregation, the decoded `AggregationInstance` survives a round-trip
+/// through `AggregationInstanceEvm` and matches structural expectations.
+#[cfg(feature = "abi_encoding")]
+#[test]
+fn test_evm_instance_roundtrip_after_aggregation() {
+    use anoma_rm_risc0::aggregation_instance::{abi_encode_instance, AggregationInstanceEvm};
+
+    let tx = Tester::default()
+        .generate_test_transaction(&[(2, 2), (1, 1)])
+        .unwrap();
+    let mut tx_str = tx.clone();
+    tx_str.aggregate(ProofType::Succinct).unwrap();
+
+    let instance = tx_str.aggregation.as_ref().unwrap().instance.clone();
+
+    // Native → EVM → Native round-trip must be lossless.
+    let evm = AggregationInstanceEvm::from(instance.clone());
+    let recovered = anoma_rm_risc0::aggregation_instance::AggregationInstance::from(evm);
+    assert_eq!(instance, recovered);
+
+    // ABI encode/decode round-trip via abi_encode_instance must also be lossless.
+    let encoded = abi_encode_instance(instance.clone());
+    let evm2 = anoma_rm_risc0::aggregation_instance::abi_decode_instance(&encoded).unwrap();
+    let recovered2 = anoma_rm_risc0::aggregation_instance::AggregationInstance::from(evm2);
+    assert_eq!(instance, recovered2);
+
+    // Structural sanity: two actions, first has 2 consumed + 2 created, second 1 + 1.
+    assert_eq!(instance.actions.len(), 2);
+    assert_eq!(instance.actions[0].consumed_publics.len(), 2);
+    assert_eq!(instance.actions[0].created_publics.len(), 2);
+    assert_eq!(instance.actions[1].consumed_publics.len(), 1);
+    assert_eq!(instance.actions[1].created_publics.len(), 1);
+}
+
 /// Same as `test_aggregation_works` but with a Groth16 outer aggregation
 /// proof. Ignored because Groth16 proving is slow even in dev mode and
 /// requires x86_64.
