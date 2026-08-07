@@ -1,0 +1,23 @@
+[package]
+name = "anoma-rm-risc0-tx-gen"
+description = "Generates aggregated ARM transactions for settlement on a target chain"
+version = "2.0.0-rc.3"
+edition = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+publish = false
+
+[dependencies]
+anoma-rm-risc0 = { path = "../../arm", features = ["aggregation"] }
+anoma-rm-risc0-test-app = { path = "../arm_test_app" }
+anyhow = "1"
+# The encoding `anoma-rm-risc0` itself uses for `Transaction`.
+bincode = "1.3.3"
+hex = "0.4"
+sha2 = "0.10"
+
+[features]
+default = []
+cuda = ["anoma-rm-risc0/cuda", "anoma-rm-risc0-test-app/cuda"]
+prove = ["anoma-rm-risc0/prove", "anoma-rm-risc0-test-app/prove"]
+bonsai = ["anoma-rm-risc0/bonsai", "anoma-rm-risc0-test-app/bonsai"]

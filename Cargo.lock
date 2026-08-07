@@ -292,6 +292,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "anoma-rm-risc0-tx-gen"
+version = "2.0.0-rc.3"
+dependencies = [
+ "anoma-rm-risc0",
+ "anoma-rm-risc0-test-app",
+ "anyhow",
+ "bincode",
+ "hex",
+ "sha2",
+]
+
+[[package]]
 name = "anyhow"
 version = "1.0.103"
 source = "registry+https://github.com/rust-lang/crates.io-index"
