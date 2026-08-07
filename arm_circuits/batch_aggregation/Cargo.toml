@@ -13,8 +13,18 @@ anoma-rm-risc0 = { path = "../../arm", features = [
   "aggregation_circuit",
 ], default-features = false }
 
+[dev-dependencies]
+anoma-rm-risc0 = { path = "../../arm", features = ["aggregation", "prove"] }
+anoma-rm-risc0-test-app = { path = "../../arm_tests/arm_test_app", features = ["prove"] }
+criterion = { version = "0.5", features = ["html_reports"] }
+
 [features]
 default = []
 cuda = ["risc0-zkvm/cuda"]
 prove = ["risc0-zkvm/prove"]
 bonsai = ["risc0-zkvm/bonsai"]
+
+[[bench]]
+name = "prove"
+harness = false
+required-features = ["prove", "bonsai", "cuda"]
