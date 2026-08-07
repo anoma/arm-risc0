@@ -12,9 +12,9 @@
 //! cargo run -p anoma-rm-risc0-tx-gen --release --features cuda,bonsai,prove -- 1:1
 //! ```
 //!
-//! Each argument is one action, written `<consumed>:<created>`; the default is
-//! a single `1:1` action. The output directory is `$ARM_TX_OUT_DIR`, defaulting
-//! to the workspace `target/`.
+//! The arguments give the [`Shape`] of the transaction — a consumed and a
+//! created count per action — defaulting to a single `1:1` action. The output
+//! directory is `$ARM_TX_OUT_DIR`, defaulting to the workspace `target/`.
 
 use anoma_rm_risc0::aggregation_instance::AggregationInstance;
 use anoma_rm_risc0::constants::{
@@ -26,24 +26,21 @@ use anoma_rm_risc0::Digest;
 use anoma_rm_risc0_test_app::{Tester, TEST_LOGIC_VK};
 use anyhow::Context;
 use sha2::{Digest as _, Sha256};
+use std::fmt;
 use std::path::PathBuf;
 
 fn main() -> anyhow::Result<()> {
-    let shape = parse_shape(std::env::args().skip(1))?;
-    let label = shape
-        .iter()
-        .map(|(consumed, created)| format!("{consumed}x{created}"))
-        .collect::<Vec<_>>()
-        .join("_");
+    let shape = Shape::from_args(std::env::args().skip(1))?;
+    let label = shape.to_string();
 
-    println!("generating {} action(s): {label}", shape.len());
+    println!("generating {} action(s): {label}", shape.actions.len());
     match std::env::var("BONSAI_API_URL") {
         Ok(url) => println!("proving remotely on {url}"),
         Err(_) => println!("proving locally (set BONSAI_API_URL + BONSAI_API_KEY for Bonsai)"),
     }
 
     let mut tx = Tester::default()
-        .generate_test_transaction(&shape)
+        .generate_test_transaction(&shape.as_pairs())
         .map_err(|err| anyhow::anyhow!("failed to generate the transaction: {err:?}"))?;
 
     println!("aggregating (Groth16 — the long pole)...");
@@ -65,26 +62,89 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Parses `<consumed>:<created>` arguments into one entry per action,
-/// defaulting to a single `1:1` action.
-fn parse_shape(args: impl Iterator<Item = String>) -> anyhow::Result<Vec<(u32, u32)>> {
-    let shape = args
-        .map(|arg| {
-            let (consumed, created) = arg
-                .split_once(':')
-                .with_context(|| format!("expected `<consumed>:<created>`, got `{arg}`"))?;
-            Ok((
-                consumed.parse().context("invalid consumed count")?,
-                created.parse().context("invalid created count")?,
-            ))
-        })
-        .collect::<anyhow::Result<Vec<_>>>()?;
+/// The resource counts of a single action.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct ActionShape {
+    consumed: u32,
+    created: u32,
+}
 
-    Ok(if shape.is_empty() {
-        vec![(1, 1)]
-    } else {
-        shape
-    })
+impl fmt::Display for ActionShape {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}x{}", self.consumed, self.created)
+    }
+}
+
+/// The shape of a whole transaction: one [`ActionShape`] per action.
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct Shape {
+    actions: Vec<ActionShape>,
+}
+
+impl Shape {
+    /// A single action consuming and creating one resource.
+    fn one_to_one() -> Self {
+        Self {
+            actions: vec![ActionShape {
+                consumed: 1,
+                created: 1,
+            }],
+        }
+    }
+
+    /// Reads the shape off the command line, defaulting to [`Self::one_to_one`]
+    /// when no arguments are given.
+    ///
+    /// Counts are taken in order and paired up, so every punctuation style that
+    /// separates them works — `2:2 2:2`, `2,2 2,2` and `'[(2,2),(2,2)]'` all
+    /// describe the same two actions. Quote the bracketed form; a shell reads
+    /// its parentheses otherwise.
+    fn from_args(args: impl Iterator<Item = String>) -> anyhow::Result<Self> {
+        let joined = args.collect::<Vec<_>>().join(" ");
+        if joined.trim().is_empty() {
+            return Ok(Self::one_to_one());
+        }
+
+        let counts = joined
+            .split(|c: char| !c.is_ascii_digit())
+            .filter(|field| !field.is_empty())
+            .map(|field| {
+                field
+                    .parse::<u32>()
+                    .with_context(|| format!("`{field}` is not a resource count"))
+            })
+            .collect::<anyhow::Result<Vec<_>>>()?;
+
+        anyhow::ensure!(
+            !counts.is_empty() && counts.len() % 2 == 0,
+            "expected a consumed and a created count per action, e.g. `2:2 2:2`, got `{joined}`"
+        );
+
+        Ok(Self {
+            actions: counts
+                .chunks_exact(2)
+                .map(|pair| ActionShape {
+                    consumed: pair[0],
+                    created: pair[1],
+                })
+                .collect(),
+        })
+    }
+
+    /// The representation [`Tester::generate_test_transaction`] takes.
+    fn as_pairs(&self) -> Vec<(u32, u32)> {
+        self.actions
+            .iter()
+            .map(|action| (action.consumed, action.created))
+            .collect()
+    }
+}
+
+impl fmt::Display for Shape {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let actions: Vec<String> = self.actions.iter().map(ActionShape::to_string).collect();
+        write!(f, "{}", actions.join("_"))
+    }
 }
 
 /// Writes the transaction to `$ARM_TX_OUT_DIR`, defaulting to the workspace
@@ -165,4 +225,65 @@ fn report(instance: &AggregationInstance, proof: &[u8]) -> anyhow::Result<()> {
 
 fn hex32(digest: &Digest) -> String {
     format!("0x{}", hex::encode(digest.as_bytes()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn shape(args: &[&str]) -> anyhow::Result<Shape> {
+        Shape::from_args(args.iter().map(|arg| arg.to_string()))
+    }
+
+    #[test]
+    fn from_args_defaults_to_a_single_one_to_one_action() {
+        assert_eq!(shape(&[]).unwrap(), Shape::one_to_one());
+        assert_eq!(shape(&[""]).unwrap(), Shape::one_to_one());
+    }
+
+    #[test]
+    fn from_args_reads_one_action_per_argument() {
+        let expected = Shape {
+            actions: vec![
+                ActionShape {
+                    consumed: 2,
+                    created: 3,
+                },
+                ActionShape {
+                    consumed: 1,
+                    created: 4,
+                },
+            ],
+        };
+
+        assert_eq!(shape(&["2:3", "1:4"]).unwrap(), expected);
+    }
+
+    /// Every punctuation style describes the same shape, so a Rust literal
+    /// pasted from a test reads the same as the colon form.
+    #[test]
+    fn from_args_accepts_the_punctuation_styles_interchangeably() {
+        let expected = shape(&["2:2", "2:2"]).unwrap();
+
+        assert_eq!(shape(&["2,2", "2,2"]).unwrap(), expected);
+        assert_eq!(shape(&["(2,2)", "(2,2)"]).unwrap(), expected);
+        assert_eq!(shape(&["[(2,2),(2,2)]"]).unwrap(), expected);
+        assert_eq!(shape(&["[(2,", "2),", "(2,", "2)]"]).unwrap(), expected);
+    }
+
+    #[test]
+    fn from_args_errors_on_an_unpaired_count() {
+        assert!(shape(&["2:2", "3"]).is_err());
+    }
+
+    #[test]
+    fn from_args_errors_on_a_count_that_is_not_a_number() {
+        assert!(shape(&["two:two"]).is_err());
+    }
+
+    #[test]
+    fn display_names_the_output_file_after_the_shape() {
+        assert_eq!(shape(&["1:1"]).unwrap().to_string(), "1x1");
+        assert_eq!(shape(&["[(2,2),(2,2)]"]).unwrap().to_string(), "2x2_2x2");
+    }
 }
