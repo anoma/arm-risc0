@@ -120,7 +120,7 @@ impl Shape {
             "expected a consumed and a created count per action, e.g. `2:2 2:2`, got `{joined}`"
         );
 
-        Ok(Self {
+        let shape = Self {
             actions: counts
                 .chunks_exact(2)
                 .map(|pair| ActionShape {
@@ -128,7 +128,39 @@ impl Shape {
                     created: pair[1],
                 })
                 .collect(),
-        })
+        };
+        shape.validate()?;
+
+        Ok(shape)
+    }
+
+    /// Rejects shapes the tester cannot satisfy, before minutes of proving go
+    /// into a transaction that cannot verify.
+    ///
+    /// Every resource it builds carries quantity 1 under a single kind, so the
+    /// transaction delta cancels exactly when as many resources are created as
+    /// consumed — across the transaction, not within each action, since the
+    /// deltas of all actions are summed. An action must still consume
+    /// something: created nonces are derived from the consumed nullifiers.
+    fn validate(&self) -> anyhow::Result<()> {
+        for (index, action) in self.actions.iter().enumerate() {
+            anyhow::ensure!(
+                action.consumed > 0,
+                "action {index} ({action}) consumes nothing, but its created nonces would have to \
+                 derive from the nullifiers of consumed resources"
+            );
+        }
+
+        let consumed: u32 = self.actions.iter().map(|action| action.consumed).sum();
+        let created: u32 = self.actions.iter().map(|action| action.created).sum();
+        anyhow::ensure!(
+            consumed == created,
+            "unbalanced shape: {consumed} consumed against {created} created. Every resource has \
+             quantity 1 under one kind, so the totals must match for the delta proof to verify — \
+             individual actions may still be lopsided, as in `3:2 1:2`"
+        );
+
+        Ok(())
     }
 
     /// The representation [`Tester::generate_test_transaction`] takes.
@@ -250,13 +282,13 @@ mod tests {
                     created: 3,
                 },
                 ActionShape {
-                    consumed: 1,
-                    created: 4,
+                    consumed: 3,
+                    created: 2,
                 },
             ],
         };
 
-        assert_eq!(shape(&["2:3", "1:4"]).unwrap(), expected);
+        assert_eq!(shape(&["2:3", "3:2"]).unwrap(), expected);
     }
 
     /// Every punctuation style describes the same shape, so a Rust literal
@@ -274,6 +306,26 @@ mod tests {
     #[test]
     fn from_args_errors_on_an_unpaired_count() {
         assert!(shape(&["2:2", "3"]).is_err());
+    }
+
+    /// The delta sums over the whole transaction, so only the totals have to
+    /// match — this is the shape `test_transaction` proves.
+    #[test]
+    fn from_args_accepts_lopsided_actions_that_cancel_out() {
+        assert!(shape(&["2:1", "1:2"]).is_ok());
+        assert!(shape(&["3:2", "1:2"]).is_ok());
+    }
+
+    #[test]
+    fn from_args_rejects_a_shape_that_consumes_more_than_it_creates() {
+        let error = shape(&["3:2", "1:0"]).unwrap_err().to_string();
+
+        assert!(error.contains("4 consumed against 2 created"), "{error}");
+    }
+
+    #[test]
+    fn from_args_rejects_an_action_consuming_nothing() {
+        assert!(shape(&["0:1"]).is_err());
     }
 
     #[test]
