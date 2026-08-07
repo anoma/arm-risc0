@@ -10,8 +10,27 @@ edition = "2021"
 batch-aggregation-methods = { path = "methods" }
 risc0-zkvm = "3.0.3"
 
+[dev-dependencies]
+anoma-rm-risc0 = { path = "../../arm", features = ["aggregation", "prove"] }
+anoma-rm-risc0-test-app = { path = "../../arm_tests/arm_test_app", features = ["prove"] }
+criterion = { version = "0.5", features = ["html_reports"] }
+
 [features]
 default = []
-cuda = ["risc0-zkvm/cuda"]
+cuda = [
+  "risc0-zkvm/cuda",
+  "anoma-rm-risc0/cuda",
+  "anoma-rm-risc0-test-app/cuda",
+]
 prove = ["risc0-zkvm/prove"]
 bonsai = ["risc0-zkvm/bonsai"]
+abi_encoding = [
+  "anoma-rm-risc0/abi_encoding",
+  "batch-aggregation-methods/abi_encoding",
+  "anoma-rm-risc0-test-app/abi_encoding",
+]
+
+[[bench]]
+name = "prove"
+harness = false
+required-features = ["prove", "bonsai", "cuda"]
