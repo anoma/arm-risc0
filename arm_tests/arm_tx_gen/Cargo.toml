@@ -18,6 +18,10 @@ sha2 = "0.10"
 
 [features]
 default = []
+abi_encoding = [
+  "anoma-rm-risc0/abi_encoding",
+  "anoma-rm-risc0-test-app/abi_encoding",
+]
 cuda = ["anoma-rm-risc0/cuda", "anoma-rm-risc0-test-app/cuda"]
 prove = ["anoma-rm-risc0/prove", "anoma-rm-risc0-test-app/prove"]
 bonsai = ["anoma-rm-risc0/bonsai", "anoma-rm-risc0-test-app/bonsai"]

@@ -9,18 +9,24 @@
 //! verifying keys the settling contract pins — stay exactly as checked in.
 //!
 //! ```text
-//! cargo run -p anoma-rm-risc0-tx-gen --release --features cuda,bonsai,prove -- 1:1
+//! cargo run -p anoma-rm-risc0-tx-gen --release --features cuda,bonsai,prove,abi_encoding -- 1:1
 //! ```
 //!
 //! The arguments give the [`Shape`] of the transaction — a consumed and a
 //! created count per action — defaulting to a single `1:1` action. The output
 //! directory is `$ARM_TX_OUT_DIR`, defaulting to the workspace `target/`.
 
+#[cfg(feature = "abi_encoding")]
+use anoma_rm_risc0::aggregation_instance::abi_encode_instance;
 use anoma_rm_risc0::aggregation_instance::AggregationInstance;
-use anoma_rm_risc0::constants::{
-    global_kind_table_hash, BATCH_AGGREGATION_VK, COMPLIANCE_VK, PADDING_LOGIC_VK,
-};
-use anoma_rm_risc0::proving_system::{encode_seal, instance_to_journal, ProofType};
+#[cfg(feature = "abi_encoding")]
+use anoma_rm_risc0::constants::BATCH_AGGREGATION_EVM_VK;
+#[cfg(not(feature = "abi_encoding"))]
+use anoma_rm_risc0::constants::BATCH_AGGREGATION_VK;
+use anoma_rm_risc0::constants::{global_kind_table_hash, COMPLIANCE_VK, PADDING_LOGIC_VK};
+#[cfg(not(feature = "abi_encoding"))]
+use anoma_rm_risc0::proving_system::instance_to_journal;
+use anoma_rm_risc0::proving_system::{encode_seal, ProofType};
 use anoma_rm_risc0::transaction::Transaction;
 use anoma_rm_risc0::Digest;
 use anoma_rm_risc0_test_app::{Tester, TEST_LOGIC_VK};
@@ -201,11 +207,21 @@ fn write_transaction(tx: &Transaction, name: &str) -> anyhow::Result<PathBuf> {
 fn report(instance: &AggregationInstance, proof: &[u8]) -> anyhow::Result<()> {
     let seal = encode_seal(proof)
         .map_err(|err| anyhow::anyhow!("the aggregation proof is not Groth16: {err:?}"))?;
-    let journal = instance_to_journal(instance)
-        .map_err(|err| anyhow::anyhow!("failed to encode the journal: {err:?}"))?;
+
+    #[cfg(feature = "abi_encoding")]
+    let (journal, batch_aggregation_vk) = (
+        abi_encode_instance(instance.clone()),
+        &*BATCH_AGGREGATION_EVM_VK,
+    );
+    #[cfg(not(feature = "abi_encoding"))]
+    let (journal, batch_aggregation_vk) = (
+        instance_to_journal(instance)
+            .map_err(|err| anyhow::anyhow!("failed to encode the journal: {err:?}"))?,
+        &*BATCH_AGGREGATION_VK,
+    );
 
     println!("\nthe verifier must pin");
-    println!("  batch aggregation vk:  {}", hex32(&BATCH_AGGREGATION_VK));
+    println!("  batch aggregation vk:  {}", hex32(batch_aggregation_vk));
     println!("  compliance vk:         {}", hex32(&COMPLIANCE_VK));
     println!(
         "  kind table commitment: {}",
