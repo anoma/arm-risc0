@@ -460,13 +460,9 @@ impl Transaction {
 
         // Decode the AggregationInstance from the journal.
         #[cfg(feature = "abi_encoding")]
-        let instance: AggregationInstance = {
-            use crate::aggregation_instance::AggregationInstanceEvm;
-            use alloy_sol_types::SolValue;
-            let evm = AggregationInstanceEvm::abi_decode_params(&agg_receipt.journal.bytes)
+        let instance: AggregationInstance =
+            crate::aggregation_instance::abi_decode_instance(&agg_receipt.journal.bytes)
                 .map_err(|_| ArmError::InstanceSerializationFailed)?;
-            AggregationInstance::from(evm)
-        };
         #[cfg(not(feature = "abi_encoding"))]
         let instance: AggregationInstance = agg_receipt
             .journal
