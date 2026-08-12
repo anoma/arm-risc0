@@ -323,7 +323,6 @@ mod evm {
     mod tests {
         use super::*;
         use crate::logic_instance::{AppData, ExpirableBlob as NativeExpirableBlob};
-        use alloy_sol_types::SolValue;
         use hex::FromHex;
         use risc0_zkvm::Digest;
 
@@ -377,8 +376,7 @@ mod evm {
         fn test_abi_encode_decode_roundtrip() {
             let original = sample_instance();
             let encoded = abi_encode_instance(original.clone());
-            let evm = abi_decode_instance(&encoded).unwrap();
-            let recovered = AggregationInstance::from(evm);
+            let recovered = abi_decode_instance(&encoded).unwrap();
             assert_eq!(original, recovered);
         }
 
@@ -390,8 +388,8 @@ mod evm {
                 actions: vec![],
             };
             let encoded = abi_encode_instance(original.clone());
-            let evm = abi_decode_instance(&encoded).unwrap();
-            assert_eq!(original, AggregationInstance::from(evm));
+            let recovered = abi_decode_instance(&encoded).unwrap();
+            assert_eq!(original, recovered);
         }
     }
 
