@@ -12,7 +12,9 @@ risc0-zkvm = "3.0.3"
 
 [dev-dependencies]
 anoma-rm-risc0 = { path = "../../arm", features = ["aggregation", "prove"] }
-anoma-rm-risc0-test-app = { path = "../../arm_tests/arm_test_app", features = ["prove"] }
+anoma-rm-risc0-test-app = { path = "../../arm_tests/arm_test_app", features = [
+  "prove",
+] }
 criterion = { version = "0.5", features = ["html_reports"] }
 
 [features]
