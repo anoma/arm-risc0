@@ -2,12 +2,16 @@
 
 #[cfg(all(feature = "aggregation", feature = "prove", feature = "abi_encoding"))]
 use crate::constants::BATCH_AGGREGATION_EVM_PK;
+#[cfg(all(feature = "aggregation", feature = "abi_encoding"))]
+use crate::constants::BATCH_AGGREGATION_EVM_VK;
 #[cfg(all(
     feature = "aggregation",
     feature = "prove",
     not(feature = "abi_encoding")
 ))]
 use crate::constants::BATCH_AGGREGATION_PK;
+#[cfg(feature = "aggregation")]
+use crate::constants::COMPLIANCE_VK;
 use crate::{aggregation_instance::AggregationInstance, constants::global_kind_table_hash};
 #[cfg(all(feature = "aggregation", feature = "prove"))]
 use crate::{
@@ -15,14 +19,7 @@ use crate::{
     proving_system::ProofType,
 };
 #[cfg(all(feature = "aggregation", not(feature = "abi_encoding")))]
-use crate::{
-    constants::BATCH_AGGREGATION_VK,
-    utils::words_to_bytes,
-};
-#[cfg(all(feature = "aggregation", feature = "abi_encoding"))]
-use crate::constants::BATCH_AGGREGATION_EVM_VK;
-#[cfg(feature = "aggregation")]
-use crate::constants::COMPLIANCE_VK;
+use crate::{constants::BATCH_AGGREGATION_VK, utils::words_to_bytes};
 #[cfg(feature = "aggregation")]
 use risc0_zkvm::Receipt;
 #[cfg(all(feature = "aggregation", feature = "prove"))]
@@ -502,7 +499,10 @@ impl Transaction {
         #[cfg(feature = "abi_encoding")]
         let (journal_bytes, vk) = {
             use crate::aggregation_instance::abi_encode_instance;
-            (abi_encode_instance(agg.instance.clone()), *BATCH_AGGREGATION_EVM_VK)
+            (
+                abi_encode_instance(agg.instance.clone()),
+                *BATCH_AGGREGATION_EVM_VK,
+            )
         };
         #[cfg(not(feature = "abi_encoding"))]
         let (journal_bytes, vk) = {

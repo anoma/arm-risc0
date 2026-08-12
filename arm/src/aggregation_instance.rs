@@ -312,7 +312,9 @@ mod evm {
     }
 
     /// ABI-decodes bytes produced by [`abi_encode_instance`] back into an [`AggregationInstance`].
-    pub fn abi_decode_instance(bytes: &[u8]) -> Result<AggregationInstance, alloy_sol_types::Error> {
+    pub fn abi_decode_instance(
+        bytes: &[u8],
+    ) -> Result<AggregationInstance, alloy_sol_types::Error> {
         use alloy_sol_types::SolValue;
         AggregationInstanceEvm::abi_decode_params(bytes).map(AggregationInstance::from)
     }
