@@ -70,7 +70,7 @@ Enabling `abi_encoding` on the same branch/commit changes only how the guest
 commits its output (`abi_encode_instance` + `commit_slice` instead of
 `env::commit`). Median proving time is essentially flat — actually marginally
 lower with ABI encoding (~4% at batch 1, ~1.5% at batch 2, ~3.5% at batch 4),
-and the confidence intervals largely overlap.
+and the confidence intervals overlap only at batch size 2.
 
 This is expected for a zkVM rather than a hand-written constraint system:
 
