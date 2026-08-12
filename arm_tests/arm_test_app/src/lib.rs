@@ -466,8 +466,7 @@ fn test_evm_instance_roundtrip_after_aggregation() {
 
     // ABI encode/decode round-trip via abi_encode_instance must also be lossless.
     let encoded = abi_encode_instance(instance.clone());
-    let evm2 = anoma_rm_risc0::aggregation_instance::abi_decode_instance(&encoded).unwrap();
-    let recovered2 = anoma_rm_risc0::aggregation_instance::AggregationInstance::from(evm2);
+    let recovered2 = anoma_rm_risc0::aggregation_instance::abi_decode_instance(&encoded).unwrap();
     assert_eq!(instance, recovered2);
 
     // Structural sanity: two actions, first has 2 consumed + 2 created, second 1 + 1.

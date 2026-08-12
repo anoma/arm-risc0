@@ -319,6 +319,35 @@ mod evm {
         AggregationInstanceEvm::abi_decode_params(bytes).map(AggregationInstance::from)
     }
 
+    fn convert_action(a: ActionAggregated) -> Action {
+        Action {
+            consumed: a
+                .consumed_publics
+                .iter()
+                .map(|c| Consumed {
+                    nullifier: digest_to_bytes32(&c.resource_nullifier),
+                    logicRef: digest_to_bytes32(&c.resource_logic_ref),
+                    commitmentTreeRoot: digest_to_bytes32(&c.commitment_tree_root),
+                    appData: convert_app_data(&c.app_data),
+                })
+                .collect(),
+            created: a
+                .created_publics
+                .iter()
+                .map(|c| Created {
+                    commitment: digest_to_bytes32(&c.resource_commitment),
+                    logicRef: digest_to_bytes32(&c.resource_logic_ref),
+                    appData: convert_app_data(&c.app_data),
+                })
+                .collect(),
+            unitDelta: Delta {
+                x: words_to_u256(&a.delta_x),
+                y: words_to_u256(&a.delta_y),
+            },
+            actionTreeRoot: digest_to_bytes32(&a.action_tree_root),
+        }
+    }
+
     #[cfg(test)]
     mod tests {
         use super::*;
@@ -390,35 +419,6 @@ mod evm {
             let encoded = abi_encode_instance(original.clone());
             let recovered = abi_decode_instance(&encoded).unwrap();
             assert_eq!(original, recovered);
-        }
-    }
-
-    fn convert_action(a: ActionAggregated) -> Action {
-        Action {
-            consumed: a
-                .consumed_publics
-                .iter()
-                .map(|c| Consumed {
-                    nullifier: digest_to_bytes32(&c.resource_nullifier),
-                    logicRef: digest_to_bytes32(&c.resource_logic_ref),
-                    commitmentTreeRoot: digest_to_bytes32(&c.commitment_tree_root),
-                    appData: convert_app_data(&c.app_data),
-                })
-                .collect(),
-            created: a
-                .created_publics
-                .iter()
-                .map(|c| Created {
-                    commitment: digest_to_bytes32(&c.resource_commitment),
-                    logicRef: digest_to_bytes32(&c.resource_logic_ref),
-                    appData: convert_app_data(&c.app_data),
-                })
-                .collect(),
-            unitDelta: Delta {
-                x: words_to_u256(&a.delta_x),
-                y: words_to_u256(&a.delta_y),
-            },
-            actionTreeRoot: digest_to_bytes32(&a.action_tree_root),
         }
     }
 }
