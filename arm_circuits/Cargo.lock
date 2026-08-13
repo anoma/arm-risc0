@@ -244,6 +244,8 @@ checksum = "4b46cbb362ab8752921c97e041f5e366ee6297bd428a31275b9fcf1e380f7299"
 name = "anoma-rm-risc0"
 version = "2.0.0-rc.3"
 dependencies = [
+ "alloy-primitives",
+ "alloy-sol-types",
  "bincode",
  "bytemuck",
  "hex",
@@ -272,6 +274,17 @@ dependencies = [
  "rand 0.8.6",
  "serde",
  "zeroize",
+]
+
+[[package]]
+name = "anoma-rm-risc0-test-app"
+version = "2.0.0-rc.3"
+dependencies = [
+ "anoma-rm-risc0",
+ "anoma-rm-risc0-test-witness",
+ "hex",
+ "lazy_static",
+ "serde",
 ]
 
 [[package]]
@@ -733,7 +746,10 @@ checksum = "55248b47b0caf0546f7988906588779981c43bb1bc9d0c44087278f80cdb44ba"
 name = "batch-aggregation"
 version = "1.0.0"
 dependencies = [
+ "anoma-rm-risc0",
+ "anoma-rm-risc0-test-app",
  "batch-aggregation-methods",
+ "criterion",
  "risc0-zkvm",
 ]
 

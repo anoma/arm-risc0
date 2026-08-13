@@ -1,17 +1,25 @@
 //! Transaction structure and associated methods.
 
+#[cfg(all(feature = "aggregation", feature = "prove", feature = "abi_encoding"))]
+use crate::constants::BATCH_AGGREGATION_EVM_PK;
+#[cfg(all(feature = "aggregation", feature = "abi_encoding"))]
+use crate::constants::BATCH_AGGREGATION_EVM_VK;
+#[cfg(all(
+    feature = "aggregation",
+    feature = "prove",
+    not(feature = "abi_encoding")
+))]
+use crate::constants::BATCH_AGGREGATION_PK;
+#[cfg(feature = "aggregation")]
+use crate::constants::COMPLIANCE_VK;
 use crate::{aggregation_instance::AggregationInstance, constants::global_kind_table_hash};
 #[cfg(all(feature = "aggregation", feature = "prove"))]
 use crate::{
     aggregation_witness::{ActionWitness, AggregationWitness},
-    constants::BATCH_AGGREGATION_PK,
     proving_system::ProofType,
 };
-#[cfg(feature = "aggregation")]
-use crate::{
-    constants::{BATCH_AGGREGATION_VK, COMPLIANCE_VK},
-    utils::words_to_bytes,
-};
+#[cfg(all(feature = "aggregation", not(feature = "abi_encoding")))]
+use crate::{constants::BATCH_AGGREGATION_VK, utils::words_to_bytes};
 #[cfg(feature = "aggregation")]
 use risc0_zkvm::Receipt;
 #[cfg(all(feature = "aggregation", feature = "prove"))]
@@ -440,17 +448,22 @@ impl Transaction {
         let prover = default_prover();
 
         // Prove batch.
+        #[cfg(feature = "abi_encoding")]
+        let pk = BATCH_AGGREGATION_EVM_PK;
+        #[cfg(not(feature = "abi_encoding"))]
+        let pk = BATCH_AGGREGATION_PK;
+
         let agg_receipt = prover
-            .prove_with_ctx(
-                env,
-                &VerifierContext::default(),
-                BATCH_AGGREGATION_PK,
-                &prover_opts,
-            )
+            .prove_with_ctx(env, &VerifierContext::default(), pk, &prover_opts)
             .map_err(|err| ArmError::ProveFailed(format!("Proof generation failed: {}", err)))?
             .receipt;
 
         // Decode the AggregationInstance from the journal.
+        #[cfg(feature = "abi_encoding")]
+        let instance: AggregationInstance =
+            crate::aggregation_instance::abi_decode_instance(&agg_receipt.journal.bytes)
+                .map_err(|_| ArmError::InstanceSerializationFailed)?;
+        #[cfg(not(feature = "abi_encoding"))]
         let instance: AggregationInstance = agg_receipt
             .journal
             .decode()
@@ -476,15 +489,27 @@ impl Transaction {
             .as_ref()
             .ok_or_else(|| ArmError::ProofVerificationFailed("Missing aggregation".into()))?;
 
-        let instance_bytes = risc0_zkvm::serde::to_vec(&agg.instance)
-            .map_err(|_| ArmError::InstanceSerializationFailed)?;
-
         let inner_receipt: InnerReceipt = bincode::deserialize(&agg.proof)
             .map_err(|_| ArmError::InnerReceiptDeserializationError)?;
 
-        let receipt = Receipt::new(inner_receipt, words_to_bytes(&instance_bytes).to_vec());
+        #[cfg(feature = "abi_encoding")]
+        let (journal_bytes, vk) = {
+            use crate::aggregation_instance::abi_encode_instance;
+            (
+                abi_encode_instance(agg.instance.clone()),
+                *BATCH_AGGREGATION_EVM_VK,
+            )
+        };
+        #[cfg(not(feature = "abi_encoding"))]
+        let (journal_bytes, vk) = {
+            let words = risc0_zkvm::serde::to_vec(&agg.instance)
+                .map_err(|_| ArmError::InstanceSerializationFailed)?;
+            (words_to_bytes(&words).to_vec(), *BATCH_AGGREGATION_VK)
+        };
 
-        receipt.verify(*BATCH_AGGREGATION_VK).map_err(|err| {
+        let receipt = Receipt::new(inner_receipt, journal_bytes);
+
+        receipt.verify(vk).map_err(|err| {
             ArmError::ProofVerificationFailed(format!("Proof verification failed: {}", err))
         })?;
 

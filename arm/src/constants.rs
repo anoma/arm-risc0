@@ -20,6 +20,10 @@ pub const PADDING_LOGIC_PK: &[u8] = include_bytes!("../elfs/trivial-logic-guest.
 /// Batch aggregation proving key / batch aggregation guest ELF binary
 #[cfg(feature = "aggregation")]
 pub const BATCH_AGGREGATION_PK: &[u8] = include_bytes!("../elfs/batch-aggregation-guest.bin");
+/// Batch aggregation (EVM ABI-encoded output) proving key / guest ELF binary
+#[cfg(all(feature = "aggregation", feature = "abi_encoding"))]
+pub const BATCH_AGGREGATION_EVM_PK: &[u8] =
+    include_bytes!("../elfs/batch-aggregation-evm-guest.bin");
 
 lazy_static! {
     /// compliance verification key / compliance image id
@@ -37,6 +41,12 @@ lazy_static! {
 lazy_static! {
     /// Batch aggregation verification key / Batch aggregation image id.
     pub static ref BATCH_AGGREGATION_VK: Digest = Digest::from_hex("5dc2615f3d14a517a25aadfe53a882394e602740514574f3201bbe735269058e").unwrap();
+}
+
+#[cfg(all(feature = "aggregation", feature = "abi_encoding"))]
+lazy_static! {
+    /// Batch aggregation (EVM ABI-encoded output) verification key / image id.
+    pub static ref BATCH_AGGREGATION_EVM_VK: Digest = Digest::from_hex("4c0a771d29fce1983f108f4509552bb7f950c226f173f8d3244ef952dcde6978").unwrap();
 }
 
 /// Global kind table and its SHA-256 commitment, loaded once from a JSON file.

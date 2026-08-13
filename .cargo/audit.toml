@@ -20,6 +20,12 @@ ignore = [
   # proc-macro-error2 2.0.1, via alloy-sol-macro -> alloy-sol-types -> arm_gadgets.
   "RUSTSEC-2026-0173",
 
+  # ruint 1.17.1 - incorrect overflow flags and truncated shift amounts in shift
+  # operations. Transitive dep via alloy-primitives and risc0-binfmt. Fix requires
+  # ruint >= 1.20.0, which requires Rust >= 1.90; toolchain is pinned to 1.89.
+  # Deferred until the toolchain is bumped.
+  "RUSTSEC-2026-0220",
+
   # --- unmaintained direct dependency, migration deferred ---
   # bincode 1.3.3, used directly in arm/arm_gadgets to (de)serialize proofs and
   # resources. Migrating to bincode 2.x requires reworking ~15 call sites and
