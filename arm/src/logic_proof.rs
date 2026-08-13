@@ -62,7 +62,7 @@ pub struct LogicVerifier {
 
 /// Inputs required to create a logic verifier.
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
-pub struct LogicVerifierInputs {
+pub struct LogicVerifierInput {
     /// The tag (either commitment or nullifier) for the logic instance.
     pub tag: Digest,
     /// The verifying key for the logic proof.
@@ -86,8 +86,8 @@ impl LogicVerifier {
     }
 }
 
-impl LogicVerifierInputs {
-    /// Converts the LogicVerifierInputs into a LogicVerifier.
+impl LogicVerifierInput {
+    /// Converts the LogicVerifierInput into a LogicVerifier.
     pub fn to_logic_verifier(
         self,
         is_consumed: bool,
@@ -102,7 +102,7 @@ impl LogicVerifierInputs {
         })
     }
 
-    /// Converts the LogicVerifierInputs into a LogicInstance.
+    /// Converts the LogicVerifierInput into a LogicInstance.
     fn to_instance(&self, is_consumed: bool, root: Digest) -> LogicInstance {
         LogicInstance {
             tag: self.tag,
@@ -118,12 +118,12 @@ impl LogicVerifierInputs {
     }
 }
 
-impl TryFrom<LogicVerifier> for LogicVerifierInputs {
+impl TryFrom<LogicVerifier> for LogicVerifierInput {
     type Error = ArmError;
 
-    fn try_from(logic_proof: LogicVerifier) -> Result<LogicVerifierInputs, Self::Error> {
+    fn try_from(logic_proof: LogicVerifier) -> Result<LogicVerifierInput, Self::Error> {
         let instance = logic_proof.get_instance()?;
-        Ok(LogicVerifierInputs {
+        Ok(LogicVerifierInput {
             tag: instance.tag,
             verifying_key: logic_proof.verifying_key,
             app_data: instance.app_data,

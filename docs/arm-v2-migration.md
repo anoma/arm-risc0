@@ -248,7 +248,7 @@ Also in `delta_proof.rs`:
 // v1                          // v2
 ComplianceUnit  { proof: Option<Vec<u8>>, .. }   →  { proof: Vec<u8>, .. }
 LogicVerifier   { proof: Option<Vec<u8>>, .. }   →  { proof: Vec<u8>, .. }
-LogicVerifierInputs { proof: Option<Vec<u8>>, .. } → { proof: Vec<u8>, .. }
+LogicVerifierInput { proof: Option<Vec<u8>>, .. } → { proof: Vec<u8>, .. }
 ```
 
 The `Option` existed only to model "erased after aggregation"; that state is now
