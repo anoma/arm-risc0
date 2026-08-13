@@ -105,7 +105,7 @@ dependencies = [
 
 [[package]]
 name = "anoma-rm-risc0"
-version = "2.0.0-rc.3"
+version = "2.0.0-rc.4"
 dependencies = [
  "alloy-primitives",
  "alloy-sol-types",

@@ -236,7 +236,7 @@ dependencies = [
 
 [[package]]
 name = "anoma-rm-risc0"
-version = "2.0.0-rc.3"
+version = "2.0.0-rc.4"
 dependencies = [
  "alloy-primitives",
  "alloy-sol-types",
@@ -256,7 +256,7 @@ dependencies = [
 
 [[package]]
 name = "anoma-rm-risc0-gadgets"
-version = "2.0.0-rc.3"
+version = "2.0.0-rc.4"
 dependencies = [
  "aes-gcm",
  "alloy-primitives",
@@ -272,7 +272,7 @@ dependencies = [
 
 [[package]]
 name = "anoma-rm-risc0-test-app"
-version = "2.0.0-rc.3"
+version = "2.0.0-rc.4"
 dependencies = [
  "anoma-rm-risc0",
  "anoma-rm-risc0-test-witness",
@@ -283,7 +283,7 @@ dependencies = [
 
 [[package]]
 name = "anoma-rm-risc0-test-witness"
-version = "2.0.0-rc.3"
+version = "2.0.0-rc.4"
 dependencies = [
  "anoma-rm-risc0",
  "anoma-rm-risc0-gadgets",

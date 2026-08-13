@@ -18,10 +18,24 @@ This workspace includes circuit crates and their corresponding RISC0 method buil
 
 ## Reproducible Method Builds (ELF & ImageID)
 
+### Automated (recommended)
+
+Run the update script from the repository root. It builds all guests, copies the
+ELFs to their checked-in paths, and patches the image IDs in
+`arm/src/constants.rs` and `arm_tests/arm_test_app/src/lib.rs` in one step:
+
+```bash
+./scripts/update_elfs.sh
+```
+
+Requires Docker (used by `cargo risczero build` for reproducible builds) and
+`cargo risczero` installed.
+
+### Manual
+
 Run from the repository root to generate guest ELFs and image IDs reproducibly:
 
 ```bash
-cd ..
 cargo risczero build --manifest-path arm_circuits/compliance/methods/guest/Cargo.toml
 
 cargo risczero build --manifest-path arm_circuits/trivial_logic/methods/guest/Cargo.toml
@@ -36,17 +50,16 @@ cargo risczero build --manifest-path arm_circuits/batch_aggregation/methods/gues
 cp arm/elfs/batch-aggregation-guest.bin arm/elfs/batch-aggregation-evm-guest.bin
 ```
 
-After copying, update `BATCH_AGGREGATION_EVM_VK` in `arm/src/constants.rs` with the image ID printed by the command above.
+After each build, copy the ELF from
+`<circuit>/methods/guest/target/riscv32im-risc0-zkvm-elf/docker/<name>.bin`
+to the appropriate path under `arm/elfs/` or `arm_tests/arm_test_app/elf/`,
+then update the corresponding `*_VK` constant with the printed image ID.
 
 ## Regenerating After Changes
 
-If you modify guest code under any `methods/guest` folder, rebuild methods:
-
-```bash
-cargo clean
-cd ..
-cargo risczero build --manifest-path arm_circuits/<circuit>/methods/guest/Cargo.toml
-```
+If you modify guest code under any `methods/guest` folder, rerun
+`./scripts/update_elfs.sh` (or the individual `cargo risczero build` command
+for the affected circuit).
 
 ## License
 
