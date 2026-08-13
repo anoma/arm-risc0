@@ -634,14 +634,14 @@ fn test_compose_rejects_ambiguous_transaction() {
 /// must fail; the aggregation proof must remain absent.
 #[test]
 fn test_cannot_aggregate_invalid_proofs() {
-    use anoma_rm_risc0::logic_proof::LogicVerifierInputs;
+    use anoma_rm_risc0::logic_proof::LogicVerifierInput;
 
     let tx = Tester::default()
         .generate_test_transaction(&[(2, 2), (2, 2)])
         .unwrap();
 
     let actions = tx.actions.as_ref().unwrap();
-    let bad_lproof = LogicVerifierInputs {
+    let bad_lproof = LogicVerifierInput {
         proof: actions[0].logic_verifier_inputs[0].proof.clone(),
         verifying_key: Digest::from([66u8; 32]),
         tag: actions[0].logic_verifier_inputs[0].tag,

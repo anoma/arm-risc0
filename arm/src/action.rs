@@ -5,7 +5,7 @@ use crate::{
     action_tree::ActionTree,
     compliance_unit::ComplianceUnit,
     error::ArmError,
-    logic_proof::{LogicVerifier, LogicVerifierInputs},
+    logic_proof::{LogicVerifier, LogicVerifierInput},
 };
 use k256::ProjectivePoint;
 use risc0_zkvm::Digest;
@@ -18,7 +18,7 @@ pub struct Action {
     /// The compliance unit constraining the consumed and created resources.
     pub compliance_unit: ComplianceUnit,
     /// One logic-verifier input per tag (consumed nullifier or created commitment) in the unit.
-    pub logic_verifier_inputs: Vec<LogicVerifierInputs>,
+    pub logic_verifier_inputs: Vec<LogicVerifierInput>,
 }
 
 impl Action {
@@ -27,7 +27,7 @@ impl Action {
         compliance_unit: ComplianceUnit,
         logic_verifiers: Vec<LogicVerifier>,
     ) -> Result<Self, ArmError> {
-        let logic_verifier_inputs: Vec<LogicVerifierInputs> = logic_verifiers
+        let logic_verifier_inputs: Vec<LogicVerifierInput> = logic_verifiers
             .into_iter()
             .map(|lv| lv.try_into())
             .collect::<Result<_, _>>()?;
@@ -43,7 +43,7 @@ impl Action {
     }
 
     /// Returns a reference to the logic verifier inputs.
-    pub fn get_logic_verifier_inputs(&self) -> &[LogicVerifierInputs] {
+    pub fn get_logic_verifier_inputs(&self) -> &[LogicVerifierInput] {
         &self.logic_verifier_inputs
     }
 
