@@ -1,18 +1,21 @@
 //! An action represents a compliance unit and the logic verifiers that
 //! correspond to its consumed and created resources.
 
-use crate::{
-    action_tree::ActionTree,
-    compliance_unit::ComplianceUnit,
-    error::ArmError,
-    logic_proof::{LogicVerifier, LogicVerifierInput},
-};
+#[cfg(feature = "transaction")]
+use crate::{action_tree::ActionTree, error::ArmError, logic_proof::LogicVerifier};
+use crate::{compliance_unit::ComplianceUnit, logic_proof::LogicVerifierInput};
+#[cfg(feature = "transaction")]
 use k256::ProjectivePoint;
-use risc0_zkvm::Digest;
+#[cfg(feature = "transaction")]
+use risc0_zkp::core::digest::Digest;
 use serde::{Deserialize, Serialize};
 
 /// A compliance unit paired with the inputs needed to verify the resource
 /// logics referenced by the unit's consumed and created memorandums.
+#[cfg_attr(
+    feature = "borsh",
+    derive(borsh::BorshSerialize, borsh::BorshDeserialize)
+)]
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct Action {
     /// The compliance unit constraining the consumed and created resources.
@@ -23,6 +26,7 @@ pub struct Action {
 
 impl Action {
     /// Builds an `Action` from a compliance unit and the matching set of logic verifiers.
+    #[cfg(feature = "transaction")]
     pub fn new(
         compliance_unit: ComplianceUnit,
         logic_verifiers: Vec<LogicVerifier>,
@@ -53,6 +57,7 @@ impl Action {
     /// the canonical tag order (consumed nullifiers then created commitments),
     /// which is the same order `ComplianceInstance::tags()` produces and the
     /// aggregation guest enforces.
+    #[cfg(feature = "transaction")]
     pub(crate) fn get_logic_verifiers(&self) -> Result<Vec<LogicVerifier>, ArmError> {
         let compliance_instance = self.compliance_unit.get_instance()?;
 
@@ -96,6 +101,7 @@ impl Action {
     }
 
     /// Verifies all proofs and consistencies in the action.
+    #[cfg(feature = "transaction")]
     pub fn verify(&self) -> Result<(), ArmError> {
         self.compliance_unit.verify()?;
 
@@ -109,11 +115,13 @@ impl Action {
 
     /// This function computes the delta of the action by summing up the deltas
     /// of each compliance unit.
+    #[cfg(feature = "transaction")]
     pub fn delta(&self) -> Result<ProjectivePoint, ArmError> {
         self.compliance_unit.delta()
     }
 
     /// Returns this action's contribution to the delta message: its action tree root.
+    #[cfg(feature = "transaction")]
     pub fn get_delta_msg(&self) -> Result<Vec<u8>, ArmError> {
         let instance = self
             .compliance_unit

@@ -1,8 +1,17 @@
 //! Proving system interface for generating and verifying proofs.
 
-use crate::{error::ArmError, utils::words_to_bytes};
-use risc0_zkvm::{sha::Digest, InnerReceipt, Receipt};
-use serde::{de::DeserializeOwned, Serialize};
+#[cfg(any(feature = "transaction", feature = "prove"))]
+use crate::error::ArmError;
+#[cfg(feature = "transaction")]
+use crate::utils::words_to_bytes;
+#[cfg(feature = "transaction")]
+use risc0_zkp::core::digest::Digest;
+#[cfg(feature = "transaction")]
+use risc0_zkvm::{InnerReceipt, Receipt};
+#[cfg(feature = "transaction")]
+use serde::de::DeserializeOwned;
+#[cfg(any(feature = "transaction", feature = "prove"))]
+use serde::Serialize;
 
 #[cfg(feature = "prove")]
 use risc0_zkvm::{default_prover, ExecutorEnv, ProverOpts, VerifierContext};
@@ -31,6 +40,7 @@ pub fn prove<T: Serialize>(
 }
 
 /// Verifies a proof against the given verifying key and instance.
+#[cfg(feature = "transaction")]
 pub fn verify(verifying_key: &Digest, instance: &[u8], proof: &[u8]) -> Result<(), ArmError> {
     let inner: InnerReceipt =
         bincode::deserialize(proof).map_err(|_| ArmError::InnerReceiptDeserializationError)?;
@@ -42,6 +52,7 @@ pub fn verify(verifying_key: &Digest, instance: &[u8], proof: &[u8]) -> Result<(
 }
 
 /// Serializes an instance into journal bytes (the inverse of `journal_to_instance`).
+#[cfg(feature = "transaction")]
 pub fn instance_to_journal<T: Serialize>(instance: &T) -> Result<Vec<u8>, ArmError> {
     let words =
         risc0_zkvm::serde::to_vec(instance).map_err(|_| ArmError::InstanceSerializationFailed)?;
@@ -49,6 +60,7 @@ pub fn instance_to_journal<T: Serialize>(instance: &T) -> Result<Vec<u8>, ArmErr
 }
 
 /// Converts a serialized journal into an instance of the specified type.
+#[cfg(feature = "transaction")]
 pub fn journal_to_instance<T: DeserializeOwned>(journal: &[u8]) -> Result<T, ArmError> {
     let journal = risc0_zkvm::Journal {
         bytes: journal.to_vec(),
@@ -57,6 +69,7 @@ pub fn journal_to_instance<T: DeserializeOwned>(journal: &[u8]) -> Result<T, Arm
 }
 
 /// Encode the seal of the given proof for use with EVM smart contract verifiers.
+#[cfg(feature = "transaction")]
 pub fn encode_seal(proof: &[u8]) -> Result<Vec<u8>, ArmError> {
     let inner: InnerReceipt =
         bincode::deserialize(proof).map_err(|_| ArmError::InnerReceiptDeserializationError)?;

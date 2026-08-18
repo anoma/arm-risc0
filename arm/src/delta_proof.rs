@@ -8,6 +8,7 @@ use k256::{
 use serde::{Deserialize, Serialize};
 
 use crate::error::ArmError;
+#[cfg(feature = "transaction")]
 use sha3::{Digest, Keccak256};
 
 /// The delta proof consists of an ECDSA signature and a recovery ID.
@@ -37,6 +38,7 @@ pub struct DeltaInstance {
 
 impl DeltaProof {
     /// Generates a delta proof by signing the given message with the provided witness.
+    #[cfg(feature = "transaction")]
     pub fn prove(message: &[u8], witness: &DeltaWitness) -> Result<DeltaProof, ArmError> {
         // Hash the message using Keccak256
         let mut digest = Keccak256::new();
@@ -57,6 +59,7 @@ impl DeltaProof {
     }
 
     /// Verifies the delta proof against the instance (which carries the message).
+    #[cfg(feature = "transaction")]
     pub fn verify(proof: &DeltaProof, instance: &DeltaInstance) -> Result<(), ArmError> {
         // handle recid
         if proof.recid.to_byte() > 1 {
@@ -235,7 +238,47 @@ impl<'de> Deserialize<'de> for DeltaWitness {
     }
 }
 
-#[cfg(test)]
+#[cfg(feature = "borsh")]
+mod borsh_impls {
+    //! Borsh encodes the delta types exactly as their serde impls do: the
+    //! 65-byte proof (Ethereum-style v-byte) and the 32-byte witness key,
+    //! as fixed-length arrays.
+    use super::{DeltaProof, DeltaWitness};
+    use borsh::io::{Error, ErrorKind, Read, Result, Write};
+    use borsh::{BorshDeserialize, BorshSerialize};
+
+    impl BorshSerialize for DeltaProof {
+        fn serialize<W: Write>(&self, writer: &mut W) -> Result<()> {
+            writer.write_all(&self.to_bytes())
+        }
+    }
+
+    impl BorshDeserialize for DeltaProof {
+        fn deserialize_reader<R: Read>(reader: &mut R) -> Result<Self> {
+            let mut bytes = [0u8; 65];
+            reader.read_exact(&mut bytes)?;
+            DeltaProof::from_bytes(&bytes)
+                .map_err(|e| Error::new(ErrorKind::InvalidData, format!("{e:?}")))
+        }
+    }
+
+    impl BorshSerialize for DeltaWitness {
+        fn serialize<W: Write>(&self, writer: &mut W) -> Result<()> {
+            writer.write_all(&self.to_bytes())
+        }
+    }
+
+    impl BorshDeserialize for DeltaWitness {
+        fn deserialize_reader<R: Read>(reader: &mut R) -> Result<Self> {
+            let mut bytes = [0u8; 32];
+            reader.read_exact(&mut bytes)?;
+            DeltaWitness::from_bytes(&bytes)
+                .map_err(|e| Error::new(ErrorKind::InvalidData, format!("{e:?}")))
+        }
+    }
+}
+
+#[cfg(all(test, feature = "transaction"))]
 mod tests {
     use super::*;
     use k256::elliptic_curve::rand_core::OsRng;

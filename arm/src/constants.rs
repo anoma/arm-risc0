@@ -1,5 +1,6 @@
 //! Constants for compliance and padding logic proving and verification keys.
 
+#[cfg(feature = "transaction")]
 use crate::{
     compliance::KindTableEntry,
     error::ArmError,
@@ -7,15 +8,17 @@ use crate::{
 };
 use hex::FromHex;
 use lazy_static::lazy_static;
-use risc0_zkvm::{
-    sha::{Impl as ShaImpl, Sha256},
-    Digest,
-};
+use risc0_zkp::core::digest::Digest;
+#[cfg(feature = "transaction")]
+use risc0_zkp::core::hash::sha::{Impl as ShaImpl, Sha256};
+#[cfg(feature = "transaction")]
 use std::{path::Path, sync::OnceLock};
 
 /// Compliance proving key / compliance guest ELF binary
+#[cfg(feature = "transaction")]
 pub const COMPLIANCE_PK: &[u8] = include_bytes!("../elfs/compliance-guest.bin");
 /// Padding logic proving key / padding logic guest ELF binary
+#[cfg(feature = "transaction")]
 pub const PADDING_LOGIC_PK: &[u8] = include_bytes!("../elfs/trivial-logic-guest.bin");
 /// Batch aggregation proving key / batch aggregation guest ELF binary
 #[cfg(feature = "aggregation")]
@@ -37,23 +40,24 @@ lazy_static! {
             .unwrap();
 }
 
-#[cfg(feature = "aggregation")]
 lazy_static! {
     /// Batch aggregation verification key / Batch aggregation image id.
     pub static ref BATCH_AGGREGATION_VK: Digest = Digest::from_hex("9557c17ec8607f788e184991363992233c28a7d7013605579baa7145815f5497").unwrap();
 }
 
-#[cfg(all(feature = "aggregation", feature = "abi_encoding"))]
+#[cfg(feature = "abi_encoding")]
 lazy_static! {
     /// Batch aggregation (EVM ABI-encoded output) verification key / image id.
     pub static ref BATCH_AGGREGATION_EVM_VK: Digest = Digest::from_hex("a46d8bf487ebfdbe1d611a766b6a3fcb2884d2f226b3ce629f2bf25c411bce91").unwrap();
 }
 
 /// Global kind table and its SHA-256 commitment, loaded once from a JSON file.
+#[cfg(feature = "transaction")]
 static GLOBAL_KIND_TABLE: OnceLock<(Vec<KindTableEntry>, Digest)> = OnceLock::new();
 
 /// JSON-serializable representation of a kind table entry.
 /// `logic_ref` and `label_ref` are lowercase hex strings.
+#[cfg(feature = "transaction")]
 #[derive(serde::Serialize, serde::Deserialize)]
 struct KindTableJsonEntry {
     logic_ref: String,
@@ -77,6 +81,7 @@ struct KindTableJsonEntry {
 ///   }
 /// ]
 /// ```
+#[cfg(feature = "transaction")]
 pub fn init_kind_table_from_file(path: &Path) -> Result<(), ArmError> {
     if GLOBAL_KIND_TABLE.get().is_some() {
         return Ok(());
@@ -105,6 +110,7 @@ pub fn init_kind_table_from_file(path: &Path) -> Result<(), ArmError> {
 
 /// Returns the currently loaded global kind table (empty slice if not yet
 /// initialised).
+#[cfg(feature = "transaction")]
 pub fn global_kind_table() -> &'static [KindTableEntry] {
     GLOBAL_KIND_TABLE.get().map_or(&[], |(entries, _)| entries)
 }
@@ -115,10 +121,12 @@ pub fn global_kind_table() -> &'static [KindTableEntry] {
 /// The commitment is computed using the same algorithm as
 /// `ComplianceWitness::hash_kind_table`: SHA-256 over the concatenated
 /// `(logic_ref ‖ label_ref ‖ kind_point)` bytes of every entry in order.
+#[cfg(feature = "transaction")]
 pub fn global_kind_table_hash() -> Option<&'static Digest> {
     GLOBAL_KIND_TABLE.get().map(|(_, hash)| hash)
 }
 
+#[cfg(feature = "transaction")]
 fn hash_kind_table_entries(entries: &[KindTableEntry]) -> Digest {
     let mut bytes = Vec::new();
     for entry in entries {
@@ -131,6 +139,7 @@ fn hash_kind_table_entries(entries: &[KindTableEntry]) -> Digest {
 
 /// Looks up `resource` in `table` and returns its pre-computed kind point, or
 /// falls back to `hash_to_curve`.
+#[cfg(feature = "transaction")]
 pub fn kind_entry_for(table: &[KindTableEntry], resource: &Resource) -> Option<KindTableEntry> {
     table
         .iter()

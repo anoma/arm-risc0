@@ -1,24 +1,34 @@
 //! Logic proof structures and traits for proving and verifying logic statements.
 
+use crate::logic_instance::AppData;
+#[cfg(feature = "transaction")]
+use crate::nullifier_key::NullifierKey;
+#[cfg(feature = "transaction")]
+use crate::resource::Resource;
+use crate::resource_logic::TrivialLogicWitness;
+#[cfg(feature = "transaction")]
 use crate::{
     constants::{PADDING_LOGIC_PK, PADDING_LOGIC_VK},
     error::ArmError,
-    logic_instance::{AppData, LogicInstance},
-    nullifier_key::{NullifierKey, NullifierKeyCommitment},
+    logic_instance::LogicInstance,
+    nullifier_key::NullifierKeyCommitment,
     proving_system::{journal_to_instance, verify as verify_proof},
-    resource::Resource,
-    resource_logic::TrivialLogicWitness,
     utils::words_to_bytes,
 };
+#[cfg(feature = "transaction")]
 use rand::rngs::OsRng;
+#[cfg(feature = "transaction")]
 use rand::Rng;
-use risc0_zkvm::{serde::to_vec, sha::Digest, InnerReceipt};
+use risc0_zkp::core::digest::Digest;
+#[cfg(feature = "transaction")]
+use risc0_zkvm::{serde::to_vec, InnerReceipt};
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "prove")]
 use crate::proving_system::{prove, ProofType};
 
 /// Trait for logic provers, defining the necessary methods and associated types.
+#[cfg(feature = "transaction")]
 pub trait LogicProver: Default + Clone + Serialize + for<'de> Deserialize<'de> {
     /// The type of witness used for proving.
     type Witness: Default + Clone + Serialize + for<'de> Deserialize<'de>;
@@ -61,6 +71,10 @@ pub struct LogicVerifier {
 }
 
 /// Inputs required to create a logic verifier.
+#[cfg_attr(
+    feature = "borsh",
+    derive(borsh::BorshSerialize, borsh::BorshDeserialize)
+)]
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct LogicVerifierInput {
     /// The tag (either commitment or nullifier) for the logic instance.
@@ -73,6 +87,7 @@ pub struct LogicVerifierInput {
     pub proof: Vec<u8>,
 }
 
+#[cfg(feature = "transaction")]
 impl LogicVerifier {
     /// Verifies the logic proof against the instance using the provided verifying key.
     pub fn verify(&self) -> Result<(), ArmError> {
@@ -86,6 +101,7 @@ impl LogicVerifier {
     }
 }
 
+#[cfg(feature = "transaction")]
 impl LogicVerifierInput {
     /// Converts the LogicVerifierInput into a LogicVerifier.
     pub fn to_logic_verifier(
@@ -118,6 +134,7 @@ impl LogicVerifierInput {
     }
 }
 
+#[cfg(feature = "transaction")]
 impl TryFrom<LogicVerifier> for LogicVerifierInput {
     type Error = ArmError;
 
@@ -138,6 +155,7 @@ pub struct PaddingResourceLogic {
     witness: TrivialLogicWitness,
 }
 
+#[cfg(feature = "transaction")]
 impl LogicProver for PaddingResourceLogic {
     type Witness = TrivialLogicWitness;
 
@@ -154,6 +172,7 @@ impl LogicProver for PaddingResourceLogic {
     }
 }
 
+#[cfg(feature = "transaction")]
 impl PaddingResourceLogic {
     /// Creates a new PaddingResourceLogic with the given parameters.
     pub fn new(
@@ -186,6 +205,7 @@ impl PaddingResourceLogic {
     }
 }
 
+#[cfg(feature = "transaction")]
 impl Default for PaddingResourceLogic {
     fn default() -> Self {
         let (nf_key, nk_commitment) = NullifierKey::random_pair();
@@ -200,6 +220,7 @@ impl Default for PaddingResourceLogic {
     }
 }
 
+#[cfg(feature = "transaction")]
 impl LogicProver for TrivialLogicWitness {
     type Witness = TrivialLogicWitness;
 

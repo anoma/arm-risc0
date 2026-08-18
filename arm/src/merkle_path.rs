@@ -3,7 +3,7 @@
 use crate::utils::hash_two;
 use hex::FromHex;
 use lazy_static::lazy_static;
-use risc0_zkvm::sha::Digest;
+use risc0_zkp::core::digest::Digest;
 use serde::{Deserialize, Serialize};
 
 lazy_static! {

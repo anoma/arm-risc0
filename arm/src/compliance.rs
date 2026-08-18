@@ -8,18 +8,18 @@ use crate::{
     utils::{bytes_to_words, words_to_bytes},
 };
 use hex::FromHex;
+#[cfg(any(feature = "rand", test))]
+use k256::elliptic_curve::Field;
 use k256::{
     elliptic_curve::{
         sec1::{FromEncodedPoint, ToEncodedPoint},
-        Field, PrimeField,
+        PrimeField,
     },
     EncodedPoint, ProjectivePoint, Scalar,
 };
 use lazy_static::lazy_static;
-use risc0_zkvm::{
-    sha::{Impl as ShaImpl, Sha256},
-    Digest,
-};
+use risc0_zkp::core::digest::Digest;
+use risc0_zkp::core::hash::sha::{Impl as ShaImpl, Sha256};
 
 lazy_static! {
     /// The initial root of the empty commitment tree is the hash of an empty string.
@@ -91,6 +91,7 @@ pub struct ComplianceWitness {
 impl ComplianceWitness {
     /// Creates a new compliance witness from the given resources. It uses the
     /// initial root for ephemeral resources.
+    #[cfg(feature = "rand")]
     pub fn from_resources(
         consumed_data: &[ConsumedResourceWitness],
         created_resources: &[Resource],
@@ -106,6 +107,7 @@ impl ComplianceWitness {
 
     /// Creates a new compliance witness from the given resources and a valid
     /// root when consuming an ephemeral resource.
+    #[cfg(feature = "rand")]
     pub fn from_resources_with_ephemeral_root(
         consumed_data: &[ConsumedResourceWitness],
         created_resources: &[Resource],
@@ -126,6 +128,7 @@ impl ComplianceWitness {
 
     /// Creates a new compliance witness from each of its component parts.
     /// The other constructors are convenience wrappers that fill in defaults.
+    #[cfg(feature = "rand")]
     fn from_parts(
         consumed_data: &[ConsumedResourceWitness],
         created_resources: &[Resource],

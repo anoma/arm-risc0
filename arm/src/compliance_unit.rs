@@ -1,12 +1,15 @@
 //! Compliance unit module containing the compliance proof and instance.
 
+#[cfg(feature = "transaction")]
 use crate::{
     compliance::ComplianceInstance,
     constants::COMPLIANCE_VK,
     error::ArmError,
     proving_system::{journal_to_instance, verify as verify_proof},
 };
+#[cfg(feature = "transaction")]
 use k256::ProjectivePoint;
+#[cfg(feature = "transaction")]
 use risc0_zkvm::InnerReceipt;
 use serde::{Deserialize, Serialize};
 
@@ -19,6 +22,10 @@ use crate::{
 
 /// A compliance unit consists of a compliance proof and its corresponding instance.
 /// The vk is a constant in the compliance unit, so we don't place it here.
+#[cfg_attr(
+    feature = "borsh",
+    derive(borsh::BorshSerialize, borsh::BorshDeserialize)
+)]
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct ComplianceUnit {
     /// The serialised `InnerReceipt` for this compliance proof.
@@ -38,21 +45,25 @@ impl ComplianceUnit {
     }
 
     /// Verifies the compliance proof against the instance using the constant verifying key.
+    #[cfg(feature = "transaction")]
     pub fn verify(&self) -> Result<(), ArmError> {
         verify_proof(&COMPLIANCE_VK, &self.instance, &self.proof)
     }
 
     /// Obtains the delta from the compliance instance.
+    #[cfg(feature = "transaction")]
     pub fn delta(&self) -> Result<ProjectivePoint, ArmError> {
         self.get_instance()?.delta_projective()
     }
 
     /// Retrieves the compliance instance from the serialized instance data.
+    #[cfg(feature = "transaction")]
     pub fn get_instance(&self) -> Result<ComplianceInstance, ArmError> {
         journal_to_instance(&self.instance)
     }
 
     /// Retrieves the inner receipt from the compliance proof.
+    #[cfg(feature = "transaction")]
     pub fn get_inner_receipt(&self) -> Result<InnerReceipt, ArmError> {
         bincode::deserialize(&self.proof).map_err(|_| ArmError::InnerReceiptDeserializationError)
     }

@@ -5,7 +5,7 @@ use crate::{
     merkle_path::{MerklePath, PADDING_LEAF},
     utils::hash_two,
 };
-use risc0_zkvm::sha::Digest;
+use risc0_zkp::core::digest::Digest;
 
 /// The action tree.
 #[derive(Debug, Clone, PartialEq, Eq)]

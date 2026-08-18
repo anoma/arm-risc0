@@ -2,7 +2,7 @@
 
 use crate::{error::ArmError, logic_instance::AppData, utils::words_to_bytes};
 use k256::{elliptic_curve::sec1::FromEncodedPoint, EncodedPoint, ProjectivePoint};
-use risc0_zkvm::Digest;
+use risc0_zkp::core::digest::Digest;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "abi_encoding")]
@@ -13,6 +13,10 @@ pub use evm::{abi_decode_instance, abi_encode_instance, AggregationInstanceEvm};
 /// Contains all information needed by a verifier to check the aggregated
 /// transaction without re-running the compliance↔logic cross-checks —
 /// those are now enforced inside the guest circuit.
+#[cfg_attr(
+    feature = "borsh",
+    derive(borsh::BorshSerialize, borsh::BorshDeserialize)
+)]
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct AggregationInstance {
     /// VK of the compliance circuit — single for the whole transaction.
@@ -24,6 +28,10 @@ pub struct AggregationInstance {
 }
 
 /// Per-action aggregated public data.
+#[cfg_attr(
+    feature = "borsh",
+    derive(borsh::BorshSerialize, borsh::BorshDeserialize)
+)]
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct ActionAggregated {
     /// Consumed resources with merged app_data.
@@ -39,6 +47,10 @@ pub struct ActionAggregated {
 }
 
 /// Consumed resource public data merged with its logic circuit app_data.
+#[cfg_attr(
+    feature = "borsh",
+    derive(borsh::BorshSerialize, borsh::BorshDeserialize)
+)]
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct ConsumedResourceAggregated {
     /// The resource's nullifier.
@@ -52,6 +64,10 @@ pub struct ConsumedResourceAggregated {
 }
 
 /// Created resource public data merged with its logic circuit app_data.
+#[cfg_attr(
+    feature = "borsh",
+    derive(borsh::BorshSerialize, borsh::BorshDeserialize)
+)]
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct CreatedResourceAggregated {
     /// The resource's commitment.
@@ -76,6 +92,74 @@ impl ActionAggregated {
     }
 }
 
+fn encode_digest(out: &mut Vec<u8>, digest: &Digest) {
+    for word in digest.as_words() {
+        out.extend_from_slice(&word.to_le_bytes());
+    }
+}
+
+fn encode_word_array(out: &mut Vec<u8>, words: &[u32; 8]) {
+    for word in words {
+        out.extend_from_slice(&word.to_le_bytes());
+    }
+}
+
+impl AggregationInstance {
+    /// Hand-rolled risc0-serde encoder, byte-equivalent to
+    /// `risc0_zkvm::serde::to_vec(&self)` (the journal committed by the batch
+    /// aggregation guest). Exists so verifiers that cannot link risc0-serde —
+    /// such as the Solana protocol adapter's on-chain program — can re-derive
+    /// the journal. Equivalence is pinned by the `journal_format` tests.
+    pub fn to_journal(&self) -> Vec<u8> {
+        let mut out = Vec::new();
+        encode_digest(&mut out, &self.compliance_key);
+        encode_digest(&mut out, &self.kind_table_commitment);
+        out.extend_from_slice(&(self.actions.len() as u32).to_le_bytes());
+        for action in &self.actions {
+            out.extend_from_slice(&(action.consumed_publics.len() as u32).to_le_bytes());
+            for consumed in &action.consumed_publics {
+                encode_digest(&mut out, &consumed.resource_nullifier);
+                encode_digest(&mut out, &consumed.resource_logic_ref);
+                encode_digest(&mut out, &consumed.commitment_tree_root);
+                consumed.app_data.encode_journal(&mut out);
+            }
+            out.extend_from_slice(&(action.created_publics.len() as u32).to_le_bytes());
+            for created in &action.created_publics {
+                encode_digest(&mut out, &created.resource_commitment);
+                encode_digest(&mut out, &created.resource_logic_ref);
+                created.app_data.encode_journal(&mut out);
+            }
+            encode_word_array(&mut out, &action.delta_x);
+            encode_word_array(&mut out, &action.delta_y);
+            encode_digest(&mut out, &action.action_tree_root);
+        }
+        out
+    }
+
+    /// The delta message: the concatenation of each action's action tree root
+    /// (32 bytes per action).
+    pub fn delta_msg(&self) -> Vec<u8> {
+        let mut msg = Vec::with_capacity(self.actions.len() * 32);
+        for action in &self.actions {
+            msg.extend_from_slice(action.action_tree_root.as_bytes());
+        }
+        msg
+    }
+
+    /// Checks for nullifier duplication across all actions.
+    pub fn nf_duplication_check(&self) -> Result<(), ArmError> {
+        let mut seen_nullifiers = std::collections::HashSet::new();
+        for action in &self.actions {
+            for consumed in &action.consumed_publics {
+                if !seen_nullifiers.insert(consumed.resource_nullifier) {
+                    return Err(ArmError::NullifierDuplication);
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
 #[cfg(feature = "abi_encoding")]
 mod evm {
     use alloy_primitives::{FixedBytes, U256};
@@ -89,7 +173,7 @@ mod evm {
         logic_instance::{AppData as NativeAppData, ExpirableBlob as NativeExpirableBlob},
         utils::{bytes_to_words, words_to_bytes},
     };
-    use risc0_zkvm::Digest;
+    use risc0_zkp::core::digest::Digest;
 
     sol! {
         /// @notice Deletion criterion type for expirable blobs.
@@ -353,7 +437,7 @@ mod evm {
         use super::*;
         use crate::logic_instance::{AppData, ExpirableBlob as NativeExpirableBlob};
         use hex::FromHex;
-        use risc0_zkvm::Digest;
+        use risc0_zkp::core::digest::Digest;
 
         fn make_digest(byte: u8) -> Digest {
             Digest::from_hex(hex::encode([byte; 32])).unwrap()

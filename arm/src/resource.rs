@@ -30,10 +30,16 @@ use k256::{
     elliptic_curve::hash2curve::{ExpandMsgXmd, GroupDigest},
     ProjectivePoint, Scalar, Secp256k1,
 };
+#[cfg(feature = "rand")]
 use rand::rngs::OsRng;
+#[cfg(feature = "rand")]
 use rand::Rng;
-use risc0_zkvm::sha::{rust_crypto::Sha256 as Sha256Type, Impl, Sha256, DIGEST_BYTES};
-use risc0_zkvm::Digest;
+use risc0_zkp::core::digest::{Digest, DIGEST_BYTES};
+use risc0_zkp::core::hash::sha::{Impl, Sha256};
+
+/// RustCrypto-compatible SHA-256 selecting the right implementation for the
+/// zkVM guest and the host (identical to `risc0_zkvm::sha::rust_crypto::Sha256`).
+type Sha256Type = risc0_zkp::core::hash::sha::rust_crypto::Sha256<Impl>;
 use serde::{Deserialize, Serialize};
 
 /// Computes the kind point for the given `logic_ref` and `label_ref` without
@@ -72,6 +78,7 @@ pub struct Resource {
 
 impl Resource {
     /// Create a new resource
+    #[cfg(feature = "rand")]
     pub fn create(
         logic_ref: Digest,
         label_ref: Digest,
@@ -218,6 +225,7 @@ impl Resource {
     }
 
     /// Reset the randomness seed of the resource
+    #[cfg(feature = "rand")]
     pub fn reset_randomness(&mut self) {
         self.rand_seed = OsRng.gen();
     }

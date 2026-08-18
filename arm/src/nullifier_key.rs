@@ -1,8 +1,10 @@
 //! Nullifier key and its commitment
 
 use crate::error::ArmError;
+#[cfg(feature = "rand")]
 use rand::{rngs::OsRng, Rng};
-use risc0_zkvm::sha::{Digest, Impl, Sha256, DIGEST_BYTES};
+use risc0_zkp::core::digest::{Digest, DIGEST_BYTES};
+use risc0_zkp::core::hash::sha::{Impl, Sha256};
 use serde::{Deserialize, Serialize};
 
 /// Nullifier key
@@ -31,6 +33,7 @@ impl NullifierKey {
     }
 
     /// Generate a random nullifier key and its commitment
+    #[cfg(feature = "rand")]
     pub fn random_pair() -> (NullifierKey, NullifierKeyCommitment) {
         let rng_bytes: [u8; DIGEST_BYTES] = OsRng.gen();
         let nf_key = NullifierKey::from_bytes(rng_bytes);

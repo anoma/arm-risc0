@@ -1,5 +1,8 @@
 //! Transaction structure and associated methods.
 
+use crate::aggregation_instance::AggregationInstance;
+#[cfg(feature = "transaction")]
+use crate::constants::global_kind_table_hash;
 #[cfg(all(feature = "aggregation", feature = "prove", feature = "abi_encoding"))]
 use crate::constants::BATCH_AGGREGATION_EVM_PK;
 #[cfg(all(feature = "aggregation", feature = "abi_encoding"))]
@@ -12,7 +15,6 @@ use crate::constants::BATCH_AGGREGATION_EVM_VK;
 use crate::constants::BATCH_AGGREGATION_PK;
 #[cfg(feature = "aggregation")]
 use crate::constants::COMPLIANCE_VK;
-use crate::{aggregation_instance::AggregationInstance, constants::global_kind_table_hash};
 #[cfg(all(feature = "aggregation", feature = "prove"))]
 use crate::{
     aggregation_witness::{ActionWitness, AggregationWitness},
@@ -20,22 +22,30 @@ use crate::{
 };
 #[cfg(all(feature = "aggregation", not(feature = "abi_encoding")))]
 use crate::{constants::BATCH_AGGREGATION_VK, utils::words_to_bytes};
+#[cfg(feature = "transaction")]
+use risc0_zkp::core::digest::Digest;
+#[cfg(feature = "transaction")]
+use risc0_zkvm::InnerReceipt;
 #[cfg(feature = "aggregation")]
 use risc0_zkvm::Receipt;
 #[cfg(all(feature = "aggregation", feature = "prove"))]
 use risc0_zkvm::{default_prover, ExecutorEnv, ProverOpts, VerifierContext};
-use risc0_zkvm::{Digest, InnerReceipt};
 
+#[cfg(feature = "transaction")]
+use crate::logic_proof::LogicVerifier;
 use crate::{
     action::Action,
     compliance_unit::ComplianceUnit,
     delta_proof::{DeltaInstance, DeltaProof, DeltaWitness},
     error::ArmError,
-    logic_proof::LogicVerifier,
 };
 use serde::{Deserialize, Serialize};
 
 /// Aggregation proof and its decoded instance — always populated together.
+#[cfg_attr(
+    feature = "borsh",
+    derive(borsh::BorshSerialize, borsh::BorshDeserialize)
+)]
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct Aggregation {
     /// Serialised `InnerReceipt` from the aggregation prover.
@@ -46,6 +56,10 @@ pub struct Aggregation {
 
 /// Represents a transaction consisting of actions, delta proof, expected balance,
 /// and optional aggregation proof.
+#[cfg_attr(
+    feature = "borsh",
+    derive(borsh::BorshSerialize, borsh::BorshDeserialize)
+)]
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct Transaction {
     /// The actions included in the transaction.
@@ -60,6 +74,10 @@ pub struct Transaction {
 }
 
 /// Represents either a delta witness for proving or a delta proof for verification.
+#[cfg_attr(
+    feature = "borsh",
+    derive(borsh::BorshSerialize, borsh::BorshDeserialize)
+)]
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub enum Delta {
     /// The delta witness used for proving the delta proof.
@@ -82,6 +100,7 @@ impl Transaction {
     }
 
     /// Generates the delta proof for the transaction if it contains a delta witness.
+    #[cfg(feature = "transaction")]
     pub fn generate_delta_proof(self) -> Result<Transaction, ArmError> {
         self.check_representation()?;
 
@@ -102,6 +121,7 @@ impl Transaction {
     }
 
     /// Verifies all the proofs and corresponding checks in the transaction.
+    #[cfg(feature = "transaction")]
     pub fn verify(&self) -> Result<(), ArmError> {
         // A transaction must carry exactly one representation. Rejecting the
         // "both present" case here prevents a crafted transaction from
@@ -161,6 +181,7 @@ impl Transaction {
     /// read from the proof-backed `aggregation.instance` (cross-action
     /// consistency was already enforced in-circuit by the aggregation
     /// guest), never from `actions`, even if both happen to be populated.
+    #[cfg(feature = "transaction")]
     pub fn kind_table_commitment_check(&self) -> Result<(), ArmError> {
         let commitment = if let Some(agg) = &self.aggregation {
             agg.instance.kind_table_commitment
@@ -193,6 +214,7 @@ impl Transaction {
     /// When `aggregation` is present it is authoritative: nullifiers are
     /// read from the proof-backed `aggregation.instance`, never from
     /// `actions`, even if both happen to be populated on this value.
+    #[cfg(feature = "transaction")]
     pub fn nf_duplication_check(&self) -> Result<(), ArmError> {
         let mut seen_nullifiers = std::collections::HashSet::new();
         if let Some(agg) = &self.aggregation {
@@ -227,6 +249,7 @@ impl Transaction {
     ///
     /// When `aggregation` is present it is authoritative; see
     /// [`Self::nf_duplication_check`].
+    #[cfg(feature = "transaction")]
     fn get_delta_msg(&self) -> Result<Vec<u8>, ArmError> {
         if let Some(agg) = &self.aggregation {
             let actions = &agg.instance.actions;
@@ -251,6 +274,7 @@ impl Transaction {
     ///
     /// When `aggregation` is present it is authoritative; see
     /// [`Self::nf_duplication_check`].
+    #[cfg(feature = "transaction")]
     pub fn delta(&self) -> Result<DeltaInstance, ArmError> {
         let msg = self.get_delta_msg()?;
         if let Some(agg) = &self.aggregation {
@@ -274,6 +298,7 @@ impl Transaction {
 
     /// Composes two transactions by concatenating their actions and combining their delta witnesses.
     /// Both transactions must carry a `Delta::Witness` and must not have been aggregated.
+    #[cfg(feature = "transaction")]
     pub fn compose(tx1: Transaction, tx2: Transaction) -> Result<Transaction, ArmError> {
         tx1.check_representation()
             .map_err(|_| ArmError::CannotComposeAggregated)?;
@@ -309,6 +334,7 @@ impl Transaction {
     }
 
     /// Returns all compliance inner receipts in the transaction.
+    #[cfg(feature = "transaction")]
     pub fn get_compliance_inner_receipts(&self) -> Result<Vec<InnerReceipt>, ArmError> {
         let mut compliance_inner_receipts = Vec::new();
         for cu in self.get_compliance_units() {
@@ -319,6 +345,7 @@ impl Transaction {
     }
 
     /// Returns all logic inner receipts in the transaction.
+    #[cfg(feature = "transaction")]
     pub fn get_logic_inner_receipts(&self) -> Result<Vec<InnerReceipt>, ArmError> {
         let mut logic_inner_receipts = Vec::new();
         for action in self.actions.as_deref().unwrap_or(&[]) {
@@ -341,6 +368,7 @@ impl Transaction {
     }
 
     /// Returns all logic verifiers in the transaction.
+    #[cfg(feature = "transaction")]
     pub fn get_logic_verifiers(&self) -> Result<Vec<LogicVerifier>, ArmError> {
         let mut result = Vec::new();
         for action in self.actions.as_deref().unwrap_or(&[]) {
@@ -351,6 +379,7 @@ impl Transaction {
     }
 
     /// Returns all logic verifying keys and instances in the transaction.
+    #[cfg(feature = "transaction")]
     pub fn get_logic_vks_and_instances(&self) -> Result<(Vec<Digest>, Vec<Vec<u8>>), ArmError> {
         let mut vks = Vec::new();
         let mut instances = Vec::new();

@@ -13,7 +13,11 @@ repository = { workspace = true }
 risc0-zkvm = { version = "3.0.3", features = [
   "std",
   "unstable",
-], default-features = false }
+], default-features = false, optional = true }
+# Digest and sha256 come from risc0-zkp directly (risc0-zkvm re-exports these
+# same items), so the wire types compile without the zkvm host machinery —
+# e.g. for Solana's on-chain SBF target.
+risc0-zkp = { version = "3.0", default-features = false }
 serde = { version = "1.0.197", default-features = false }
 serde_with = "3.14.1"
 k256 = { version = "=0.13.3", features = [
@@ -27,7 +31,10 @@ k256 = { version = "=0.13.3", features = [
 sha3 = { version = "0.10", optional = true }
 alloy-sol-types = { version = "1", default-features = false, optional = true }
 alloy-primitives = { version = "1", default-features = false, optional = true }
-rand = "0.8"
+borsh = { version = "1.5", default-features = false, features = [
+  "derive",
+], optional = true }
+rand = { version = "0.8", optional = true }
 bincode = "1.3.3"
 hex = "0.4"
 lazy_static = "1.5.0"
@@ -37,10 +44,19 @@ thiserror = "2.0.6"
 
 [features]
 default = ["transaction", "prove"]
-transaction = ["compliance_circuit", "dep:sha3"]
+transaction = ["compliance_circuit", "dep:sha3", "zkvm", "rand"]
 compliance_circuit = []
-prove = ["risc0-zkvm/prove"]
-bonsai = ["risc0-zkvm/bonsai"]
-cuda = ["risc0-zkvm/cuda"]
+zkvm = ["dep:risc0-zkvm"]
+rand = ["dep:rand"]
+borsh = ["dep:borsh"]
+prove = ["zkvm", "risc0-zkvm/prove"]
+bonsai = ["zkvm", "risc0-zkvm/bonsai"]
+cuda = ["zkvm", "risc0-zkvm/cuda"]
 abi_encoding = ["dep:alloy-sol-types", "dep:alloy-primitives"]
 aggregation = ["transaction"]
+
+[dev-dependencies]
+# Self-dependency turning on `borsh` so integration tests can pin the wire
+# format without changing the crate's default feature set.
+anoma-rm-risc0 = { path = ".", features = ["borsh"] }
+borsh = { version = "1.5", default-features = false, features = ["derive"] }
