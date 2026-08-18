@@ -24,7 +24,7 @@ use risc0_zkp::core::digest::Digest;
 use risc0_zkvm::{serde::to_vec, InnerReceipt};
 use serde::{Deserialize, Serialize};
 
-#[cfg(feature = "prove")]
+#[cfg(all(feature = "prove", feature = "transaction"))]
 use crate::proving_system::{prove, ProofType};
 
 /// Trait for logic provers, defining the necessary methods and associated types.
@@ -48,7 +48,7 @@ pub trait LogicProver: Default + Clone + Serialize + for<'de> Deserialize<'de> {
     fn witness(&self) -> &Self::Witness;
 
     /// Proves the logic statement using the provided witness and proof type.
-    #[cfg(feature = "prove")]
+    #[cfg(all(feature = "prove", feature = "transaction"))]
     fn prove(&self, proof_type: ProofType) -> Result<LogicVerifier, ArmError> {
         let (proof, instance) = prove(Self::proving_key(), self.witness(), proof_type)?;
         Ok(LogicVerifier {

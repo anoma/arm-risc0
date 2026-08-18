@@ -1,6 +1,6 @@
 //! Proving system interface for generating and verifying proofs.
 
-#[cfg(any(feature = "transaction", feature = "prove"))]
+#[cfg(feature = "transaction")]
 use crate::error::ArmError;
 #[cfg(feature = "transaction")]
 use crate::utils::words_to_bytes;
@@ -10,10 +10,10 @@ use risc0_zkp::core::digest::Digest;
 use risc0_zkvm::{InnerReceipt, Receipt};
 #[cfg(feature = "transaction")]
 use serde::de::DeserializeOwned;
-#[cfg(any(feature = "transaction", feature = "prove"))]
+#[cfg(feature = "transaction")]
 use serde::Serialize;
 
-#[cfg(feature = "prove")]
+#[cfg(all(feature = "prove", feature = "transaction"))]
 use risc0_zkvm::{default_prover, ExecutorEnv, ProverOpts, VerifierContext};
 
 /// Types of proofs supported.
@@ -26,7 +26,7 @@ pub enum ProofType {
 }
 
 /// Proves a statement given a proving key and a witness, returning the proof and the instance.
-#[cfg(feature = "prove")]
+#[cfg(all(feature = "prove", feature = "transaction"))]
 pub fn prove<T: Serialize>(
     proving_key: &[u8],
     witness: &T,
@@ -88,7 +88,7 @@ pub fn encode_seal(proof: &[u8]) -> Result<Vec<u8>, ArmError> {
 }
 
 /// Internal function to prove a statement using the given witness and proving key.
-#[cfg(feature = "prove")]
+#[cfg(all(feature = "prove", feature = "transaction"))]
 fn prove_inner<T: Serialize>(
     witness: &T,
     proving_key: &[u8],
