@@ -45,7 +45,9 @@ thiserror = "2.0.6"
 [features]
 default = ["transaction", "prove"]
 transaction = ["compliance_circuit", "dep:sha3", "zkvm", "rand"]
-compliance_circuit = []
+# `rand` is not needed by the circuit itself; the implication preserves this
+# feature level's pre-gating API surface (witness constructors, Resource::create).
+compliance_circuit = ["rand"]
 zkvm = ["dep:risc0-zkvm"]
 rand = ["dep:rand"]
 borsh = ["dep:borsh"]
