@@ -127,6 +127,31 @@ jobs:
       #   run: cargo build --workspace --all-targets
       #   working-directory: arm_circuits
 
+  sbf:
+    name: Solana SBF build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            .
+
+      - name: Install Solana platform tools
+        run: |
+          sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+
+      # anoma-rm-solana pulls anoma-rm-risc0 with default-features = false +
+      # borsh, so this single build proves the whole on-chain surface —
+      # the gated wire types and the syscall verifier — compiles for SBF.
+      - name: Build anoma-rm-solana for SBF
+        run: cargo build-sbf
+        working-directory: arm_solana
+
   test:
     name: Test
     strategy:
