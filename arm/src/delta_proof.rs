@@ -1,8 +1,10 @@
 //! Delta proof module containing the delta proof, witness, and instance.
 
 use k256::ecdsa::{RecoveryId, Signature, SigningKey, VerifyingKey};
+#[cfg(feature = "transaction")]
+use k256::elliptic_curve::scalar::IsHigh;
 use k256::{
-    elliptic_curve::{scalar::IsHigh, PublicKey, ScalarPrimitive},
+    elliptic_curve::{PublicKey, ScalarPrimitive},
     ProjectivePoint, Scalar, SecretKey,
 };
 use serde::{Deserialize, Serialize};

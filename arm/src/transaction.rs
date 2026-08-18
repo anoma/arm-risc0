@@ -32,11 +32,13 @@ use risc0_zkvm::Receipt;
 use risc0_zkvm::{default_prover, ExecutorEnv, ProverOpts, VerifierContext};
 
 #[cfg(feature = "transaction")]
+use crate::delta_proof::DeltaInstance;
+#[cfg(feature = "transaction")]
 use crate::logic_proof::LogicVerifier;
 use crate::{
     action::Action,
     compliance_unit::ComplianceUnit,
-    delta_proof::{DeltaInstance, DeltaProof, DeltaWitness},
+    delta_proof::{DeltaProof, DeltaWitness},
     error::ArmError,
 };
 use serde::{Deserialize, Serialize};
