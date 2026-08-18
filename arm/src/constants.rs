@@ -31,24 +31,24 @@ pub const BATCH_AGGREGATION_EVM_PK: &[u8] =
 lazy_static! {
     /// compliance verification key / compliance image id
     pub static ref COMPLIANCE_VK: Digest =
-        Digest::from_hex("7b657df4c7ee3ef8592894761aefc80f196e5b97dd27d43a98628b2ce2ef91f0")
+        Digest::from_hex("2b95849d8b2ab3f4d195cca789ca04f557b7ed3b5d2a43e88b17a8843088c016")
             .unwrap();
 
     /// padding logic verification key / padding image id
     pub static ref PADDING_LOGIC_VK: Digest =
-        Digest::from_hex("034c170fc2045f5e257110eb369e57ea5dc72d6dd83dab69746afc2bec6e1847")
+        Digest::from_hex("b5e920cffd5a521cad31bf9c1d772143f7b32b7443b3040ad37a3981c16c318a")
             .unwrap();
 }
 
 lazy_static! {
     /// Batch aggregation verification key / Batch aggregation image id.
-    pub static ref BATCH_AGGREGATION_VK: Digest = Digest::from_hex("9557c17ec8607f788e184991363992233c28a7d7013605579baa7145815f5497").unwrap();
+    pub static ref BATCH_AGGREGATION_VK: Digest = Digest::from_hex("80adaafe8f2c60d7d62294b23c87bfbbe4e8c273c03ec8c8edec0b86ea8dc487").unwrap();
 }
 
 #[cfg(feature = "abi_encoding")]
 lazy_static! {
     /// Batch aggregation (EVM ABI-encoded output) verification key / image id.
-    pub static ref BATCH_AGGREGATION_EVM_VK: Digest = Digest::from_hex("a46d8bf487ebfdbe1d611a766b6a3fcb2884d2f226b3ce629f2bf25c411bce91").unwrap();
+    pub static ref BATCH_AGGREGATION_EVM_VK: Digest = Digest::from_hex("640af3e979840d0f3b432a28242fb834325e6c756ec7a62885ec954d8fb9bf0a").unwrap();
 }
 
 /// Global kind table and its SHA-256 commitment, loaded once from a JSON file.
