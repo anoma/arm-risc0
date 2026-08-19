@@ -1,18 +1,19 @@
 //! A Merkle path from a leaf to a root in a commitment/action tree.
 
 use crate::utils::hash_two;
-use hex::FromHex;
-use lazy_static::lazy_static;
-use risc0_zkvm::sha::Digest;
+use risc0_zkp::core::digest::Digest;
 use serde::{Deserialize, Serialize};
 
-lazy_static! {
-    /// A constant padding leaf used in Merkle trees.
-    /// This is the hash of an empty string.
-    pub static ref PADDING_LEAF: Digest =
-        Digest::from_hex("cc1d2f838445db7aec431df9ee8a871f40e7aa5e064fc056633ef8c60fab7b06")
-            .unwrap();
-}
+/// A constant padding leaf used in Merkle trees.
+/// This is the hash of an empty string,
+/// cc1d2f838445db7aec431df9ee8a871f40e7aa5e064fc056633ef8c60fab7b06.
+///
+/// A `const` rather than a lazy static: statics with interior mutability
+/// compile to writable `.bss` sections, which the Solana loader rejects at
+/// deploy time. The value is pinned against `Digest::from_hex` in tests.
+pub const PADDING_LEAF: Digest = Digest::new([
+    0x832f1dcc, 0x7adb4584, 0xf91d43ec, 0x1f878aee, 0x5eaae740, 0x56c04f06, 0xc6f83e63, 0x067bab0f,
+]);
 
 /// A path from a position in a particular commitment tree to the root of that tree.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -57,5 +58,21 @@ impl Default for MerklePath {
             (Digest::default(), false);
            10 // COMMITMENT_TREE_DEPTH, only for testing
         ])
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hex::FromHex;
+
+    /// The const words must equal the hex value the lazy static used to
+    /// parse at runtime.
+    #[test]
+    fn padding_leaf_const_matches_hex() {
+        let expected =
+            Digest::from_hex("cc1d2f838445db7aec431df9ee8a871f40e7aa5e064fc056633ef8c60fab7b06")
+                .unwrap();
+        assert_eq!(PADDING_LEAF, expected);
     }
 }

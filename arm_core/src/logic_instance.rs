@@ -1,6 +1,6 @@
 //! Logic instance for ARM resource logic proofs.
 
-use risc0_zkvm::Digest;
+use risc0_zkp::core::digest::Digest;
 use serde::{Deserialize, Serialize};
 
 /// Represents a logic instance with its associated data.

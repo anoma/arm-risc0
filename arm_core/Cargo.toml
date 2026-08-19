@@ -1,0 +1,25 @@
+[package]
+name = "anoma-rm-core"
+description = "Anoma Resource Machine protocol data model — engine-free core types"
+version = "2.0.0-rc.4"
+edition = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+
+# This crate is the protocol's data layer: wire types, structural invariants,
+# and sha256-backed derivations. It deliberately has NO cryptographic engine
+# in its dependency graph — no k256, no sha3, no rand, no risc0-zkvm — so
+# that every consumer, including Solana SBF programs, can depend on it
+# without linking code that cannot run in its environment. Engine operations
+# (signing, curve arithmetic, proving) live in anoma-rm-risc0 (host/zkVM)
+# and anoma-rm-solana (syscalls).
+
+[dependencies]
+# Source of `Digest` (the identical type risc0-zkvm re-exports) and the
+# featureless software sha256 used for commitments/nullifiers/tree roots.
+risc0-zkp = { version = "3.0", default-features = false }
+serde = { version = "1.0.197", default-features = false, features = ["derive"] }
+bincode = "1.3.3"
+hex = "0.4"
+bytemuck = "1.12"
+thiserror = "2.0.6"
