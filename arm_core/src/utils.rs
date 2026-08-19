@@ -1,6 +1,7 @@
 //! Utility functions for byte and word conversions and hashing.
 
-use risc0_zkvm::sha::{Digest, Impl, Sha256, DIGEST_WORDS};
+use risc0_zkp::core::digest::{Digest, DIGEST_WORDS};
+use risc0_zkp::core::hash::sha::{Impl, Sha256};
 
 /// Converts a byte slice to a vector of u32 words.
 ///

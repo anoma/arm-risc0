@@ -4,7 +4,7 @@
 
 #[cfg(feature = "transaction")]
 pub mod action;
-pub mod action_tree;
+pub use arm_core::action_tree;
 pub mod aggregation_instance;
 #[cfg(feature = "compliance_circuit")]
 pub mod aggregation_witness;
@@ -16,11 +16,11 @@ pub mod compliance_unit;
 pub mod constants;
 #[cfg(feature = "transaction")]
 pub mod delta_proof;
-pub mod error;
-pub mod logic_instance;
+pub use arm_core::error;
+pub use arm_core::logic_instance;
 #[cfg(feature = "transaction")]
 pub mod logic_proof;
-pub mod merkle_path;
+pub use arm_core::merkle_path;
 pub mod nullifier_key;
 #[cfg(feature = "transaction")]
 pub mod proving_system;
@@ -28,7 +28,7 @@ pub mod resource;
 pub mod resource_logic;
 #[cfg(feature = "transaction")]
 pub mod transaction;
-pub mod utils;
+pub use arm_core::utils;
 
 pub use aggregation_instance::{
     ActionAggregated, AggregationInstance, ConsumedResourceAggregated, CreatedResourceAggregated,
