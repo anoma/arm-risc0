@@ -10,6 +10,10 @@ use serde::{Deserialize, Serialize};
 /// Constructing an `Action` from raw [`crate::logic_proof::LogicVerifier`]s
 /// requires decoding their journals, so the constructor is a host/zkVM
 /// engine operation (`anoma-rm-risc0`'s `action::new`).
+#[cfg_attr(
+    feature = "borsh",
+    derive(borsh::BorshSerialize, borsh::BorshDeserialize)
+)]
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct Action {
     /// The compliance unit constraining the consumed and created resources.

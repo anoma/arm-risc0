@@ -29,6 +29,10 @@ use risc0_zkp::core::hash::sha::{Impl, Sha256};
 use serde::{Deserialize, Serialize};
 
 /// Resource representation in the ARM system.
+#[cfg_attr(
+    feature = "borsh",
+    derive(borsh::BorshSerialize, borsh::BorshDeserialize)
+)]
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Resource {
     /// a succinct representation of the predicate associated with the resource
@@ -247,6 +251,10 @@ impl Default for Resource {
 }
 
 /// Private information related to a consumed resource.
+#[cfg_attr(
+    feature = "borsh",
+    derive(borsh::BorshSerialize, borsh::BorshDeserialize)
+)]
 #[derive(Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct ConsumedResourceWitness {
     /// The consumed resource.
@@ -309,6 +317,10 @@ impl Default for ConsumedResourceWitness {
 }
 
 /// Public information of consumed resources.
+#[cfg_attr(
+    feature = "borsh",
+    derive(borsh::BorshSerialize, borsh::BorshDeserialize)
+)]
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct ConsumedResourcePublic {
     /// The nullifier of the consumed [Resource].
@@ -320,6 +332,10 @@ pub struct ConsumedResourcePublic {
 }
 
 /// Public information of created resources.
+#[cfg_attr(
+    feature = "borsh",
+    derive(borsh::BorshSerialize, borsh::BorshDeserialize)
+)]
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct CreatedResourcePublic {
     /// The commitment to the created [Resource].

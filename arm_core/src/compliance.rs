@@ -20,6 +20,10 @@ pub const INITIAL_ROOT: Digest = Digest::new([
 ]);
 
 /// The compliance instance contains all public inputs to the compliance proof.
+#[cfg_attr(
+    feature = "borsh",
+    derive(borsh::BorshSerialize, borsh::BorshDeserialize)
+)]
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct ComplianceInstance {
     /// Public information of consumed resources
@@ -37,6 +41,10 @@ pub struct ComplianceInstance {
 /// An entry in the kind lookup table, mapping (logic_ref, label_ref) to a
 /// pre-computed kind point. Avoids hash-to-curve inside the circuit for known
 /// resource types.
+#[cfg_attr(
+    feature = "borsh",
+    derive(borsh::BorshSerialize, borsh::BorshDeserialize)
+)]
 #[derive(Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct KindTableEntry {
     /// Logic ref component of the key.
@@ -48,6 +56,10 @@ pub struct KindTableEntry {
 }
 
 /// The compliance witness contains all private inputs to the compliance proof.
+#[cfg_attr(
+    feature = "borsh",
+    derive(borsh::BorshSerialize, borsh::BorshDeserialize)
+)]
 #[derive(Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct ComplianceWitness {
     /// Private information of consumed resources
