@@ -44,7 +44,7 @@ impl ComplianceUnit {
 
     /// Obtains the delta from the compliance instance.
     pub fn delta(&self) -> Result<ProjectivePoint, ArmError> {
-        self.get_instance()?.delta_projective()
+        crate::compliance::delta_projective(&self.get_instance()?)
     }
 
     /// Retrieves the compliance instance from the serialized instance data.

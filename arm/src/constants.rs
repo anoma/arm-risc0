@@ -93,10 +93,12 @@ pub fn init_kind_table_from_file(path: &Path) -> Result<(), ArmError> {
                 Digest::from_hex(&e.label_ref).map_err(|_| ArmError::KindTableLoadFailed)?;
             let point = generate_resource_kind(logic_ref, label_ref)
                 .map_err(|_| ArmError::KindTableLoadFailed)?;
-            Ok(KindTableEntry::new(logic_ref, label_ref, &point))
+            Ok(crate::compliance::kind_table_entry(
+                logic_ref, label_ref, &point,
+            ))
         })
         .collect::<Result<Vec<_>, _>>()?;
-    let hash = hash_kind_table_entries(&entries);
+    let hash = crate::compliance::hash_kind_table_entries(&entries);
     // First call wins; a race between two threads is benign — one loses the
     // set and returns Ok(()) with whichever table was installed first.
     let _ = GLOBAL_KIND_TABLE.set((entries, hash));
@@ -112,21 +114,11 @@ pub fn global_kind_table() -> &'static [KindTableEntry] {
 /// Returns the SHA-256 commitment to the global kind table, or `None` if the
 /// table has not been initialised yet.
 ///
-/// The commitment is computed using the same algorithm as
-/// `ComplianceWitness::hash_kind_table`: SHA-256 over the concatenated
-/// `(logic_ref ‖ label_ref ‖ kind_point)` bytes of every entry in order.
+/// The commitment is computed with
+/// [`crate::compliance::hash_kind_table_entries`], the same algorithm the
+/// compliance circuit commits with.
 pub fn global_kind_table_hash() -> Option<&'static Digest> {
     GLOBAL_KIND_TABLE.get().map(|(_, hash)| hash)
-}
-
-fn hash_kind_table_entries(entries: &[KindTableEntry]) -> Digest {
-    let mut bytes = Vec::new();
-    for entry in entries {
-        bytes.extend_from_slice(entry.logic_ref.as_bytes());
-        bytes.extend_from_slice(entry.label_ref.as_bytes());
-        bytes.extend_from_slice(&entry.kind_point);
-    }
-    *ShaImpl::hash_bytes(&bytes)
 }
 
 /// Looks up `resource` in `table` and returns its pre-computed kind point, or
@@ -137,8 +129,8 @@ pub fn kind_entry_for(table: &[KindTableEntry], resource: &Resource) -> Option<K
         .find(|e| e.logic_ref == resource.logic_ref && e.label_ref == resource.label_ref)
         .cloned()
         .or_else(|| {
-            crate::resource::kind(&resource)
-                .ok()
-                .map(|p| KindTableEntry::new(resource.logic_ref, resource.label_ref, &p))
+            crate::resource::kind(&resource).ok().map(|p| {
+                crate::compliance::kind_table_entry(resource.logic_ref, resource.label_ref, &p)
+            })
         })
 }
