@@ -25,7 +25,7 @@ pub mod nullifier_key;
 #[cfg(feature = "transaction")]
 pub mod proving_system;
 pub mod resource;
-pub mod resource_logic;
+pub use arm_core::resource_logic;
 #[cfg(feature = "transaction")]
 pub mod transaction;
 pub use arm_core::utils;

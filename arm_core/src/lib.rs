@@ -15,6 +15,9 @@ pub mod action_tree;
 pub mod error;
 pub mod logic_instance;
 pub mod merkle_path;
+pub mod nullifier_key;
+pub mod resource;
+pub mod resource_logic;
 pub mod utils;
 
 pub use risc0_zkp::core::digest::Digest;

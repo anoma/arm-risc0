@@ -1,40 +1,22 @@
-//! Resource representation and related operations.
+//! Host-engine operations on [`Resource`]: randomized construction and the
+//! k256 kind/quantity mappings. The `Resource` type itself, its
+//! commitment/nullifier/nonce derivations, and the witness/public types live
+//! in `anoma-rm-core` and are re-exported here unchanged.
+
+pub use arm_core::resource::*;
+
+use crate::error::ArmError;
+use crate::nullifier_key::NullifierKeyCommitment;
+use k256::elliptic_curve::hash2curve::{ExpandMsgXmd, GroupDigest};
+use k256::{ProjectivePoint, Scalar, Secp256k1};
+use rand::rngs::OsRng;
+use rand::Rng;
+use risc0_zkvm::sha::rust_crypto::Sha256 as Sha256Type;
+use risc0_zkvm::Digest;
 
 /// DST constant for hashing to curve in RFC 9380.
 const DST: &[u8] = b"QUUX-V01-CS02-with-secp256k1_XMD:SHA-256_SSWU_RO_";
-const PRF_EXPAND_PERSONALIZATION_LEN: usize = 16;
-const PRF_EXPAND_PERSONALIZATION: &[u8; PRF_EXPAND_PERSONALIZATION_LEN] = b"RISC0_ExpandSeed";
-const PRF_EXPAND_PSI: u8 = 0;
-const PRF_EXPAND_RCM: u8 = 1;
-/// Domain separator for `Resource::derive_nonce`.
-const NONCE_DERIVATION_PERSONALIZATION_LEN: usize = 20;
-const NONCE_DERIVATION_PERSONALIZATION: &[u8; NONCE_DERIVATION_PERSONALIZATION_LEN] =
-    b"ARM_NONCE_DERIVATION";
-const QUANTITY_BYTES: usize = 16;
-const RESOURCE_BYTES: usize = DIGEST_BYTES
-    + DIGEST_BYTES
-    + DIGEST_BYTES
-    + QUANTITY_BYTES
-    + 1
-    + DIGEST_BYTES
-    + DIGEST_BYTES
-    + DIGEST_BYTES;
-
-use crate::{
-    error::ArmError,
-    merkle_path::MerklePath,
-    nullifier_key::{NullifierKey, NullifierKeyCommitment},
-};
-
-use k256::{
-    elliptic_curve::hash2curve::{ExpandMsgXmd, GroupDigest},
-    ProjectivePoint, Scalar, Secp256k1,
-};
-use rand::rngs::OsRng;
-use rand::Rng;
-use risc0_zkvm::sha::{rust_crypto::Sha256 as Sha256Type, Impl, Sha256, DIGEST_BYTES};
-use risc0_zkvm::Digest;
-use serde::{Deserialize, Serialize};
+const DIGEST_BYTES: usize = 32;
 
 /// Computes the kind point for the given `logic_ref` and `label_ref` without
 /// requiring a full [`Resource`] to be constructed.
@@ -49,339 +31,40 @@ pub(crate) fn generate_resource_kind(
         .map_err(|_| ArmError::InvalidResourceKind)
 }
 
-/// Resource representation in the ARM system.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
-pub struct Resource {
-    /// a succinct representation of the predicate associated with the resource
-    pub logic_ref: Digest,
-    /// specifies the fungibility domain for the resource
-    pub label_ref: Digest,
-    /// number representing the quantity of the resource
-    pub quantity: u128,
-    /// the fungible value reference of the resource
-    pub value_ref: Digest,
-    /// flag that reflects the resource ephemerality
-    pub is_ephemeral: bool,
-    /// guarantees the uniqueness of the resource computable components
-    pub nonce: [u8; DIGEST_BYTES],
-    /// commitment to nullifier key
-    pub nk_commitment: NullifierKeyCommitment,
-    /// randomness seed used to derive whatever randomness needed
-    pub rand_seed: [u8; DIGEST_BYTES],
-}
-
-impl Resource {
-    /// Create a new resource
-    pub fn create(
-        logic_ref: Digest,
-        label_ref: Digest,
-        quantity: u128,
-        value_ref: Digest,
-        is_ephemeral: bool,
-        nonce: Digest,
-        nk_commitment: NullifierKeyCommitment,
-    ) -> Self {
-        Self {
-            logic_ref,
-            label_ref,
-            quantity,
-            value_ref,
-            is_ephemeral,
-            nonce: nonce.into(),
-            nk_commitment,
-            rand_seed: OsRng.gen(),
-        }
-    }
-
-    /// Convert the quantity to a field element
-    pub fn quantity_scalar(&self) -> Scalar {
-        Scalar::from(self.quantity)
-    }
-
-    /// Compute the kind of the resource
-    pub fn kind(&self) -> Result<ProjectivePoint, ArmError> {
-        generate_resource_kind(self.logic_ref, self.label_ref)
-    }
-
-    /// Core PRF: `SHA256(personalization || discriminator || rand_seed || nonce)`.
-    fn prf_expand(&self, discriminator: u8) -> Vec<u8> {
-        const LEN: usize = PRF_EXPAND_PERSONALIZATION_LEN + 1 + 2 * DIGEST_BYTES;
-        let mut bytes = [0u8; LEN];
-        bytes[..PRF_EXPAND_PERSONALIZATION_LEN].copy_from_slice(PRF_EXPAND_PERSONALIZATION);
-        bytes[PRF_EXPAND_PERSONALIZATION_LEN] = discriminator;
-        let seed_start = PRF_EXPAND_PERSONALIZATION_LEN + 1;
-        bytes[seed_start..seed_start + DIGEST_BYTES].copy_from_slice(&self.rand_seed);
-        bytes[seed_start + DIGEST_BYTES..].copy_from_slice(&self.nonce);
-        Impl::hash_bytes(&bytes).as_bytes().to_vec()
-    }
-
-    /// Compute the inner psi for the resource
-    fn psi(&self) -> Vec<u8> {
-        self.prf_expand(PRF_EXPAND_PSI)
-    }
-
-    /// Compute the randomness to commit the resource
-    fn rcm(&self) -> Vec<u8> {
-        self.prf_expand(PRF_EXPAND_RCM)
-    }
-
-    /// Compute the commitment to the resource
-    pub fn commitment(&self) -> Digest {
-        // Concatenate all the components of this resource
-        let mut bytes = [0u8; RESOURCE_BYTES];
-        let mut offset: usize = 0;
-        // Write the image ID bytes
-        bytes[offset..offset + DIGEST_BYTES].clone_from_slice(self.logic_ref.as_ref());
-        offset += DIGEST_BYTES;
-        // Write the label_ref bytes
-        bytes[offset..offset + DIGEST_BYTES].clone_from_slice(self.label_ref.as_ref());
-        offset += DIGEST_BYTES;
-        // Write the quantity bytes
-        bytes[offset..offset + QUANTITY_BYTES]
-            .clone_from_slice(self.quantity.to_be_bytes().as_ref());
-        offset += QUANTITY_BYTES;
-        // Write the fungible value_ref bytes
-        bytes[offset..offset + DIGEST_BYTES].clone_from_slice(self.value_ref.as_ref());
-        offset += DIGEST_BYTES;
-        // Write the ephemeral flag
-        bytes[offset..offset + 1].clone_from_slice(&[self.is_ephemeral as u8]);
-        offset += 1;
-        // Write the nonce bytes
-        bytes[offset..offset + DIGEST_BYTES].clone_from_slice(self.nonce.as_ref());
-        offset += DIGEST_BYTES;
-        // Write the nullifier public key bytes
-        bytes[offset..offset + DIGEST_BYTES].clone_from_slice(self.nk_commitment.inner().as_ref());
-        offset += DIGEST_BYTES;
-        // Write the randomness seed bytes
-        bytes[offset..offset + DIGEST_BYTES].clone_from_slice(self.rcm().as_ref());
-        offset += DIGEST_BYTES;
-        assert_eq!(offset, RESOURCE_BYTES);
-        // Now produce the hash
-        *Impl::hash_bytes(&bytes)
-    }
-
-    /// Compute the nullifier of the resource
-    pub fn nullifier(&self, nf_key: &NullifierKey) -> Result<Digest, ArmError> {
-        let cm = self.commitment();
-        self.nullifier_from_commitment(nf_key, &cm)
-    }
-
-    /// Compute the nullifier of the resource from its commitment
-    pub fn nullifier_from_commitment(
-        &self,
-        nf_key: &NullifierKey,
-        cm: &Digest,
-    ) -> Result<Digest, ArmError> {
-        // Make sure that the nullifier public key corresponds to the secret key
-        if self.nk_commitment == nf_key.commit() {
-            let mut bytes = [0u8; 4 * DIGEST_BYTES];
-            let mut offset: usize = 0;
-            // Write the nullifier secret key
-            bytes[offset..offset + DIGEST_BYTES].clone_from_slice(nf_key.inner().as_ref());
-            offset += DIGEST_BYTES;
-            // Write the nonce
-            bytes[offset..offset + DIGEST_BYTES].clone_from_slice(self.nonce.as_ref());
-            offset += DIGEST_BYTES;
-            // Write psi
-            bytes[offset..offset + DIGEST_BYTES].clone_from_slice(self.psi().as_ref());
-            offset += DIGEST_BYTES;
-            // Write the resource commitment
-            bytes[offset..offset + DIGEST_BYTES].clone_from_slice(cm.as_bytes());
-            offset += DIGEST_BYTES;
-
-            assert_eq!(offset, 4 * DIGEST_BYTES);
-
-            Ok(*Impl::hash_bytes(&bytes))
-        } else {
-            Err(ArmError::InvalidNullifierKey)
-        }
-    }
-
-    /// Serialize the resource to bytes
-    pub fn to_bytes(&self) -> Result<Vec<u8>, ArmError> {
-        bincode::serialize(self).map_err(|_| ArmError::InvalidResourceSerialization)
-    }
-
-    /// Create a resource from bytes
-    pub fn from_bytes(bytes: &[u8]) -> Result<Self, ArmError> {
-        bincode::deserialize(bytes).map_err(|_| ArmError::InvalidResourceDeserialization)
-    }
-
-    /// Set the value reference of the resource
-    pub fn set_value_ref(&mut self, value_ref: Digest) {
-        self.value_ref = value_ref;
-    }
-
-    /// Set the nullifier key commitment of the resource
-    pub fn set_nf_commitment(&mut self, nf_commitment: NullifierKeyCommitment) {
-        self.nk_commitment = nf_commitment;
-    }
-
-    /// Reset the randomness seed of the resource
-    pub fn reset_randomness(&mut self) {
-        self.rand_seed = OsRng.gen();
-    }
-
-    /// Set the nonce of the resource
-    pub fn set_nonce(&mut self, nf: Digest) {
-        self.nonce = nf.into();
-    }
-
-    /// Set the nonce of the resource from consumed nullifier
-    pub fn set_nonce_from_nf(
-        &mut self,
-        resource: &Resource,
-        nf_key: &NullifierKey,
-    ) -> Result<(), ArmError> {
-        self.nonce = resource.nullifier(nf_key)?.into();
-        Ok(())
-    }
-
-    /// Compute the tag of the resource, which is either the commitment or the nullifier
-    /// depending on whether the resource is consumed.
-    pub fn tag(&self, is_consumed: bool, nf_key: &NullifierKey) -> Result<Digest, ArmError> {
-        let cm = self.commitment();
-        if is_consumed {
-            self.nullifier_from_commitment(nf_key, &cm)
-        } else {
-            Ok(cm)
-        }
-    }
-
-    /// Derives the nonce based on the passed index and nullifiers.
-    /// Fails if `nullifiers` is empty, as there is no entropy to make
-    /// the derived nonce unique.
-    pub fn derive_nonce_from_nullifiers(
-        index: u32,
-        nullifiers: &[Digest],
-    ) -> Result<[u8; DIGEST_BYTES], ArmError> {
-        Ok(Self::derive_nonce(
-            index,
-            Self::hash_nullifiers(nullifiers)?,
-        ))
-    }
-
-    /// Derives the nonce by hashing
-    /// `ARM_NONCE_DERIVATION || index_be || nullifiers_digest`.
-    pub fn derive_nonce(index: u32, nullifiers_digest: Digest) -> [u8; DIGEST_BYTES] {
-        const LEN: usize = NONCE_DERIVATION_PERSONALIZATION_LEN + 4 + DIGEST_BYTES;
-        let mut bytes = [0u8; LEN];
-        bytes[..NONCE_DERIVATION_PERSONALIZATION_LEN]
-            .copy_from_slice(NONCE_DERIVATION_PERSONALIZATION);
-        bytes[NONCE_DERIVATION_PERSONALIZATION_LEN..NONCE_DERIVATION_PERSONALIZATION_LEN + 4]
-            .copy_from_slice(&index.to_be_bytes());
-        bytes[NONCE_DERIVATION_PERSONALIZATION_LEN + 4..]
-            .copy_from_slice(nullifiers_digest.as_bytes());
-        (*Impl::hash_bytes(&bytes)).into()
-    }
-
-    /// Hashes the concatenation of the passed nullifier digests.
-    /// Fails if `nullifiers` is empty.
-    pub fn hash_nullifiers(nullifiers: &[Digest]) -> Result<Digest, ArmError> {
-        if nullifiers.is_empty() {
-            return Err(ArmError::EmptyNullifiers);
-        }
-        let mut bytes = Vec::with_capacity(nullifiers.len() * DIGEST_BYTES);
-        for nf in nullifiers {
-            bytes.extend_from_slice(nf.as_bytes());
-        }
-        Ok(*Impl::hash_bytes(&bytes))
+/// Create a new resource with a freshly drawn randomness seed.
+#[allow(clippy::too_many_arguments)]
+pub fn create(
+    logic_ref: Digest,
+    label_ref: Digest,
+    quantity: u128,
+    value_ref: Digest,
+    is_ephemeral: bool,
+    nonce: Digest,
+    nk_commitment: NullifierKeyCommitment,
+) -> Resource {
+    Resource {
+        logic_ref,
+        label_ref,
+        quantity,
+        value_ref,
+        is_ephemeral,
+        nonce: nonce.into(),
+        nk_commitment,
+        rand_seed: OsRng.gen(),
     }
 }
 
-impl Default for Resource {
-    fn default() -> Self {
-        Self {
-            logic_ref: Digest::default(),
-            label_ref: Digest::default(),
-            quantity: 0,
-            value_ref: Digest::default(),
-            is_ephemeral: true,
-            nonce: [0; DIGEST_BYTES],
-            nk_commitment: NullifierKeyCommitment::default(),
-            rand_seed: [0; DIGEST_BYTES],
-        }
-    }
+/// Reset the randomness seed of the resource.
+pub fn reset_randomness(resource: &mut Resource) {
+    resource.rand_seed = OsRng.gen();
 }
 
-/// Private information related to a consumed resource.
-#[derive(Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
-pub struct ConsumedResourceWitness {
-    /// The consumed resource.
-    pub resource: Resource,
-    /// The path from the consumed commitment to the root of the commitment tree.
-    pub cm_merkle_path: MerklePath,
-    /// Nullifier key of the consumed resource.
-    pub nf_key: NullifierKey,
+/// Convert the resource quantity to a field element.
+pub fn quantity_scalar(resource: &Resource) -> Scalar {
+    Scalar::from(resource.quantity)
 }
 
-impl ConsumedResourceWitness {
-    /// Constructor for an ephemeral resource (uses an empty merkle path).
-    pub fn from_resource(resource: Resource, nf_key: NullifierKey) -> ConsumedResourceWitness {
-        ConsumedResourceWitness {
-            resource,
-            cm_merkle_path: MerklePath::empty(),
-            nf_key,
-        }
-    }
-
-    /// Constructor for a persistent resource with a merkle path proving the
-    /// resource commitment is in the commitment tree.
-    pub fn from_resource_with_path(
-        resource: Resource,
-        nf_key: NullifierKey,
-        cm_merkle_path: MerklePath,
-    ) -> ConsumedResourceWitness {
-        ConsumedResourceWitness {
-            resource,
-            cm_merkle_path,
-            nf_key,
-        }
-    }
-}
-
-impl Default for ConsumedResourceWitness {
-    /// The default value is meaningless and only for testing.
-    fn default() -> Self {
-        let nf_key = NullifierKey::default();
-
-        let resource = Resource {
-            logic_ref: Digest::default(),
-            label_ref: Digest::default(),
-            quantity: 1u128,
-            value_ref: Digest::default(),
-            is_ephemeral: false,
-            nonce: [0u8; 32],
-            nk_commitment: nf_key.commit(),
-            rand_seed: [0u8; 32],
-        };
-
-        let cm_merkle_path = MerklePath::default();
-
-        Self {
-            resource,
-            cm_merkle_path,
-            nf_key,
-        }
-    }
-}
-
-/// Public information of consumed resources.
-#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
-pub struct ConsumedResourcePublic {
-    /// The nullifier of the consumed [Resource].
-    pub resource_nullifier: Digest,
-    /// The logic reference of the consumed [Resource].
-    pub resource_logic_ref: Digest,
-    /// The root of the Merkle tree where the resource commitment is in.
-    pub commitment_tree_root: Digest,
-}
-
-/// Public information of created resources.
-#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
-pub struct CreatedResourcePublic {
-    /// The commitment to the created [Resource].
-    pub resource_commitment: Digest,
-    /// The logic reference of the created [Resource].
-    pub resource_logic_ref: Digest,
+/// Compute the kind of the resource.
+pub fn kind(resource: &Resource) -> Result<ProjectivePoint, ArmError> {
+    generate_resource_kind(resource.logic_ref, resource.label_ref)
 }
