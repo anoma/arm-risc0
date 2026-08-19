@@ -182,3 +182,44 @@ jobs:
       - name: Run release tests (aggregation + abi_encoding)
         run: cargo test -p anoma-rm-risc0 -p anoma-rm-risc0-test-app --release --features aggregation,abi_encoding,prove
         timeout-minutes: 60
+
+  solana:
+    name: Solana SBF Build + Graph Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.89"
+
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            .
+
+      - name: Engine-free dependency graph
+        # anoma-rm-core must be unable to link a crypto engine, randomness,
+        # or the zkVM: its consumers include Solana programs, where k256
+        # curve arithmetic exceeds the SBF stack limits at runtime (it is
+        # not enough for the code to merely go uncalled).
+        # risc0-zkvm-platform (risc0-zkp's target-shim crate) is expected;
+        # the pattern matches crate names exactly.
+        run: |
+          if cargo tree -p anoma-rm-core --features borsh -e normal \
+            | grep -E '(k256|rand|sha3|getrandom|risc0-zkvm) v[0-9]'; then
+            echo "ERROR: an engine crate leaked into anoma-rm-core's dependency graph" >&2
+            exit 1
+          fi
+
+      - name: Install Solana toolchain
+        run: |
+          sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+
+      - name: Build anoma-rm-core for SBF
+        run: cargo build-sbf --features borsh
+        working-directory: arm_core
