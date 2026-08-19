@@ -209,11 +209,13 @@ jobs:
         # risc0-zkvm-platform (risc0-zkp's target-shim crate) is expected;
         # the pattern matches crate names exactly.
         run: |
-          if cargo tree -p anoma-rm-core --features borsh -e normal \
-            | grep -E '(k256|rand|sha3|getrandom|risc0-zkvm) v[0-9]'; then
-            echo "ERROR: an engine crate leaked into anoma-rm-core's dependency graph" >&2
-            exit 1
-          fi
+          for crate in anoma-rm-core anoma-rm-solana; do
+            if cargo tree -p "$crate" --features anoma-rm-core/borsh -e normal \
+              | grep -E '(k256|rand|sha3|getrandom|risc0-zkvm) v[0-9]'; then
+              echo "ERROR: an engine crate leaked into $crate's dependency graph" >&2
+              exit 1
+            fi
+          done
 
       - name: Install Solana toolchain
         # Pinned (like the Rust toolchain above): a floating "stable" can be
@@ -227,3 +229,7 @@ jobs:
       - name: Build anoma-rm-core for SBF
         run: cargo build-sbf --features borsh
         working-directory: arm_core
+
+      - name: Build anoma-rm-solana for SBF
+        run: cargo build-sbf
+        working-directory: arm_solana

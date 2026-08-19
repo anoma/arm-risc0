@@ -1,0 +1,24 @@
+[package]
+name = "anoma-rm-solana"
+description = "Solana engine for Anoma Resource Machine transaction verification (syscall-based)"
+version = "2.0.0-rc.4"
+edition = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+
+[dependencies]
+arm-core = { package = "anoma-rm-core", path = "../arm_core", version = "2.0.0-rc.4", features = [
+  "borsh",
+] }
+solana-program = "2"
+# >= 0.2.1 for the ecadd modular-subtraction fix.
+solana-secp256k1 = "0.2.1"
+thiserror = "2.0.6"
+
+[dev-dependencies]
+# Cross-check reference: the host engine and its k256 curve arithmetic.
+anoma-rm-risc0 = { path = "../arm", default-features = false, features = [
+  "transaction",
+] }
+k256 = { version = "=0.13.3", features = ["arithmetic", "ecdsa", "std"] }
+sha2 = "0.10"
