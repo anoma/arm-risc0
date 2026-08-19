@@ -4,6 +4,10 @@ use risc0_zkp::core::digest::Digest;
 use serde::{Deserialize, Serialize};
 
 /// Represents a logic instance with its associated data.
+#[cfg_attr(
+    feature = "borsh",
+    derive(borsh::BorshSerialize, borsh::BorshDeserialize)
+)]
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct LogicInstance {
     /// The logic instance's tag (either commitment or nullifier)
@@ -17,6 +21,10 @@ pub struct LogicInstance {
 }
 
 /// Application data contains four different types of payloads.
+#[cfg_attr(
+    feature = "borsh",
+    derive(borsh::BorshSerialize, borsh::BorshDeserialize)
+)]
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct AppData {
     /// The resource payload blobs.
@@ -30,6 +38,10 @@ pub struct AppData {
 }
 
 /// An expirable blob consists of a blob and a deletion criterion.
+#[cfg_attr(
+    feature = "borsh",
+    derive(borsh::BorshSerialize, borsh::BorshDeserialize)
+)]
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ExpirableBlob {
     /// The blob data as a vector of u32 words.
@@ -67,5 +79,33 @@ impl AppData {
     /// Adds an application payload blob with its deletion criterion.
     pub fn add_application_payload(&mut self, blob: ExpirableBlob) {
         self.application_payload.push(blob);
+    }
+}
+
+impl ExpirableBlob {
+    /// Appends this blob's risc0-serde word encoding to `words`:
+    /// `blob` as a length-prefixed word sequence, then `deletion_criterion`.
+    pub(crate) fn encode_journal(&self, words: &mut Vec<u32>) {
+        words.push(self.blob.len() as u32);
+        words.extend_from_slice(&self.blob);
+        words.push(self.deletion_criterion);
+    }
+}
+
+impl AppData {
+    /// Appends this value's risc0-serde word encoding to `words`: the four
+    /// payload vectors in field order, each length-prefixed.
+    pub(crate) fn encode_journal(&self, words: &mut Vec<u32>) {
+        for payloads in [
+            &self.resource_payload,
+            &self.discovery_payload,
+            &self.external_payload,
+            &self.application_payload,
+        ] {
+            words.push(payloads.len() as u32);
+            for blob in payloads {
+                blob.encode_journal(words);
+            }
+        }
     }
 }

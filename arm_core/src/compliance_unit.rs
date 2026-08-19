@@ -9,6 +9,10 @@ use serde::{Deserialize, Serialize};
 /// decoding them into a typed [`crate::compliance::ComplianceInstance`] is a
 /// host/zkVM engine operation (`anoma-rm-risc0`'s
 /// `compliance_unit::get_instance`).
+#[cfg_attr(
+    feature = "borsh",
+    derive(borsh::BorshSerialize, borsh::BorshDeserialize)
+)]
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct ComplianceUnit {
     /// The serialised `InnerReceipt` for this compliance proof.

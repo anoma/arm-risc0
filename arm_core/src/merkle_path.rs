@@ -16,6 +16,10 @@ pub const PADDING_LEAF: Digest = Digest::new([
 ]);
 
 /// A path from a position in a particular commitment tree to the root of that tree.
+#[cfg_attr(
+    feature = "borsh",
+    derive(borsh::BorshSerialize, borsh::BorshDeserialize)
+)]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MerklePath(pub Vec<(Digest, bool)>);
 

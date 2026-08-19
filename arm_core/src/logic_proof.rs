@@ -9,6 +9,10 @@ use serde::{Deserialize, Serialize};
 /// The `instance` bytes are the risc0 journal of the logic guest; decoding
 /// or (re-)encoding journals is a host/zkVM engine operation
 /// (`anoma-rm-risc0`'s `logic_proof` module).
+#[cfg_attr(
+    feature = "borsh",
+    derive(borsh::BorshSerialize, borsh::BorshDeserialize)
+)]
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct LogicVerifier {
     /// The serialised `InnerReceipt` for this logic proof.
@@ -20,6 +24,10 @@ pub struct LogicVerifier {
 }
 
 /// Inputs required to create a logic verifier.
+#[cfg_attr(
+    feature = "borsh",
+    derive(borsh::BorshSerialize, borsh::BorshDeserialize)
+)]
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct LogicVerifierInput {
     /// The tag (either commitment or nullifier) for the logic instance.

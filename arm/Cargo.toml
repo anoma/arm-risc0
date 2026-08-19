@@ -36,6 +36,10 @@ serde_json = "1"
 bytemuck = { version = "1.12", features = ["derive"] }
 thiserror = "2.0.6"
 
+[dev-dependencies]
+anoma-rm-risc0 = { path = ".", features = ["borsh"] }
+borsh = "1.5"
+
 [features]
 default = ["transaction", "prove"]
 transaction = ["compliance_circuit", "dep:sha3"]
@@ -44,4 +48,5 @@ prove = ["risc0-zkvm/prove"]
 bonsai = ["risc0-zkvm/bonsai"]
 cuda = ["risc0-zkvm/cuda"]
 abi_encoding = ["dep:alloy-sol-types", "dep:alloy-primitives"]
+borsh = ["arm-core/borsh"]
 aggregation = ["transaction"]

@@ -6,6 +6,10 @@ use risc0_zkp::core::hash::sha::{Impl, Sha256};
 use serde::{Deserialize, Serialize};
 
 /// Nullifier key
+#[cfg_attr(
+    feature = "borsh",
+    derive(borsh::BorshSerialize, borsh::BorshDeserialize)
+)]
 #[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct NullifierKey([u8; DIGEST_BYTES]);
 
@@ -38,6 +42,10 @@ impl Default for NullifierKey {
 }
 
 /// Commitment to nullifier key
+#[cfg_attr(
+    feature = "borsh",
+    derive(borsh::BorshSerialize, borsh::BorshDeserialize)
+)]
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
 pub struct NullifierKeyCommitment(Digest);
 
