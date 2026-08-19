@@ -2,7 +2,6 @@
 
 use crate::{compliance::KindTableEntry, error::ArmError};
 use hex::FromHex;
-use lazy_static::lazy_static;
 use risc0_zkvm::Digest;
 use std::{path::Path, sync::OnceLock};
 
@@ -18,29 +17,9 @@ pub const BATCH_AGGREGATION_PK: &[u8] = include_bytes!("../elfs/batch-aggregatio
 pub const BATCH_AGGREGATION_EVM_PK: &[u8] =
     include_bytes!("../elfs/batch-aggregation-evm-guest.bin");
 
-lazy_static! {
-    /// compliance verification key / compliance image id
-    pub static ref COMPLIANCE_VK: Digest =
-        Digest::from_hex("6a09c1ab13338d0361eb867468280aae67541e5aecc7a3bd4f885a7e189e3049")
-            .unwrap();
-
-    /// padding logic verification key / padding image id
-    pub static ref PADDING_LOGIC_VK: Digest =
-        Digest::from_hex("7421e29e44360f11f05c1c754aa47830b0363f9d1cd23d02ba9364c2b521a4e1")
-            .unwrap();
-}
-
-#[cfg(feature = "aggregation")]
-lazy_static! {
-    /// Batch aggregation verification key / Batch aggregation image id.
-    pub static ref BATCH_AGGREGATION_VK: Digest = Digest::from_hex("6df7924211cfb7aacc654795cbc94e12b54a4bccecf3ed4d299e9ed3ef6a23c3").unwrap();
-}
-
-#[cfg(all(feature = "aggregation", feature = "abi_encoding"))]
-lazy_static! {
-    /// Batch aggregation (EVM ABI-encoded output) verification key / image id.
-    pub static ref BATCH_AGGREGATION_EVM_VK: Digest = Digest::from_hex("e639f52655d936a44444b49dcf8d446b3c0a72f79f2354476faad70d1f234e8e").unwrap();
-}
+pub use arm_core::constants::{
+    BATCH_AGGREGATION_EVM_VK, BATCH_AGGREGATION_VK, COMPLIANCE_VK, PADDING_LOGIC_VK,
+};
 
 /// Global kind table and its SHA-256 commitment, loaded once from a JSON file.
 static KIND_TABLE: OnceLock<(Vec<KindTableEntry>, Digest)> = OnceLock::new();
