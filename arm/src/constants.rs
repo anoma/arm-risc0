@@ -137,8 +137,7 @@ pub fn kind_entry_for(table: &[KindTableEntry], resource: &Resource) -> Option<K
         .find(|e| e.logic_ref == resource.logic_ref && e.label_ref == resource.label_ref)
         .cloned()
         .or_else(|| {
-            resource
-                .kind()
+            crate::resource::kind(&resource)
                 .ok()
                 .map(|p| KindTableEntry::new(resource.logic_ref, resource.label_ref, &p))
         })

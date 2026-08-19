@@ -93,7 +93,7 @@ impl Tester {
     /// signed by the same fresh nullifier key, with the same [TestLogic] and
     /// quantity 1, and per-resource distinct nonces.
     pub fn populate_consumed_resources(&mut self, num: u32) {
-        let (nf_key, nk_commitment) = NullifierKey::random_pair();
+        let (nf_key, nk_commitment) = anoma_rm_risc0::nullifier_key::random_pair();
         let consumed_data = (0..num)
             .map(|index| {
                 let resource = Resource {

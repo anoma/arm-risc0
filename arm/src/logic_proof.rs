@@ -188,7 +188,7 @@ impl PaddingResourceLogic {
 
 impl Default for PaddingResourceLogic {
     fn default() -> Self {
-        let (nf_key, nk_commitment) = NullifierKey::random_pair();
+        let (nf_key, nk_commitment) = crate::nullifier_key::random_pair();
         let resource = Self::create_padding_resource(nk_commitment);
         let witness = TrivialLogicWitness {
             resource,

@@ -154,7 +154,7 @@ impl ComplianceWitness {
                     .ok_or(ArmError::InvalidResourceKind);
             }
         }
-        resource.kind()
+        crate::resource::kind(resource)
     }
 
     /// Compliance constraints. Produces the public outputs of the unit by
@@ -200,7 +200,7 @@ impl ComplianceWitness {
                 &mut kinds,
                 &mut sums,
                 self.lookup_kind(&w.resource)?,
-                w.resource.quantity_scalar(),
+                crate::resource::quantity_scalar(&w.resource),
             );
         }
 
@@ -220,7 +220,7 @@ impl ComplianceWitness {
                 &mut kinds,
                 &mut sums,
                 self.lookup_kind(resource)?,
-                -resource.quantity_scalar(),
+                -crate::resource::quantity_scalar(resource),
             );
         }
 
