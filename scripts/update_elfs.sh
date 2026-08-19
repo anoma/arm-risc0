@@ -49,37 +49,55 @@ cp arm_circuits/batch_aggregation/methods/guest/target/riscv32im-risc0-zkvm-elf/
     arm/elfs/batch-aggregation-evm-guest.bin
 
 echo ""
-echo "==> Patching arm/src/constants.rs"
-# Use Python for multi-line-safe in-place substitution of each hex digest
+echo "==> Patching arm_core/src/constants.rs and test constants"
+# Use Python for multi-line-safe in-place substitution of each digest:
+# the VK consts live in arm_core as Digest::new(words) with the canonical
+# hex in the doc comment and pinned in a test, so each update replaces the
+# hex everywhere in the file and regenerates the words array.
 python3 - <<PYEOF
 import re, pathlib
 
-def patch_hex(path, old_hex, new_hex):
-    text = pathlib.Path(path).read_text()
-    if old_hex not in text:
-        print(f"  WARNING: {old_hex[:16]}... not found in {path}")
+def words_for(hexstr):
+    b = bytes.fromhex(hexstr)
+    ws = [int.from_bytes(b[i:i+4], 'little') for i in range(0, 32, 4)]
+    return ', '.join(f'0x{w:08x}' for w in ws)
+
+def patch_const(name, new_hex):
+    path = pathlib.Path("arm_core/src/constants.rs")
+    text = path.read_text()
+    m = re.search(
+        r'([0-9a-f]{64})(\.\s*\n\s*pub const ' + name + r': Digest = Digest::new\(\[)([^\]]*)(\]\);)',
+        text,
+    )
+    if not m:
+        raise SystemExit(f"  ERROR: const {name} not found in {path}")
+    old_hex = m.group(1)
+    if old_hex == new_hex:
+        print(f"  {name}: unchanged ({new_hex[:16]}...)")
         return
-    patched = text.replace(old_hex, new_hex, 1)
-    pathlib.Path(path).write_text(patched)
-    print(f"  {path}: {old_hex[:16]}... -> {new_hex[:16]}...")
+    text = text.replace(old_hex, new_hex)
+    text = text.replace(m.group(3), "\n    " + words_for(new_hex) + ",\n", 1)
+    path.write_text(text)
+    print(f"  {name}: {old_hex[:16]}... -> {new_hex[:16]}...")
 
-constants = pathlib.Path("arm/src/constants.rs").read_text()
+patch_const("COMPLIANCE_VK", "$COMPLIANCE_ID")
+patch_const("PADDING_LOGIC_VK", "$TRIVIAL_ID")
+patch_const("BATCH_AGGREGATION_VK", "$AGG_ID")
+patch_const("BATCH_AGGREGATION_EVM_VK", "$AGG_EVM_ID")
 
-# Extract current hex values from constants.rs
-import re
 def extract_vks(text):
     return dict(re.findall(
         r'static ref (\w+): Digest\s*=\s*\n?\s*Digest::from_hex\("([0-9a-f]+)"\)',
         text
     ))
 
-constants = pathlib.Path("arm/src/constants.rs").read_text()
-vks = extract_vks(constants)
-
-patch_hex("arm/src/constants.rs", vks["COMPLIANCE_VK"],            "$COMPLIANCE_ID")
-patch_hex("arm/src/constants.rs", vks["PADDING_LOGIC_VK"],         "$TRIVIAL_ID")
-patch_hex("arm/src/constants.rs", vks["BATCH_AGGREGATION_VK"],     "$AGG_ID")
-patch_hex("arm/src/constants.rs", vks["BATCH_AGGREGATION_EVM_VK"], "$AGG_EVM_ID")
+def patch_hex(path, old_hex, new_hex):
+    text = pathlib.Path(path).read_text()
+    if old_hex not in text:
+        print(f"  WARNING: {old_hex[:16]}... not found in {path}")
+        return
+    pathlib.Path(path).write_text(text.replace(old_hex, new_hex, 1))
+    print(f"  {path}: {old_hex[:16]}... -> {new_hex[:16]}...")
 
 lib = pathlib.Path("arm_tests/arm_test_app/src/lib.rs").read_text()
 vks2 = extract_vks(lib)

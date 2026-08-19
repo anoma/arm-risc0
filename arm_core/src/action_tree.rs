@@ -5,7 +5,7 @@ use crate::{
     merkle_path::{MerklePath, PADDING_LEAF},
     utils::hash_two,
 };
-use risc0_zkvm::sha::Digest;
+use risc0_zkp::core::digest::Digest;
 
 /// The action tree.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -41,7 +41,7 @@ impl ActionTree {
     ///
     /// Returns `ArmError::InvalidLeaf` if the leaf is not found in the tree.
     pub fn generate_path(&self, cur_leaf: &Digest) -> Result<MerklePath, ArmError> {
-        if *cur_leaf == *PADDING_LEAF {
+        if *cur_leaf == PADDING_LEAF {
             return Err(ArmError::InvalidLeaf);
         }
 
@@ -87,7 +87,7 @@ impl ActionTree {
             .checked_next_power_of_two()
             .ok_or(ArmError::TreeTooLarge)?;
         let mut leaves = self.leaves.clone();
-        leaves.resize(len, *PADDING_LEAF);
+        leaves.resize(len, PADDING_LEAF);
         Ok(leaves)
     }
 }
@@ -128,7 +128,7 @@ mod tests {
         let path = tree.generate_path(&digest(3)).unwrap();
 
         let (sibling, is_left) = path.0[0];
-        assert_eq!(sibling, *PADDING_LEAF);
+        assert_eq!(sibling, PADDING_LEAF);
         assert!(!is_left, "padding sibling must sit on the right of leaf 3");
         assert_eq!(path.root(&digest(3)), tree.root().unwrap());
     }

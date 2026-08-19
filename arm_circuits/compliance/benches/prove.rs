@@ -97,7 +97,7 @@ fn make_witness(logic_ref: Digest, label_ref: Digest, count: usize) -> Complianc
     ComplianceWitness {
         consumed_data,
         created_resources,
-        ephemeral_root: *INITIAL_ROOT,
+        ephemeral_root: INITIAL_ROOT,
         rcv: [vec![0u8; 31], vec![1u8]].concat(),
         kind_table: global_kind_table().to_vec(),
     }

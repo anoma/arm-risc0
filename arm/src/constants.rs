@@ -6,11 +6,7 @@ use crate::{
     resource::{generate_resource_kind, Resource},
 };
 use hex::FromHex;
-use lazy_static::lazy_static;
-use risc0_zkvm::{
-    sha::{Impl as ShaImpl, Sha256},
-    Digest,
-};
+use risc0_zkvm::Digest;
 use std::{path::Path, sync::OnceLock};
 
 /// Compliance proving key / compliance guest ELF binary
@@ -25,29 +21,9 @@ pub const BATCH_AGGREGATION_PK: &[u8] = include_bytes!("../elfs/batch-aggregatio
 pub const BATCH_AGGREGATION_EVM_PK: &[u8] =
     include_bytes!("../elfs/batch-aggregation-evm-guest.bin");
 
-lazy_static! {
-    /// compliance verification key / compliance image id
-    pub static ref COMPLIANCE_VK: Digest =
-        Digest::from_hex("7b657df4c7ee3ef8592894761aefc80f196e5b97dd27d43a98628b2ce2ef91f0")
-            .unwrap();
-
-    /// padding logic verification key / padding image id
-    pub static ref PADDING_LOGIC_VK: Digest =
-        Digest::from_hex("034c170fc2045f5e257110eb369e57ea5dc72d6dd83dab69746afc2bec6e1847")
-            .unwrap();
-}
-
-#[cfg(feature = "aggregation")]
-lazy_static! {
-    /// Batch aggregation verification key / Batch aggregation image id.
-    pub static ref BATCH_AGGREGATION_VK: Digest = Digest::from_hex("9557c17ec8607f788e184991363992233c28a7d7013605579baa7145815f5497").unwrap();
-}
-
-#[cfg(all(feature = "aggregation", feature = "abi_encoding"))]
-lazy_static! {
-    /// Batch aggregation (EVM ABI-encoded output) verification key / image id.
-    pub static ref BATCH_AGGREGATION_EVM_VK: Digest = Digest::from_hex("a46d8bf487ebfdbe1d611a766b6a3fcb2884d2f226b3ce629f2bf25c411bce91").unwrap();
-}
+pub use arm_core::constants::{
+    BATCH_AGGREGATION_EVM_VK, BATCH_AGGREGATION_VK, COMPLIANCE_VK, PADDING_LOGIC_VK,
+};
 
 /// Global kind table and its SHA-256 commitment, loaded once from a JSON file.
 static GLOBAL_KIND_TABLE: OnceLock<(Vec<KindTableEntry>, Digest)> = OnceLock::new();
@@ -64,7 +40,7 @@ struct KindTableJsonEntry {
 ///
 /// The file must contain a JSON array of objects with `logic_ref` and
 /// `label_ref` (hex-encoded `Digest` values). The kind point for each entry
-/// is derived via `Resource::kind()` (hash-to-curve) at load time, rather
+/// is derived via `generate_resource_kind` (hash-to-curve) at load time, rather
 /// than being read from the file, so the table can't drift out of sync with
 /// its keys. Calling this a second time is a no-op; the first call wins.
 ///
@@ -93,10 +69,12 @@ pub fn init_kind_table_from_file(path: &Path) -> Result<(), ArmError> {
                 Digest::from_hex(&e.label_ref).map_err(|_| ArmError::KindTableLoadFailed)?;
             let point = generate_resource_kind(logic_ref, label_ref)
                 .map_err(|_| ArmError::KindTableLoadFailed)?;
-            Ok(KindTableEntry::new(logic_ref, label_ref, &point))
+            Ok(crate::compliance::kind_table_entry(
+                logic_ref, label_ref, &point,
+            ))
         })
         .collect::<Result<Vec<_>, _>>()?;
-    let hash = hash_kind_table_entries(&entries);
+    let hash = crate::compliance::hash_kind_table_entries(&entries);
     // First call wins; a race between two threads is benign — one loses the
     // set and returns Ok(()) with whichever table was installed first.
     let _ = GLOBAL_KIND_TABLE.set((entries, hash));
@@ -112,21 +90,11 @@ pub fn global_kind_table() -> &'static [KindTableEntry] {
 /// Returns the SHA-256 commitment to the global kind table, or `None` if the
 /// table has not been initialised yet.
 ///
-/// The commitment is computed using the same algorithm as
-/// `ComplianceWitness::hash_kind_table`: SHA-256 over the concatenated
-/// `(logic_ref ‖ label_ref ‖ kind_point)` bytes of every entry in order.
+/// The commitment is computed with
+/// [`crate::compliance::hash_kind_table_entries`], the same algorithm the
+/// compliance circuit commits with.
 pub fn global_kind_table_hash() -> Option<&'static Digest> {
     GLOBAL_KIND_TABLE.get().map(|(_, hash)| hash)
-}
-
-fn hash_kind_table_entries(entries: &[KindTableEntry]) -> Digest {
-    let mut bytes = Vec::new();
-    for entry in entries {
-        bytes.extend_from_slice(entry.logic_ref.as_bytes());
-        bytes.extend_from_slice(entry.label_ref.as_bytes());
-        bytes.extend_from_slice(&entry.kind_point);
-    }
-    *ShaImpl::hash_bytes(&bytes)
 }
 
 /// Looks up `resource` in `table` and returns its pre-computed kind point, or
@@ -137,9 +105,8 @@ pub fn kind_entry_for(table: &[KindTableEntry], resource: &Resource) -> Option<K
         .find(|e| e.logic_ref == resource.logic_ref && e.label_ref == resource.label_ref)
         .cloned()
         .or_else(|| {
-            resource
-                .kind()
-                .ok()
-                .map(|p| KindTableEntry::new(resource.logic_ref, resource.label_ref, &p))
+            crate::resource::kind(resource).ok().map(|p| {
+                crate::compliance::kind_table_entry(resource.logic_ref, resource.label_ref, &p)
+            })
         })
 }
