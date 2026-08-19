@@ -2,10 +2,8 @@
 
 #[cfg(test)]
 use crate::nullifier_key::NullifierKey;
-use crate::{
-    error::ArmError,
-    resource::{ConsumedResourcePublic, ConsumedResourceWitness, CreatedResourcePublic, Resource},
-    utils::{bytes_to_words, words_to_bytes},
+use crate::resource::{
+    ConsumedResourcePublic, ConsumedResourceWitness, CreatedResourcePublic, Resource,
 };
 use risc0_zkp::core::digest::Digest;
 use risc0_zkp::core::hash::sha::{Impl as ShaImpl, Sha256};

@@ -6,7 +6,6 @@ use crate::{
     resource::{generate_resource_kind, Resource},
 };
 use hex::FromHex;
-use lazy_static::lazy_static;
 use risc0_zkvm::{
     sha::{Impl as ShaImpl, Sha256},
     Digest,
@@ -25,29 +24,9 @@ pub const BATCH_AGGREGATION_PK: &[u8] = include_bytes!("../elfs/batch-aggregatio
 pub const BATCH_AGGREGATION_EVM_PK: &[u8] =
     include_bytes!("../elfs/batch-aggregation-evm-guest.bin");
 
-lazy_static! {
-    /// compliance verification key / compliance image id
-    pub static ref COMPLIANCE_VK: Digest =
-        Digest::from_hex("7b657df4c7ee3ef8592894761aefc80f196e5b97dd27d43a98628b2ce2ef91f0")
-            .unwrap();
-
-    /// padding logic verification key / padding image id
-    pub static ref PADDING_LOGIC_VK: Digest =
-        Digest::from_hex("034c170fc2045f5e257110eb369e57ea5dc72d6dd83dab69746afc2bec6e1847")
-            .unwrap();
-}
-
-#[cfg(feature = "aggregation")]
-lazy_static! {
-    /// Batch aggregation verification key / Batch aggregation image id.
-    pub static ref BATCH_AGGREGATION_VK: Digest = Digest::from_hex("9557c17ec8607f788e184991363992233c28a7d7013605579baa7145815f5497").unwrap();
-}
-
-#[cfg(all(feature = "aggregation", feature = "abi_encoding"))]
-lazy_static! {
-    /// Batch aggregation (EVM ABI-encoded output) verification key / image id.
-    pub static ref BATCH_AGGREGATION_EVM_VK: Digest = Digest::from_hex("a46d8bf487ebfdbe1d611a766b6a3fcb2884d2f226b3ce629f2bf25c411bce91").unwrap();
-}
+pub use arm_core::constants::{
+    BATCH_AGGREGATION_EVM_VK, BATCH_AGGREGATION_VK, COMPLIANCE_VK, PADDING_LOGIC_VK,
+};
 
 /// Global kind table and its SHA-256 commitment, loaded once from a JSON file.
 static GLOBAL_KIND_TABLE: OnceLock<(Vec<KindTableEntry>, Digest)> = OnceLock::new();

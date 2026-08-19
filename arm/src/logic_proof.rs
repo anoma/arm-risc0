@@ -1,9 +1,14 @@
-//! Logic proof structures and traits for proving and verifying logic statements.
+//! Host/zkVM engine operations for logic proofs: the `LogicProver` trait,
+//! proof verification, journal encode/decode, and the padding logic. The
+//! wire types (`LogicVerifier`, `LogicVerifierInput`) live in
+//! `anoma-rm-core` and are re-exported here unchanged.
+
+pub use arm_core::logic_proof::*;
 
 use crate::{
     constants::{PADDING_LOGIC_PK, PADDING_LOGIC_VK},
     error::ArmError,
-    logic_instance::{AppData, LogicInstance},
+    logic_instance::LogicInstance,
     nullifier_key::{NullifierKey, NullifierKeyCommitment},
     proving_system::{journal_to_instance, verify as verify_proof},
     resource::Resource,
@@ -49,87 +54,48 @@ pub trait LogicProver: Default + Clone + Serialize + for<'de> Deserialize<'de> {
     }
 }
 
-/// Represents a logic verifier with its proof, instance, and verifying key.
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
-pub struct LogicVerifier {
-    /// The serialised `InnerReceipt` for this logic proof.
-    pub proof: Vec<u8>,
-    /// The serialized logic instance.
-    pub instance: Vec<u8>,
-    /// The verifying key for the logic proof.
-    pub verifying_key: Digest,
+/// Verifies the logic proof against the instance using its verifying key.
+pub fn verify(verifier: &LogicVerifier) -> Result<(), ArmError> {
+    verify_proof(&verifier.verifying_key, &verifier.instance, &verifier.proof)
+        .map_err(|err| ArmError::ProofVerificationFailed(err.to_string()))
 }
 
-/// Inputs required to create a logic verifier.
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
-pub struct LogicVerifierInput {
-    /// The tag (either commitment or nullifier) for the logic instance.
-    pub tag: Digest,
-    /// The verifying key for the logic proof.
-    pub verifying_key: Digest,
-    /// The application data associated with the logic instance.
-    pub app_data: AppData,
-    /// The serialised `InnerReceipt` for this logic proof.
-    pub proof: Vec<u8>,
+/// Retrieves the logic instance from the serialized instance data.
+pub fn get_instance(verifier: &LogicVerifier) -> Result<LogicInstance, ArmError> {
+    journal_to_instance(&verifier.instance)
 }
 
-impl LogicVerifier {
-    /// Verifies the logic proof against the instance using the provided verifying key.
-    pub fn verify(&self) -> Result<(), ArmError> {
-        verify_proof(&self.verifying_key, &self.instance, &self.proof)
-            .map_err(|err| ArmError::ProofVerificationFailed(err.to_string()))
-    }
-
-    /// Retrieves the logic instance from the serialized instance data.
-    pub fn get_instance(&self) -> Result<LogicInstance, ArmError> {
-        journal_to_instance(&self.instance)
-    }
+/// Converts a `LogicVerifierInput` into a `LogicVerifier` by re-encoding
+/// the reconstructed instance as a risc0 journal.
+pub fn input_to_logic_verifier(
+    input: LogicVerifierInput,
+    is_consumed: bool,
+    root: Digest,
+) -> Result<LogicVerifier, ArmError> {
+    let instance_words = to_vec(&input.to_instance(is_consumed, root))
+        .map_err(|_| ArmError::InstanceSerializationFailed)?;
+    Ok(LogicVerifier {
+        proof: input.proof,
+        instance: words_to_bytes(&instance_words).to_vec(),
+        verifying_key: input.verifying_key,
+    })
 }
 
-impl LogicVerifierInput {
-    /// Converts the LogicVerifierInput into a LogicVerifier.
-    pub fn to_logic_verifier(
-        self,
-        is_consumed: bool,
-        root: Digest,
-    ) -> Result<LogicVerifier, ArmError> {
-        let instance_words = to_vec(&self.to_instance(is_consumed, root))
-            .map_err(|_| ArmError::InstanceSerializationFailed)?;
-        Ok(LogicVerifier {
-            proof: self.proof,
-            instance: words_to_bytes(&instance_words).to_vec(),
-            verifying_key: self.verifying_key,
-        })
-    }
-
-    /// Converts the LogicVerifierInput into a LogicInstance.
-    fn to_instance(&self, is_consumed: bool, root: Digest) -> LogicInstance {
-        LogicInstance {
-            tag: self.tag,
-            is_consumed,
-            root,
-            app_data: self.app_data.clone(),
-        }
-    }
-
-    /// Retrieves the inner receipt from the logic proof.
-    pub fn get_inner_receipt(&self) -> Result<InnerReceipt, ArmError> {
-        bincode::deserialize(&self.proof).map_err(|_| ArmError::InnerReceiptDeserializationError)
-    }
+/// Retrieves the inner receipt from a logic-verifier input's proof.
+pub fn get_input_inner_receipt(input: &LogicVerifierInput) -> Result<InnerReceipt, ArmError> {
+    bincode::deserialize(&input.proof).map_err(|_| ArmError::InnerReceiptDeserializationError)
 }
 
-impl TryFrom<LogicVerifier> for LogicVerifierInput {
-    type Error = ArmError;
-
-    fn try_from(logic_proof: LogicVerifier) -> Result<LogicVerifierInput, Self::Error> {
-        let instance = logic_proof.get_instance()?;
-        Ok(LogicVerifierInput {
-            tag: instance.tag,
-            verifying_key: logic_proof.verifying_key,
-            app_data: instance.app_data,
-            proof: logic_proof.proof,
-        })
-    }
+/// Converts a `LogicVerifier` into a `LogicVerifierInput` by decoding its
+/// journal for the tag and app data.
+pub fn to_verifier_input(logic_proof: LogicVerifier) -> Result<LogicVerifierInput, ArmError> {
+    let instance = get_instance(&logic_proof)?;
+    Ok(LogicVerifierInput {
+        tag: instance.tag,
+        verifying_key: logic_proof.verifying_key,
+        app_data: instance.app_data,
+        proof: logic_proof.proof,
+    })
 }
 
 /// A padding resource logic prover for generating trivial logic proofs.
@@ -146,7 +112,7 @@ impl LogicProver for PaddingResourceLogic {
     }
 
     fn verifying_key() -> Digest {
-        *PADDING_LOGIC_VK
+        PADDING_LOGIC_VK
     }
 
     fn witness(&self) -> &Self::Witness {
@@ -208,7 +174,7 @@ impl LogicProver for TrivialLogicWitness {
     }
 
     fn verifying_key() -> Digest {
-        *PADDING_LOGIC_VK
+        PADDING_LOGIC_VK
     }
 
     fn witness(&self) -> &Self::Witness {
@@ -221,5 +187,5 @@ impl LogicProver for TrivialLogicWitness {
 fn test_padding_logic_prover() {
     let trivial_logic = PaddingResourceLogic::default();
     let proof = trivial_logic.prove(ProofType::Succinct).unwrap();
-    proof.verify().unwrap();
+    verify(&proof).unwrap();
 }

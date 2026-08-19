@@ -11,16 +11,22 @@
 
 #![deny(missing_docs)]
 
+pub mod action;
 pub mod action_tree;
+pub mod aggregation_instance;
 pub mod aggregation_witness;
 pub mod compliance;
+pub mod compliance_unit;
+pub mod constants;
 pub mod delta_proof;
 pub mod error;
 pub mod logic_instance;
+pub mod logic_proof;
 pub mod merkle_path;
 pub mod nullifier_key;
 pub mod resource;
 pub mod resource_logic;
+pub mod transaction;
 pub mod utils;
 
 pub use risc0_zkp::core::digest::Digest;
