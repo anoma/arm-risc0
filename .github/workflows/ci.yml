@@ -216,8 +216,12 @@ jobs:
           fi
 
       - name: Install Solana toolchain
+        # Pinned (like the Rust toolchain above): a floating "stable" can be
+        # newer than the version the branch is developed against, and its
+        # cargo build-sbf then emits SBPF bytecode versions the pinned
+        # validator's feature set does not enable.
         run: |
-          sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
+          sh -c "$(curl -sSfL https://release.anza.xyz/v3.1.14/install)"
           echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
 
       - name: Build anoma-rm-core for SBF
