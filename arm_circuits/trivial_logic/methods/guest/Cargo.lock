@@ -54,9 +54,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "anoma-rm-core"
+version = "2.0.0-rc.4"
+dependencies = [
+ "bincode",
+ "bytemuck",
+ "hex",
+ "risc0-zkp",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
 name = "anoma-rm-risc0"
 version = "2.0.0-rc.4"
 dependencies = [
+ "anoma-rm-core",
  "bincode",
  "bytemuck",
  "hex",
