@@ -29,7 +29,8 @@ fn witness() -> DeltaWitness {
 }
 
 fn proof() -> DeltaProof {
-    DeltaProof::prove(DELTA_MESSAGE, &witness()).expect("deterministic proving succeeds")
+    anoma_rm_risc0::delta_proof::prove(DELTA_MESSAGE, &witness())
+        .expect("deterministic proving succeeds")
 }
 
 fn rich_instance() -> AggregationInstance {
