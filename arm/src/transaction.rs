@@ -88,7 +88,7 @@ impl Transaction {
         match self.delta_proof {
             Delta::Witness(ref witness) => {
                 let msg = self.get_delta_msg()?;
-                let proof = DeltaProof::prove(&msg, witness)?;
+                let proof = crate::delta_proof::prove(&msg, witness)?;
                 let delta_proof = Delta::Proof(proof);
                 Ok(Transaction {
                     actions: self.actions,
@@ -114,7 +114,7 @@ impl Transaction {
         match &self.delta_proof {
             Delta::Proof(ref proof) => {
                 let instance = self.delta()?;
-                DeltaProof::verify(proof, &instance)?;
+                crate::delta_proof::verify(proof, &instance)?;
 
                 // Check for nullifier duplication across all compliance units
                 self.nf_duplication_check()?;
@@ -285,7 +285,7 @@ impl Transaction {
         actions.extend(actions2);
         let delta = match (tx1.delta_proof, tx2.delta_proof) {
             (Delta::Witness(witness1), Delta::Witness(witness2)) => {
-                Delta::Witness(witness1.compose(&witness2)?)
+                Delta::Witness(crate::delta_proof::compose(&witness1, &witness2)?)
             }
             _ => return Err(ArmError::IncompatibleDeltaTypes),
         };

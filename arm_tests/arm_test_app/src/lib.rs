@@ -229,7 +229,7 @@ impl Tester {
     /// Builds a `DeltaWitness` from the per-CU randomness collected so far.
     /// Use this rather than reaching into the `rcvs` field directly.
     pub fn delta_witness(&self) -> DeltaWitness {
-        DeltaWitness::from_bytes_vec(&self.rcvs).unwrap()
+        anoma_rm_risc0::delta_proof::from_bytes_vec(&self.rcvs).unwrap()
     }
 
     /// Test-only escape hatch: overwrites the nonce of an already-populated
@@ -604,7 +604,8 @@ fn test_compose_rejects_ambiguous_transaction() {
         aggregation_instance::AggregationInstance, delta_proof::DeltaWitness, Digest,
     };
 
-    let dummy_delta = || Delta::Witness(DeltaWitness::from_bytes_vec(&[vec![1u8; 32]]).unwrap());
+    let dummy_delta =
+        || Delta::Witness(anoma_rm_risc0::delta_proof::from_bytes_vec(&[vec![1u8; 32]]).unwrap());
 
     // A well-formed transaction (actions present, no aggregation).
     let tx_clean = Transaction::create(vec![], dummy_delta());
@@ -663,7 +664,8 @@ fn test_cannot_aggregate_invalid_proofs() {
 /// rather than panicking inside the guest.
 #[test]
 fn test_cannot_aggregate_empty_actions() {
-    let dummy_delta = Delta::Witness(DeltaWitness::from_bytes_vec(&[vec![1u8; 32]]).unwrap());
+    let dummy_delta =
+        Delta::Witness(anoma_rm_risc0::delta_proof::from_bytes_vec(&[vec![1u8; 32]]).unwrap());
     let mut tx = Transaction::create(vec![], dummy_delta)
         .generate_delta_proof()
         .unwrap();

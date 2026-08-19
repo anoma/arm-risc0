@@ -14,6 +14,7 @@
 pub mod action_tree;
 pub mod aggregation_witness;
 pub mod compliance;
+pub mod delta_proof;
 pub mod error;
 pub mod logic_instance;
 pub mod merkle_path;
