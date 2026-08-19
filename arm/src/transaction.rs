@@ -244,7 +244,7 @@ pub fn get_logic_inner_receipts(tx: &Transaction) -> Result<Vec<InnerReceipt>, A
     for action in tx.actions.as_deref().unwrap_or(&[]) {
         let logic_inputs = action.get_logic_verifier_inputs();
         for lp in logic_inputs.iter() {
-            let inner_receipt = crate::logic_proof::get_input_inner_receipt(lp)?;
+            let inner_receipt = crate::logic_proof::get_inner_receipt(lp)?;
             logic_inner_receipts.push(inner_receipt);
         }
     }
@@ -278,7 +278,7 @@ pub fn get_logic_vks_and_instances(
     let mut instances = Vec::new();
     for lp in get_logic_verifiers(tx)? {
         vks.push(lp.verifying_key);
-        instances.push(lp.instance.clone());
+        instances.push(lp.instance);
     }
     Ok((vks, instances))
 }
@@ -329,7 +329,7 @@ pub fn aggregate(tx: &mut Transaction, proof_type: ProofType) -> Result<(), ArmE
             if lvi.tag != *tag {
                 return Err(ArmError::TagNotFound);
             }
-            env_builder.add_assumption(crate::logic_proof::get_input_inner_receipt(lvi)?);
+            env_builder.add_assumption(crate::logic_proof::get_inner_receipt(lvi)?);
             consumed_app_data.push(lvi.app_data.clone());
         }
 
@@ -338,7 +338,7 @@ pub fn aggregate(tx: &mut Transaction, proof_type: ProofType) -> Result<(), ArmE
             if lvi.tag != *tag {
                 return Err(ArmError::TagNotFound);
             }
-            env_builder.add_assumption(crate::logic_proof::get_input_inner_receipt(lvi)?);
+            env_builder.add_assumption(crate::logic_proof::get_inner_receipt(lvi)?);
             created_app_data.push(lvi.app_data.clone());
         }
 

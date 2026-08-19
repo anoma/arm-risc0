@@ -6,10 +6,7 @@ use crate::{
     resource::{generate_resource_kind, Resource},
 };
 use hex::FromHex;
-use risc0_zkvm::{
-    sha::{Impl as ShaImpl, Sha256},
-    Digest,
-};
+use risc0_zkvm::Digest;
 use std::{path::Path, sync::OnceLock};
 
 /// Compliance proving key / compliance guest ELF binary
@@ -43,7 +40,7 @@ struct KindTableJsonEntry {
 ///
 /// The file must contain a JSON array of objects with `logic_ref` and
 /// `label_ref` (hex-encoded `Digest` values). The kind point for each entry
-/// is derived via `Resource::kind()` (hash-to-curve) at load time, rather
+/// is derived via `generate_resource_kind` (hash-to-curve) at load time, rather
 /// than being read from the file, so the table can't drift out of sync with
 /// its keys. Calling this a second time is a no-op; the first call wins.
 ///
@@ -108,7 +105,7 @@ pub fn kind_entry_for(table: &[KindTableEntry], resource: &Resource) -> Option<K
         .find(|e| e.logic_ref == resource.logic_ref && e.label_ref == resource.label_ref)
         .cloned()
         .or_else(|| {
-            crate::resource::kind(&resource).ok().map(|p| {
+            crate::resource::kind(resource).ok().map(|p| {
                 crate::compliance::kind_table_entry(resource.logic_ref, resource.label_ref, &p)
             })
         })
