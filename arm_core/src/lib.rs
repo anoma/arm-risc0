@@ -12,6 +12,8 @@
 #![deny(missing_docs)]
 
 pub mod action_tree;
+pub mod aggregation_witness;
+pub mod compliance;
 pub mod error;
 pub mod logic_instance;
 pub mod merkle_path;

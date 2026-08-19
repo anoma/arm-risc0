@@ -150,7 +150,7 @@ impl Tester {
         self.populate_created_resources(created_num)?;
 
         init_test_kind_table();
-        let compliance_witness = ComplianceWitness::from_resources(
+        let compliance_witness = anoma_rm_risc0::compliance::from_resources(
             self.consumed_data[self.current].clone(),
             self.created_resources[self.current].clone(),
             kind_table().to_vec(),
@@ -707,14 +707,14 @@ fn test_invalid_created_nonce_rejected() {
     tester.set_created_nonce(0, 0, [0xAA; 32]);
 
     init_test_kind_table();
-    let witness = ComplianceWitness::from_resources(
+    let witness = anoma_rm_risc0::compliance::from_resources(
         tester.consumed_data[0].clone(),
         tester.created_resources[0].clone(),
         kind_table().to_vec(),
     );
 
     assert!(matches!(
-        witness.constrain(),
+        anoma_rm_risc0::compliance::constrain(&witness),
         Err(ArmError::InvalidResourceNonce)
     ));
 }

@@ -3,10 +3,7 @@
 use crate::{compliance::KindTableEntry, error::ArmError};
 use hex::FromHex;
 use lazy_static::lazy_static;
-use risc0_zkvm::{
-    sha::{Impl as ShaImpl, Sha256},
-    Digest,
-};
+use risc0_zkvm::Digest;
 use std::{path::Path, sync::OnceLock};
 
 /// Compliance proving key / compliance guest ELF binary
@@ -120,7 +117,7 @@ fn install_kind_table(entries: Vec<KindTableEntry>) -> Result<(), ArmError> {
     for entry in &entries {
         validate_kind_point(&entry.kind_point)?;
     }
-    let hash = hash_kind_table_entries(&entries);
+    let hash = crate::compliance::hash_kind_table_entries(&entries);
     // First call wins; a race between two threads is benign.
     let _ = KIND_TABLE.set((entries, hash));
     Ok(())
@@ -152,21 +149,11 @@ pub fn kind_table() -> &'static [KindTableEntry] {
 /// Returns the SHA-256 commitment to the global kind table, or `None` if the
 /// table has not been initialised yet.
 ///
-/// The commitment is computed using the same algorithm as
-/// `ComplianceWitness::hash_kind_table`: SHA-256 over the concatenated
-/// `(logic_ref ‖ label_ref ‖ kind_point)` bytes of every entry in order.
+/// The commitment is computed with
+/// [`crate::compliance::hash_kind_table_entries`], the same algorithm the
+/// compliance circuit commits with.
 pub fn kind_table_hash() -> Option<&'static Digest> {
     KIND_TABLE.get().map(|(_, hash)| hash)
-}
-
-fn hash_kind_table_entries(entries: &[KindTableEntry]) -> Digest {
-    let mut bytes = Vec::new();
-    for entry in entries {
-        bytes.extend_from_slice(entry.logic_ref.as_bytes());
-        bytes.extend_from_slice(entry.label_ref.as_bytes());
-        bytes.extend_from_slice(&entry.kind_point);
-    }
-    *ShaImpl::hash_bytes(&bytes)
 }
 
 #[cfg(test)]

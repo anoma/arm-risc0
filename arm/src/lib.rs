@@ -6,8 +6,7 @@
 pub mod action;
 pub use arm_core::action_tree;
 pub mod aggregation_instance;
-#[cfg(feature = "compliance_circuit")]
-pub mod aggregation_witness;
+pub use arm_core::aggregation_witness;
 #[cfg(feature = "compliance_circuit")]
 pub mod compliance;
 #[cfg(feature = "transaction")]
