@@ -67,7 +67,7 @@ pub fn get_instance(verifier: &LogicVerifier) -> Result<LogicInstance, ArmError>
 
 /// Converts a `LogicVerifierInput` into a `LogicVerifier` by re-encoding
 /// the reconstructed instance as a risc0 journal.
-pub fn input_to_logic_verifier(
+pub fn input_to_verifier(
     input: LogicVerifierInput,
     is_consumed: bool,
     root: Digest,
@@ -82,13 +82,13 @@ pub fn input_to_logic_verifier(
 }
 
 /// Retrieves the inner receipt from a logic-verifier input's proof.
-pub fn get_input_inner_receipt(input: &LogicVerifierInput) -> Result<InnerReceipt, ArmError> {
+pub fn get_inner_receipt(input: &LogicVerifierInput) -> Result<InnerReceipt, ArmError> {
     bincode::deserialize(&input.proof).map_err(|_| ArmError::InnerReceiptDeserializationError)
 }
 
 /// Converts a `LogicVerifier` into a `LogicVerifierInput` by decoding its
 /// journal for the tag and app data.
-pub fn to_verifier_input(logic_proof: LogicVerifier) -> Result<LogicVerifierInput, ArmError> {
+pub fn verifier_to_input(logic_proof: LogicVerifier) -> Result<LogicVerifierInput, ArmError> {
     let instance = get_instance(&logic_proof)?;
     Ok(LogicVerifierInput {
         tag: instance.tag,

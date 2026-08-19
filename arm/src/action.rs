@@ -20,7 +20,7 @@ pub fn new(
 ) -> Result<Action, ArmError> {
     let logic_verifier_inputs: Vec<LogicVerifierInput> = logic_verifiers
         .into_iter()
-        .map(crate::logic_proof::to_verifier_input)
+        .map(crate::logic_proof::verifier_to_input)
         .collect::<Result<_, _>>()?;
     Ok(Action {
         compliance_unit,
@@ -69,11 +69,7 @@ pub(crate) fn get_logic_verifiers(action: &Action) -> Result<Vec<LogicVerifier>,
             if input.verifying_key != resource_logic_ref {
                 return Err(ArmError::VerifyingKeyMismatch);
             }
-            crate::logic_proof::input_to_logic_verifier(
-                input.clone(),
-                is_consumed,
-                action_tree_root,
-            )
+            crate::logic_proof::input_to_verifier(input.clone(), is_consumed, action_tree_root)
         })
         .collect()
 }
