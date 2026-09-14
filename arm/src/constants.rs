@@ -1,8 +1,7 @@
 //! Constants for compliance and padding logic proving and verification keys.
 
-use crate::{compliance::KindTableEntry, error::ArmError};
+use crate::{compliance::KindTableEntry, error::ArmError, Digest};
 use hex::FromHex;
-use risc0_zkvm::Digest;
 use std::{path::Path, sync::OnceLock};
 
 /// Compliance proving key / compliance guest ELF binary

@@ -9,9 +9,9 @@ use crate::{
     compliance_unit::ComplianceUnit,
     error::ArmError,
     logic_proof::{LogicVerifier, LogicVerifierInput},
+    Digest,
 };
 use k256::ProjectivePoint;
-use risc0_zkvm::Digest;
 
 /// Builds an `Action` from a compliance unit and the matching set of logic verifiers.
 pub fn new(

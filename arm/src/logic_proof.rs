@@ -14,10 +14,11 @@ use crate::{
     resource::Resource,
     resource_logic::TrivialLogicWitness,
     utils::words_to_bytes,
+    Digest,
 };
 use rand::rngs::OsRng;
 use rand::Rng;
-use risc0_zkvm::{serde::to_vec, sha::Digest, InnerReceipt};
+use risc0_zkvm::{serde::to_vec, InnerReceipt};
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "prove")]

@@ -27,6 +27,7 @@ mod evm {
     use alloy_primitives::{FixedBytes, U256};
     use alloy_sol_types::sol;
 
+    use crate::Digest;
     use crate::{
         aggregation_instance::{
             ActionAggregated, AggregationInstance, ConsumedResourceAggregated,
@@ -35,7 +36,6 @@ mod evm {
         logic_instance::{AppData as NativeAppData, ExpirableBlob as NativeExpirableBlob},
         utils::{bytes_to_words, words_to_bytes},
     };
-    use risc0_zkvm::Digest;
 
     sol! {
         /// @notice Deletion criterion type for expirable blobs.
@@ -298,8 +298,8 @@ mod evm {
     mod tests {
         use super::*;
         use crate::logic_instance::{AppData, ExpirableBlob as NativeExpirableBlob};
+        use crate::Digest;
         use hex::FromHex;
-        use risc0_zkvm::Digest;
 
         fn make_digest(byte: u8) -> Digest {
             Digest::from_hex(hex::encode([byte; 32])).unwrap()

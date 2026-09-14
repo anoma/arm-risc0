@@ -7,12 +7,12 @@ pub use arm_core::resource::*;
 
 use crate::error::ArmError;
 use crate::nullifier_key::NullifierKeyCommitment;
+use crate::Digest;
 use k256::elliptic_curve::hash2curve::{ExpandMsgXmd, GroupDigest};
 use k256::{ProjectivePoint, Scalar, Secp256k1};
 use rand::rngs::OsRng;
 use rand::Rng;
 use risc0_zkvm::sha::rust_crypto::Sha256 as Sha256Type;
-use risc0_zkvm::Digest;
 
 /// DST constant for hashing to curve in RFC 9380.
 const DST: &[u8] = b"QUUX-V01-CS02-with-secp256k1_XMD:SHA-256_SSWU_RO_";

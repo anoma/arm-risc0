@@ -32,4 +32,4 @@ pub use arm_core::utils;
 pub use aggregation_instance::{
     ActionAggregated, AggregationInstance, ConsumedResourceAggregated, CreatedResourceAggregated,
 };
-pub use risc0_zkvm::Digest;
+pub use arm_core::Digest;

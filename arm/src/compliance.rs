@@ -11,6 +11,7 @@ use crate::resource::{
     ConsumedResourcePublic, ConsumedResourceWitness, CreatedResourcePublic, Resource,
 };
 use crate::utils::{bytes_to_words, words_to_bytes};
+use crate::Digest;
 use k256::{
     elliptic_curve::{
         sec1::{FromEncodedPoint, ToEncodedPoint},
@@ -18,7 +19,6 @@ use k256::{
     },
     EncodedPoint, ProjectivePoint, Scalar,
 };
-use risc0_zkvm::Digest;
 
 /// Creates a new compliance witness from the given resources with a freshly
 /// drawn `rcv`. It uses the initial root for ephemeral resources.

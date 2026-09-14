@@ -26,16 +26,17 @@ use crate::{
 };
 #[cfg(all(feature = "aggregation", not(feature = "abi_encoding")))]
 use crate::{constants::BATCH_AGGREGATION_VK, utils::words_to_bytes};
+use risc0_zkvm::InnerReceipt;
 #[cfg(feature = "aggregation")]
 use risc0_zkvm::Receipt;
 #[cfg(all(feature = "aggregation", feature = "prove"))]
 use risc0_zkvm::{default_prover, ExecutorEnv, ProverOpts, VerifierContext};
-use risc0_zkvm::{Digest, InnerReceipt};
 
 use crate::{
     delta_proof::{self, DeltaInstance},
     error::ArmError,
     logic_proof::LogicVerifier,
+    Digest,
 };
 
 /// Generates the delta proof for the transaction if it contains a delta witness.
