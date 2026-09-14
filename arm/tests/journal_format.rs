@@ -88,3 +88,27 @@ fn empty_aggregation_journal_matches_risc0_serde() {
     };
     assert_eq!(instance.to_journal(), risc0_serde_journal(&instance));
 }
+
+/// Every field of the instance is a `u32` word, a `[u32; N]`, a `Digest`
+/// (`[u32; 8]`) or a `Vec` of those, so risc0-serde's word stream and the
+/// Borsh encoding coincide byte for byte. A verifier that Borsh-encodes the
+/// instance therefore obtains the default guest's journal; no separate
+/// Borsh-committing guest variant is needed. Adding a field that is not
+/// word-shaped (`bool`, `u8`, `u64`, `Vec<u8>`) breaks this — risc0-serde
+/// pads to words, Borsh does not — and this test is what would notice.
+#[test]
+fn borsh_encoding_equals_aggregation_journal() {
+    for instance in [
+        rich_instance(),
+        AggregationInstance {
+            compliance_key: Digest::from_bytes([0xAA; 32]),
+            kind_table_commitment: Digest::from_bytes([0xBB; 32]),
+            actions: vec![],
+        },
+    ] {
+        assert_eq!(
+            borsh::to_vec(&instance).expect("borsh encoding succeeds"),
+            instance.to_journal()
+        );
+    }
+}
