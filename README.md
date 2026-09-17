@@ -22,6 +22,8 @@ This is a shielded resource machine implementation based on [Risc0-zkvm](https:/
 
 - **`arm_gadgets/`**: It provides a range of commonly used components for resource logic circuits, such as verifiable encryption and ECDSA signature authentication.
 
+- **`arm_solana/`**: Transaction verification for Solana programs, built on `arm_core/` and the syscalls of the Solana runtime.
+
 - **`arm_tests/`**: It encompasses a basic resource logic instantiation and transaction tests.
 
 ## Audits
