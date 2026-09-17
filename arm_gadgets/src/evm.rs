@@ -49,6 +49,10 @@ sol! {
         address untrustedForwarder;
         bytes input;
         bytes output;
+        // The calls of these tags must run before this call.
+        bytes32[] afterTags;
+        // The calls of these tags must not run before this call.
+        bytes32[] beforeTags;
     }
 }
 
@@ -61,6 +65,8 @@ impl ForwarderCalldata {
             untrustedForwarder: untrusted_forwarder_addr,
             input: input.into(),
             output: output.into(),
+            afterTags: Vec::new(),
+            beforeTags: Vec::new(),
         }
     }
 
@@ -72,6 +78,8 @@ impl ForwarderCalldata {
             untrustedForwarder: untrusted_forwarder_addr,
             input: hex::decode(input).expect("Invalid hex input").into(),
             output: hex::decode(output).expect("Invalid hex output").into(),
+            afterTags: Vec::new(),
+            beforeTags: Vec::new(),
         }
     }
 
@@ -84,7 +92,17 @@ impl ForwarderCalldata {
                 .expect("Invalid address bytes"),
             input: input.into(),
             output: output.into(),
+            afterTags: Vec::new(),
+            beforeTags: Vec::new(),
         }
+    }
+
+    /// Constrains when this call runs relative to the calls of other resources. A tag in `after_tags` names a
+    /// resource whose calls must have run already; a tag in `before_tags` names one whose calls must not have.
+    pub fn with_ordering(mut self, after_tags: Vec<B256>, before_tags: Vec<B256>) -> Self {
+        self.afterTags = after_tags;
+        self.beforeTags = before_tags;
+        self
     }
 
     /// Encodes the ForwarderCalldata struct into a byte vector using ABI encoding.
@@ -117,6 +135,23 @@ fn forward_call_data_test() {
     assert_eq!(data.untrustedForwarder, decoded_data.untrustedForwarder);
     assert_eq!(data.input, decoded_data.input);
     assert_eq!(data.output, decoded_data.output);
+    assert!(decoded_data.afterTags.is_empty());
+    assert!(decoded_data.beforeTags.is_empty());
+}
+
+#[test]
+fn forward_call_data_carries_the_ordering_constraints() {
+    let addr = hex::decode("ffffffffffffffffffffffffffffffffffffffff").unwrap();
+    let after = B256::repeat_byte(0xaa);
+    let before = B256::repeat_byte(0xbb);
+
+    let data = ForwarderCalldata::from_bytes(&addr, vec![0xab], vec![0xcd])
+        .with_ordering(vec![after], vec![before]);
+
+    let decoded_data = ForwarderCalldata::decode(&data.encode()).unwrap();
+
+    assert_eq!(decoded_data.afterTags, vec![after]);
+    assert_eq!(decoded_data.beforeTags, vec![before]);
 }
 
 #[test]
