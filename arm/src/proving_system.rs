@@ -1,7 +1,7 @@
 //! Proving system interface for generating and verifying proofs.
 
-use crate::{error::ArmError, utils::words_to_bytes};
-use risc0_zkvm::{sha::Digest, InnerReceipt, Receipt};
+use crate::{error::ArmError, utils::words_to_bytes, Digest};
+use risc0_zkvm::{InnerReceipt, Receipt};
 use serde::{de::DeserializeOwned, Serialize};
 
 #[cfg(feature = "prove")]

@@ -12,6 +12,8 @@ This is a shielded resource machine implementation based on [Risc0-zkvm](https:/
 
 - **`arm/`**: The main Anoma Shielded Resource Machine implementation providing the core functionality for Anoma SDK and Validator.
 
+- **`arm_core/`**: The data types of the Anoma Shielded Resource Machine, shared by `arm/` and `arm_solana/`. It does not depend on RISC0 zkVM or k256.
+
 - **`arm_circuits/`**: Demonstration circuits for arms and applications:
 
   - **compliance**: Basic compliance checking circuit
@@ -19,6 +21,8 @@ This is a shielded resource machine implementation based on [Risc0-zkvm](https:/
   - **proof aggregation (batch)**: Circuit for single-run aggregation
 
 - **`arm_gadgets/`**: It provides a range of commonly used components for resource logic circuits, such as verifiable encryption and ECDSA signature authentication.
+
+- **`arm_solana/`**: Transaction verification for Solana programs, built on `arm_core/` and the syscalls of the Solana runtime.
 
 - **`arm_tests/`**: It encompasses a basic resource logic instantiation and transaction tests.
 

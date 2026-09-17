@@ -1,12 +1,7 @@
 //! Constants for compliance and padding logic proving and verification keys.
 
-use crate::{compliance::KindTableEntry, error::ArmError};
+use crate::{compliance::KindTableEntry, error::ArmError, Digest};
 use hex::FromHex;
-use lazy_static::lazy_static;
-use risc0_zkvm::{
-    sha::{Impl as ShaImpl, Sha256},
-    Digest,
-};
 use std::{path::Path, sync::OnceLock};
 
 /// Compliance proving key / compliance guest ELF binary
@@ -21,29 +16,9 @@ pub const BATCH_AGGREGATION_PK: &[u8] = include_bytes!("../elfs/batch-aggregatio
 pub const BATCH_AGGREGATION_EVM_PK: &[u8] =
     include_bytes!("../elfs/batch-aggregation-evm-guest.bin");
 
-lazy_static! {
-    /// compliance verification key / compliance image id
-    pub static ref COMPLIANCE_VK: Digest =
-        Digest::from_hex("6a09c1ab13338d0361eb867468280aae67541e5aecc7a3bd4f885a7e189e3049")
-            .unwrap();
-
-    /// padding logic verification key / padding image id
-    pub static ref PADDING_LOGIC_VK: Digest =
-        Digest::from_hex("7421e29e44360f11f05c1c754aa47830b0363f9d1cd23d02ba9364c2b521a4e1")
-            .unwrap();
-}
-
-#[cfg(feature = "aggregation")]
-lazy_static! {
-    /// Batch aggregation verification key / Batch aggregation image id.
-    pub static ref BATCH_AGGREGATION_VK: Digest = Digest::from_hex("6df7924211cfb7aacc654795cbc94e12b54a4bccecf3ed4d299e9ed3ef6a23c3").unwrap();
-}
-
-#[cfg(all(feature = "aggregation", feature = "abi_encoding"))]
-lazy_static! {
-    /// Batch aggregation (EVM ABI-encoded output) verification key / image id.
-    pub static ref BATCH_AGGREGATION_EVM_VK: Digest = Digest::from_hex("e639f52655d936a44444b49dcf8d446b3c0a72f79f2354476faad70d1f234e8e").unwrap();
-}
+pub use arm_core::constants::{
+    BATCH_AGGREGATION_EVM_VK, BATCH_AGGREGATION_VK, COMPLIANCE_VK, PADDING_LOGIC_VK,
+};
 
 /// Global kind table and its SHA-256 commitment, loaded once from a JSON file.
 static KIND_TABLE: OnceLock<(Vec<KindTableEntry>, Digest)> = OnceLock::new();
@@ -120,7 +95,7 @@ fn install_kind_table(entries: Vec<KindTableEntry>) -> Result<(), ArmError> {
     for entry in &entries {
         validate_kind_point(&entry.kind_point)?;
     }
-    let hash = hash_kind_table_entries(&entries);
+    let hash = crate::compliance::hash_kind_table_entries(&entries);
     // First call wins; a race between two threads is benign.
     let _ = KIND_TABLE.set((entries, hash));
     Ok(())
@@ -152,21 +127,11 @@ pub fn kind_table() -> &'static [KindTableEntry] {
 /// Returns the SHA-256 commitment to the global kind table, or `None` if the
 /// table has not been initialised yet.
 ///
-/// The commitment is computed using the same algorithm as
-/// `ComplianceWitness::hash_kind_table`: SHA-256 over the concatenated
-/// `(logic_ref ‖ label_ref ‖ kind_point)` bytes of every entry in order.
+/// The commitment is computed with
+/// [`crate::compliance::hash_kind_table_entries`], the same algorithm the
+/// compliance circuit commits with.
 pub fn kind_table_hash() -> Option<&'static Digest> {
     KIND_TABLE.get().map(|(_, hash)| hash)
-}
-
-fn hash_kind_table_entries(entries: &[KindTableEntry]) -> Digest {
-    let mut bytes = Vec::new();
-    for entry in entries {
-        bytes.extend_from_slice(entry.logic_ref.as_bytes());
-        bytes.extend_from_slice(entry.label_ref.as_bytes());
-        bytes.extend_from_slice(&entry.kind_point);
-    }
-    *ShaImpl::hash_bytes(&bytes)
 }
 
 #[cfg(test)]
@@ -184,11 +149,11 @@ mod tests {
         let vks = [
             (
                 "PADDING_LOGIC_VK",
-                "7421e29e44360f11f05c1c754aa47830b0363f9d1cd23d02ba9364c2b521a4e1",
+                "ce036f2a8e21367fb51433693f299e0a1ef9e0060ceadb18fae6c78ac465d9ad",
             ),
             (
                 "TEST_LOGIC_VK",
-                "13e116647f6776a264dc2a29f044bd6e03a7c6df4d56dc9d981a2df8f3c69949",
+                "f32ec9fa48f6f248ef814256586b1cd8a97e9536edf92a340b391b49319982cc",
             ),
         ];
         for (name, hex_vk) in vks {

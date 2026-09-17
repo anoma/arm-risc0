@@ -23,7 +23,7 @@
 //! | C – VK matches `resource_logic_ref`  | `resource_logic_ref` used directly as the `env::verify` key |
 
 use crate::{compliance::ComplianceInstance, logic_instance::AppData};
-use risc0_zkvm::Digest;
+use risc0_zkp::core::digest::Digest;
 use serde::{Deserialize, Serialize};
 
 /// All witness data consumed by the aggregation guest in a single read.

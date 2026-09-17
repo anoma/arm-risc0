@@ -3,25 +3,26 @@
 // ensure that the ARM crate's transaction functionalities work as expected.
 
 use anoma_rm_risc0::{
-    action::Action,
+    action::{self, Action},
     action_tree::ActionTree,
-    compliance::ComplianceWitness,
-    compliance_unit::ComplianceUnit,
+    compliance,
+    compliance_unit::{self, ComplianceUnit},
     constants::{init_kind_table_from_file, kind_table},
-    delta_proof::DeltaWitness,
+    delta_proof::{self, DeltaWitness},
     error::ArmError,
     logic_proof::{LogicProver, LogicVerifier},
     merkle_path::MerklePath,
-    nullifier_key::NullifierKey,
+    nullifier_key::{self, NullifierKey},
     proving_system::ProofType,
     resource::{ConsumedResourceWitness, Resource},
-    transaction::{Delta, Transaction},
+    transaction::{self, Delta, Transaction},
     Digest,
 };
 #[cfg(test)]
 use anoma_rm_risc0::{
     compliance::ComplianceInstance,
     constants::kind_table_hash,
+    logic_proof,
     proving_system::{instance_to_journal, journal_to_instance},
 };
 use anoma_rm_risc0_test_witness::TestLogicWitness;
@@ -35,7 +36,7 @@ pub const TEST_LOGIC_PK: &[u8] = include_bytes!("../elf/logic-test-guest.bin");
 lazy_static! {
     // test logic verification key / test image id
     pub static ref TEST_LOGIC_VK: Digest =
-        Digest::from_hex("13e116647f6776a264dc2a29f044bd6e03a7c6df4d56dc9d981a2df8f3c69949")
+        Digest::from_hex("f32ec9fa48f6f248ef814256586b1cd8a97e9536edf92a340b391b49319982cc")
             .unwrap();
 }
 
@@ -94,7 +95,7 @@ impl Tester {
     /// signed by the same fresh nullifier key, with the same [TestLogic] and
     /// quantity 1, and per-resource distinct nonces.
     pub fn populate_consumed_resources(&mut self, num: u32) {
-        let (nf_key, nk_commitment) = NullifierKey::random_pair();
+        let (nf_key, nk_commitment) = nullifier_key::random_pair();
         let consumed_data = (0..num)
             .map(|index| {
                 let resource = Resource {
@@ -150,14 +151,14 @@ impl Tester {
         self.populate_created_resources(created_num)?;
 
         init_test_kind_table();
-        let compliance_witness = ComplianceWitness::from_resources(
+        let compliance_witness = compliance::from_resources(
             self.consumed_data[self.current].clone(),
             self.created_resources[self.current].clone(),
             kind_table().to_vec(),
         );
         self.rcvs.push(compliance_witness.rcv.clone());
 
-        ComplianceUnit::create(&compliance_witness, ProofType::Succinct)
+        compliance_unit::create(&compliance_witness, ProofType::Succinct)
     }
 
     /// Creates an action with `consumed_num` consumed and `created_num` created resources.
@@ -201,7 +202,7 @@ impl Tester {
             })
             .collect::<Vec<LogicVerifier>>();
 
-        let action = Action::new(compliance_unit, logic_verifiers).unwrap();
+        let action = action::new(compliance_unit, logic_verifiers).unwrap();
         self.current += 1;
         Ok(action)
     }
@@ -224,13 +225,16 @@ impl Tester {
         consumed_created_nums: &[(u32, u32)],
     ) -> Result<Transaction, ArmError> {
         let actions = self.create_multiple_actions(consumed_created_nums)?;
-        Transaction::create(actions, Delta::Witness(self.delta_witness())).generate_delta_proof()
+        transaction::generate_delta_proof(Transaction::create(
+            actions,
+            Delta::Witness(self.delta_witness()),
+        ))
     }
 
     /// Builds a `DeltaWitness` from the per-CU randomness collected so far.
     /// Use this rather than reaching into the `rcvs` field directly.
     pub fn delta_witness(&self) -> DeltaWitness {
-        DeltaWitness::from_bytes_vec(&self.rcvs).unwrap()
+        delta_proof::from_bytes_vec(&self.rcvs).unwrap()
     }
 
     /// Test-only escape hatch: overwrites the nonce of an already-populated
@@ -274,13 +278,13 @@ fn nonce_from_index(index: u32) -> [u8; 32] {
 fn test_logic_prover() {
     let test_logic = TestLogic::default();
     let proof = test_logic.prove(ProofType::Succinct).unwrap();
-    proof.verify().unwrap();
+    logic_proof::verify(&proof).unwrap();
 }
 
 #[test]
 fn test_compliance_unit() {
     let compliance_unit = Tester::default().create_compliance_unit(3, 2).unwrap();
-    assert!(compliance_unit.verify().is_ok())
+    assert!(compliance_unit::verify(&compliance_unit).is_ok())
 }
 
 #[test]
@@ -292,7 +296,7 @@ fn test_compliance_unit_must_consume_resources() {
 #[test]
 fn test_action() {
     let action = Tester::default().create_an_action(3, 2).unwrap();
-    assert!(action.verify().is_ok())
+    assert!(action::verify(&action).is_ok())
 }
 
 #[test]
@@ -300,7 +304,7 @@ fn test_transaction() {
     let balanced_tx = Tester::default()
         .generate_test_transaction(&[(2, 1), (1, 2)])
         .unwrap();
-    assert!(balanced_tx.verify(*kind_table_hash().unwrap()).is_ok())
+    assert!(transaction::verify(&balanced_tx, *kind_table_hash().unwrap()).is_ok())
 }
 
 #[test]
@@ -308,7 +312,7 @@ fn test_unbalanced_tx_fails_to_verify() {
     let unbalanced_tx = Tester::default()
         .generate_test_transaction(&[(2, 1), (1, 1)])
         .unwrap();
-    assert!(unbalanced_tx.verify(*kind_table_hash().unwrap()).is_err())
+    assert!(transaction::verify(&unbalanced_tx, *kind_table_hash().unwrap()).is_err())
 }
 
 #[test]
@@ -319,12 +323,12 @@ fn test_unmatched_logic_verifier_inputs_in_action() {
     // Swap logic verifier inputs to cause tag mismatch at position 0 in action0.
     let mut action0 = actions[0].clone();
     action0.logic_verifier_inputs = actions[1].logic_verifier_inputs.clone();
-    assert!(action0.verify().is_err());
+    assert!(action::verify(&action0).is_err());
 
     // Empty logic verifier inputs: length mismatch must be rejected.
     let mut action1 = actions[1].clone();
     action1.logic_verifier_inputs = vec![];
-    assert!(action1.verify().is_err());
+    assert!(action::verify(&action1).is_err());
 }
 
 #[test]
@@ -339,7 +343,7 @@ fn test_logic_verifier_input_with_wrong_verifying_key_rejected() {
         .unwrap();
     let mut action = actions[0].clone();
     action.logic_verifier_inputs[0].verifying_key = Digest::default();
-    assert_eq!(action.verify(), Err(ArmError::VerifyingKeyMismatch));
+    assert_eq!(action::verify(&action), Err(ArmError::VerifyingKeyMismatch));
 }
 
 #[test]
@@ -347,13 +351,13 @@ fn test_nullifier_duplication_check() {
     let mut tx = Tester::default()
         .generate_test_transaction(&[(1, 1), (1, 1)])
         .unwrap();
-    assert!(tx.nf_duplication_check().is_ok());
+    assert!(transaction::nf_duplication_check(&tx).is_ok());
 
     // Introduce a duplicate nullifier by replacing action 1 with action 0.
     let action0 = tx.actions.as_ref().unwrap()[0].clone();
     tx.actions.as_mut().unwrap()[1] = action0;
 
-    assert!(tx.nf_duplication_check().is_err());
+    assert!(transaction::nf_duplication_check(&tx).is_err());
 }
 
 /// All actions carry the global kind-table commitment — the check must pass.
@@ -362,9 +366,7 @@ fn test_kind_table_commitment_check_accepts_global_commitment() {
     let tx = Tester::default()
         .generate_test_transaction(&[(1, 1)])
         .unwrap();
-    assert!(tx
-        .kind_table_commitment_check(*kind_table_hash().unwrap())
-        .is_ok());
+    assert!(transaction::kind_table_commitment_check(&tx, *kind_table_hash().unwrap()).is_ok());
 }
 
 /// All actions carry a non-global commitment and the caller supplies that same
@@ -381,7 +383,7 @@ fn test_kind_table_commitment_check_accepts_explicit_non_global_commitment() {
     set_action_kind_table_commitment(&mut actions[0], fake);
     set_action_kind_table_commitment(&mut actions[1], fake);
 
-    assert!(tx.kind_table_commitment_check(fake).is_ok());
+    assert!(transaction::kind_table_commitment_check(&tx, fake).is_ok());
 }
 
 /// One action has a different commitment from the other — cross-action
@@ -398,7 +400,7 @@ fn test_kind_table_commitment_check_rejects_mismatched_actions() {
     );
 
     assert!(matches!(
-        tx.kind_table_commitment_check(*kind_table_hash().unwrap()),
+        transaction::kind_table_commitment_check(&tx, *kind_table_hash().unwrap()),
         Err(ArmError::KindTableCommitmentMismatch)
     ));
 }
@@ -418,11 +420,11 @@ fn test_kind_table_commitment_check_rejects_consistent_non_global() {
     set_action_kind_table_commitment(&mut actions[1], fake);
 
     // Caller-provided commitment matching the tx must succeed.
-    assert!(tx.kind_table_commitment_check(fake).is_ok());
+    assert!(transaction::kind_table_commitment_check(&tx, fake).is_ok());
 
     // Passing a different (global) commitment must be rejected.
     assert!(matches!(
-        tx.kind_table_commitment_check(*kind_table_hash().unwrap()),
+        transaction::kind_table_commitment_check(&tx, *kind_table_hash().unwrap()),
         Err(ArmError::KindTableCommitmentExpectedMismatch)
     ));
 }
@@ -441,7 +443,7 @@ fn test_kind_table_commitment_check_rejects_global_mismatch() {
     );
 
     assert!(matches!(
-        tx.kind_table_commitment_check(*kind_table_hash().unwrap()),
+        transaction::kind_table_commitment_check(&tx, *kind_table_hash().unwrap()),
         Err(ArmError::KindTableCommitmentExpectedMismatch)
     ));
 }
@@ -452,13 +454,13 @@ fn test_aggregation_works() {
         .generate_test_transaction(&[(2, 2), (2, 2)])
         .unwrap();
     let mut tx_str = tx.clone();
-    assert!(tx_str.aggregate(ProofType::Succinct).is_ok());
+    assert!(transaction::aggregate(&mut tx_str, ProofType::Succinct).is_ok());
     // After aggregation: actions must be None, aggregation must be Some.
     assert!(tx_str.actions.is_none());
     assert!(tx_str.aggregation.is_some());
-    assert!(tx_str.verify_aggregation().is_ok());
+    assert!(transaction::verify_aggregation(&tx_str).is_ok());
     // Full verify() must also succeed on the post-aggregation transaction.
-    assert!(tx_str.verify(*kind_table_hash().unwrap()).is_ok());
+    assert!(transaction::verify(&tx_str, *kind_table_hash().unwrap()).is_ok());
 
     // Tamper the compliance_key in the decoded instance — the receipt is still
     // valid against BATCH_AGGREGATION_VK, but the compliance_key check must
@@ -466,7 +468,7 @@ fn test_aggregation_works() {
     if let Some(ref mut agg) = tx_str.aggregation {
         agg.instance.compliance_key = Digest::from([0xABu8; 32]);
     }
-    assert!(tx_str.verify_aggregation().is_err());
+    assert!(transaction::verify_aggregation(&tx_str).is_err());
 }
 
 /// After aggregation, the decoded `AggregationInstance` survives a round-trip
@@ -480,7 +482,7 @@ fn test_evm_instance_roundtrip_after_aggregation() {
         .generate_test_transaction(&[(2, 2), (1, 1)])
         .unwrap();
     let mut tx_str = tx.clone();
-    tx_str.aggregate(ProofType::Succinct).unwrap();
+    transaction::aggregate(&mut tx_str, ProofType::Succinct).unwrap();
 
     let instance = tx_str.aggregation.as_ref().unwrap().instance.clone();
 
@@ -512,16 +514,16 @@ fn test_aggregation_works_groth16() {
         .generate_test_transaction(&[(2, 2), (2, 2)])
         .unwrap();
     let mut tx_str = tx.clone();
-    assert!(tx_str.aggregate(ProofType::Groth16).is_ok());
+    assert!(transaction::aggregate(&mut tx_str, ProofType::Groth16).is_ok());
     assert!(tx_str.actions.is_none());
     assert!(tx_str.aggregation.is_some());
-    assert!(tx_str.verify_aggregation().is_ok());
+    assert!(transaction::verify_aggregation(&tx_str).is_ok());
 }
 
 #[test]
 fn test_verify_aggregation_fails_for_tampered_instance() {
-    use anoma_rm_risc0::transaction::Aggregation;
     use anoma_rm_risc0::{aggregation_instance::AggregationInstance, Digest};
+    use transaction::Aggregation;
 
     let mut tx = Tester::default()
         .generate_test_transaction(&[(2, 2), (2, 2)])
@@ -539,13 +541,13 @@ fn test_verify_aggregation_fails_for_tampered_instance() {
         instance: fake_instance,
     });
 
-    assert!(tx.verify_aggregation().is_err());
+    assert!(transaction::verify_aggregation(&tx).is_err());
 }
 
 #[test]
 fn test_verify_rejects_transaction_with_both_actions_and_aggregation() {
-    use anoma_rm_risc0::transaction::Aggregation;
     use anoma_rm_risc0::{aggregation_instance::AggregationInstance, Digest};
+    use transaction::Aggregation;
 
     // `Transaction` is a plain deserializable struct, so nothing stops a
     // crafted instance from carrying both `actions` (unverified, real
@@ -575,7 +577,7 @@ fn test_verify_rejects_transaction_with_both_actions_and_aggregation() {
         Err(ArmError::AmbiguousTransactionRepresentation)
     );
     assert_eq!(
-        tx.verify(Digest::from([0u8; 32])),
+        transaction::verify(&tx, Digest::from([0u8; 32])),
         Err(ArmError::AmbiguousTransactionRepresentation)
     );
 }
@@ -586,7 +588,7 @@ fn test_verify_rejects_transaction_with_both_actions_and_aggregation() {
 #[test]
 fn test_action_with_zero_created() {
     let action = Tester::default().create_an_action(1, 0).unwrap();
-    assert!(action.verify().is_ok());
+    assert!(action::verify(&action).is_ok());
 }
 
 /// `Tester` defaults consume same-kind resources, so summing 2 consumed and 2
@@ -595,7 +597,7 @@ fn test_action_with_zero_created() {
 #[test]
 fn test_compliance_unit_balanced_same_kind() {
     let unit = Tester::default().create_compliance_unit(2, 2).unwrap();
-    assert!(unit.verify().is_ok());
+    assert!(compliance_unit::verify(&unit).is_ok());
 }
 
 /// Composing two balanced witness-form transactions yields a balanced
@@ -610,11 +612,9 @@ fn test_compose_transactions() {
     let actions_b = tester_b.create_multiple_actions(&[(2, 2)]).unwrap();
     let tx_b = Transaction::create(actions_b, Delta::Witness(tester_b.delta_witness()));
 
-    let composed = Transaction::compose(tx_a, tx_b)
-        .unwrap()
-        .generate_delta_proof()
-        .unwrap();
-    assert!(composed.verify(*kind_table_hash().unwrap()).is_ok());
+    let composed =
+        transaction::generate_delta_proof(transaction::compose(tx_a, tx_b).unwrap()).unwrap();
+    assert!(transaction::verify(&composed, *kind_table_hash().unwrap()).is_ok());
 }
 
 /// `compose()` must reject any input that carries both `actions` and
@@ -624,12 +624,10 @@ fn test_compose_transactions() {
 /// cryptographic work, so dummy delta witnesses and empty action vecs suffice.
 #[test]
 fn test_compose_rejects_ambiguous_transaction() {
-    use anoma_rm_risc0::transaction::Aggregation;
-    use anoma_rm_risc0::{
-        aggregation_instance::AggregationInstance, delta_proof::DeltaWitness, Digest,
-    };
+    use anoma_rm_risc0::{aggregation_instance::AggregationInstance, Digest};
+    use transaction::Aggregation;
 
-    let dummy_delta = || Delta::Witness(DeltaWitness::from_bytes_vec(&[vec![1u8; 32]]).unwrap());
+    let dummy_delta = || Delta::Witness(delta_proof::from_bytes_vec(&[vec![1u8; 32]]).unwrap());
 
     // A well-formed transaction (actions present, no aggregation).
     let tx_clean = Transaction::create(vec![], dummy_delta());
@@ -646,11 +644,11 @@ fn test_compose_rejects_ambiguous_transaction() {
     });
 
     assert_eq!(
-        Transaction::compose(tx_ambiguous.clone(), tx_clean.clone()),
+        transaction::compose(tx_ambiguous.clone(), tx_clean.clone()),
         Err(ArmError::CannotComposeAggregated),
     );
     assert_eq!(
-        Transaction::compose(tx_clean, tx_ambiguous),
+        transaction::compose(tx_clean, tx_ambiguous),
         Err(ArmError::CannotComposeAggregated),
     );
 }
@@ -680,7 +678,7 @@ fn test_cannot_aggregate_invalid_proofs() {
     let bad_tx = Transaction::create(vec![bad_action, actions[1].clone()], tx.delta_proof);
 
     let mut bad_tx_str = bad_tx.clone();
-    assert!(bad_tx_str.aggregate(ProofType::Succinct).is_err());
+    assert!(transaction::aggregate(&mut bad_tx_str, ProofType::Succinct).is_err());
     assert!(bad_tx_str.aggregation.is_none());
 }
 
@@ -688,11 +686,10 @@ fn test_cannot_aggregate_invalid_proofs() {
 /// rather than panicking inside the guest.
 #[test]
 fn test_cannot_aggregate_empty_actions() {
-    let dummy_delta = Delta::Witness(DeltaWitness::from_bytes_vec(&[vec![1u8; 32]]).unwrap());
-    let mut tx = Transaction::create(vec![], dummy_delta)
-        .generate_delta_proof()
-        .unwrap();
-    let result = tx.aggregate(ProofType::Succinct);
+    let dummy_delta = Delta::Witness(delta_proof::from_bytes_vec(&[vec![1u8; 32]]).unwrap());
+    let mut tx =
+        transaction::generate_delta_proof(Transaction::create(vec![], dummy_delta)).unwrap();
+    let result = transaction::aggregate(&mut tx, ProofType::Succinct);
     assert!(result.is_err());
     assert!(tx.aggregation.is_none());
 }
@@ -707,14 +704,14 @@ fn test_invalid_created_nonce_rejected() {
     tester.set_created_nonce(0, 0, [0xAA; 32]);
 
     init_test_kind_table();
-    let witness = ComplianceWitness::from_resources(
+    let witness = compliance::from_resources(
         tester.consumed_data[0].clone(),
         tester.created_resources[0].clone(),
         kind_table().to_vec(),
     );
 
     assert!(matches!(
-        witness.constrain(),
+        compliance::constrain(&witness),
         Err(ArmError::InvalidResourceNonce)
     ));
 }
