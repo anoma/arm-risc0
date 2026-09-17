@@ -15,6 +15,8 @@ The `anoma-rm-risc0` crate provides the core functionality of a resource-based s
 
 ### Core Modules
 
+The types of these modules are defined in [`anoma-rm-core`](../arm_core/README.md) and re-exported here; this crate adds proof generation and verification on top of them.
+
 - **`resource`**: Resource definition and serialization
 - **`resource_logic`**: Custom logic and constraints for resources
 - **`transaction`**: Transaction structure and validation
