@@ -23,7 +23,7 @@ use anoma_rm_risc0::{
     compliance::ComplianceInstance,
     constants::kind_table_hash,
     logic_proof,
-    proving_system::{instance_to_journal, journal_to_instance},
+    proving_system::{instance_to_journal, journal_to_instance, JournalEncoding},
 };
 use anoma_rm_risc0_test_witness::TestLogicWitness;
 use hex::FromHex;
@@ -304,7 +304,12 @@ fn test_transaction() {
     let balanced_tx = Tester::default()
         .generate_test_transaction(&[(2, 1), (1, 2)])
         .unwrap();
-    assert!(transaction::verify(&balanced_tx, *kind_table_hash().unwrap()).is_ok())
+    assert!(transaction::verify(
+        &balanced_tx,
+        *kind_table_hash().unwrap(),
+        JournalEncoding::Risc0Serde
+    )
+    .is_ok())
 }
 
 #[test]
@@ -312,7 +317,12 @@ fn test_unbalanced_tx_fails_to_verify() {
     let unbalanced_tx = Tester::default()
         .generate_test_transaction(&[(2, 1), (1, 1)])
         .unwrap();
-    assert!(transaction::verify(&unbalanced_tx, *kind_table_hash().unwrap()).is_err())
+    assert!(transaction::verify(
+        &unbalanced_tx,
+        *kind_table_hash().unwrap(),
+        JournalEncoding::Risc0Serde
+    )
+    .is_err())
 }
 
 #[test]
@@ -454,13 +464,23 @@ fn test_aggregation_works() {
         .generate_test_transaction(&[(2, 2), (2, 2)])
         .unwrap();
     let mut tx_str = tx.clone();
-    assert!(transaction::aggregate(&mut tx_str, ProofType::Succinct).is_ok());
+    assert!(transaction::aggregate(
+        &mut tx_str,
+        ProofType::Succinct,
+        JournalEncoding::Risc0Serde
+    )
+    .is_ok());
     // After aggregation: actions must be None, aggregation must be Some.
     assert!(tx_str.actions.is_none());
     assert!(tx_str.aggregation.is_some());
-    assert!(transaction::verify_aggregation(&tx_str).is_ok());
+    assert!(transaction::verify_aggregation(&tx_str, JournalEncoding::Risc0Serde).is_ok());
     // Full verify() must also succeed on the post-aggregation transaction.
-    assert!(transaction::verify(&tx_str, *kind_table_hash().unwrap()).is_ok());
+    assert!(transaction::verify(
+        &tx_str,
+        *kind_table_hash().unwrap(),
+        JournalEncoding::Risc0Serde
+    )
+    .is_ok());
 
     // Tamper the compliance_key in the decoded instance — the receipt is still
     // valid against BATCH_AGGREGATION_VK, but the compliance_key check must
@@ -468,7 +488,7 @@ fn test_aggregation_works() {
     if let Some(ref mut agg) = tx_str.aggregation {
         agg.instance.compliance_key = Digest::from([0xABu8; 32]);
     }
-    assert!(transaction::verify_aggregation(&tx_str).is_err());
+    assert!(transaction::verify_aggregation(&tx_str, JournalEncoding::Risc0Serde).is_err());
 }
 
 /// After aggregation, the decoded `AggregationInstance` survives a round-trip
@@ -482,7 +502,7 @@ fn test_evm_instance_roundtrip_after_aggregation() {
         .generate_test_transaction(&[(2, 2), (1, 1)])
         .unwrap();
     let mut tx_str = tx.clone();
-    transaction::aggregate(&mut tx_str, ProofType::Succinct).unwrap();
+    transaction::aggregate(&mut tx_str, ProofType::Succinct, JournalEncoding::Abi).unwrap();
 
     let instance = tx_str.aggregation.as_ref().unwrap().instance.clone();
 
@@ -514,10 +534,13 @@ fn test_aggregation_works_groth16() {
         .generate_test_transaction(&[(2, 2), (2, 2)])
         .unwrap();
     let mut tx_str = tx.clone();
-    assert!(transaction::aggregate(&mut tx_str, ProofType::Groth16).is_ok());
+    assert!(
+        transaction::aggregate(&mut tx_str, ProofType::Groth16, JournalEncoding::Risc0Serde)
+            .is_ok()
+    );
     assert!(tx_str.actions.is_none());
     assert!(tx_str.aggregation.is_some());
-    assert!(transaction::verify_aggregation(&tx_str).is_ok());
+    assert!(transaction::verify_aggregation(&tx_str, JournalEncoding::Risc0Serde).is_ok());
 }
 
 #[test]
@@ -541,7 +564,7 @@ fn test_verify_aggregation_fails_for_tampered_instance() {
         instance: fake_instance,
     });
 
-    assert!(transaction::verify_aggregation(&tx).is_err());
+    assert!(transaction::verify_aggregation(&tx, JournalEncoding::Risc0Serde).is_err());
 }
 
 #[test]
@@ -577,7 +600,7 @@ fn test_verify_rejects_transaction_with_both_actions_and_aggregation() {
         Err(ArmError::AmbiguousTransactionRepresentation)
     );
     assert_eq!(
-        transaction::verify(&tx, Digest::from([0u8; 32])),
+        transaction::verify(&tx, Digest::from([0u8; 32]), JournalEncoding::Risc0Serde),
         Err(ArmError::AmbiguousTransactionRepresentation)
     );
 }
@@ -614,7 +637,12 @@ fn test_compose_transactions() {
 
     let composed =
         transaction::generate_delta_proof(transaction::compose(tx_a, tx_b).unwrap()).unwrap();
-    assert!(transaction::verify(&composed, *kind_table_hash().unwrap()).is_ok());
+    assert!(transaction::verify(
+        &composed,
+        *kind_table_hash().unwrap(),
+        JournalEncoding::Risc0Serde
+    )
+    .is_ok());
 }
 
 /// `compose()` must reject any input that carries both `actions` and
@@ -678,7 +706,12 @@ fn test_cannot_aggregate_invalid_proofs() {
     let bad_tx = Transaction::create(vec![bad_action, actions[1].clone()], tx.delta_proof);
 
     let mut bad_tx_str = bad_tx.clone();
-    assert!(transaction::aggregate(&mut bad_tx_str, ProofType::Succinct).is_err());
+    assert!(transaction::aggregate(
+        &mut bad_tx_str,
+        ProofType::Succinct,
+        JournalEncoding::Risc0Serde
+    )
+    .is_err());
     assert!(bad_tx_str.aggregation.is_none());
 }
 
@@ -689,9 +722,61 @@ fn test_cannot_aggregate_empty_actions() {
     let dummy_delta = Delta::Witness(delta_proof::from_bytes_vec(&[vec![1u8; 32]]).unwrap());
     let mut tx =
         transaction::generate_delta_proof(Transaction::create(vec![], dummy_delta)).unwrap();
-    let result = transaction::aggregate(&mut tx, ProofType::Succinct);
+    let result = transaction::aggregate(&mut tx, ProofType::Succinct, JournalEncoding::Risc0Serde);
     assert!(result.is_err());
     assert!(tx.aggregation.is_none());
+}
+
+/// `JournalEncoding::Abi` without the `abi_encoding` feature must fail at
+/// runtime with a clear error rather than silently producing a wrong result.
+#[test]
+#[cfg(not(feature = "abi_encoding"))]
+fn test_journal_encoding_abi_requires_abi_encoding_feature() {
+    let tx = Tester::default()
+        .generate_test_transaction(&[(1, 1)])
+        .unwrap();
+    let mut tx_str = tx.clone();
+
+    let err =
+        transaction::aggregate(&mut tx_str, ProofType::Succinct, JournalEncoding::Abi).unwrap_err();
+    assert!(
+        matches!(err, ArmError::ProveFailed(_)),
+        "expected ProveFailed, got {err:?}"
+    );
+    // aggregate() must not have modified the transaction.
+    assert!(tx_str.aggregation.is_none());
+    assert!(tx_str.actions.is_some());
+}
+
+/// `JournalEncoding::Abi` without the `abi_encoding` feature must be rejected
+/// before any proof deserialization — the error is always `ProofVerificationFailed`,
+/// independent of whether the stored proof bytes are valid.
+#[test]
+#[cfg(not(feature = "abi_encoding"))]
+fn test_verify_aggregation_abi_encoding_error_without_feature() {
+    use anoma_rm_risc0::{aggregation_instance::AggregationInstance, Digest};
+    use transaction::Aggregation;
+
+    // Construct a minimal aggregation-only transaction without running any
+    // proving — the encoding guard fires before the receipt is touched.
+    let fake_instance = AggregationInstance {
+        compliance_key: Digest::default(),
+        kind_table_commitment: Digest::default(),
+        actions: vec![],
+    };
+    let dummy_delta = Delta::Witness(delta_proof::from_bytes_vec(&[vec![1u8; 32]]).unwrap());
+    let mut tx = Transaction::create(vec![], dummy_delta);
+    tx.actions = None;
+    tx.aggregation = Some(Aggregation {
+        proof: vec![],
+        instance: fake_instance,
+    });
+
+    let err = transaction::verify_aggregation(&tx, JournalEncoding::Abi).unwrap_err();
+    assert!(
+        matches!(err, ArmError::ProofVerificationFailed(_)),
+        "expected ProofVerificationFailed, got {err:?}"
+    );
 }
 
 /// Constructing a compliance witness with a wrong created-resource nonce must

@@ -16,6 +16,18 @@ pub enum ProofType {
     Groth16,
 }
 
+/// Encoding used for the batch aggregation circuit's journal.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum JournalEncoding {
+    /// RISC Zero's native serde encoding (`risc0_zkvm::serde`).
+    /// This is the default encoding for RISC Zero guest circuits and is also
+    /// consumed by the Solana verifier.
+    Risc0Serde,
+    /// EVM ABI encoding. The `abi_encoding` feature must be enabled at compile time;
+    /// selecting this variant without that feature returns a runtime error.
+    Abi,
+}
+
 /// Proves a statement given a proving key and a witness, returning the proof and the instance.
 #[cfg(feature = "prove")]
 pub fn prove<T: Serialize>(
