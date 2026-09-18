@@ -493,7 +493,6 @@ fn test_aggregation_works() {
 
 /// After aggregation, the decoded `AggregationInstance` survives a round-trip
 /// through `AggregationInstanceEvm` and matches structural expectations.
-#[cfg(feature = "abi_encoding")]
 #[test]
 fn test_evm_instance_roundtrip_after_aggregation() {
     use anoma_rm_risc0::aggregation_instance::{abi_encode_instance, AggregationInstanceEvm};
@@ -725,58 +724,6 @@ fn test_cannot_aggregate_empty_actions() {
     let result = transaction::aggregate(&mut tx, ProofType::Succinct, JournalEncoding::Risc0Serde);
     assert!(result.is_err());
     assert!(tx.aggregation.is_none());
-}
-
-/// `JournalEncoding::Abi` without the `abi_encoding` feature must fail at
-/// runtime with a clear error rather than silently producing a wrong result.
-#[test]
-#[cfg(not(feature = "abi_encoding"))]
-fn test_journal_encoding_abi_requires_abi_encoding_feature() {
-    let tx = Tester::default()
-        .generate_test_transaction(&[(1, 1)])
-        .unwrap();
-    let mut tx_str = tx.clone();
-
-    let err =
-        transaction::aggregate(&mut tx_str, ProofType::Succinct, JournalEncoding::Abi).unwrap_err();
-    assert!(
-        matches!(err, ArmError::ProveFailed(_)),
-        "expected ProveFailed, got {err:?}"
-    );
-    // aggregate() must not have modified the transaction.
-    assert!(tx_str.aggregation.is_none());
-    assert!(tx_str.actions.is_some());
-}
-
-/// `JournalEncoding::Abi` without the `abi_encoding` feature must be rejected
-/// before any proof deserialization — the error is always `ProofVerificationFailed`,
-/// independent of whether the stored proof bytes are valid.
-#[test]
-#[cfg(not(feature = "abi_encoding"))]
-fn test_verify_aggregation_abi_encoding_error_without_feature() {
-    use anoma_rm_risc0::{aggregation_instance::AggregationInstance, Digest};
-    use transaction::Aggregation;
-
-    // Construct a minimal aggregation-only transaction without running any
-    // proving — the encoding guard fires before the receipt is touched.
-    let fake_instance = AggregationInstance {
-        compliance_key: Digest::default(),
-        kind_table_commitment: Digest::default(),
-        actions: vec![],
-    };
-    let dummy_delta = Delta::Witness(delta_proof::from_bytes_vec(&[vec![1u8; 32]]).unwrap());
-    let mut tx = Transaction::create(vec![], dummy_delta);
-    tx.actions = None;
-    tx.aggregation = Some(Aggregation {
-        proof: vec![],
-        instance: fake_instance,
-    });
-
-    let err = transaction::verify_aggregation(&tx, JournalEncoding::Abi).unwrap_err();
-    assert!(
-        matches!(err, ArmError::ProofVerificationFailed(_)),
-        "expected ProofVerificationFailed, got {err:?}"
-    );
 }
 
 /// Constructing a compliance witness with a wrong created-resource nonce must

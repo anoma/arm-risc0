@@ -7,9 +7,9 @@ pub use arm_core::transaction::*;
 
 #[cfg(feature = "aggregation")]
 use crate::aggregation_instance::AggregationInstance;
-#[cfg(all(feature = "aggregation", feature = "prove", feature = "abi_encoding"))]
+#[cfg(all(feature = "aggregation", feature = "prove"))]
 use crate::constants::BATCH_AGGREGATION_EVM_PK;
-#[cfg(all(feature = "aggregation", feature = "abi_encoding"))]
+#[cfg(feature = "aggregation")]
 use crate::constants::BATCH_AGGREGATION_EVM_VK;
 #[cfg(all(feature = "aggregation", feature = "prove"))]
 use crate::constants::BATCH_AGGREGATION_PK;
@@ -66,8 +66,7 @@ pub fn generate_delta_proof(tx: Transaction) -> Result<Transaction, ArmError> {
 /// `encoding` selects how the batch aggregation journal is interpreted when
 /// the transaction carries an aggregation proof. Pass [`JournalEncoding::Risc0Serde`]
 /// for the default RISC Zero / Solana path or [`JournalEncoding::Abi`] for the
-/// EVM path (requires the `abi_encoding` feature; returns an error otherwise).
-/// For non-aggregated transactions the parameter is ignored.
+/// EVM path. For non-aggregated transactions the parameter is ignored.
 pub fn verify(
     tx: &Transaction,
     kind_table_commitment: Digest,
@@ -305,8 +304,7 @@ pub fn get_logic_vks_and_instances(
 /// resulting journal is decoded:
 /// - [`JournalEncoding::Risc0Serde`] uses the standard RISC Zero / Solana ELF
 ///   and decodes the journal with `risc0_zkvm::serde`.
-/// - [`JournalEncoding::Abi`] uses the EVM ABI ELF and ABI-decodes the journal;
-///   requires the `abi_encoding` feature (returns an error otherwise).
+/// - [`JournalEncoding::Abi`] uses the EVM ABI ELF and ABI-decodes the journal.
 ///
 /// On success, `tx.aggregation` is populated with the proof and decoded
 /// `AggregationInstance`, and `tx.actions` is set to `None` (the
@@ -328,13 +326,6 @@ pub fn aggregate(
     if actions.is_empty() {
         return Err(ArmError::ProveFailed(
             "Cannot aggregate: transaction has no actions".into(),
-        ));
-    }
-
-    #[cfg(not(feature = "abi_encoding"))]
-    if matches!(encoding, JournalEncoding::Abi) {
-        return Err(ArmError::ProveFailed(
-            "JournalEncoding::Abi requires the `abi_encoding` feature".into(),
         ));
     }
 
@@ -405,14 +396,7 @@ pub fn aggregate(
     // Prove batch.
     let pk = match encoding {
         JournalEncoding::Risc0Serde => BATCH_AGGREGATION_PK,
-        JournalEncoding::Abi => {
-            #[cfg(feature = "abi_encoding")]
-            {
-                BATCH_AGGREGATION_EVM_PK
-            }
-            #[cfg(not(feature = "abi_encoding"))]
-            unreachable!("Abi encoding rejected at function entry")
-        }
+        JournalEncoding::Abi => BATCH_AGGREGATION_EVM_PK,
     };
 
     let agg_receipt = prover
@@ -427,13 +411,8 @@ pub fn aggregate(
             .decode()
             .map_err(|_| ArmError::InstanceSerializationFailed)?,
         JournalEncoding::Abi => {
-            #[cfg(feature = "abi_encoding")]
-            {
-                crate::aggregation_instance::abi_decode_instance(&agg_receipt.journal.bytes)
-                    .map_err(|_| ArmError::InstanceSerializationFailed)?
-            }
-            #[cfg(not(feature = "abi_encoding"))]
-            unreachable!("Abi encoding rejected at function entry")
+            crate::aggregation_instance::abi_decode_instance(&agg_receipt.journal.bytes)
+                .map_err(|_| ArmError::InstanceSerializationFailed)?
         }
     };
 
@@ -455,13 +434,6 @@ pub fn aggregate(
 pub fn verify_aggregation(tx: &Transaction, encoding: JournalEncoding) -> Result<(), ArmError> {
     tx.check_representation()?;
 
-    #[cfg(not(feature = "abi_encoding"))]
-    if matches!(encoding, JournalEncoding::Abi) {
-        return Err(ArmError::ProofVerificationFailed(
-            "JournalEncoding::Abi requires the `abi_encoding` feature".into(),
-        ));
-    }
-
     let agg = tx
         .aggregation
         .as_ref()
@@ -477,16 +449,11 @@ pub fn verify_aggregation(tx: &Transaction, encoding: JournalEncoding) -> Result
             (words_to_bytes(&words).to_vec(), BATCH_AGGREGATION_VK)
         }
         JournalEncoding::Abi => {
-            #[cfg(feature = "abi_encoding")]
-            {
-                use crate::aggregation_instance::abi_encode_instance;
-                (
-                    abi_encode_instance(agg.instance.clone()),
-                    BATCH_AGGREGATION_EVM_VK,
-                )
-            }
-            #[cfg(not(feature = "abi_encoding"))]
-            unreachable!("Abi encoding rejected at function entry")
+            use crate::aggregation_instance::abi_encode_instance;
+            (
+                abi_encode_instance(agg.instance.clone()),
+                BATCH_AGGREGATION_EVM_VK,
+            )
         }
     };
 

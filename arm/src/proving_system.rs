@@ -23,8 +23,7 @@ pub enum JournalEncoding {
     /// This is the default encoding for RISC Zero guest circuits and is also
     /// consumed by the Solana verifier.
     Risc0Serde,
-    /// EVM ABI encoding. The `abi_encoding` feature must be enabled at compile time;
-    /// selecting this variant without that feature returns a runtime error.
+    /// EVM ABI encoding, consumed by EVM verifiers.
     Abi,
 }
 

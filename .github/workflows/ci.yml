@@ -86,8 +86,8 @@ jobs:
       - name: Run clippy (main workspace)
         run: cargo clippy --workspace --all-targets -- -D warnings
 
-      - name: Run clippy (aggregation + abi_encoding)
-        run: cargo clippy -p anoma-rm-risc0 -p anoma-rm-risc0-test-app --all-targets --features aggregation,abi_encoding,prove -- -D warnings
+      - name: Run clippy (aggregation + prove)
+        run: cargo clippy -p anoma-rm-risc0 -p anoma-rm-risc0-test-app --all-targets --features aggregation,prove -- -D warnings
 
   build:
     name: Build
@@ -156,8 +156,8 @@ jobs:
       - name: Run tests (main workspace)
         run: cargo test --workspace
 
-      - name: Run tests (aggregation + abi_encoding)
-        run: cargo test -p anoma-rm-risc0 -p anoma-rm-risc0-test-app --features aggregation,abi_encoding,prove
+      - name: Run tests (aggregation + prove)
+        run: cargo test -p anoma-rm-risc0 -p anoma-rm-risc0-test-app --features aggregation,prove
 
   test-release:
     name: Test Release
@@ -179,8 +179,8 @@ jobs:
         run: cargo test --workspace --release
         timeout-minutes: 60
 
-      - name: Run release tests (aggregation + abi_encoding)
-        run: cargo test -p anoma-rm-risc0 -p anoma-rm-risc0-test-app --release --features aggregation,abi_encoding,prove
+      - name: Run release tests (aggregation + prove)
+        run: cargo test -p anoma-rm-risc0 -p anoma-rm-risc0-test-app --release --features aggregation,prove
         timeout-minutes: 60
 
   solana:

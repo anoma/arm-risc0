@@ -7,7 +7,6 @@ pub use arm_core::aggregation_instance::*;
 use crate::{error::ArmError, utils::words_to_bytes};
 use k256::{elliptic_curve::sec1::FromEncodedPoint, EncodedPoint, ProjectivePoint};
 
-#[cfg(feature = "abi_encoding")]
 pub use evm::{abi_decode_instance, abi_encode_instance, AggregationInstanceEvm};
 
 /// Decodes an action's stored delta_x/delta_y coordinates into a projective point.
@@ -22,7 +21,6 @@ pub fn delta_projective(action: &ActionAggregated) -> Result<ProjectivePoint, Ar
         .ok_or(ArmError::InvalidDelta)
 }
 
-#[cfg(feature = "abi_encoding")]
 mod evm {
     use alloy_primitives::{FixedBytes, U256};
     use alloy_sol_types::sol;

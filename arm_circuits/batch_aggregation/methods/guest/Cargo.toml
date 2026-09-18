@@ -15,7 +15,7 @@ anoma-rm-risc0 = { path = "../../../../arm", features = [
 ], default-features = false }
 
 [features]
-abi_encoding = ["anoma-rm-risc0/abi_encoding"]
+abi_encoding = []
 
 [patch.crates-io]
 k256 = { git = "https://github.com/risc0/RustCrypto-elliptic-curves", tag = "k256/v0.13.3-risczero.1" }
