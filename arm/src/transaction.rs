@@ -7,25 +7,22 @@ pub use arm_core::transaction::*;
 
 #[cfg(feature = "aggregation")]
 use crate::aggregation_instance::AggregationInstance;
-#[cfg(all(feature = "aggregation", feature = "prove", feature = "abi_encoding"))]
+#[cfg(all(feature = "aggregation", feature = "prove"))]
 use crate::constants::BATCH_AGGREGATION_EVM_PK;
-#[cfg(all(feature = "aggregation", feature = "abi_encoding"))]
+#[cfg(feature = "aggregation")]
 use crate::constants::BATCH_AGGREGATION_EVM_VK;
-#[cfg(all(
-    feature = "aggregation",
-    feature = "prove",
-    not(feature = "abi_encoding")
-))]
+#[cfg(all(feature = "aggregation", feature = "prove"))]
 use crate::constants::BATCH_AGGREGATION_PK;
 #[cfg(feature = "aggregation")]
-use crate::constants::COMPLIANCE_VK;
+use crate::constants::{BATCH_AGGREGATION_VK, COMPLIANCE_VK};
+use crate::proving_system::JournalEncoding;
+#[cfg(feature = "aggregation")]
+use crate::utils::words_to_bytes;
 #[cfg(all(feature = "aggregation", feature = "prove"))]
 use crate::{
     aggregation_witness::{ActionWitness, AggregationWitness},
     proving_system::ProofType,
 };
-#[cfg(all(feature = "aggregation", not(feature = "abi_encoding")))]
-use crate::{constants::BATCH_AGGREGATION_VK, utils::words_to_bytes};
 use risc0_zkvm::InnerReceipt;
 #[cfg(feature = "aggregation")]
 use risc0_zkvm::Receipt;
@@ -65,7 +62,16 @@ pub fn generate_delta_proof(tx: Transaction) -> Result<Transaction, ArmError> {
 /// table for the target chain. Callers that use the loaded global table
 /// should obtain it via `kind_table_hash()` and propagate the `None` case
 /// as an error rather than panicking.
-pub fn verify(tx: &Transaction, kind_table_commitment: Digest) -> Result<(), ArmError> {
+///
+/// `encoding` selects how the batch aggregation journal is interpreted when
+/// the transaction carries an aggregation proof. Pass [`JournalEncoding::Risc0Serde`]
+/// for the default RISC Zero / Solana path or [`JournalEncoding::Abi`] for the
+/// EVM path. For non-aggregated transactions the parameter is ignored.
+pub fn verify(
+    tx: &Transaction,
+    kind_table_commitment: Digest,
+    encoding: JournalEncoding,
+) -> Result<(), ArmError> {
     // A transaction must carry exactly one representation. Rejecting the
     // "both present" case here prevents a crafted transaction from
     // pairing a genuine (but unrelated) aggregation proof with
@@ -73,6 +79,11 @@ pub fn verify(tx: &Transaction, kind_table_commitment: Digest) -> Result<(), Arm
     // nullifier checks silently run against the unverified `actions`
     // instead of the proof-backed `aggregation.instance`.
     tx.check_representation()?;
+
+    // `encoding` is only consumed inside the `#[cfg(feature = "aggregation")]` path below;
+    // this binding suppresses the unused-variable warning when that feature is off.
+    #[cfg(not(feature = "aggregation"))]
+    let _ = encoding;
 
     match &tx.delta_proof {
         Delta::Proof(ref proof) => {
@@ -90,7 +101,7 @@ pub fn verify(tx: &Transaction, kind_table_commitment: Digest) -> Result<(), Arm
                 ));
 
                 #[cfg(feature = "aggregation")]
-                verify_aggregation(tx)?;
+                verify_aggregation(tx, encoding)?;
             } else {
                 let actions = tx.actions.as_ref().ok_or(ArmError::MissingActions)?;
                 for action in actions {
@@ -289,11 +300,21 @@ pub fn get_logic_vks_and_instances(
 
 /// Aggregates all the transaction proofs.
 ///
+/// `encoding` controls which batch aggregation ELF is used and how the
+/// resulting journal is decoded:
+/// - [`JournalEncoding::Risc0Serde`] uses the standard RISC Zero / Solana ELF
+///   and decodes the journal with `risc0_zkvm::serde`.
+/// - [`JournalEncoding::Abi`] uses the EVM ABI ELF and ABI-decodes the journal.
+///
 /// On success, `tx.aggregation` is populated with the proof and decoded
 /// `AggregationInstance`, and `tx.actions` is set to `None` (the
 /// individual proofs and witnesses are no longer needed).
 #[cfg(all(feature = "aggregation", feature = "prove"))]
-pub fn aggregate(tx: &mut Transaction, proof_type: ProofType) -> Result<(), ArmError> {
+pub fn aggregate(
+    tx: &mut Transaction,
+    proof_type: ProofType,
+    encoding: JournalEncoding,
+) -> Result<(), ArmError> {
     if tx.base_proofs_are_empty() {
         return Err(ArmError::ProveFailed(
             "Cannot aggregate: transaction has already been aggregated (actions is None)".into(),
@@ -307,6 +328,7 @@ pub fn aggregate(tx: &mut Transaction, proof_type: ProofType) -> Result<(), ArmE
             "Cannot aggregate: transaction has no actions".into(),
         ));
     }
+
     let mut env_builder = ExecutorEnv::builder();
     let mut action_witnesses = Vec::with_capacity(actions.len());
 
@@ -372,10 +394,10 @@ pub fn aggregate(tx: &mut Transaction, proof_type: ProofType) -> Result<(), ArmE
     let prover = default_prover();
 
     // Prove batch.
-    #[cfg(feature = "abi_encoding")]
-    let pk = BATCH_AGGREGATION_EVM_PK;
-    #[cfg(not(feature = "abi_encoding"))]
-    let pk = BATCH_AGGREGATION_PK;
+    let pk = match encoding {
+        JournalEncoding::Risc0Serde => BATCH_AGGREGATION_PK,
+        JournalEncoding::Abi => BATCH_AGGREGATION_EVM_PK,
+    };
 
     let agg_receipt = prover
         .prove_with_ctx(env, &VerifierContext::default(), pk, &prover_opts)
@@ -383,15 +405,16 @@ pub fn aggregate(tx: &mut Transaction, proof_type: ProofType) -> Result<(), ArmE
         .receipt;
 
     // Decode the AggregationInstance from the journal.
-    #[cfg(feature = "abi_encoding")]
-    let instance: AggregationInstance =
-        crate::aggregation_instance::abi_decode_instance(&agg_receipt.journal.bytes)
-            .map_err(|_| ArmError::InstanceSerializationFailed)?;
-    #[cfg(not(feature = "abi_encoding"))]
-    let instance: AggregationInstance = agg_receipt
-        .journal
-        .decode()
-        .map_err(|_| ArmError::InstanceSerializationFailed)?;
+    let instance: AggregationInstance = match encoding {
+        JournalEncoding::Risc0Serde => agg_receipt
+            .journal
+            .decode()
+            .map_err(|_| ArmError::InstanceSerializationFailed)?,
+        JournalEncoding::Abi => {
+            crate::aggregation_instance::abi_decode_instance(&agg_receipt.journal.bytes)
+                .map_err(|_| ArmError::InstanceSerializationFailed)?
+        }
+    };
 
     let proof = bincode::serialize(&agg_receipt.inner).map_err(|_| ArmError::SerializationError)?;
 
@@ -401,8 +424,14 @@ pub fn aggregate(tx: &mut Transaction, proof_type: ProofType) -> Result<(), ArmE
 }
 
 /// Verifies the aggregated proof of the transaction.
+///
+/// `encoding` must match the encoding used when the proof was generated
+/// (i.e. the same value passed to [`aggregate`]). The journal bytes are
+/// re-derived from `tx.aggregation.instance` using the chosen encoding and
+/// checked against the receipt's commitment. Passing the wrong encoding
+/// causes proof verification to fail.
 #[cfg(feature = "aggregation")]
-pub fn verify_aggregation(tx: &Transaction) -> Result<(), ArmError> {
+pub fn verify_aggregation(tx: &Transaction, encoding: JournalEncoding) -> Result<(), ArmError> {
     tx.check_representation()?;
 
     let agg = tx
@@ -413,19 +442,19 @@ pub fn verify_aggregation(tx: &Transaction) -> Result<(), ArmError> {
     let inner_receipt: InnerReceipt =
         bincode::deserialize(&agg.proof).map_err(|_| ArmError::InnerReceiptDeserializationError)?;
 
-    #[cfg(feature = "abi_encoding")]
-    let (journal_bytes, vk) = {
-        use crate::aggregation_instance::abi_encode_instance;
-        (
-            abi_encode_instance(agg.instance.clone()),
-            BATCH_AGGREGATION_EVM_VK,
-        )
-    };
-    #[cfg(not(feature = "abi_encoding"))]
-    let (journal_bytes, vk) = {
-        let words = risc0_zkvm::serde::to_vec(&agg.instance)
-            .map_err(|_| ArmError::InstanceSerializationFailed)?;
-        (words_to_bytes(&words).to_vec(), BATCH_AGGREGATION_VK)
+    let (journal_bytes, vk) = match encoding {
+        JournalEncoding::Risc0Serde => {
+            let words = risc0_zkvm::serde::to_vec(&agg.instance)
+                .map_err(|_| ArmError::InstanceSerializationFailed)?;
+            (words_to_bytes(&words).to_vec(), BATCH_AGGREGATION_VK)
+        }
+        JournalEncoding::Abi => {
+            use crate::aggregation_instance::abi_encode_instance;
+            (
+                abi_encode_instance(agg.instance.clone()),
+                BATCH_AGGREGATION_EVM_VK,
+            )
+        }
     };
 
     let receipt = Receipt::new(inner_receipt, journal_bytes);

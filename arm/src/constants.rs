@@ -12,7 +12,7 @@ pub const PADDING_LOGIC_PK: &[u8] = include_bytes!("../elfs/trivial-logic-guest.
 #[cfg(feature = "aggregation")]
 pub const BATCH_AGGREGATION_PK: &[u8] = include_bytes!("../elfs/batch-aggregation-guest.bin");
 /// Batch aggregation (EVM ABI-encoded output) proving key / guest ELF binary
-#[cfg(all(feature = "aggregation", feature = "abi_encoding"))]
+#[cfg(feature = "aggregation")]
 pub const BATCH_AGGREGATION_EVM_PK: &[u8] =
     include_bytes!("../elfs/batch-aggregation-evm-guest.bin");
 
