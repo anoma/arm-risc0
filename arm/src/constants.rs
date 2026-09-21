@@ -149,11 +149,11 @@ mod tests {
         let vks = [
             (
                 "PADDING_LOGIC_VK",
-                "ce036f2a8e21367fb51433693f299e0a1ef9e0060ceadb18fae6c78ac465d9ad",
+                "5de2a1afac74d1f6fc3ff149cb6ab553044a1467346fbe8775cb4988a6f63cbc",
             ),
             (
                 "TEST_LOGIC_VK",
-                "f32ec9fa48f6f248ef814256586b1cd8a97e9536edf92a340b391b49319982cc",
+                "053cd6f486ca1ce177d2a2251069dd22a5dff1811d4c79f20e4b5f970673eb85",
             ),
         ];
         for (name, hex_vk) in vks {

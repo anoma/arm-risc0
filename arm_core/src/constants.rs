@@ -13,27 +13,27 @@
 use risc0_zkp::core::digest::Digest;
 
 /// Compliance verification key / compliance image id,
-/// ea64f106d0f38b536bb1afab99b2ccb6c84ca3fd33a8b4f0ee6a15e5596632b8.
+/// 406c60f87a5bb542a7fc7301ba5c01fe7724b5b3c9e335214d092a10b405f5a0.
 pub const COMPLIANCE_VK: Digest = Digest::new([
-    0x06f164ea, 0x538bf3d0, 0xabafb16b, 0xb6ccb299, 0xfda34cc8, 0xf0b4a833, 0xe5156aee, 0xb8326659,
+    0xf8606c40, 0x42b55b7a, 0x0173fca7, 0xfe015cba, 0xb3b52477, 0x2135e3c9, 0x102a094d, 0xa0f505b4,
 ]);
 
 /// Padding logic verification key / padding image id,
-/// ce036f2a8e21367fb51433693f299e0a1ef9e0060ceadb18fae6c78ac465d9ad.
+/// 5de2a1afac74d1f6fc3ff149cb6ab553044a1467346fbe8775cb4988a6f63cbc.
 pub const PADDING_LOGIC_VK: Digest = Digest::new([
-    0x2a6f03ce, 0x7f36218e, 0x693314b5, 0x0a9e293f, 0x06e0f91e, 0x18dbea0c, 0x8ac7e6fa, 0xadd965c4,
+    0xafa1e25d, 0xf6d174ac, 0x49f13ffc, 0x53b56acb, 0x67144a04, 0x87be6f34, 0x8849cb75, 0xbc3cf6a6,
 ]);
 
 /// Batch aggregation verification key / batch aggregation image id,
-/// ff4673f39f383d0109d5b8af4dd693c0f8275a809416d49a4cedd0a1b8389998.
+/// 26062b168bd20222a8911dd523b3310862411eccd636956b178e701f48245087.
 pub const BATCH_AGGREGATION_VK: Digest = Digest::new([
-    0xf37346ff, 0x013d389f, 0xafb8d509, 0xc093d64d, 0x805a27f8, 0x9ad41694, 0xa1d0ed4c, 0x989938b8,
+    0x162b0626, 0x2202d28b, 0xd51d91a8, 0x0831b323, 0xcc1e4162, 0x6b9536d6, 0x1f708e17, 0x87502448,
 ]);
 
 /// Batch aggregation (EVM ABI-encoded output) verification key / image id,
-/// 48aaf4d257ccddf8aeea01ca256d14193f2ac278c5e084f7d897c527d5ed9657.
+/// 858be23ecbd24b70efdfacada11c2f0471f33982e33758b8861e5d462576dc46.
 pub const BATCH_AGGREGATION_EVM_VK: Digest = Digest::new([
-    0xd2f4aa48, 0xf8ddcc57, 0xca01eaae, 0x19146d25, 0x78c22a3f, 0xf784e0c5, 0x27c597d8, 0x5796edd5,
+    0x3ee28b85, 0x704bd2cb, 0xadacdfef, 0x042f1ca1, 0x8239f371, 0xb85837e3, 0x465d1e86, 0x46dc7625,
 ]);
 
 #[cfg(test)]
@@ -47,22 +47,22 @@ mod tests {
             (
                 "COMPLIANCE_VK",
                 COMPLIANCE_VK,
-                "ea64f106d0f38b536bb1afab99b2ccb6c84ca3fd33a8b4f0ee6a15e5596632b8",
+                "406c60f87a5bb542a7fc7301ba5c01fe7724b5b3c9e335214d092a10b405f5a0",
             ),
             (
                 "PADDING_LOGIC_VK",
                 PADDING_LOGIC_VK,
-                "ce036f2a8e21367fb51433693f299e0a1ef9e0060ceadb18fae6c78ac465d9ad",
+                "5de2a1afac74d1f6fc3ff149cb6ab553044a1467346fbe8775cb4988a6f63cbc",
             ),
             (
                 "BATCH_AGGREGATION_VK",
                 BATCH_AGGREGATION_VK,
-                "ff4673f39f383d0109d5b8af4dd693c0f8275a809416d49a4cedd0a1b8389998",
+                "26062b168bd20222a8911dd523b3310862411eccd636956b178e701f48245087",
             ),
             (
                 "BATCH_AGGREGATION_EVM_VK",
                 BATCH_AGGREGATION_EVM_VK,
-                "48aaf4d257ccddf8aeea01ca256d14193f2ac278c5e084f7d897c527d5ed9657",
+                "858be23ecbd24b70efdfacada11c2f0471f33982e33758b8861e5d462576dc46",
             ),
         ] {
             assert_eq!(konst, Digest::from_hex(hex).unwrap(), "{name} drifted");
