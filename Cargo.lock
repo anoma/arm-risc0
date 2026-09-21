@@ -247,7 +247,7 @@ dependencies = [
 
 [[package]]
 name = "anoma-rm-core"
-version = "2.0.0-rc.5"
+version = "2.0.0-rc.6"
 dependencies = [
  "bincode",
  "borsh 1.5.7",
@@ -260,7 +260,7 @@ dependencies = [
 
 [[package]]
 name = "anoma-rm-risc0"
-version = "2.0.0-rc.5"
+version = "2.0.0-rc.6"
 dependencies = [
  "alloy-primitives",
  "alloy-sol-types",
@@ -283,7 +283,7 @@ dependencies = [
 
 [[package]]
 name = "anoma-rm-risc0-gadgets"
-version = "2.0.0-rc.5"
+version = "2.0.0-rc.6"
 dependencies = [
  "aes-gcm",
  "alloy-primitives",
@@ -299,7 +299,7 @@ dependencies = [
 
 [[package]]
 name = "anoma-rm-risc0-test-app"
-version = "2.0.0-rc.5"
+version = "2.0.0-rc.6"
 dependencies = [
  "anoma-rm-risc0",
  "anoma-rm-risc0-test-witness",
@@ -310,7 +310,7 @@ dependencies = [
 
 [[package]]
 name = "anoma-rm-risc0-test-witness"
-version = "2.0.0-rc.5"
+version = "2.0.0-rc.6"
 dependencies = [
  "anoma-rm-risc0",
  "anoma-rm-risc0-gadgets",
@@ -320,7 +320,7 @@ dependencies = [
 
 [[package]]
 name = "anoma-rm-solana"
-version = "2.0.0-rc.5"
+version = "2.0.0-rc.6"
 dependencies = [
  "anoma-rm-core",
  "anoma-rm-risc0",
