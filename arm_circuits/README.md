@@ -46,8 +46,9 @@ cargo risczero build --manifest-path arm_circuits/batch_aggregation/methods/gues
 
 # EVM ABI-encoded output variant (the emitted artifact is still named batch-aggregation-guest.bin)
 cargo risczero build --manifest-path arm_circuits/batch_aggregation/methods/guest/Cargo.toml --features abi_encoding
-# Copy/rename the emitted artifact to arm/elfs/batch-aggregation-evm-guest.bin before updating the VK.
-cp arm/elfs/batch-aggregation-guest.bin arm/elfs/batch-aggregation-evm-guest.bin
+# Copy the artifact to its checked-in path.
+cp arm_circuits/batch_aggregation/methods/guest/target/riscv32im-risc0-zkvm-elf/docker/batch-aggregation-guest.bin \
+    arm/elfs/batch-aggregation-evm-guest.bin
 ```
 
 After each build, copy the ELF from

@@ -26,7 +26,7 @@ Delta proof verification accepts and rejects exactly the transactions `anoma-rm-
 Add to your `Cargo.toml`:
 
 ```toml
-anoma-rm-solana = "2.0.0-rc.5"
+anoma-rm-solana = "2.0.0-rc.6"
 ```
 
 Inside a Solana program:

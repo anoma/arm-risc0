@@ -42,10 +42,10 @@ Add to your `Cargo.toml`:
 
 ```toml
 # Default configuration
-anoma-rm-core = "2.0.0-rc.5"
+anoma-rm-core = "2.0.0-rc.6"
 
 # With Borsh serialization
-anoma-rm-core = { version = "2.0.0-rc.5", features = ["borsh"] }
+anoma-rm-core = { version = "2.0.0-rc.6", features = ["borsh"] }
 ```
 
 ## Documentation

@@ -39,19 +39,24 @@ The crate supports several features to control compilation and functionality:
 - `cuda`: Enables CUDA acceleration for proofs
 - `aggregation`: Enables proof aggregation support
 
+When `aggregation` is enabled, pass a [`JournalEncoding`] variant to
+`verify`, `aggregate`, and `verify_aggregation` to select the journal
+encoding at runtime: `JournalEncoding::Risc0Serde` for the RISC Zero
+native / Solana path, or `JournalEncoding::Abi` for the EVM path.
+
 ## Usage
 
 Add to your `Cargo.toml`:
 
 ```toml
 # Default configuration
-anoma-rm-risc0 ="2.0.0-pre.1"
+anoma-rm-risc0 = "2.0.0-rc.6"
 
 # Proof aggregation (a single succinct proof per transaction)
-anoma-rm-risc0 ={ version = "2.0.0-pre.1", features = ["aggregation"] }
+anoma-rm-risc0 = { version = "2.0.0-rc.6", features = ["aggregation"] }
 
 # Logic-circuit-only usage
-anoma-rm-risc0 ={ version = "2.0.0-pre.1", default-features = false }
+anoma-rm-risc0 = { version = "2.0.0-rc.6", default-features = false }
 ```
 
 ## Documentation
