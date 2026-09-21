@@ -17,7 +17,7 @@ thiserror = "2.0.6"
 
 [dev-dependencies]
 # Cross-check reference: the host engine and its k256 curve arithmetic.
-anoma-rm-risc0 = { path = "../arm", default-features = false, features = [
+anoma-rm-risc0 = { version = "2.0.0-rc.6", default-features = false, features = [
   "transaction",
 ] }
 k256 = { version = "=0.13.3", features = ["arithmetic", "ecdsa", "std"] }
