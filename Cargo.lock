@@ -336,6 +336,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "anoma-rm-risc0-gadgets"
+version = "2.0.0-rc.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0e17348b09e2e9289809e6289c2d8d35533869468dc2aa21c401b5e4d67f56f3"
+dependencies = [
+ "aes-gcm",
+ "alloy-primitives",
+ "alloy-sol-types",
+ "anoma-rm-risc0 2.0.0-rc.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "bincode",
+ "hex",
+ "k256",
+ "rand 0.8.6",
+ "serde",
+ "zeroize",
+]
+
+[[package]]
 name = "anoma-rm-risc0-test-app"
 version = "2.0.0-rc.6"
 dependencies = [
@@ -351,7 +369,7 @@ name = "anoma-rm-risc0-test-witness"
 version = "2.0.0-rc.6"
 dependencies = [
  "anoma-rm-risc0 2.0.0-rc.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "anoma-rm-risc0-gadgets",
+ "anoma-rm-risc0-gadgets 2.0.0-rc.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "k256",
  "serde",
 ]
