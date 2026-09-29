@@ -467,7 +467,8 @@ fn test_aggregation_works() {
     assert!(transaction::aggregate(
         &mut tx_str,
         ProofType::Succinct,
-        JournalEncoding::Risc0Serde
+        JournalEncoding::Risc0Serde,
+        21,
     )
     .is_ok());
     // After aggregation: actions must be None, aggregation must be Some.
@@ -501,7 +502,7 @@ fn test_evm_instance_roundtrip_after_aggregation() {
         .generate_test_transaction(&[(2, 2), (1, 1)])
         .unwrap();
     let mut tx_str = tx.clone();
-    transaction::aggregate(&mut tx_str, ProofType::Succinct, JournalEncoding::Abi).unwrap();
+    transaction::aggregate(&mut tx_str, ProofType::Succinct, JournalEncoding::Abi, 21).unwrap();
 
     let instance = tx_str.aggregation.as_ref().unwrap().instance.clone();
 
@@ -533,10 +534,13 @@ fn test_aggregation_works_groth16() {
         .generate_test_transaction(&[(2, 2), (2, 2)])
         .unwrap();
     let mut tx_str = tx.clone();
-    assert!(
-        transaction::aggregate(&mut tx_str, ProofType::Groth16, JournalEncoding::Risc0Serde)
-            .is_ok()
-    );
+    assert!(transaction::aggregate(
+        &mut tx_str,
+        ProofType::Groth16,
+        JournalEncoding::Risc0Serde,
+        21
+    )
+    .is_ok());
     assert!(tx_str.actions.is_none());
     assert!(tx_str.aggregation.is_some());
     assert!(transaction::verify_aggregation(&tx_str, JournalEncoding::Risc0Serde).is_ok());
@@ -708,7 +712,8 @@ fn test_cannot_aggregate_invalid_proofs() {
     assert!(transaction::aggregate(
         &mut bad_tx_str,
         ProofType::Succinct,
-        JournalEncoding::Risc0Serde
+        JournalEncoding::Risc0Serde,
+        21,
     )
     .is_err());
     assert!(bad_tx_str.aggregation.is_none());
@@ -721,7 +726,12 @@ fn test_cannot_aggregate_empty_actions() {
     let dummy_delta = Delta::Witness(delta_proof::from_bytes_vec(&[vec![1u8; 32]]).unwrap());
     let mut tx =
         transaction::generate_delta_proof(Transaction::create(vec![], dummy_delta)).unwrap();
-    let result = transaction::aggregate(&mut tx, ProofType::Succinct, JournalEncoding::Risc0Serde);
+    let result = transaction::aggregate(
+        &mut tx,
+        ProofType::Succinct,
+        JournalEncoding::Risc0Serde,
+        21,
+    );
     assert!(result.is_err());
     assert!(tx.aggregation.is_none());
 }

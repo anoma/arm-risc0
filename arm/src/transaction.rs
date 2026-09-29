@@ -314,6 +314,7 @@ pub fn aggregate(
     tx: &mut Transaction,
     proof_type: ProofType,
     encoding: JournalEncoding,
+    segment_limit_po2: u32,
 ) -> Result<(), ArmError> {
     if tx.base_proofs_are_empty() {
         return Err(ArmError::ProveFailed(
@@ -383,6 +384,7 @@ pub fn aggregate(
     let env = env_builder
         .write(&witnesses)
         .map_err(|_| ArmError::WriteWitnessFailed)?
+        .segment_limit_po2(segment_limit_po2)
         .build()
         .map_err(|_| ArmError::BuildProverEnvFailed)?;
 

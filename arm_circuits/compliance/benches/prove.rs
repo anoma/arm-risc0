@@ -6,7 +6,8 @@
 ///                  resolves them via a table lookup, skipping `hash_to_curve`.
 ///
 /// Each configuration is benchmarked with 1, 2, 4, and 8 consumed/created
-/// resources to measure scaling behaviour.
+/// resources and at two segment sizes (po2=21 default, po2=22) to measure
+/// the effect of larger segments on prover throughput.
 ///
 /// # Running on CPU
 ///
@@ -38,11 +39,13 @@ use risc0_zkvm::{default_prover, Digest, ExecutorEnv, ProverOpts};
 use std::time::Duration;
 
 const RESOURCE_COUNTS: &[usize] = &[1, 2, 4, 8];
+const SEGMENT_PO2S: &[u32] = &[21, 22];
 
-fn do_prove(witness: &ComplianceWitness) {
+fn do_prove(witness: &ComplianceWitness, segment_limit_po2: u32) {
     let env = ExecutorEnv::builder()
         .write(witness)
         .unwrap()
+        .segment_limit_po2(segment_limit_po2)
         .build()
         .unwrap();
     default_prover()
@@ -110,13 +113,19 @@ fn bench_empty_table(c: &mut Criterion) {
     group.warm_up_time(Duration::from_secs(1));
     group.measurement_time(Duration::from_secs(1));
 
-    for &count in RESOURCE_COUNTS {
-        group.bench_with_input(BenchmarkId::new("prove", count), &count, |b, &count| {
-            b.iter_with_setup(
-                || make_witness(Digest::default(), Digest::default(), count),
-                |witness| do_prove(&witness),
+    for &po2 in SEGMENT_PO2S {
+        for &count in RESOURCE_COUNTS {
+            group.bench_with_input(
+                BenchmarkId::new(format!("prove/po2={po2}"), count),
+                &(count, po2),
+                |b, &(count, po2)| {
+                    b.iter_with_setup(
+                        || make_witness(Digest::default(), Digest::default(), count),
+                        |witness| do_prove(&witness, po2),
+                    );
+                },
             );
-        });
+        }
     }
 
     group.finish();
@@ -139,13 +148,19 @@ fn bench_file_table(c: &mut Criterion) {
     group.warm_up_time(Duration::from_secs(1));
     group.measurement_time(Duration::from_secs(1));
 
-    for &count in RESOURCE_COUNTS {
-        group.bench_with_input(BenchmarkId::new("prove", count), &count, |b, &count| {
-            b.iter_with_setup(
-                || make_witness(logic_ref, label_ref, count),
-                |witness| do_prove(&witness),
+    for &po2 in SEGMENT_PO2S {
+        for &count in RESOURCE_COUNTS {
+            group.bench_with_input(
+                BenchmarkId::new(format!("prove/po2={po2}"), count),
+                &(count, po2),
+                |b, &(count, po2)| {
+                    b.iter_with_setup(
+                        || make_witness(logic_ref, label_ref, count),
+                        |witness| do_prove(&witness, po2),
+                    );
+                },
             );
-        });
+        }
     }
 
     group.finish();
