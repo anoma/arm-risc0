@@ -1,0 +1,29 @@
+[package]
+name = "anoma-rm-solana-sbf-link-check"
+description = "Minimal Solana program that links anoma-rm-solana's verifiers, so SBF builds prove every syscall they use resolves"
+version = "0.0.0"
+edition = "2021"
+license = "Apache-2.0"
+publish = false
+
+# A standalone workspace: this program is built only by `cargo build-sbf`,
+# never by the host workspace above it.
+[workspace]
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+anoma-rm-core = { path = "../../arm_core", features = ["borsh"] }
+anoma-rm-solana = { path = ".." }
+borsh = { version = "1.5", default-features = false }
+solana-account-info = "3"
+solana-program-entrypoint = "3"
+solana-program-error = "3"
+solana-pubkey = "3"
+
+# Consumed by solana-program-entrypoint's `entrypoint!` expansion: enabling
+# either replaces its default heap allocator or panic handler.
+[features]
+custom-heap = []
+custom-panic = []
