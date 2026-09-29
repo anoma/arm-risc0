@@ -208,14 +208,25 @@ jobs:
         # not enough for the code to merely go uncalled).
         # risc0-zkvm-platform (risc0-zkp's target-shim crate) is expected;
         # the pattern matches crate names exactly.
+        # anoma-rm-solana is checked for the BPF target: on the host its
+        # syscall wrappers fall back to software engines (k256, sha3), which
+        # the Solana crates compile only outside
+        # `any(target_os = "solana", target_arch = "bpf")`.
+        # bpfel-unknown-none is the BPF target stock rustc knows.
+        # Each graph is captured before it is searched, so a failing
+        # `cargo tree` fails the step instead of yielding an empty graph.
         run: |
-          for crate in anoma-rm-core anoma-rm-solana; do
-            if cargo tree -p "$crate" --features anoma-rm-core/borsh -e normal \
-              | grep -E '(k256|rand|sha3|getrandom|risc0-zkvm) v[0-9]'; then
-              echo "ERROR: an engine crate leaked into $crate's dependency graph" >&2
-              exit 1
-            fi
-          done
+          core_graph=$(cargo tree -p anoma-rm-core --features borsh -e normal)
+          solana_graph=$(cargo tree -p anoma-rm-solana -e normal --target bpfel-unknown-none)
+          engines='(k256|rand|sha3|getrandom|risc0-zkvm) v[0-9]'
+          if grep -E "$engines" <<<"$core_graph"; then
+            echo "ERROR: an engine crate leaked into anoma-rm-core's dependency graph" >&2
+            exit 1
+          fi
+          if grep -E "$engines" <<<"$solana_graph"; then
+            echo "ERROR: an engine crate leaked into anoma-rm-solana's SBF dependency graph" >&2
+            exit 1
+          fi
 
       - name: Install Solana toolchain
         # Pinned (like the Rust toolchain above): a floating "stable" can be
