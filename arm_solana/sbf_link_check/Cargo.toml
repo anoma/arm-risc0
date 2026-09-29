@@ -1,9 +1,7 @@
 [package]
 name = "anoma-rm-solana-sbf-link-check"
-description = "Minimal Solana program that links anoma-rm-solana's verifiers, so SBF builds prove every syscall they use resolves"
 version = "0.0.0"
 edition = "2021"
-license = "Apache-2.0"
 publish = false
 
 # A standalone workspace: this program is built only by `cargo build-sbf`,

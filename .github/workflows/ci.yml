@@ -216,17 +216,16 @@ jobs:
         # Each graph is captured before it is searched, so a failing
         # `cargo tree` fails the step instead of yielding an empty graph.
         run: |
-          core_graph=$(cargo tree -p anoma-rm-core --features borsh -e normal)
-          solana_graph=$(cargo tree -p anoma-rm-solana -e normal --target bpfel-unknown-none)
           engines='(k256|rand|sha3|getrandom|risc0-zkvm) v[0-9]'
-          if grep -E "$engines" <<<"$core_graph"; then
-            echo "ERROR: an engine crate leaked into anoma-rm-core's dependency graph" >&2
-            exit 1
-          fi
-          if grep -E "$engines" <<<"$solana_graph"; then
-            echo "ERROR: an engine crate leaked into anoma-rm-solana's SBF dependency graph" >&2
-            exit 1
-          fi
+          check() {
+            graph=$(cargo tree -e normal "$@")
+            if grep -E "$engines" <<<"$graph"; then
+              echo "ERROR: an engine crate leaked into the graph of: cargo tree $*" >&2
+              exit 1
+            fi
+          }
+          check -p anoma-rm-core --features borsh
+          check -p anoma-rm-solana --target bpfel-unknown-none
 
       - name: Install Solana toolchain
         # Pinned (like the Rust toolchain above): a floating "stable" can be
