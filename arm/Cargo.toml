@@ -11,7 +11,7 @@ repository = { workspace = true }
 [dependencies]
 arm-core = { package = "anoma-rm-core", path = "../arm_core", version = "2.0.0-rc.6" }
 # If you want to try (experimental) std support, add `features = [ "std" ]` to risc0-zkvm
-risc0-zkvm = { version = "3.0.3", features = [
+risc0-zkvm = { version = "3.0.6", features = [
   "std",
   "unstable",
 ], default-features = false }

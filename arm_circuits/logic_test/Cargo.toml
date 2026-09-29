@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 logic-test-methods = { path = "methods" }
-risc0-zkvm = "3.0.3"
+risc0-zkvm = "3.0.6"
 anoma-rm-risc0 = { path = "../../arm", default-features = false }
 anoma-rm-risc0-test-witness = { path = "../../arm_tests/arm_test_witness" }
 

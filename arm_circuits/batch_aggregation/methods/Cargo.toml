@@ -4,7 +4,7 @@ version = "1.0.0"
 edition = "2021"
 
 [build-dependencies]
-risc0-build = { version = "3.0.3", features = ["unstable"] }
+risc0-build = { version = "3.0.6", features = ["unstable"] }
 
 [features]
 abi_encoding = []
