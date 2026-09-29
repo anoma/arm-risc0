@@ -2,7 +2,7 @@
 
 use arm_core::aggregation_instance::AggregationInstance;
 use arm_core::transaction::Transaction;
-use solana_program::hash::hash;
+use solana_sha256_hasher::hash;
 
 use crate::error::SolanaArmError;
 

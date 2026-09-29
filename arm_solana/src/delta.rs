@@ -15,9 +15,9 @@ use arm_core::aggregation_instance::{ActionAggregated, AggregationInstance};
 use arm_core::delta_proof::DeltaProof;
 use arm_core::transaction::{Delta, Transaction};
 use arm_core::utils::words_to_bytes;
-use solana_program::keccak::hashv;
-use solana_program::secp256k1_recover::secp256k1_recover;
+use solana_keccak_hasher::hashv;
 use solana_secp256k1::{Secp256k1, Secp256k1Point, UncompressedPoint};
+use solana_secp256k1_recover::secp256k1_recover;
 
 use crate::error::SolanaArmError;
 
@@ -284,7 +284,7 @@ mod tests {
     fn delta_hash_matches_protocol_keccak_golden() {
         let roots: [[u8; 32]; 4] = std::array::from_fn(|index| {
             let index = (index as u64).to_le_bytes();
-            solana_program::hash::hashv(&[b"golden-delta", &index]).to_bytes()
+            solana_sha256_hasher::hashv(&[b"golden-delta", &index]).to_bytes()
         });
         let expected = [
             0xf4, 0x3d, 0x99, 0xe0, 0x17, 0x75, 0x19, 0x96, 0x15, 0x91, 0x11, 0x4d, 0x45, 0x39,
