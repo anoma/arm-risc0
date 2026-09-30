@@ -45,6 +45,10 @@ jobs:
         run: cargo fmt --all -- --check
         working-directory: arm_circuits
 
+      - name: Check formatting (SBF link-check workspace)
+        run: cargo fmt --all -- --check
+        working-directory: arm_solana/sbf_link_check
+
   audit:
     name: Cargo Audit
     runs-on: ubuntu-latest
@@ -88,6 +92,11 @@ jobs:
 
       - name: Run clippy (aggregation + prove)
         run: cargo clippy -p anoma-rm-risc0 -p anoma-rm-risc0-test-app --all-targets --features aggregation,prove -- -D warnings
+
+      # Checked for the host: clippy has no SBF driver in platform-tools.
+      - name: Run clippy (SBF link-check workspace)
+        run: cargo clippy --all-targets -- -D warnings
+        working-directory: arm_solana/sbf_link_check
 
   build:
     name: Build

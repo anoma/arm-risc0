@@ -27,3 +27,10 @@ solana-pubkey = "3"
 [features]
 custom-heap = []
 custom-panic = []
+
+# The `entrypoint!` expansion selects on target_os = "solana", which rustc
+# only knows as a target of the platform-tools toolchain.
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+  'cfg(target_os, values("solana"))',
+] }
