@@ -262,10 +262,52 @@ jobs:
       # A library build never links, so it cannot catch unresolved syscall
       # symbols; linking a program that calls the verifiers does. Devnet and
       # mainnet run SBPF v3, whose static syscalls resolve differently from v0.
+      # Each version gets its own output directory: both builds produce the
+      # same file name.
       - name: Link anoma-rm-solana into an SBPF v0 program
-        run: cargo build-sbf
+        run: cargo build-sbf --sbf-out-dir target/sbpf-v0
         working-directory: arm_solana/sbf_link_check
 
       - name: Link anoma-rm-solana into an SBPF v3 program
-        run: cargo build-sbf --arch v3
+        run: cargo build-sbf --arch v3 --sbf-out-dir target/sbpf-v3
         working-directory: arm_solana/sbf_link_check
+
+      - name: Load both link-check programs
+        # Linking can succeed where the loader refuses the ELF: an SBPF v0
+        # program that carries static-syscall code links, and the loader
+        # rejects it at deployment. Deploying to a local validator runs the
+        # loader's verification of each program.
+        # The test validator activates every feature, including SIMD-0500
+        # (B8JJXCy5..., no deployment of SBPF v0-v2), which devnet and
+        # mainnet have not activated; it is deactivated so the v0 program
+        # is verified as those clusters verify it.
+        working-directory: arm_solana/sbf_link_check
+        run: |
+          work=$(mktemp -d)
+          solana-keygen new --no-bip39-passphrase --silent --outfile "$work/payer.json"
+          payer=$(solana-keygen pubkey "$work/payer.json")
+          solana-test-validator --quiet --ledger "$work/ledger" --mint "$payer" \
+            --deactivate-feature B8JJXCy5amZyWG9r7EnUYLwzXSXTxG7GZ1qZ1qggo83g &
+          validator=$!
+          trap 'kill "$validator"' EXIT
+          rpc=http://127.0.0.1:8899
+          # Poll the RPC until it answers; give up after 60 seconds.
+          for attempt in $(seq 60); do
+            if ! kill -0 "$validator"; then
+              cat "$work/ledger/validator.log" >&2
+              echo "ERROR: solana-test-validator exited before its RPC answered" >&2
+              exit 1
+            fi
+            if solana cluster-version --url "$rpc"; then
+              break
+            fi
+            if [ "$attempt" -eq 60 ]; then
+              echo "ERROR: solana-test-validator RPC did not answer within 60 seconds" >&2
+              exit 1
+            fi
+            sleep 1
+          done
+          for arch in v0 v3; do
+            solana program deploy --url "$rpc" --keypair "$work/payer.json" \
+              "target/sbpf-$arch/anoma_rm_solana_sbf_link_check.so"
+          done
