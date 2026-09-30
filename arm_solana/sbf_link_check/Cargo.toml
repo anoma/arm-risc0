@@ -5,8 +5,10 @@ edition = "2021"
 publish = false
 
 # A standalone workspace: this program is built only by `cargo build-sbf`,
-# never by the host workspace above it.
+# never by the host workspace above it. anoma-rm-solana requires resolver "2"
+# or later (see its target-specific solana-secp256k1 entry).
 [workspace]
+resolver = "2"
 
 [lib]
 crate-type = ["cdylib"]
