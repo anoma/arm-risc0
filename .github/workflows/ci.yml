@@ -95,7 +95,7 @@ jobs:
 
       # Checked for the host: clippy has no SBF driver in platform-tools.
       - name: Run clippy (SBF link-check workspace)
-        run: cargo clippy --all-targets -- -D warnings
+        run: cargo clippy --locked --all-targets -- -D warnings
         working-directory: arm_solana/sbf_link_check
 
   build:
@@ -237,15 +237,21 @@ jobs:
         # outside `any(target_os = "solana", target_arch = "bpf")`, and other
         # dependencies select on target_os = "solana" or on the
         # static-syscalls target feature alone. Only the platform-tools rustc
-        # knows these targets; the SBF build above installed it.
+        # knows these targets; the SBF build above installed it. The SBF
+        # graphs are resolved from the link check's committed Cargo.lock,
+        # the graph the link steps below build.
         # Each graph is captured before it is searched, so a failing
-        # `cargo tree` fails the step instead of yielding an empty graph.
+        # `cargo tree` fails the step instead of yielding an empty graph,
+        # and a grep error (exit status above 1) fails it too.
         run: |
           engines='^(k256|rand|sha3|getrandom|risc0-zkvm|solana-program|keccak|libsecp256k1) v[0-9]'
           check() {
-            graph=$(cargo tree -e normal --prefix none "$@")
+            graph=$(cargo tree --locked -e normal --prefix none "$@")
             if grep -E "$engines" <<<"$graph"; then
               echo "ERROR: an engine crate leaked into the graph of: cargo tree $*" >&2
+              exit 1
+            elif (( $? > 1 )); then
+              echo "ERROR: grep failed on the graph of: cargo tree $*" >&2
               exit 1
             fi
           }
@@ -261,7 +267,8 @@ jobs:
             exit 1
           fi
           for target in sbpfv0-solana-solana sbpfv3-solana-solana; do
-            RUSTC="$sbf_rustc" check -p anoma-rm-solana --target "$target"
+            RUSTC="$sbf_rustc" check --manifest-path arm_solana/sbf_link_check/Cargo.toml \
+              -p anoma-rm-solana --target "$target"
           done
 
       - name: Build anoma-rm-solana for SBF
@@ -273,12 +280,14 @@ jobs:
       # mainnet run SBPF v3, whose static syscalls resolve differently from v0.
       # Each version gets its own output directory: both builds produce the
       # same file name.
+      # The link check's Cargo.lock is committed and builds --locked, so the
+      # graph CI links is the one the graph check above inspects.
       - name: Link anoma-rm-solana into an SBPF v0 program
-        run: cargo build-sbf --sbf-out-dir target/sbpf-v0
+        run: cargo build-sbf --sbf-out-dir target/sbpf-v0 -- --locked
         working-directory: arm_solana/sbf_link_check
 
       - name: Link anoma-rm-solana into an SBPF v3 program
-        run: cargo build-sbf --arch v3 --sbf-out-dir target/sbpf-v3
+        run: cargo build-sbf --arch v3 --sbf-out-dir target/sbpf-v3 -- --locked
         working-directory: arm_solana/sbf_link_check
 
       - name: Load both link-check programs
