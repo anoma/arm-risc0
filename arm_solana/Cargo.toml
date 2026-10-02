@@ -39,4 +39,3 @@ anoma-rm-risc0 = { path = "../arm", default-features = false, features = [
   "transaction",
 ] }
 k256 = { version = "=0.13.3", features = ["arithmetic", "ecdsa", "std"] }
-sha2 = "0.10"

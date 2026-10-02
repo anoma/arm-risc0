@@ -99,13 +99,17 @@ mod tests {
         );
     }
 
-    /// The syscall-backed digest must equal an independent sha256
-    /// implementation (sha2 crate) over the same journal bytes.
+    /// The digest is sha256 of the 68-byte journal (compliance key, kind-table
+    /// commitment, zero actions): the expected bytes come from Python's
+    /// hashlib over that journal, an implementation independent of the
+    /// engine this crate's host build falls back to.
     #[test]
-    fn digest_is_sha256_of_journal() {
-        use sha2::Digest as _;
-        let instance = instance();
-        let expected: [u8; 32] = sha2::Sha256::digest(instance.to_journal()).into();
-        assert_eq!(aggregation_journal_digest(&instance), expected);
+    fn digest_is_sha256_of_journal_golden() {
+        let expected = [
+            0x45, 0xd5, 0x2a, 0xbe, 0xe4, 0x43, 0xcc, 0x8d, 0x50, 0x31, 0x59, 0x26, 0x93, 0x79,
+            0xf8, 0x8f, 0x7f, 0x1b, 0x09, 0x89, 0x11, 0x29, 0xeb, 0x81, 0x44, 0xce, 0xba, 0x1f,
+            0x57, 0x89, 0x63, 0xdf,
+        ];
+        assert_eq!(aggregation_journal_digest(&instance()), expected);
     }
 }
