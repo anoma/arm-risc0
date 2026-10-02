@@ -20,6 +20,7 @@ name = "anoma-rm-solana"
 version = "2.0.0-rc.6"
 dependencies = [
  "anoma-rm-core",
+ "borsh",
  "solana-keccak-hasher",
  "solana-secp256k1",
  "solana-secp256k1-recover",

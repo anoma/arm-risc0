@@ -10,6 +10,10 @@ repository = { workspace = true }
 arm-core = { package = "anoma-rm-core", path = "../arm_core", version = "2.0.0-rc.6", features = [
   "borsh",
 ] }
+# borsh's `std` I/O types make every read of a `Transaction` cheaper than its
+# `nostd_io` ones: without it, verification costs about 266 more compute units
+# per action. A program's other dependencies may not turn it on.
+borsh = { version = "1.5", default-features = false, features = ["std"] }
 # The sha3/sha2 features give host builds (tests, off-chain tooling) a
 # software fallback for the keccak/sha256 syscalls; both crates compile them
 # only for non-Solana targets.
@@ -39,5 +43,3 @@ anoma-rm-risc0 = { path = "../arm", default-features = false, features = [
   "transaction",
 ] }
 k256 = { version = "=0.13.3", features = ["arithmetic", "ecdsa", "std"] }
-# Serializes the link-check execution cases (delta.rs tests).
-borsh = { version = "1.5", features = ["std"] }
