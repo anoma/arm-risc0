@@ -29,6 +29,15 @@ Add to your `Cargo.toml`:
 anoma-rm-solana = "2.0.0-rc.6"
 ```
 
+The program's workspace must use Cargo's feature resolver `"2"` or later. That is the default when the root package is on edition 2021 or later; a virtual workspace must set it:
+
+```toml
+[workspace]
+resolver = "2"
+```
+
+`anoma-rm-solana` enables the `static-syscalls` feature of `solana-secp256k1` only for targets with the `static-syscalls` target feature (SBPF v3). Resolver `"1"` enables it for every target, and an SBPF v0 build then produces a program the loader refuses.
+
 Inside a Solana program:
 
 ```rust

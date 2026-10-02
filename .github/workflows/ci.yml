@@ -45,6 +45,10 @@ jobs:
         run: cargo fmt --all -- --check
         working-directory: arm_circuits
 
+      - name: Check formatting (SBF link-check workspace)
+        run: cargo fmt --all -- --check
+        working-directory: arm_solana/sbf_link_check
+
   audit:
     name: Cargo Audit
     runs-on: ubuntu-latest
@@ -88,6 +92,11 @@ jobs:
 
       - name: Run clippy (aggregation + prove)
         run: cargo clippy -p anoma-rm-risc0 -p anoma-rm-risc0-test-app --all-targets --features aggregation,prove -- -D warnings
+
+      # Checked for the host: clippy has no SBF driver in platform-tools.
+      - name: Run clippy (SBF link-check workspace)
+        run: cargo clippy --locked --all-targets -- -D warnings
+        working-directory: arm_solana/sbf_link_check
 
   build:
     name: Build
@@ -201,35 +210,128 @@ jobs:
           workspaces: |
             .
 
-      - name: Engine-free dependency graph
-        # anoma-rm-core must be unable to link a crypto engine, randomness,
-        # or the zkVM: its consumers include Solana programs, where k256
-        # curve arithmetic exceeds the SBF stack limits at runtime (it is
-        # not enough for the code to merely go uncalled).
-        # risc0-zkvm-platform (risc0-zkp's target-shim crate) is expected;
-        # the pattern matches crate names exactly.
-        run: |
-          for crate in anoma-rm-core anoma-rm-solana; do
-            if cargo tree -p "$crate" --features anoma-rm-core/borsh -e normal \
-              | grep -E '(k256|rand|sha3|getrandom|risc0-zkvm) v[0-9]'; then
-              echo "ERROR: an engine crate leaked into $crate's dependency graph" >&2
-              exit 1
-            fi
-          done
-
       - name: Install Solana toolchain
         # Pinned (like the Rust toolchain above): a floating "stable" can be
         # newer than the version the branch is developed against, and its
         # cargo build-sbf then emits SBPF bytecode versions the pinned
         # validator's feature set does not enable.
         run: |
-          sh -c "$(curl -sSfL https://release.anza.xyz/v3.1.14/install)"
+          sh -c "$(curl -sSfL https://release.anza.xyz/v4.3.0/install)"
           echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
 
       - name: Build anoma-rm-core for SBF
         run: cargo build-sbf --features borsh
         working-directory: arm_core
 
+      - name: Engine-free dependency graph
+        # anoma-rm-core must be unable to link a crypto engine, randomness,
+        # or the zkVM: its consumers include Solana programs, where k256
+        # curve arithmetic exceeds the SBF stack limits at runtime (it is
+        # not enough for the code to merely go uncalled).
+        # risc0-zkvm-platform (risc0-zkp's target-shim crate) is expected;
+        # with `--prefix none` every line starts with a crate name, so the
+        # anchored pattern matches crate names exactly.
+        # anoma-rm-solana is checked for the SBPF v0 and v3 targets its
+        # consumers build for: on the host its syscall wrappers fall back to
+        # software engines (k256, sha3), which the Solana crates compile only
+        # outside `any(target_os = "solana", target_arch = "bpf")`, and other
+        # dependencies select on target_os = "solana" or on the
+        # static-syscalls target feature alone. Only the platform-tools rustc
+        # knows these targets; the SBF build above installed it. The SBF
+        # graphs are resolved from the link check's committed Cargo.lock,
+        # the graph the link steps below build.
+        # Each graph is captured before it is searched, so a failing
+        # `cargo tree` fails the step instead of yielding an empty graph,
+        # and a grep error (exit status above 1) fails it too.
+        run: |
+          engines='^(k256|rand|sha3|getrandom|risc0-zkvm|solana-program|keccak|libsecp256k1) v[0-9]'
+          check() {
+            graph=$(cargo tree --locked -e normal --prefix none "$@")
+            if grep -E "$engines" <<<"$graph"; then
+              echo "ERROR: an engine crate leaked into the graph of: cargo tree $*" >&2
+              exit 1
+            elif (( $? > 1 )); then
+              echo "ERROR: grep failed on the graph of: cargo tree $*" >&2
+              exit 1
+            fi
+          }
+          check -p anoma-rm-core --features borsh
+          sbf_version=$(cargo build-sbf --version)
+          if [[ ! $sbf_version =~ platform-tools\ (v[0-9.]+) ]]; then
+            echo "ERROR: no platform-tools version in: $sbf_version" >&2
+            exit 1
+          fi
+          sbf_rustc="$HOME/.cache/solana/${BASH_REMATCH[1]}/platform-tools/rust/bin/rustc"
+          if [ ! -x "$sbf_rustc" ]; then
+            echo "ERROR: cargo build-sbf installed no rustc at $sbf_rustc" >&2
+            exit 1
+          fi
+          for target in sbpfv0-solana-solana sbpfv3-solana-solana; do
+            RUSTC="$sbf_rustc" check --manifest-path arm_solana/sbf_link_check/Cargo.toml \
+              -p anoma-rm-solana --target "$target"
+          done
+
       - name: Build anoma-rm-solana for SBF
         run: cargo build-sbf
         working-directory: arm_solana
+
+      # A library build never links, so it cannot catch unresolved syscall
+      # symbols; linking a program that calls the verifiers does. Devnet and
+      # mainnet run SBPF v3, whose static syscalls resolve differently from v0.
+      # Each version gets its own output directory: both builds produce the
+      # same file name.
+      # The link check's Cargo.lock is committed and builds --locked, so the
+      # graph CI links is the one the graph check above inspects.
+      - name: Link anoma-rm-solana into an SBPF v0 program
+        run: cargo build-sbf --sbf-out-dir target/sbpf-v0 -- --locked
+        working-directory: arm_solana/sbf_link_check
+
+      - name: Link anoma-rm-solana into an SBPF v3 program
+        run: cargo build-sbf --arch v3 --sbf-out-dir target/sbpf-v3 -- --locked
+        working-directory: arm_solana/sbf_link_check
+
+      - name: Load and execute both link-check programs
+        # Linking can succeed where the loader refuses the ELF: an SBPF v0
+        # program that carries static-syscall code links, and the loader
+        # rejects it at deployment. Deploying to a local validator runs the
+        # loader's verification of each program.
+        # The test validator activates every feature, including SIMD-0500
+        # (B8JJXCy5..., no deployment of SBPF v0-v2), which devnet and
+        # mainnet have not activated; it is deactivated so the v0 program
+        # is verified as those clusters verify it.
+        working-directory: arm_solana/sbf_link_check
+        run: |
+          work=$(mktemp -d)
+          solana-keygen new --no-bip39-passphrase --silent --outfile "$work/payer.json"
+          payer=$(solana-keygen pubkey "$work/payer.json")
+          solana-test-validator --quiet --ledger "$work/ledger" --mint "$payer" \
+            --deactivate-feature B8JJXCy5amZyWG9r7EnUYLwzXSXTxG7GZ1qZ1qggo83g &
+          validator=$!
+          trap 'kill "$validator"' EXIT
+          rpc=http://127.0.0.1:8899
+          # Poll the RPC until it answers; give up after 60 seconds.
+          for attempt in $(seq 60); do
+            if ! kill -0 "$validator"; then
+              cat "$work/ledger/validator.log" >&2
+              echo "ERROR: solana-test-validator exited before its RPC answered" >&2
+              exit 1
+            fi
+            if solana cluster-version --url "$rpc"; then
+              break
+            fi
+            if [ "$attempt" -eq 60 ]; then
+              echo "ERROR: solana-test-validator RPC did not answer within 60 seconds" >&2
+              exit 1
+            fi
+            sleep 1
+          done
+          programs=()
+          for arch in v0 v3; do
+            deployed=$(solana program deploy --url "$rpc" --keypair "$work/payer.json" --output json \
+              "target/sbpf-$arch/anoma_rm_solana_sbf_link_check.so")
+            echo "$deployed"
+            programs+=("$(jq -er .programId <<<"$deployed")")
+          done
+          # Loading is not executing: run each verification case on both
+          # programs, so a syscall that resolves but misbehaves fails here.
+          python3 exec_check.py "$rpc" "$payer" "${programs[@]}"

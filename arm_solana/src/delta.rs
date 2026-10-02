@@ -15,9 +15,9 @@ use arm_core::aggregation_instance::{ActionAggregated, AggregationInstance};
 use arm_core::delta_proof::DeltaProof;
 use arm_core::transaction::{Delta, Transaction};
 use arm_core::utils::words_to_bytes;
-use solana_program::keccak::hashv;
-use solana_program::secp256k1_recover::secp256k1_recover;
+use solana_keccak_hasher::hashv;
 use solana_secp256k1::{Secp256k1, Secp256k1Point, UncompressedPoint};
+use solana_secp256k1_recover::secp256k1_recover;
 
 use crate::error::SolanaArmError;
 
@@ -284,7 +284,7 @@ mod tests {
     fn delta_hash_matches_protocol_keccak_golden() {
         let roots: [[u8; 32]; 4] = std::array::from_fn(|index| {
             let index = (index as u64).to_le_bytes();
-            solana_program::hash::hashv(&[b"golden-delta", &index]).to_bytes()
+            solana_sha256_hasher::hashv(&[b"golden-delta", &index]).to_bytes()
         });
         let expected = [
             0xf4, 0x3d, 0x99, 0xe0, 0x17, 0x75, 0x19, 0x96, 0x15, 0x91, 0x11, 0x4d, 0x45, 0x39,
@@ -429,5 +429,113 @@ mod tests {
         let (x6, y6) = point_words(&six_g);
         let expected = parse_delta_point(&action_with_delta(Digest::default(), x6, y6));
         assert_eq!(accumulated.0, expected.0, "accumulation must match k256");
+    }
+
+    /// A transaction whose actions carry `scalars`·G, its delta proof signed
+    /// by the key `signer` (deterministic RFC 6979 nonces), with the
+    /// signature's s negated when `high_s`.
+    fn exec_case_transaction(
+        scalars: &[k256::Scalar],
+        signer: k256::Scalar,
+        high_s: bool,
+    ) -> Transaction {
+        use k256::elliptic_curve::PrimeField;
+        let actions = scalars
+            .iter()
+            .enumerate()
+            .map(|(i, s)| {
+                let (x, y) = point_words(&(g() * s));
+                action_with_delta(Digest::from_bytes([i as u8 + 1; 32]), x, y)
+            })
+            .collect();
+        let instance = instance_with_actions(actions);
+        let key = SigningKey::from_bytes(&signer.to_repr()).unwrap();
+        let (sig, recid) = key
+            .sign_prehash_recoverable(&compute_delta_msg_hash(&collect_roots(&instance)))
+            .unwrap();
+        let mut proof = [0u8; 65];
+        proof[..64].copy_from_slice(&sig.to_bytes());
+        proof[64] = recid.to_byte() + 27;
+        if high_s {
+            let s = k256::Scalar::from_repr(*k256::FieldBytes::from_slice(&proof[32..64])).unwrap();
+            proof[32..64].copy_from_slice(&(-s).to_bytes());
+            proof[64] = ((proof[64] - 27) ^ 1) + 27;
+        }
+        Transaction {
+            actions: None,
+            delta_proof: Delta::Proof(DeltaProof::from_bytes(&proof).unwrap()),
+            expected_balance: None,
+            aggregation: Some(Aggregation {
+                proof: vec![],
+                instance,
+            }),
+        }
+    }
+
+    /// The cases CI executes on the deployed SBF link-check programs
+    /// (sbf_link_check/exec_cases.txt, read by sbf_link_check/exec_check.py):
+    /// one line per case, `name expected instruction-data-hex`, where
+    /// `expected` is `ok` or the error code the program returns as a custom
+    /// program error. Each case's verdict is checked here on the host.
+    #[test]
+    fn link_check_exec_cases_are_current() {
+        let [a, b, c] = [3u64, 5, 7].map(k256::Scalar::from);
+        let cases: [(&str, Transaction, Result<(), SolanaArmError>); 7] = [
+            ("one-action", exec_case_transaction(&[a], a, false), Ok(())),
+            (
+                "three-distinct-actions",
+                exec_case_transaction(&[a, b, c], a + b + c, false),
+                Ok(()),
+            ),
+            (
+                "doubling",
+                exec_case_transaction(&[a, a], a + a, false),
+                Ok(()),
+            ),
+            (
+                "doubling-then-addition",
+                exec_case_transaction(&[a, a, b], a + a + b, false),
+                Ok(()),
+            ),
+            (
+                "wrong-key",
+                exec_case_transaction(&[a, b], c, false),
+                Err(SolanaArmError::DeltaMismatch),
+            ),
+            (
+                "high-s",
+                exec_case_transaction(&[a], a, true),
+                Err(SolanaArmError::InvalidDeltaProof),
+            ),
+            (
+                "identity",
+                exec_case_transaction(&[a, -a], b, false),
+                Err(SolanaArmError::DeltaProofVerificationFailed),
+            ),
+        ];
+        let mut generated = String::new();
+        for (name, tx, verdict) in cases {
+            assert_eq!(verify_delta_proof(&tx), verdict, "{name}");
+            let expected = match verdict {
+                Ok(()) => "ok".to_string(),
+                Err(e) => (e as u32).to_string(),
+            };
+            let data: String = borsh::to_vec(&tx)
+                .unwrap()
+                .iter()
+                .map(|byte| format!("{byte:02x}"))
+                .collect();
+            generated.push_str(&format!("{name} {expected} {data}\n"));
+        }
+
+        let path = concat!(env!("CARGO_MANIFEST_DIR"), "/sbf_link_check/exec_cases.txt");
+        if std::env::var_os("WRITE_EXEC_CASES").is_some() {
+            std::fs::write(path, &generated).unwrap();
+        }
+        assert_eq!(
+            std::fs::read_to_string(path).unwrap(),
+            generated,
+            "{path} is stale; regenerate with: WRITE_EXEC_CASES=1 cargo test -p anoma-rm-solana link_check_exec_cases_are_current"
+        );
     }
 }
