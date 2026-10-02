@@ -290,7 +290,7 @@ jobs:
         run: cargo build-sbf --arch v3 --sbf-out-dir target/sbpf-v3 -- --locked
         working-directory: arm_solana/sbf_link_check
 
-      - name: Load both link-check programs
+      - name: Load and execute both link-check programs
         # Linking can succeed where the loader refuses the ELF: an SBPF v0
         # program that carries static-syscall code links, and the loader
         # rejects it at deployment. Deploying to a local validator runs the
@@ -325,7 +325,13 @@ jobs:
             fi
             sleep 1
           done
+          programs=()
           for arch in v0 v3; do
-            solana program deploy --url "$rpc" --keypair "$work/payer.json" \
-              "target/sbpf-$arch/anoma_rm_solana_sbf_link_check.so"
+            deployed=$(solana program deploy --url "$rpc" --keypair "$work/payer.json" --output json \
+              "target/sbpf-$arch/anoma_rm_solana_sbf_link_check.so")
+            echo "$deployed"
+            programs+=("$(jq -er .programId <<<"$deployed")")
           done
+          # Loading is not executing: run each verification case on both
+          # programs, so a syscall that resolves but misbehaves fails here.
+          python3 exec_check.py "$rpc" "$payer" "${programs[@]}"

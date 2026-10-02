@@ -39,3 +39,5 @@ anoma-rm-risc0 = { path = "../arm", default-features = false, features = [
   "transaction",
 ] }
 k256 = { version = "=0.13.3", features = ["arithmetic", "ecdsa", "std"] }
+# Serializes the link-check execution cases (delta.rs tests).
+borsh = { version = "1.5", features = ["std"] }

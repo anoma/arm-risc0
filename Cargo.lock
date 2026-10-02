@@ -313,6 +313,7 @@ version = "2.0.0-rc.6"
 dependencies = [
  "anoma-rm-core",
  "anoma-rm-risc0",
+ "borsh",
  "k256",
  "solana-keccak-hasher",
  "solana-secp256k1",
