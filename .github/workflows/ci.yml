@@ -128,13 +128,18 @@ jobs:
       #     $HOME/.risc0/bin/rzup install cargo-risczero $RISC0_TOOLCHAIN_VERSION
       #     $HOME/.risc0/bin/rzup install r0vm $RISC0_TOOLCHAIN_VERSION
 
+      # --locked: a Cargo.lock that no longer matches the manifests fails
+      # the build instead of being rewritten on the runner.
       - name: Build main workspace
-        run: cargo build --workspace --all-targets
+        run: cargo build --workspace --all-targets --locked
 
-      ## Skip building arm_circuits workspace for now due to limited risc0-toolchain download requests
-      # - name: Build arm_circuits workspace
-      #   run: cargo build --workspace --all-targets
-      #   working-directory: arm_circuits
+      # RISC0_SKIP_BUILD builds the host crates without compiling the guests,
+      # so the step needs no RISC0 toolchain download.
+      - name: Build arm_circuits workspace (host crates, guests skipped)
+        run: cargo build --workspace --all-targets --locked
+        working-directory: arm_circuits
+        env:
+          RISC0_SKIP_BUILD: 1
 
   test:
     name: Test
