@@ -10,10 +10,32 @@ repository = { workspace = true }
 arm-core = { package = "anoma-rm-core", path = "../arm_core", version = "2.0.0-rc.6", features = [
   "borsh",
 ] }
-solana-program = "2"
+# borsh's `std` I/O types make every read of a `Transaction` cheaper than its
+# `nostd_io` ones: without it, verification costs about 266 more compute units
+# per action. A program's other dependencies may not turn it on.
+borsh = { version = "1.5", default-features = false, features = ["std"] }
+# The sha3/sha2 features give host builds (tests, off-chain tooling) a
+# software fallback for the keccak/sha256 syscalls; both crates compile them
+# only for non-Solana targets.
+solana-keccak-hasher = { version = "3", features = ["sha3"] }
+solana-secp256k1-recover = "3"
 # >= 0.2.1 for the ecadd modular-subtraction fix.
 solana-secp256k1 = "0.2.1"
+solana-sha256-hasher = { version = "3", features = ["sha2"] }
 thiserror = "2.0.6"
+
+# SBPF v3 resolves syscalls statically. The Solana SDK crates switch on the
+# target's `static-syscalls` target feature, but solana-secp256k1 switches on
+# a Cargo feature of the same name; without it, a v3 program references
+# `sol_secp256k1_recover` as a dynamic symbol and fails to link.
+# This entry is correct only when the program's workspace uses Cargo's
+# resolver "2" or later (the default for a root package on edition 2021 or
+# later; a virtual workspace must set `resolver` itself). Resolver "1" unifies
+# features across all targets, so the Cargo feature also reaches SBPF v0
+# builds, whose loader refuses the resulting program ("ELF error: Relative
+# jump out of bounds").
+[target.'cfg(target_feature = "static-syscalls")'.dependencies]
+solana-secp256k1 = { version = "0.2.1", features = ["static-syscalls"] }
 
 [dev-dependencies]
 # Cross-check reference: the host engine and its k256 curve arithmetic.
@@ -21,4 +43,3 @@ anoma-rm-risc0 = { path = "../arm", default-features = false, features = [
   "transaction",
 ] }
 k256 = { version = "=0.13.3", features = ["arithmetic", "ecdsa", "std"] }
-sha2 = "0.10"
