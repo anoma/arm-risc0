@@ -248,12 +248,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "anoma-rm-core"
+version = "2.0.0-rc.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4efb9c303e7b2a719ea02ae7eca7a324c9ee346010cb4b4dabf426f6201495a4"
+dependencies = [
+ "bincode",
+ "borsh",
+ "bytemuck",
+ "hex",
+ "risc0-zkp",
+ "serde",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "anoma-rm-risc0"
 version = "2.0.0-rc.6"
 dependencies = [
  "alloy-primitives",
  "alloy-sol-types",
- "anoma-rm-core",
+ "anoma-rm-core 2.0.0-rc.6",
  "anoma-rm-risc0",
  "bincode",
  "borsh",
@@ -309,9 +324,9 @@ dependencies = [
 
 [[package]]
 name = "anoma-rm-solana"
-version = "2.0.0-rc.6"
+version = "2.0.0-rc.6.1"
 dependencies = [
- "anoma-rm-core",
+ "anoma-rm-core 2.0.0-rc.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "anoma-rm-risc0",
  "borsh",
  "k256",

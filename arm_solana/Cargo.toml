@@ -1,13 +1,13 @@
 [package]
 name = "anoma-rm-solana"
 description = "Solana engine for Anoma Resource Machine transaction verification (syscall-based)"
-version = "2.0.0-rc.6"
+version = "2.0.0-rc.6.1"
 edition = { workspace = true }
 license = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
-arm-core = { package = "anoma-rm-core", path = "../arm_core", version = "2.0.0-rc.6", features = [
+arm-core = { package = "anoma-rm-core", version = "2.0.0-rc.6", features = [
   "borsh",
 ] }
 # borsh's `std` I/O types make every read of a `Transaction` cheaper than its
