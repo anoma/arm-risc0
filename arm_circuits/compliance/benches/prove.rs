@@ -4,11 +4,11 @@
 /// - `empty_table`: the circuit falls back to `hash_to_curve` for every resource.
 /// - `file_table`:  kind points are pre-computed in `kind_table.json`; the circuit
 ///                  resolves them via a table lookup, skipping `hash_to_curve`.
-/// - `table_size`:  fixed at 2 resources; varying kind-table sizes (10 – 1000 entries)
-///                  with the matching entry placed last (worst-case linear scan).
+/// - `table_size`:  varying kind-table sizes (8 – 1024 entries) × resource counts
+///                  (2, 4, 8, 16) with the matching entry last (worst-case scan).
 ///
-/// Each configuration is benchmarked with 1, 2, 4, and 8 consumed/created
-/// resources to measure scaling behaviour.
+/// Each `empty_table` and `file_table` configuration is benchmarked with 2, 4,
+/// 8, and 16 consumed/created resources to measure per-resource scaling.
 ///
 /// # Running on CPU
 ///
@@ -39,9 +39,9 @@ use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use risc0_zkvm::{default_prover, Digest, ExecutorEnv, ProverOpts};
 use std::time::Duration;
 
-const RESOURCE_COUNTS: &[usize] = &[1, 2, 4, 8];
+const RESOURCE_COUNTS: &[usize] = &[2, 4, 8, 16];
 /// Kind-table sizes for the table-size scaling benchmark.
-const TABLE_SIZES: &[usize] = &[8, 16, 32, 64, 128, 256, 512, 1024, 2048];
+const TABLE_SIZES: &[usize] = &[8, 32, 64, 128, 256, 512, 1024];
 
 fn do_prove(witness: &ComplianceWitness) {
     let env = ExecutorEnv::builder()
@@ -261,12 +261,11 @@ fn bench_file_table(c: &mut Criterion) {
     group.finish();
 }
 
-/// Varying kind-table size with the matching entry at the last position.
+/// Varying kind-table sizes × resource counts, matching entry at the last position.
 ///
-/// Measures how prove time scales with the number of table entries the circuit
-/// must scan to reach the matching entry.  Resource count is fixed at 2
-/// (1 consumed + 1 created) to isolate the table-scan cost from the
-/// per-resource proving cost.
+/// Measures how prove time scales with both the number of table entries and the
+/// number of resources per compliance witness. The matching entry is placed last
+/// to exercise the worst-case linear scan.
 fn bench_table_size(c: &mut Criterion) {
     let kind_table_path =
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../arm/data/kind_table.json");
@@ -282,23 +281,25 @@ fn bench_table_size(c: &mut Criterion) {
 
     for &size in TABLE_SIZES {
         let table = make_kind_table(size, &json_entries);
-        group.bench_with_input(
-            BenchmarkId::new("prove", size),
-            &(table, size),
-            |b, (table, _size)| {
-                b.iter_with_setup(
-                    || {
-                        make_witness_with_kind_table(
-                            matching.logic_ref,
-                            matching.label_ref,
-                            2,
-                            table.clone(),
-                        )
-                    },
-                    |witness| do_prove(&witness),
-                );
-            },
-        );
+        for &count in RESOURCE_COUNTS {
+            group.bench_with_input(
+                BenchmarkId::new("prove", format!("{size}x{count}")),
+                &(table.clone(), count),
+                |b, (table, count)| {
+                    b.iter_with_setup(
+                        || {
+                            make_witness_with_kind_table(
+                                matching.logic_ref,
+                                matching.label_ref,
+                                *count,
+                                table.clone(),
+                            )
+                        },
+                        |witness| do_prove(&witness),
+                    );
+                },
+            );
+        }
     }
 
     group.finish();
