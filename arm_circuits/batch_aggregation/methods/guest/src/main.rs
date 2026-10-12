@@ -6,6 +6,7 @@ use anoma_rm_risc0::{
     },
     aggregation_witness::AggregationWitness,
     logic_instance::LogicInstance,
+    merkle_path::PADDING_LEAF,
 };
 use risc0_zkvm::{guest::env, serde::to_vec, Digest};
 
@@ -14,7 +15,12 @@ fn main() {
     assert!(!witness.actions.is_empty(), "no actions provided");
 
     let compliance_key = witness.compliance_key;
-    let mut kind_table_commitment: Option<Digest> = None;
+    // The aggregated kind_table_root is the shared root across all actions that
+    // committed a real kind table (i.e. any root other than PADDING_LEAF). All
+    // such roots must be identical; actions that committed PADDING_LEAF (no kind
+    // table used) are compatible with any root. If every action committed
+    // PADDING_LEAF, the aggregated root is also PADDING_LEAF.
+    let mut kind_table_root: Option<Digest> = None;
     let mut actions_out = Vec::with_capacity(witness.actions.len());
 
     for aw in &witness.actions {
@@ -24,12 +30,16 @@ fn main() {
         let ci_words = to_vec(ci).expect("failed to serialize ComplianceInstance");
         env::verify(compliance_key, &ci_words).expect("compliance proof verification failed");
 
-        // All actions must share the same kind_table_commitment.
-        let ktc = *kind_table_commitment.get_or_insert(ci.kind_table_commitment);
-        assert_eq!(
-            ci.kind_table_commitment, ktc,
-            "kind_table_commitment mismatch across actions"
-        );
+        // Actions that used a kind table commit a non-PADDING_LEAF root; all
+        // such roots must agree. Actions that committed PADDING_LEAF are
+        // compatible with any root and do not constrain kind_table_root.
+        if ci.kind_table_root != PADDING_LEAF {
+            let ktr = *kind_table_root.get_or_insert(ci.kind_table_root);
+            assert_eq!(
+                ci.kind_table_root, ktr,
+                "kind_table_root mismatch across actions"
+            );
+        }
 
         assert_eq!(
             aw.consumed_app_data.len(),
@@ -101,7 +111,7 @@ fn main() {
 
     let instance = AggregationInstance {
         compliance_key,
-        kind_table_commitment: kind_table_commitment.unwrap(),
+        kind_table_root: kind_table_root.unwrap_or(PADDING_LEAF),
         actions: actions_out,
     };
 

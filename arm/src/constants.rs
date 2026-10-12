@@ -1,8 +1,11 @@
-//! Constants for compliance and padding logic proving and verification keys.
+//! Constants for compliance and padding logic proving and verification keys,
+//! and the global kind-table singleton.
 
 use crate::{compliance::KindTableEntry, error::ArmError, Digest};
 use hex::FromHex;
 use std::{path::Path, sync::OnceLock};
+
+pub use crate::kind_table::KindTable;
 
 /// Compliance proving key / compliance guest ELF binary
 pub const COMPLIANCE_PK: &[u8] = include_bytes!("../elfs/compliance-guest.bin");
@@ -20,8 +23,8 @@ pub use arm_core::constants::{
     BATCH_AGGREGATION_EVM_VK, BATCH_AGGREGATION_VK, COMPLIANCE_VK, PADDING_LOGIC_VK,
 };
 
-/// Global kind table and its SHA-256 commitment, loaded once from a JSON file.
-static KIND_TABLE: OnceLock<(Vec<KindTableEntry>, Digest)> = OnceLock::new();
+/// Global kind table, loaded once.
+static KIND_TABLE: OnceLock<KindTable> = OnceLock::new();
 
 /// JSON-serializable representation of a kind table entry.
 /// All fields are lowercase hex strings. `kind_point` is an uncompressed
@@ -39,21 +42,9 @@ struct KindTableJsonEntry {
 /// Initializes the global kind table from a JSON file.
 ///
 /// The file must contain a JSON array of objects with `logic_ref`, `label_ref`,
-/// and `kind_point` (all lowercase hex). The kind point is read directly from
-/// the file; no hash-to-curve is performed at load time. An optional `_comment`
-/// field is accepted and ignored.
-/// Calling this a second time is a no-op; the first call wins.
-///
-/// # Example JSON
-/// ```json
-/// [
-///   {
-///     "logic_ref": "aabbcc...",
-///     "label_ref":  "ddeeff...",
-///     "kind_point": "04..."
-///   }
-/// ]
-/// ```
+/// and `kind_point` (all lowercase hex). The kind point is stored verbatim; no
+/// `hash_to_curve` is performed at load time. An optional `_comment` field is
+/// accepted and ignored. Calling this a second time is a no-op; the first call wins.
 pub fn init_kind_table_from_file(path: &Path) -> Result<(), ArmError> {
     if KIND_TABLE.get().is_some() {
         return Ok(());
@@ -82,8 +73,8 @@ pub fn init_kind_table_from_file(path: &Path) -> Result<(), ArmError> {
 
 /// Initializes the global kind table from a pre-built list of entries.
 ///
-/// Useful for tests or callers that construct entries programmatically without
-/// a JSON file. Calling this a second time is a no-op; the first call wins.
+/// Useful for tests or callers that construct entries programmatically.
+/// Calling this a second time is a no-op; the first call wins.
 pub fn init_kind_table_from_entries(entries: Vec<KindTableEntry>) -> Result<(), ArmError> {
     if KIND_TABLE.get().is_some() {
         return Ok(());
@@ -92,46 +83,27 @@ pub fn init_kind_table_from_entries(entries: Vec<KindTableEntry>) -> Result<(), 
 }
 
 fn install_kind_table(entries: Vec<KindTableEntry>) -> Result<(), ArmError> {
-    for entry in &entries {
-        validate_kind_point(&entry.kind_point)?;
-    }
-    let hash = crate::compliance::hash_kind_table_entries(&entries);
+    let table = KindTable::from_entries(entries)?;
     // First call wins; a race between two threads is benign.
-    let _ = KIND_TABLE.set((entries, hash));
+    let _ = KIND_TABLE.set(table);
     Ok(())
 }
 
-/// Validates that `bytes` is a well-formed uncompressed SEC1 secp256k1 point:
-/// 65 bytes, leading 0x04 byte, and on the curve.
-fn validate_kind_point(bytes: &[u8]) -> Result<(), ArmError> {
-    use k256::{elliptic_curve::sec1::FromEncodedPoint, EncodedPoint, ProjectivePoint};
-    if bytes.len() != 65 || bytes[0] != 0x04 {
-        return Err(ArmError::KindTableLoadFailed);
-    }
-    let encoded = EncodedPoint::from_bytes(bytes).map_err(|_| ArmError::KindTableLoadFailed)?;
-    if ProjectivePoint::from_encoded_point(&encoded)
-        .is_none()
-        .into()
-    {
-        return Err(ArmError::KindTableLoadFailed);
-    }
-    Ok(())
-}
-
-/// Returns the currently loaded global kind table (empty slice if not yet
-/// initialised).
+/// Returns the sorted entries of the global kind table, or an empty slice if
+/// the table has not been initialised yet.
 pub fn kind_table() -> &'static [KindTableEntry] {
-    KIND_TABLE.get().map_or(&[], |(entries, _)| entries)
+    KIND_TABLE.get().map_or(&[], KindTable::entries)
 }
 
-/// Returns the SHA-256 commitment to the global kind table, or `None` if the
-/// table has not been initialised yet.
-///
-/// The commitment is computed with
-/// [`crate::compliance::hash_kind_table_entries`], the same algorithm the
-/// compliance circuit commits with.
-pub fn kind_table_hash() -> Option<&'static Digest> {
-    KIND_TABLE.get().map(|(_, hash)| hash)
+/// Returns the global `KindTable`, or `None` if it has not been initialised.
+pub fn global_kind_table() -> Option<&'static KindTable> {
+    KIND_TABLE.get()
+}
+
+/// Returns the Merkle root of the global kind table, or `None` if the table
+/// has not been initialised yet.
+pub fn kind_table_root() -> Option<Digest> {
+    KIND_TABLE.get().map(|t| t.root())
 }
 
 #[cfg(test)]
@@ -153,7 +125,7 @@ mod tests {
             ),
             (
                 "TEST_LOGIC_VK",
-                "053cd6f486ca1ce177d2a2251069dd22a5dff1811d4c79f20e4b5f970673eb85",
+                "64400f7a7ce059bb119f2c5070816ca36f31e22ea4cd637df2546bc17257a38f",
             ),
         ];
         for (name, hex_vk) in vks {
@@ -167,14 +139,14 @@ mod tests {
 
     #[test]
     #[ignore = "developer utility: mutates global KIND_TABLE, run in isolation with --include-ignored"]
-    fn print_kind_table_hash() {
+    fn print_kind_table_root() {
         let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("data/kind_table.json");
         init_kind_table_from_file(&path).expect("failed to load kind table");
-        let hash = kind_table_hash().expect("kind table not initialised");
-        println!("kind_table_hash: {hash:?}");
+        let root = kind_table_root().expect("kind table not initialised");
+        println!("kind_table_root: {root:?}");
         println!(
             "hex: {}",
-            hash.as_bytes()
+            root.as_bytes()
                 .iter()
                 .map(|b| format!("{b:02x}"))
                 .collect::<String>()

@@ -7,65 +7,85 @@
 pub use arm_core::compliance::*;
 
 use crate::error::ArmError;
-use crate::resource::{
-    ConsumedResourcePublic, ConsumedResourceWitness, CreatedResourcePublic, Resource,
-};
+#[cfg(feature = "transaction")]
+use crate::resource::ConsumedResourceWitness;
+use crate::resource::{ConsumedResourcePublic, CreatedResourcePublic, Resource};
 use crate::utils::{bytes_to_words, words_to_bytes};
 use crate::Digest;
+#[cfg(feature = "transaction")]
+use k256::elliptic_curve::Field;
 use k256::{
     elliptic_curve::{
         sec1::{FromEncodedPoint, ToEncodedPoint},
-        Field, PrimeField,
+        PrimeField,
     },
     EncodedPoint, ProjectivePoint, Scalar,
 };
 
 /// Creates a new compliance witness from the given resources with a freshly
 /// drawn `rcv`. It uses the initial root for ephemeral resources.
+#[cfg(feature = "transaction")]
 pub fn from_resources(
     consumed_data: Vec<ConsumedResourceWitness>,
     created_resources: Vec<Resource>,
-    kind_table: Vec<KindTableEntry>,
+    kind_table: &crate::kind_table::KindTable,
 ) -> ComplianceWitness {
     from_resources_with_ephemeral_root(consumed_data, created_resources, INITIAL_ROOT, kind_table)
 }
 
 /// Creates a new compliance witness from the given resources with a freshly
 /// drawn `rcv` and a valid root when consuming an ephemeral resource.
+#[cfg(feature = "transaction")]
 pub fn from_resources_with_ephemeral_root(
     consumed_data: Vec<ConsumedResourceWitness>,
     created_resources: Vec<Resource>,
     valid_root: Digest,
-    kind_table: Vec<KindTableEntry>,
+    kind_table: &crate::kind_table::KindTable,
 ) -> ComplianceWitness {
     let mut rng = rand::thread_rng();
     let rcv = Scalar::random(&mut rng).to_bytes();
+
+    let kind_paths = kind_table.kind_paths_for(&consumed_data, &created_resources);
 
     ComplianceWitness::from_parts(
         consumed_data,
         created_resources,
         valid_root,
         rcv.as_ref(),
-        kind_table,
+        kind_paths,
     )
 }
 
-/// Looks up the kind point for a resource in the witness's kind table.
-/// Falls back to hash_to_curve if the resource type is not in the table.
-fn lookup_kind(
-    witness: &ComplianceWitness,
+/// Decodes the kind point from a `KindPath`, verifying its Merkle path
+/// against `derived_root` (updated in place on first use). Falls back to
+/// `hash_to_curve` when `kind_path` is `None`.
+fn resolve_kind(
+    kind_path: Option<&KindPath>,
     resource: &Resource,
+    derived_root: &mut Option<Digest>,
 ) -> Result<ProjectivePoint, ArmError> {
-    for entry in &witness.kind_table {
-        if entry.logic_ref == resource.logic_ref && entry.label_ref == resource.label_ref {
-            let encoded = EncodedPoint::from_bytes(&entry.kind_point)
+    match kind_path {
+        Some(kp) => {
+            let leaf =
+                arm_core::compliance::hash_kind_table_leaf(&arm_core::compliance::KindTableEntry {
+                    logic_ref: resource.logic_ref,
+                    label_ref: resource.label_ref,
+                    kind_point: kp.kind_point.clone(),
+                });
+            let path_root = kp.path.root(&leaf);
+            match *derived_root {
+                None => *derived_root = Some(path_root),
+                Some(r) if r != path_root => return Err(ArmError::InvalidResourceKind),
+                _ => {}
+            }
+            let encoded = EncodedPoint::from_bytes(&kp.kind_point)
                 .map_err(|_| ArmError::InvalidResourceKind)?;
-            return ProjectivePoint::from_encoded_point(&encoded)
+            ProjectivePoint::from_encoded_point(&encoded)
                 .into_option()
-                .ok_or(ArmError::InvalidResourceKind);
+                .ok_or(ArmError::InvalidResourceKind)
         }
+        None => crate::resource::kind(resource),
     }
-    crate::resource::kind(resource)
 }
 
 /// Compliance constraints. Produces the public outputs of the unit by
@@ -82,6 +102,15 @@ pub fn constrain(witness: &ComplianceWitness) -> Result<ComplianceInstance, ArmE
 
     let n_consumed = witness.consumed_data.len();
     let n_created = witness.created_resources.len();
+
+    if witness.kind_paths.len() != n_consumed + n_created {
+        return Err(ArmError::InvalidResourceKind);
+    }
+
+    // The kind_table_root committed in the instance is derived from the paths:
+    // the root of the first non-None path, or PADDING_LEAF if all are None.
+    let mut derived_root: Option<Digest> = None;
+
     let mut consumed_nullifiers = Vec::with_capacity(n_consumed);
     let mut consumed_publics = Vec::with_capacity(n_consumed);
     let mut kinds: Vec<ProjectivePoint> = Vec::with_capacity(n_consumed + n_created);
@@ -89,7 +118,7 @@ pub fn constrain(witness: &ComplianceWitness) -> Result<ComplianceInstance, ArmE
 
     // Constrain consumed resources and accumulate their (kind, +quantity)
     // contributions to the delta.
-    for w in &witness.consumed_data {
+    for (i, w) in witness.consumed_data.iter().enumerate() {
         let resource_commitment = w.resource.commitment();
         let resource_nullifier = w
             .resource
@@ -110,7 +139,11 @@ pub fn constrain(witness: &ComplianceWitness) -> Result<ComplianceInstance, ArmE
         accumulate_kind(
             &mut kinds,
             &mut sums,
-            lookup_kind(witness, &w.resource)?,
+            resolve_kind(
+                witness.kind_paths[i].as_ref(),
+                &w.resource,
+                &mut derived_root,
+            )?,
             crate::resource::quantity_scalar(&w.resource),
         );
     }
@@ -119,8 +152,8 @@ pub fn constrain(witness: &ComplianceWitness) -> Result<ComplianceInstance, ArmE
     // nullifiers, require it to match, and accumulate (kind, -quantity).
     let consumed_nullifiers_digest = Resource::hash_nullifiers(&consumed_nullifiers)?;
     let mut created_publics = Vec::with_capacity(n_created);
-    for (resource, index) in witness.created_resources.iter().zip(0u32..) {
-        if Resource::derive_nonce(index, consumed_nullifiers_digest) != resource.nonce {
+    for (j, resource) in witness.created_resources.iter().enumerate() {
+        if Resource::derive_nonce(j as u32, consumed_nullifiers_digest) != resource.nonce {
             return Err(ArmError::InvalidResourceNonce);
         }
         created_publics.push(CreatedResourcePublic {
@@ -130,7 +163,11 @@ pub fn constrain(witness: &ComplianceWitness) -> Result<ComplianceInstance, ArmE
         accumulate_kind(
             &mut kinds,
             &mut sums,
-            lookup_kind(witness, resource)?,
+            resolve_kind(
+                witness.kind_paths[n_consumed + j].as_ref(),
+                resource,
+                &mut derived_root,
+            )?,
             -crate::resource::quantity_scalar(resource),
         );
     }
@@ -145,14 +182,15 @@ pub fn constrain(witness: &ComplianceWitness) -> Result<ComplianceInstance, ArmE
         })
         + ProjectivePoint::GENERATOR * rcv_scalar;
     let (delta_x, delta_y) = encode_delta(delta)?;
-    let kind_table_commitment = hash_kind_table_entries(&witness.kind_table);
+
+    let kind_table_root = derived_root.unwrap_or(arm_core::merkle_path::PADDING_LEAF);
 
     Ok(ComplianceInstance {
         consumed_publics,
         created_publics,
         delta_x,
         delta_y,
-        kind_table_commitment,
+        kind_table_root,
     })
 }
 

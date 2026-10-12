@@ -7,7 +7,7 @@ use anoma_rm_risc0::{
     action_tree::ActionTree,
     compliance,
     compliance_unit::{self, ComplianceUnit},
-    constants::{init_kind_table_from_file, kind_table},
+    constants::{global_kind_table, init_kind_table_from_file},
     delta_proof::{self, DeltaWitness},
     error::ArmError,
     logic_proof::{LogicProver, LogicVerifier},
@@ -21,7 +21,7 @@ use anoma_rm_risc0::{
 #[cfg(test)]
 use anoma_rm_risc0::{
     compliance::ComplianceInstance,
-    constants::kind_table_hash,
+    constants::kind_table_root,
     logic_proof,
     proving_system::{instance_to_journal, journal_to_instance, JournalEncoding},
 };
@@ -36,7 +36,7 @@ pub const TEST_LOGIC_PK: &[u8] = include_bytes!("../elf/logic-test-guest.bin");
 lazy_static! {
     // test logic verification key / test image id
     pub static ref TEST_LOGIC_VK: Digest =
-        Digest::from_hex("053cd6f486ca1ce177d2a2251069dd22a5dff1811d4c79f20e4b5f970673eb85")
+        Digest::from_hex("64400f7a7ce059bb119f2c5070816ca36f31e22ea4cd637df2546bc17257a38f")
             .unwrap();
 }
 
@@ -154,7 +154,7 @@ impl Tester {
         let compliance_witness = compliance::from_resources(
             self.consumed_data[self.current].clone(),
             self.created_resources[self.current].clone(),
-            kind_table().to_vec(),
+            global_kind_table().expect("kind table not initialised"),
         );
         self.rcvs.push(compliance_witness.rcv.clone());
 
@@ -260,7 +260,7 @@ fn encode_compliance_instance(instance: &ComplianceInstance) -> Vec<u8> {
 fn set_action_kind_table_commitment(action: &mut Action, commitment: Digest) {
     let mut instance: ComplianceInstance =
         journal_to_instance(&action.compliance_unit.instance).expect("instance must decode");
-    instance.kind_table_commitment = commitment;
+    instance.kind_table_root = commitment;
     action.compliance_unit.instance = encode_compliance_instance(&instance);
 }
 
@@ -306,7 +306,7 @@ fn test_transaction() {
         .unwrap();
     assert!(transaction::verify(
         &balanced_tx,
-        *kind_table_hash().unwrap(),
+        kind_table_root().unwrap(),
         JournalEncoding::Risc0Serde
     )
     .is_ok())
@@ -319,7 +319,7 @@ fn test_unbalanced_tx_fails_to_verify() {
         .unwrap();
     assert!(transaction::verify(
         &unbalanced_tx,
-        *kind_table_hash().unwrap(),
+        kind_table_root().unwrap(),
         JournalEncoding::Risc0Serde
     )
     .is_err())
@@ -376,7 +376,7 @@ fn test_kind_table_commitment_check_accepts_global_commitment() {
     let tx = Tester::default()
         .generate_test_transaction(&[(1, 1)])
         .unwrap();
-    assert!(transaction::kind_table_commitment_check(&tx, *kind_table_hash().unwrap()).is_ok());
+    assert!(transaction::kind_table_commitment_check(&tx, kind_table_root().unwrap()).is_ok());
 }
 
 /// All actions carry a non-global commitment and the caller supplies that same
@@ -410,7 +410,7 @@ fn test_kind_table_commitment_check_rejects_mismatched_actions() {
     );
 
     assert!(matches!(
-        transaction::kind_table_commitment_check(&tx, *kind_table_hash().unwrap()),
+        transaction::kind_table_commitment_check(&tx, kind_table_root().unwrap()),
         Err(ArmError::KindTableCommitmentMismatch)
     ));
 }
@@ -434,7 +434,7 @@ fn test_kind_table_commitment_check_rejects_consistent_non_global() {
 
     // Passing a different (global) commitment must be rejected.
     assert!(matches!(
-        transaction::kind_table_commitment_check(&tx, *kind_table_hash().unwrap()),
+        transaction::kind_table_commitment_check(&tx, kind_table_root().unwrap()),
         Err(ArmError::KindTableCommitmentExpectedMismatch)
     ));
 }
@@ -453,7 +453,7 @@ fn test_kind_table_commitment_check_rejects_global_mismatch() {
     );
 
     assert!(matches!(
-        transaction::kind_table_commitment_check(&tx, *kind_table_hash().unwrap()),
+        transaction::kind_table_commitment_check(&tx, kind_table_root().unwrap()),
         Err(ArmError::KindTableCommitmentExpectedMismatch)
     ));
 }
@@ -477,7 +477,7 @@ fn test_aggregation_works() {
     // Full verify() must also succeed on the post-aggregation transaction.
     assert!(transaction::verify(
         &tx_str,
-        *kind_table_hash().unwrap(),
+        kind_table_root().unwrap(),
         JournalEncoding::Risc0Serde
     )
     .is_ok());
@@ -555,7 +555,7 @@ fn test_verify_aggregation_fails_for_tampered_instance() {
     // verify_aggregation() must reject it without needing the new ELF.
     let fake_instance = AggregationInstance {
         compliance_key: Digest::from([0xFFu8; 32]),
-        kind_table_commitment: Digest::default(),
+        kind_table_root: Digest::default(),
         actions: vec![],
     };
     tx.aggregation = Some(Aggregation {
@@ -589,7 +589,7 @@ fn test_verify_rejects_transaction_with_both_actions_and_aggregation() {
         proof: vec![0u8; 64],
         instance: AggregationInstance {
             compliance_key: Digest::default(),
-            kind_table_commitment: Digest::default(),
+            kind_table_root: Digest::default(),
             actions: vec![],
         },
     });
@@ -638,7 +638,7 @@ fn test_compose_transactions() {
         transaction::generate_delta_proof(transaction::compose(tx_a, tx_b).unwrap()).unwrap();
     assert!(transaction::verify(
         &composed,
-        *kind_table_hash().unwrap(),
+        kind_table_root().unwrap(),
         JournalEncoding::Risc0Serde
     )
     .is_ok());
@@ -665,7 +665,7 @@ fn test_compose_rejects_ambiguous_transaction() {
         proof: vec![0u8; 64],
         instance: AggregationInstance {
             compliance_key: Digest::from([0xFFu8; 32]),
-            kind_table_commitment: Digest::default(),
+            kind_table_root: Digest::default(),
             actions: vec![],
         },
     });
@@ -739,7 +739,7 @@ fn test_invalid_created_nonce_rejected() {
     let witness = compliance::from_resources(
         tester.consumed_data[0].clone(),
         tester.created_resources[0].clone(),
-        kind_table().to_vec(),
+        global_kind_table().expect("kind table not initialised"),
     );
 
     assert!(matches!(
