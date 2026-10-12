@@ -122,15 +122,21 @@ pub fn verify(
 /// participate in the consistency check. The effective root is the shared
 /// real root, or `PADDING_LEAF` if every action used none.
 ///
+/// A transaction whose effective root is `PADDING_LEAF` (all resources fell
+/// back to `hash_to_curve`) passes the check regardless of `expected`:
+/// such a transaction carries no kind-table commitment and is valid on any
+/// chain.
+///
 /// When `aggregation` is present it is authoritative: the root is read from
 /// the proof-backed `aggregation.instance` (cross-action consistency was
 /// already enforced in-circuit by the aggregation guest), never from
 /// `actions`, even if both happen to be populated.
 pub fn kind_table_commitment_check(tx: &Transaction, expected: Digest) -> Result<(), ArmError> {
+    let padding = arm_core::merkle_path::PADDING_LEAF;
+
     let root = if let Some(agg) = &tx.aggregation {
         agg.instance.kind_table_root
     } else if let Some(actions) = &tx.actions {
-        let padding = arm_core::merkle_path::PADDING_LEAF;
         let mut effective: Option<Digest> = None;
         for action in actions {
             let r = crate::compliance_unit::get_instance(&action.compliance_unit)?.kind_table_root;
@@ -147,7 +153,7 @@ pub fn kind_table_commitment_check(tx: &Transaction, expected: Digest) -> Result
         return Err(ArmError::MissingActions);
     };
 
-    if root != expected {
+    if root != padding && root != expected {
         return Err(ArmError::KindTableCommitmentExpectedMismatch);
     }
     Ok(())

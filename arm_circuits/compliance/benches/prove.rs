@@ -4,12 +4,12 @@
 /// - `empty_table`: the circuit falls back to `hash_to_curve` for every resource.
 /// - `file_table`:  kind points are pre-computed in `kind_table.json`; the circuit
 ///                  resolves them via a Merkle path, skipping `hash_to_curve`.
-/// - `table_size`:  fixed at 2 resources; varying kind-table sizes
-///                  (8 – 2048 entries) to measure how Merkle path depth
-///                  (`⌈log₂ N⌉` hashes) affects prove time.
+/// - `table_size`:  varying kind-table sizes (8, 32, 128, 512, 1024, 2048 entries)
+///                  × resource counts (2, 8, 16) to measure how Merkle path depth
+///                  (`⌈log₂ N⌉` hashes) interacts with per-resource scaling.
 ///
-/// Each `empty_table` and `file_table` configuration is benchmarked with 1, 2,
-/// 4, and 8 consumed/created resources to measure per-resource scaling.
+/// Each `empty_table` and `file_table` configuration is benchmarked with 2, 8,
+/// and 16 consumed/created resources to measure per-resource scaling.
 ///
 /// # Running on CPU
 ///
@@ -42,9 +42,9 @@ use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use risc0_zkvm::{default_prover, Digest, ExecutorEnv, ProverOpts};
 use std::time::Duration;
 
-const RESOURCE_COUNTS: &[usize] = &[1, 2, 4, 8];
+const RESOURCE_COUNTS: &[usize] = &[2, 8, 16];
 /// Kind-table sizes for the table-size scaling benchmark.
-const TABLE_SIZES: &[usize] = &[8, 16, 32, 64, 128, 256, 512, 1024, 2048];
+const TABLE_SIZES: &[usize] = &[8, 32, 128, 512, 1024, 2048];
 
 fn do_prove(witness: &ComplianceWitness) {
     let env = ExecutorEnv::builder()
@@ -212,12 +212,13 @@ fn bench_file_table(c: &mut Criterion) {
     group.finish();
 }
 
-/// Varying kind-table size with 2 resources (1 consumed + 1 created).
+/// Varying kind-table sizes × resource counts.
 ///
-/// Measures how prove time scales with the number of table entries. Because
-/// the kind table is now a Merkle tree, the circuit verifies `⌈log₂ N⌉`
-/// hash nodes per resource rather than scanning linearly, so cost is expected
-/// to grow slowly (one additional hash per table doubling).
+/// Measures how prove time scales with both the number of table entries and the
+/// number of resources per compliance witness. Because the kind table is a
+/// Merkle tree, each resource incurs `⌈log₂ N⌉` path-hash steps rather than a
+/// linear scan, so table-size cost is expected to grow slowly (one additional
+/// hash per doubling) while resource-count cost scales roughly linearly.
 fn bench_table_size(c: &mut Criterion) {
     let kind_table_path =
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../arm/data/kind_table.json");
@@ -232,12 +233,25 @@ fn bench_table_size(c: &mut Criterion) {
 
     for &size in TABLE_SIZES {
         let kt = make_kind_table_of_size(size, &matching);
-        group.bench_with_input(BenchmarkId::new("prove", size), &size, |b, _| {
-            b.iter_with_setup(
-                || make_witness_with_table(matching.logic_ref, matching.label_ref, 2, &kt),
-                |witness| do_prove(&witness),
+        for &count in RESOURCE_COUNTS {
+            group.bench_with_input(
+                BenchmarkId::new("prove", format!("{size}x{count}")),
+                &count,
+                |b, &count| {
+                    b.iter_with_setup(
+                        || {
+                            make_witness_with_table(
+                                matching.logic_ref,
+                                matching.label_ref,
+                                count,
+                                &kt,
+                            )
+                        },
+                        |witness| do_prove(&witness),
+                    );
+                },
             );
-        });
+        }
     }
 
     group.finish();
