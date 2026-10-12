@@ -26,7 +26,7 @@ fn rich_instance() -> AggregationInstance {
     };
     AggregationInstance {
         compliance_key: Digest::from_bytes([0xC0; 32]),
-        kind_table_commitment: Digest::from_bytes([0xC1; 32]),
+        kind_table_root: Digest::from_bytes([0xC1; 32]),
         actions: vec![
             ActionAggregated {
                 consumed_publics: vec![
@@ -83,7 +83,7 @@ fn aggregation_journal_matches_risc0_serde() {
 fn empty_aggregation_journal_matches_risc0_serde() {
     let instance = AggregationInstance {
         compliance_key: Digest::from_bytes([0xAA; 32]),
-        kind_table_commitment: Digest::from_bytes([0xBB; 32]),
+        kind_table_root: Digest::from_bytes([0xBB; 32]),
         actions: vec![],
     };
     assert_eq!(instance.to_journal(), risc0_serde_journal(&instance));
@@ -102,7 +102,7 @@ fn borsh_encoding_equals_aggregation_journal() {
         rich_instance(),
         AggregationInstance {
             compliance_key: Digest::from_bytes([0xAA; 32]),
-            kind_table_commitment: Digest::from_bytes([0xBB; 32]),
+            kind_table_root: Digest::from_bytes([0xBB; 32]),
             actions: vec![],
         },
     ] {

@@ -29,7 +29,7 @@
 /// RISC0_DEV_MODE=1 cargo bench --features prove -p compliance
 /// ```
 use anoma_rm_risc0::compliance::{ComplianceWitness, INITIAL_ROOT};
-use anoma_rm_risc0::constants::{init_kind_table_from_file, kind_table};
+use anoma_rm_risc0::constants::{global_kind_table, init_kind_table_from_file, kind_table, KindTable};
 use anoma_rm_risc0::nullifier_key::NullifierKey;
 use anoma_rm_risc0::resource::{ConsumedResourceWitness, Resource};
 use compliance_methods::COMPLIANCE_GUEST_ELF;
@@ -94,12 +94,21 @@ fn make_witness(logic_ref: Digest, label_ref: Digest, count: usize) -> Complianc
         })
         .collect();
 
+    let empty;
+    let kt: &KindTable = match global_kind_table() {
+        Some(t) => t,
+        None => {
+            empty = KindTable::empty();
+            &empty
+        }
+    };
+    let kind_paths = kt.kind_paths_for(&consumed_data, &created_resources);
     ComplianceWitness {
         consumed_data,
         created_resources,
         ephemeral_root: INITIAL_ROOT,
         rcv: [vec![0u8; 31], vec![1u8]].concat(),
-        kind_table: kind_table().to_vec(),
+        kind_paths,
     }
 }
 

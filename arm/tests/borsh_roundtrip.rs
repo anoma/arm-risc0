@@ -33,7 +33,7 @@ fn proof() -> DeltaProof {
 fn instance() -> AggregationInstance {
     AggregationInstance {
         compliance_key: Digest::from_bytes([0xC0; 32]),
-        kind_table_commitment: Digest::from_bytes([0xC1; 32]),
+        kind_table_root: Digest::from_bytes([0xC1; 32]),
         actions: vec![ActionAggregated {
             consumed_publics: vec![ConsumedResourceAggregated {
                 resource_nullifier: Digest::from_bytes([0x01; 32]),

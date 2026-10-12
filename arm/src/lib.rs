@@ -15,6 +15,8 @@ pub mod compliance_unit;
 pub mod constants;
 #[cfg(feature = "transaction")]
 pub mod delta_proof;
+#[cfg(feature = "transaction")]
+pub mod kind_table;
 pub use arm_core::error;
 pub use arm_core::logic_instance;
 #[cfg(feature = "transaction")]

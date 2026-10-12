@@ -58,10 +58,10 @@ pub fn generate_delta_proof(tx: Transaction) -> Result<Transaction, ArmError> {
 
 /// Verifies all the proofs and corresponding checks in the transaction.
 ///
-/// `kind_table_commitment` is the expected SHA-256 commitment of the kind
-/// table for the target chain. Callers that use the loaded global table
-/// should obtain it via `kind_table_hash()` and propagate the `None` case
-/// as an error rather than panicking.
+/// `kind_table_root` is the expected Merkle root of the kind table for the
+/// target chain. Callers that use the loaded global table should obtain it
+/// via `kind_table_root()` and propagate the `None` case as an error rather
+/// than panicking.
 ///
 /// `encoding` selects how the batch aggregation journal is interpreted when
 /// the transaction carries an aggregation proof. Pass [`JournalEncoding::Risc0Serde`]
@@ -69,7 +69,7 @@ pub fn generate_delta_proof(tx: Transaction) -> Result<Transaction, ArmError> {
 /// EVM path. For non-aggregated transactions the parameter is ignored.
 pub fn verify(
     tx: &Transaction,
-    kind_table_commitment: Digest,
+    kind_table_root: Digest,
     encoding: JournalEncoding,
 ) -> Result<(), ArmError> {
     // A transaction must carry exactly one representation. Rejecting the
@@ -92,7 +92,7 @@ pub fn verify(
 
             // Check for nullifier duplication across all compliance units
             nf_duplication_check(tx)?;
-            kind_table_commitment_check(tx, kind_table_commitment)?;
+            kind_table_commitment_check(tx, kind_table_root)?;
 
             if tx.aggregation.is_some() {
                 #[cfg(not(feature = "aggregation"))]
@@ -114,36 +114,40 @@ pub fn verify(
     }
 }
 
-/// Checks that all compliance units in the transaction commit to the same kind table,
-/// and that the commitment matches `expected`.
+/// Checks that all compliance units in the transaction commit to a consistent
+/// kind table root, and that the effective root matches `expected`.
 ///
-/// When `aggregation` is present it is authoritative: the commitment is
-/// read from the proof-backed `aggregation.instance` (cross-action
-/// consistency was already enforced in-circuit by the aggregation
-/// guest), never from `actions`, even if both happen to be populated.
+/// Actions that committed [`arm_core::merkle_path::PADDING_LEAF`] (no kind
+/// table used) are compatible with any root; only actions with a real root
+/// participate in the consistency check. The effective root is the shared
+/// real root, or `PADDING_LEAF` if every action used none.
+///
+/// When `aggregation` is present it is authoritative: the root is read from
+/// the proof-backed `aggregation.instance` (cross-action consistency was
+/// already enforced in-circuit by the aggregation guest), never from
+/// `actions`, even if both happen to be populated.
 pub fn kind_table_commitment_check(tx: &Transaction, expected: Digest) -> Result<(), ArmError> {
-    let commitment = if let Some(agg) = &tx.aggregation {
-        agg.instance.kind_table_commitment
+    let root = if let Some(agg) = &tx.aggregation {
+        agg.instance.kind_table_root
     } else if let Some(actions) = &tx.actions {
-        let mut iter = actions.iter();
-        let Some(first) = iter.next() else {
-            return Ok(());
-        };
-        let tx_commitment =
-            crate::compliance_unit::get_instance(&first.compliance_unit)?.kind_table_commitment;
-        for action in iter {
-            let commitment = crate::compliance_unit::get_instance(&action.compliance_unit)?
-                .kind_table_commitment;
-            if commitment != tx_commitment {
-                return Err(ArmError::KindTableCommitmentMismatch);
+        let padding = arm_core::merkle_path::PADDING_LEAF;
+        let mut effective: Option<Digest> = None;
+        for action in actions {
+            let r = crate::compliance_unit::get_instance(&action.compliance_unit)?.kind_table_root;
+            if r != padding {
+                match effective {
+                    None => effective = Some(r),
+                    Some(prev) if prev != r => return Err(ArmError::KindTableCommitmentMismatch),
+                    _ => {}
+                }
             }
         }
-        tx_commitment
+        effective.unwrap_or(padding)
     } else {
         return Err(ArmError::MissingActions);
     };
 
-    if commitment != expected {
+    if root != expected {
         return Err(ArmError::KindTableCommitmentExpectedMismatch);
     }
     Ok(())
