@@ -7,7 +7,7 @@ use anoma_rm_risc0::{
     action_tree::ActionTree,
     compliance,
     compliance_unit::{self, ComplianceUnit},
-    constants::{global_kind_table, init_kind_table_from_file},
+    constants::{global_kind_table, init_starter_kind_table},
     delta_proof::{self, DeltaWitness},
     error::ArmError,
     logic_proof::{LogicProver, LogicVerifier},
@@ -246,9 +246,7 @@ impl Tester {
 }
 
 fn init_test_kind_table() {
-    let path =
-        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../arm/data/kind_table.json");
-    init_kind_table_from_file(&path).expect("Failed to load kind_table.json");
+    init_starter_kind_table().expect("Failed to load arm's starter kind table");
 }
 
 #[cfg(test)]

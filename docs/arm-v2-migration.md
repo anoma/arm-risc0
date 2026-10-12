@@ -90,6 +90,8 @@ New global loader in `arm::constants`:
 init_kind_table_from_file(path: &Path) -> Result<(), ArmError>
 // Initialize from pre-built entries (same semantics; useful in tests)
 init_kind_table_from_entries(entries: Vec<KindTableEntry>) -> Result<(), ArmError>
+// Initialize from the starter table embedded in the crate (same semantics)
+init_starter_kind_table() -> Result<(), ArmError>
 
 kind_table()      -> &'static [KindTableEntry]
 kind_table_hash() -> Option<&'static Digest>
@@ -98,8 +100,8 @@ kind_table_hash() -> Option<&'static Digest>
 Entries are `{ "logic_ref": "<hex>", "label_ref": "<hex>", "kind_point": "<hex>" }`.
 The `kind_point` is an uncompressed SEC1-encoded secp256k1 point (65 bytes, `04` prefix)
 stored in the file; no hash-to-curve is performed at load time. Each point is validated
-against the curve on load. A starter `arm/data/kind_table.json` ships in the repo
-(padding logic + test logic).
+against the curve on load. A starter `arm/data/kind_table.json` ships in the crate
+(padding logic + test logic); `init_starter_kind_table()` loads it wherever the crate is built.
 
 **Operational impact:** `Transaction::verify(kind_table_commitment)` now takes the
 expected kind table commitment as an explicit parameter. Callers obtain it from
