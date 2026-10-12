@@ -20,6 +20,7 @@ use crate::proving_system::JournalEncoding;
 use crate::utils::words_to_bytes;
 #[cfg(all(feature = "aggregation", feature = "prove"))]
 use crate::{
+    action::Action,
     aggregation_witness::{ActionWitness, AggregationWitness},
     proving_system::ProofType,
 };
@@ -27,7 +28,7 @@ use risc0_zkvm::InnerReceipt;
 #[cfg(feature = "aggregation")]
 use risc0_zkvm::Receipt;
 #[cfg(all(feature = "aggregation", feature = "prove"))]
-use risc0_zkvm::{default_prover, ExecutorEnv, ProverOpts, VerifierContext};
+use risc0_zkvm::{default_prover, ExecutorEnv, ExecutorEnvBuilder, ProverOpts, VerifierContext};
 
 use crate::{
     delta_proof::{self, DeltaInstance},
@@ -308,38 +309,20 @@ pub fn get_logic_vks_and_instances(
     Ok((vks, instances))
 }
 
-/// Aggregates all the transaction proofs.
+/// The batch aggregation guest's input for `actions`: the witness the guest
+/// reads, with each action's compliance proof and each of its logic proofs
+/// added to `env_builder` as assumptions. `compliance_key` is the compliance
+/// circuit's verifying key the guest checks the compliance proofs against.
 ///
-/// `encoding` controls which batch aggregation ELF is used and how the
-/// resulting journal is decoded:
-/// - [`JournalEncoding::Risc0Serde`] uses the standard RISC Zero / Solana ELF
-///   and decodes the journal with `risc0_zkvm::serde`.
-/// - [`JournalEncoding::Abi`] uses the EVM ABI ELF and ABI-decodes the journal.
-///
-/// On success, `tx.aggregation` is populated with the proof and decoded
-/// `AggregationInstance`, and `tx.actions` is set to `None` (the
-/// individual proofs and witnesses are no longer needed).
+/// [`aggregate`] proves with this input on the default prover; a caller with
+/// its own prover builds the same input here and adds its own executor
+/// settings to `env_builder`.
 #[cfg(all(feature = "aggregation", feature = "prove"))]
-pub fn aggregate(
-    tx: &mut Transaction,
-    proof_type: ProofType,
-    encoding: JournalEncoding,
-) -> Result<(), ArmError> {
-    if tx.base_proofs_are_empty() {
-        return Err(ArmError::ProveFailed(
-            "Cannot aggregate: transaction has already been aggregated (actions is None)".into(),
-        ));
-    }
-
-    let actions = tx.actions.as_ref().ok_or(ArmError::MissingActions)?;
-
-    if actions.is_empty() {
-        return Err(ArmError::ProveFailed(
-            "Cannot aggregate: transaction has no actions".into(),
-        ));
-    }
-
-    let mut env_builder = ExecutorEnv::builder();
+pub fn aggregation_witness(
+    actions: &[Action],
+    compliance_key: Digest,
+    env_builder: &mut ExecutorEnvBuilder<'_>,
+) -> Result<AggregationWitness, ArmError> {
     let mut action_witnesses = Vec::with_capacity(actions.len());
 
     for action in actions {
@@ -385,10 +368,45 @@ pub fn aggregate(
         });
     }
 
-    let witnesses = AggregationWitness {
-        compliance_key: COMPLIANCE_VK,
+    Ok(AggregationWitness {
+        compliance_key,
         actions: action_witnesses,
-    };
+    })
+}
+
+/// Aggregates all the transaction proofs.
+///
+/// `encoding` controls which batch aggregation ELF is used and how the
+/// resulting journal is decoded:
+/// - [`JournalEncoding::Risc0Serde`] uses the standard RISC Zero / Solana ELF
+///   and decodes the journal with `risc0_zkvm::serde`.
+/// - [`JournalEncoding::Abi`] uses the EVM ABI ELF and ABI-decodes the journal.
+///
+/// On success, `tx.aggregation` is populated with the proof and decoded
+/// `AggregationInstance`, and `tx.actions` is set to `None` (the
+/// individual proofs and witnesses are no longer needed).
+#[cfg(all(feature = "aggregation", feature = "prove"))]
+pub fn aggregate(
+    tx: &mut Transaction,
+    proof_type: ProofType,
+    encoding: JournalEncoding,
+) -> Result<(), ArmError> {
+    if tx.base_proofs_are_empty() {
+        return Err(ArmError::ProveFailed(
+            "Cannot aggregate: transaction has already been aggregated (actions is None)".into(),
+        ));
+    }
+
+    let actions = tx.actions.as_ref().ok_or(ArmError::MissingActions)?;
+
+    if actions.is_empty() {
+        return Err(ArmError::ProveFailed(
+            "Cannot aggregate: transaction has no actions".into(),
+        ));
+    }
+
+    let mut env_builder = ExecutorEnv::builder();
+    let witnesses = aggregation_witness(actions, COMPLIANCE_VK, &mut env_builder)?;
 
     let env = env_builder
         .write(&witnesses)

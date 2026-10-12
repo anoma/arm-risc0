@@ -294,6 +294,7 @@ dependencies = [
  "anoma-rm-risc0-test-witness",
  "hex",
  "lazy_static",
+ "risc0-zkvm",
  "serde",
 ]
 

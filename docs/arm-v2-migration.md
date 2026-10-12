@@ -566,32 +566,22 @@ Much smaller arm surface — 4 files — but `bento` is a full rewrite.
   `alloy-chains` to match. Keep the `sppark = "=0.1.14"` pin.
 
 #### `bento/src/lib.rs` — rewrite `aggregation_proof` and `finalize_transaction`
-This crate reimplements `Transaction::aggregate()` so it can set
-`segment_limit_po2`. The v1 guest ABI it writes (four separate `env.write` calls:
+This crate proves aggregations on its own prover rather than through
+`Transaction::aggregate()`, so it can set `segment_limit_po2`. The v1 guest ABI it writes (four separate `env.write` calls:
 `compliance_instances_u32`, `compliance_key`, `lp_instances_u32`, `lp_vks`) no
 longer exists.
 
 - Drop `ComplianceInstanceWords` and `bytes_to_words` (`ComplianceInstanceWords`
   is gone).
-- Build a single `AggregationWitness`. With one N:M unit per transaction its
-  `actions` vec has exactly one element, but keep the loop — the guest, the
-  journal and the on-chain `Action[]` are all still `Vec`-shaped, and composed
-  transactions would carry more:
-  ```rust
-  AggregationWitness {
-      compliance_key,
-      actions: tx.actions.as_ref().ok_or(..)?.iter().map(|a| ActionWitness {
-          compliance_instance: a.compliance_unit.get_instance()?,
-          consumed_app_data: /* first n_consumed logic_verifier_inputs, in order */,
-          created_app_data:  /* the rest, in order */,
-      }).collect(),
-  }
-  ```
-  and `env_builder.write(&witnesses)` once. Add assumptions from
-  `a.compliance_unit.get_inner_receipt()` and each `lvi.get_inner_receipt()`.
-  Mirror the tag/count assertions `Transaction::aggregate()` does (`tags.len() ==
-  logic_verifier_inputs.len()`, positional tag equality) so a malformed job fails
-  fast instead of producing a bad proof.
+- Build the `AggregationWitness` with
+  `transaction::aggregation_witness(actions, compliance_key, &mut env_builder)`:
+  it adds each compliance and logic proof to `env_builder` as an assumption and
+  checks the logic inputs' count and positional tag order, as
+  `Transaction::aggregate()` does. Then set `segment_limit_po2` on the same
+  builder and `env_builder.write(&witness)` once. Keep `actions` `Vec`-shaped:
+  with one N:M unit per transaction it has one element, but the guest, the
+  journal and the on-chain `Action[]` take several, as a composed transaction
+  would carry.
 - Default proving key: `BATCH_AGGREGATION_PK` (or `BATCH_AGGREGATION_EVM_PK` if
   and when `abi_encoding` is adopted).
 - `finalize_transaction`: decode the journal into `AggregationInstance`
