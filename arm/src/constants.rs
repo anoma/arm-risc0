@@ -39,6 +39,10 @@ struct KindTableJsonEntry {
     _comment: String,
 }
 
+/// The starter kind table this crate ships (`data/kind_table.json`): the
+/// padding logic and the test logic, each under the zero label.
+const STARTER_KIND_TABLE_JSON: &str = include_str!("../data/kind_table.json");
+
 /// Initializes the global kind table from a JSON file.
 ///
 /// The file must contain a JSON array of objects with `logic_ref`, `label_ref`,
@@ -50,9 +54,23 @@ pub fn init_kind_table_from_file(path: &Path) -> Result<(), ArmError> {
         return Ok(());
     }
     let content = std::fs::read_to_string(path).map_err(|_| ArmError::KindTableLoadFailed)?;
+    init_kind_table_from_entries(parse_kind_table_json(&content)?)
+}
+
+/// Initializes the global kind table from the starter table this crate ships
+/// (`data/kind_table.json`), embedded at compile time, so it loads wherever
+/// the crate is built. Calling this a second time is a no-op; the first call
+/// wins.
+pub fn init_starter_kind_table() -> Result<(), ArmError> {
+    init_kind_table_from_entries(parse_kind_table_json(STARTER_KIND_TABLE_JSON)?)
+}
+
+/// The entries of a kind table in the JSON format `init_kind_table_from_file`
+/// reads.
+fn parse_kind_table_json(json: &str) -> Result<Vec<KindTableEntry>, ArmError> {
     let json_entries: Vec<KindTableJsonEntry> =
-        serde_json::from_str(&content).map_err(|_| ArmError::KindTableLoadFailed)?;
-    let entries = json_entries
+        serde_json::from_str(json).map_err(|_| ArmError::KindTableLoadFailed)?;
+    json_entries
         .into_iter()
         .map(|e| -> Result<KindTableEntry, ArmError> {
             let logic_ref =
@@ -67,8 +85,7 @@ pub fn init_kind_table_from_file(path: &Path) -> Result<(), ArmError> {
                 kind_point,
             })
         })
-        .collect::<Result<Vec<_>, _>>()?;
-    install_kind_table(entries)
+        .collect()
 }
 
 /// Initializes the global kind table from a pre-built list of entries.
@@ -109,6 +126,30 @@ pub fn kind_table_root() -> Option<Digest> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_starter_kind_table_holds_the_padding_logics_kind_under_the_zero_label() {
+        use crate::resource::generate_resource_kind;
+        use k256::elliptic_curve::sec1::ToEncodedPoint;
+        use risc0_zkvm::sha::DIGEST_BYTES;
+
+        let entries = parse_kind_table_json(STARTER_KIND_TABLE_JSON)
+            .expect("the embedded starter kind table parses");
+        let zero_label = Digest::from([0u8; DIGEST_BYTES]);
+        let padding = entries
+            .iter()
+            .find(|e| e.logic_ref == PADDING_LOGIC_VK && e.label_ref == zero_label)
+            .expect("the starter kind table has the padding logic under the zero label");
+        let expected = generate_resource_kind(PADDING_LOGIC_VK, zero_label)
+            .expect("the padding logic's kind")
+            .to_encoded_point(false);
+        assert_eq!(
+            padding.kind_point,
+            expected.as_bytes(),
+            "the starter table's padding kind point is not the one arm computes"
+        );
+        KindTable::from_entries(entries).expect("the starter kind table is a valid table");
+    }
 
     #[test]
     #[ignore = "developer utility: computes kind points for (logic_ref, zero label_ref) pairs"]
