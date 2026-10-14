@@ -489,6 +489,44 @@ fn test_aggregation_works() {
     assert!(transaction::verify_aggregation(&tx_str, JournalEncoding::Risc0Serde).is_err());
 }
 
+/// `aggregation_witness` builds the guest's input under the compliance key the
+/// caller names: one action witness per action, each carrying its consumed
+/// and created resources' app data in tag order. Logic inputs out of tag
+/// order are refused.
+#[test]
+fn test_aggregation_witness_takes_the_callers_compliance_key() {
+    use risc0_zkvm::ExecutorEnv;
+
+    let tx = Tester::default()
+        .generate_test_transaction(&[(2, 2), (1, 1)])
+        .unwrap();
+    let actions = tx.actions.as_ref().unwrap();
+    let key = Digest::from([0xCDu8; 32]);
+
+    let witness =
+        transaction::aggregation_witness(actions, key, &mut ExecutorEnv::builder()).unwrap();
+    assert_eq!(witness.compliance_key, key);
+    assert_eq!(witness.actions.len(), actions.len());
+    for (action, action_witness) in actions.iter().zip(&witness.actions) {
+        let n_consumed = action_witness.compliance_instance.consumed_publics.len();
+        let app_data: Vec<_> = action
+            .logic_verifier_inputs
+            .iter()
+            .map(|lvi| lvi.app_data.clone())
+            .collect();
+        assert_eq!(action_witness.consumed_app_data, app_data[..n_consumed]);
+        assert_eq!(action_witness.created_app_data, app_data[n_consumed..]);
+    }
+
+    // A consumed resource's logic input swapped with a created one's.
+    let mut swapped = actions.clone();
+    swapped[0].logic_verifier_inputs.swap(0, 2);
+    assert!(matches!(
+        transaction::aggregation_witness(&swapped, key, &mut ExecutorEnv::builder()),
+        Err(ArmError::TagNotFound)
+    ));
+}
+
 /// After aggregation, the decoded `AggregationInstance` survives a round-trip
 /// through `AggregationInstanceEvm` and matches structural expectations.
 #[test]
