@@ -27,10 +27,7 @@ mod evm {
 
     use crate::Digest;
     use crate::{
-        aggregation_instance::{
-            ActionAggregated, AggregationInstance, ConsumedResourceAggregated,
-            CreatedResourceAggregated,
-        },
+        aggregation_instance::{ActionAggregated, AggregationInstance, ResourceAggregated},
         logic_instance::{AppData as NativeAppData, ExpirableBlob as NativeExpirableBlob},
         utils::{bytes_to_words, words_to_bytes},
     };
@@ -51,36 +48,27 @@ mod evm {
 
         /// @notice The action object providing context separation between non-intersecting sets of resources. An action
         /// corresponds to one compliance unit constraining its consumed and created resources.
-        /// @param consumed The public data of the consumed resources.
-        /// @param created The public data of the created resources.
+        /// @param resourceData The public data of the consumed and created resources, in the order in which the
+        /// protocol adapter processes them.
         /// @param unitDelta The action's delta value obtained from the underlying compliance unit.
         /// @param actionTreeRoot The root of the tree containing the tags of all resources present in the action.
         struct Action {
-            Consumed[] consumed;
-            Created[] created;
+            PublicResourceData[] resourceData;
             Delta unitDelta;
             bytes32 actionTreeRoot;
         }
 
-        /// @notice The public data of a consumed resource.
-        /// @param nullifier The nullifier of the resource.
+        /// @notice The public data of a consumed or a created resource.
+        /// @param tag The tag of the resource: the nullifier of a consumed resource or the commitment of a created
+        /// resource.
         /// @param logicRef The reference to (the verifying key of) the resource logic.
-        /// @param commitmentTreeRoot The historical commitment tree root the resource's inclusion is proven against.
+        /// @param commitmentTreeRoot The historical commitment tree root that a consumed resource's inclusion is
+        /// proven against, or `bytes32(0)` for a created resource.
         /// @param appData The application data associated with the resource.
-        struct Consumed {
-            bytes32 nullifier;
+        struct PublicResourceData {
+            bytes32 tag;
             bytes32 logicRef;
             bytes32 commitmentTreeRoot;
-            AppData appData;
-        }
-
-        /// @notice The public data of a created resource.
-        /// @param commitment The commitment of the resource.
-        /// @param logicRef The reference to (the verifying key of) the resource logic.
-        /// @param appData The application data associated with the resource.
-        struct Created {
-            bytes32 commitment;
-            bytes32 logicRef;
             AppData appData;
         }
 
@@ -224,23 +212,15 @@ mod evm {
 
     fn evm_action_to_native(a: Action) -> ActionAggregated {
         ActionAggregated {
-            consumed_publics: a
-                .consumed
+            resource_publics: a
+                .resourceData
                 .into_iter()
-                .map(|c| ConsumedResourceAggregated {
-                    resource_nullifier: bytes32_to_digest(c.nullifier),
-                    resource_logic_ref: bytes32_to_digest(c.logicRef),
-                    commitment_tree_root: bytes32_to_digest(c.commitmentTreeRoot),
-                    app_data: evm_app_data_to_native(c.appData),
-                })
-                .collect(),
-            created_publics: a
-                .created
-                .into_iter()
-                .map(|c| CreatedResourceAggregated {
-                    resource_commitment: bytes32_to_digest(c.commitment),
-                    resource_logic_ref: bytes32_to_digest(c.logicRef),
-                    app_data: evm_app_data_to_native(c.appData),
+                .map(|r| ResourceAggregated {
+                    resource_tag: bytes32_to_digest(r.tag),
+                    resource_logic_ref: bytes32_to_digest(r.logicRef),
+                    commitment_tree_root: (!r.commitmentTreeRoot.is_zero())
+                        .then(|| bytes32_to_digest(r.commitmentTreeRoot)),
+                    app_data: evm_app_data_to_native(r.appData),
                 })
                 .collect(),
             delta_x: u256_to_words(a.unitDelta.x),
@@ -265,23 +245,17 @@ mod evm {
 
     fn convert_action(a: ActionAggregated) -> Action {
         Action {
-            consumed: a
-                .consumed_publics
+            resourceData: a
+                .resource_publics
                 .iter()
-                .map(|c| Consumed {
-                    nullifier: digest_to_bytes32(&c.resource_nullifier),
-                    logicRef: digest_to_bytes32(&c.resource_logic_ref),
-                    commitmentTreeRoot: digest_to_bytes32(&c.commitment_tree_root),
-                    appData: convert_app_data(&c.app_data),
-                })
-                .collect(),
-            created: a
-                .created_publics
-                .iter()
-                .map(|c| Created {
-                    commitment: digest_to_bytes32(&c.resource_commitment),
-                    logicRef: digest_to_bytes32(&c.resource_logic_ref),
-                    appData: convert_app_data(&c.app_data),
+                .map(|r| PublicResourceData {
+                    tag: digest_to_bytes32(&r.resource_tag),
+                    logicRef: digest_to_bytes32(&r.resource_logic_ref),
+                    commitmentTreeRoot: r
+                        .commitment_tree_root
+                        .as_ref()
+                        .map_or(FixedBytes::ZERO, digest_to_bytes32),
+                    appData: convert_app_data(&r.app_data),
                 })
                 .collect(),
             unitDelta: Delta {
@@ -308,28 +282,31 @@ mod evm {
                 compliance_key: make_digest(0x01),
                 kind_table_root: make_digest(0x02),
                 actions: vec![ActionAggregated {
-                    consumed_publics: vec![ConsumedResourceAggregated {
-                        resource_nullifier: make_digest(0x03),
-                        resource_logic_ref: make_digest(0x04),
-                        commitment_tree_root: make_digest(0x05),
-                        app_data: AppData {
-                            resource_payload: vec![NativeExpirableBlob {
-                                deletion_criterion: 7,
-                                blob: vec![0xDEADBEEFu32, 0xCAFEBABEu32],
-                            }],
-                            discovery_payload: vec![NativeExpirableBlob {
-                                deletion_criterion: 0,
-                                blob: vec![],
-                            }],
-                            external_payload: vec![],
-                            application_payload: vec![],
+                    resource_publics: vec![
+                        ResourceAggregated {
+                            resource_tag: make_digest(0x06),
+                            resource_logic_ref: make_digest(0x07),
+                            commitment_tree_root: None,
+                            app_data: AppData::new(),
                         },
-                    }],
-                    created_publics: vec![CreatedResourceAggregated {
-                        resource_commitment: make_digest(0x06),
-                        resource_logic_ref: make_digest(0x07),
-                        app_data: AppData::new(),
-                    }],
+                        ResourceAggregated {
+                            resource_tag: make_digest(0x03),
+                            resource_logic_ref: make_digest(0x04),
+                            commitment_tree_root: Some(make_digest(0x05)),
+                            app_data: AppData {
+                                resource_payload: vec![NativeExpirableBlob {
+                                    deletion_criterion: 7,
+                                    blob: vec![0xDEADBEEFu32, 0xCAFEBABEu32],
+                                }],
+                                discovery_payload: vec![NativeExpirableBlob {
+                                    deletion_criterion: 0,
+                                    blob: vec![],
+                                }],
+                                external_payload: vec![],
+                                application_payload: vec![],
+                            },
+                        },
+                    ],
                     delta_x: [0x11223344u32; 8],
                     delta_y: [0x55667788u32; 8],
                     action_tree_root: make_digest(0x08),
@@ -343,6 +320,17 @@ mod evm {
             let evm = AggregationInstanceEvm::from(original.clone());
             let recovered = AggregationInstance::from(evm);
             assert_eq!(original, recovered);
+        }
+
+        #[test]
+        fn test_evm_conversion_writes_none_as_the_zero_root() {
+            let evm = AggregationInstanceEvm::from(sample_instance());
+            let resource_data = &evm.actions[0].resourceData;
+            assert_eq!(resource_data[0].commitmentTreeRoot, FixedBytes::ZERO);
+            assert_eq!(
+                resource_data[1].commitmentTreeRoot,
+                digest_to_bytes32(&make_digest(0x05))
+            );
         }
 
         #[test]

@@ -174,9 +174,10 @@ pub fn nf_duplication_check(tx: &Transaction) -> Result<(), ArmError> {
             let compliance_instance =
                 crate::compliance_unit::get_instance(&action.compliance_unit)?;
             for consumed_nullifier in compliance_instance
-                .consumed_publics
+                .resource_publics
                 .iter()
-                .map(|p| p.resource_nullifier)
+                .filter(|p| p.is_consumed())
+                .map(|p| p.resource_tag)
             {
                 if !seen_nullifiers.insert(consumed_nullifier) {
                     return Err(ArmError::NullifierDuplication);
@@ -331,40 +332,28 @@ pub fn aggregation_witness(
             &action.compliance_unit,
         )?);
 
-        // Positional matching: logic_verifier_inputs must be in canonical
-        // tag order (consumed nullifiers then created commitments), which is
-        // the same order ComplianceInstance::tags() produces. This mirrors
+        // Positional matching: logic_verifier_inputs must be in the order of
+        // the unit's resources, which is the same order
+        // ComplianceInstance::tags() produces. This mirrors
         // action::get_logic_verifiers and avoids the silent overwrite that
         // a HashMap would cause when duplicate tags are present.
         let tags: Vec<Digest> = compliance_instance.tags().collect();
         if tags.len() != action.logic_verifier_inputs.len() {
             return Err(ArmError::TagNotFound);
         }
-        let n_consumed = compliance_instance.consumed_publics.len();
-        let (consumed_lvis, created_lvis) = action.logic_verifier_inputs.split_at(n_consumed);
 
-        let mut consumed_app_data = Vec::with_capacity(n_consumed);
-        for (lvi, tag) in consumed_lvis.iter().zip(&tags[..n_consumed]) {
+        let mut app_data = Vec::with_capacity(tags.len());
+        for (lvi, tag) in action.logic_verifier_inputs.iter().zip(&tags) {
             if lvi.tag != *tag {
                 return Err(ArmError::TagNotFound);
             }
             env_builder.add_assumption(crate::logic_proof::get_inner_receipt(lvi)?);
-            consumed_app_data.push(lvi.app_data.clone());
-        }
-
-        let mut created_app_data = Vec::with_capacity(compliance_instance.created_publics.len());
-        for (lvi, tag) in created_lvis.iter().zip(&tags[n_consumed..]) {
-            if lvi.tag != *tag {
-                return Err(ArmError::TagNotFound);
-            }
-            env_builder.add_assumption(crate::logic_proof::get_inner_receipt(lvi)?);
-            created_app_data.push(lvi.app_data.clone());
+            app_data.push(lvi.app_data.clone());
         }
 
         action_witnesses.push(ActionWitness {
             compliance_instance,
-            consumed_app_data,
-            created_app_data,
+            app_data,
         });
     }
 

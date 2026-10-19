@@ -4,7 +4,7 @@
 use crate::{
     compliance::{hash_kind_table_leaf, KindPath, KindTableEntry},
     error::ArmError,
-    resource::{ConsumedResourceWitness, Resource},
+    resource::ResourceWitness,
     Digest,
 };
 use arm_core::merkle_path::{MerklePath, PADDING_LEAF};
@@ -93,22 +93,13 @@ impl KindTable {
         Some(KindPath { kind_point, path })
     }
 
-    /// Returns one `Option<KindPath>` per resource (consumed first, then
-    /// created), matching the indexing `constrain()` expects in
+    /// Returns one `Option<KindPath>` per resource, in the order of
+    /// `resources`, matching the indexing `constrain()` expects in
     /// `ComplianceWitness.kind_paths`.
-    pub fn kind_paths_for(
-        &self,
-        consumed_data: &[ConsumedResourceWitness],
-        created_resources: &[Resource],
-    ) -> Vec<Option<KindPath>> {
-        consumed_data
+    pub fn kind_paths_for(&self, resources: &[ResourceWitness]) -> Vec<Option<KindPath>> {
+        resources
             .iter()
-            .map(|w| self.kind_path_for(&w.resource.logic_ref, &w.resource.label_ref))
-            .chain(
-                created_resources
-                    .iter()
-                    .map(|r| self.kind_path_for(&r.logic_ref, &r.label_ref)),
-            )
+            .map(|r| self.kind_path_for(&r.resource().logic_ref, &r.resource().label_ref))
             .collect()
     }
 }
