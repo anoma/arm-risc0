@@ -6,7 +6,7 @@
 //! every non-zkVM verifier.
 
 use anoma_rm_risc0::aggregation_instance::{
-    ActionAggregated, AggregationInstance, ConsumedResourceAggregated, CreatedResourceAggregated,
+    ActionAggregated, AggregationInstance, ResourceAggregated,
 };
 use anoma_rm_risc0::logic_instance::{AppData, ExpirableBlob};
 use anoma_rm_risc0::utils::words_to_bytes;
@@ -18,7 +18,8 @@ fn risc0_serde_journal(instance: &AggregationInstance) -> Vec<u8> {
 }
 
 /// Structurally rich: multiple actions, asymmetric consumed/created counts,
-/// empty and non-empty payload vectors, empty and multi-word blobs.
+/// a created resource between consumed ones, empty and non-empty payload
+/// vectors, empty and multi-word blobs.
 fn rich_instance() -> AggregationInstance {
     let blob = |seed: u32, len: usize| ExpirableBlob {
         blob: (0..len as u32).map(|i| seed + i).collect(),
@@ -29,9 +30,10 @@ fn rich_instance() -> AggregationInstance {
         kind_tree_root: Digest::from_bytes([0xC1; 32]),
         actions: vec![
             ActionAggregated {
-                consumed_publics: vec![
-                    ConsumedResourceAggregated {
-                        resource_nullifier: Digest::from_bytes([0x01; 32]),
+                resource_publics: vec![
+                    ResourceAggregated {
+                        consumed: 1,
+                        resource_tag: Digest::from_bytes([0x01; 32]),
                         resource_logic_ref: Digest::from_bytes([0x02; 32]),
                         commitment_tree_root: Digest::from_bytes([0x03; 32]),
                         app_data: AppData {
@@ -41,30 +43,32 @@ fn rich_instance() -> AggregationInstance {
                             application_payload: vec![blob(400, 5)],
                         },
                     },
-                    ConsumedResourceAggregated {
-                        resource_nullifier: Digest::from_bytes([0x04; 32]),
+                    ResourceAggregated {
+                        consumed: 0,
+                        resource_tag: Digest::from_bytes([0x07; 32]),
+                        resource_logic_ref: Digest::from_bytes([0x08; 32]),
+                        commitment_tree_root: Digest::ZERO,
+                        app_data: AppData {
+                            resource_payload: vec![],
+                            discovery_payload: vec![blob(500, 2)],
+                            external_payload: vec![],
+                            application_payload: vec![],
+                        },
+                    },
+                    ResourceAggregated {
+                        consumed: 1,
+                        resource_tag: Digest::from_bytes([0x04; 32]),
                         resource_logic_ref: Digest::from_bytes([0x05; 32]),
                         commitment_tree_root: Digest::from_bytes([0x06; 32]),
                         app_data: AppData::new(),
                     },
                 ],
-                created_publics: vec![CreatedResourceAggregated {
-                    resource_commitment: Digest::from_bytes([0x07; 32]),
-                    resource_logic_ref: Digest::from_bytes([0x08; 32]),
-                    app_data: AppData {
-                        resource_payload: vec![],
-                        discovery_payload: vec![blob(500, 2)],
-                        external_payload: vec![],
-                        application_payload: vec![],
-                    },
-                }],
                 delta_x: [0x11111111; 8],
                 delta_y: [0x22222222; 8],
                 action_tree_root: Digest::from_bytes([0x09; 32]),
             },
             ActionAggregated {
-                consumed_publics: vec![],
-                created_publics: vec![],
+                resource_publics: vec![],
                 delta_x: [0; 8],
                 delta_y: [0xFFFFFFFF; 8],
                 action_tree_root: Digest::from_bytes([0x0A; 32]),

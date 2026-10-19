@@ -22,15 +22,15 @@ The single biggest structural change.
 |---|---|
 | `Action { compliance_units: Vec<ComplianceUnit>, .. }` | `Action { compliance_unit: ComplianceUnit, .. }` |
 | One CU = exactly **1 consumed + 1 created** resource | One CU = **N consumed + M created** resources |
-| `ComplianceInstance { consumed_nullifier, consumed_logic_ref, consumed_commitment_tree_root, created_commitment, created_logic_ref, delta_x, delta_y }` | `ComplianceInstance { consumed_publics: Vec<ConsumedResourcePublic>, created_publics: Vec<CreatedResourcePublic>, delta_x, delta_y, kind_tree_root }` |
-| `ComplianceWitness { consumed_resource, merkle_path, nf_key, created_resource, ephemeral_root, rcv }` | `ComplianceWitness { consumed_data: Vec<ConsumedResourceWitness>, created_resources: Vec<Resource>, ephemeral_root, rcv, kind_tree }` |
+| `ComplianceInstance { consumed_nullifier, consumed_logic_ref, consumed_commitment_tree_root, created_commitment, created_logic_ref, delta_x, delta_y }` | `ComplianceInstance { resource_publics: Vec<ResourcePublic>, delta_x, delta_y, kind_tree_root }` |
+| `ComplianceWitness { consumed_resource, merkle_path, nf_key, created_resource, ephemeral_root, rcv }` | `ComplianceWitness { resources: Vec<ResourceWitness>, ephemeral_root, rcv, kind_tree }` |
 
 New public types in `arm::resource`:
 
 ```rust
 pub struct ConsumedResourceWitness { resource: Resource, cm_merkle_path: MerklePath, nf_key: NullifierKey }
-pub struct ConsumedResourcePublic  { resource_nullifier: Digest, resource_logic_ref: Digest, commitment_tree_root: Digest }
-pub struct CreatedResourcePublic   { resource_commitment: Digest, resource_logic_ref: Digest }
+pub enum   ResourceWitness         { Consumed(ConsumedResourceWitness), Created(Resource) }
+pub struct ResourcePublic          { resource_tag: Digest, resource_logic_ref: Digest, commitment_tree_root: Option<Digest> }  // None for a created resource
 ```
 
 Constructor change:
@@ -39,8 +39,8 @@ Constructor change:
 // v1
 ComplianceWitness::from_resources_with_path(consumed, nf_key, path, created)
 // v2
-ComplianceWitness::from_resources_with_ephemeral_root(&consumed_data, &created_resources, valid_root, kind_tree)
-ComplianceWitness::from_resources(&consumed_data, &created_resources, kind_tree)  // uses INITIAL_ROOT
+ComplianceWitness::from_resources_with_ephemeral_root(resources, valid_root, kind_tree)
+ComplianceWitness::from_resources(resources, kind_tree)  // uses INITIAL_ROOT
 ```
 
 The per-field helpers on `ComplianceWitness` (`consumed_commitment()`,
@@ -48,14 +48,17 @@ The per-field helpers on `ComplianceWitness` (`consumed_commitment()`,
 `consumed_resource_logic()`, `created_resource_logic()`, `delta()`) are **all gone**.
 The only entry point is `constrain() -> ComplianceInstance`.
 
-**Consequences for tag ordering.** The canonical tag order of an action is now
-`ComplianceInstance::tags()` = *all consumed nullifiers, then all created
-commitments* — no longer interleaved `(consumed, created, consumed, created, …)`.
-The action tree is built from that order, so **action tree roots change** for any
-transaction with more than one resource pair, and `logic_verifier_inputs` must be
-supplied in exactly that positional order. `Action::get_logic_verifiers()` and
-`Transaction::aggregate()` now do **positional** matching (v1 did a `HashMap`/`find`
-lookup by tag), and return `ArmError::LogicVerifierInputCountMismatch` or
+**Consequences for tag ordering.** The order of `ComplianceWitness::resources`
+is the order of the action's resources: `ComplianceInstance::tags()` lists their
+tags in this order, the action tree is built over the tags in this order, and the
+aggregation instance lists the resources in this order, which is the order in
+which a verifier processes them. So the compliance proof, every logic proof, and
+every signature over the action tree root fix the order. **Action tree roots
+change** against v1, which interleaved `(consumed, created, consumed, created,
+…)`. `logic_verifier_inputs` must be supplied in the same order:
+`Action::get_logic_verifiers()` and `Transaction::aggregate()` now do
+**positional** matching (v1 did a `HashMap`/`find` lookup by tag), and return
+`ArmError::LogicVerifierInputCountMismatch` or
 `ArmError::LogicVerifierTagMismatch` on mismatch. Both carry the position and,
 for a tag mismatch, the expected and found tag. Where the failure happens inside
 a loop over actions (`Transaction::verify`, `aggregation_witness`), it is wrapped
@@ -76,7 +79,10 @@ Resource::derive_nonce(index: u32, nullifiers_digest: Digest) -> [u8; 32]
 Resource::derive_nonce_from_nullifiers(index: u32, &[Digest]) -> Result<[u8; 32], ArmError>
 ```
 
-with domain separator `b"ARM_NONCE_DERIVATION"` and a big-endian index.
+with domain separator `b"ARM_NONCE_DERIVATION"` and a big-endian index. The
+index counts only the created resources, in the order of
+`ComplianceWitness::resources`, and the digest covers the consumed nullifiers in
+the same order.
 `ComplianceWitness::constrain()` re-derives every created resource's nonce and
 fails with `ArmError::InvalidResourceNonce` on mismatch. Any host code that sets
 `created.nonce = consumed_nullifier` must switch to `derive_nonce`.
@@ -141,8 +147,7 @@ compliance↔logic bindings itself.
 pub struct AggregationWitness { compliance_key: Digest, actions: Vec<ActionWitness> }
 pub struct ActionWitness {
     compliance_instance: ComplianceInstance,
-    consumed_app_data: Vec<AppData>,   // the only data not already in the instance
-    created_app_data:  Vec<AppData>,
+    app_data: Vec<AppData>,   // the only data not already in the instance
 }
 ```
 
@@ -167,10 +172,16 @@ pub struct AggregationInstance {
     actions: Vec<ActionAggregated>,
 }
 pub struct ActionAggregated {
-    consumed_publics: Vec<ConsumedResourceAggregated>,  // + app_data
-    created_publics:  Vec<CreatedResourceAggregated>,   // + app_data
+    resource_publics: Vec<ResourceAggregated>,  // + app_data, in the order of the compliance unit
     delta_x: [u32; 8], delta_y: [u32; 8],
-    action_tree_root: Digest,                            // computed in-circuit
+    action_tree_root: Digest,                 // computed in-circuit
+}
+pub struct ResourceAggregated {
+    consumed: u32,                            // 1 if consumed, 0 if created
+    resource_tag: Digest,
+    resource_logic_ref: Digest,
+    commitment_tree_root: Digest,             // zero for a created resource
+    app_data: AppData,
 }
 ```
 
@@ -302,7 +313,7 @@ The `Option` existed only to model "erased after aggregation"; that state is now
   `CannotComposeAggregated`; it propagates `AmbiguousTransactionRepresentation` or
   `MissingActions` as raised.
 - `arm/src/lib.rs` re-exports `ActionAggregated`, `AggregationInstance`,
-  `ConsumedResourceAggregated`, `CreatedResourceAggregated`.
+  `ResourceAggregated`.
 
 ### 9. Feature flags
 
@@ -445,43 +456,47 @@ That last row is a real simplification: `witness_data/mod.rs` documents trivial
 resources as "padding used to balance a transaction… sending 1 resource to 2
 people consumes 1 but creates 2, so a created padding resource is inserted."
 An N:M unit has no count-matching requirement — `constrain()` iterates
-`consumed_data` and `created_resources` independently and only the per-kind
-quantity sums must balance. Padding resources are ephemeral and zero-quantity,
-so dropping them changes no balance. Keep `PaddingResourceLogic` around (the
-padding logic ref stays in the kind tree), but stop inserting padding purely to
-pair things up.
+`resources` once and only the per-kind quantity sums must balance. Padding
+resources are ephemeral and zero-quantity, so dropping them changes no balance.
+Keep `PaddingResourceLogic` around (the padding logic ref stays in the kind
+table), but stop inserting padding purely to pair things up.
 
 **Construction order is now a hard sequence.** Created nonces depend on the
 consumed nullifiers, and created commitments depend on those nonces, so
 `parameters.rs` must build in this order:
 
-1. Fix the consumed resource order (it defines nullifier order, which feeds nonce
-   derivation — it must be identical here and in the witness).
-2. `nullifiers = consumed.map(|c| c.nullifier())`
+1. Fix the order of the resources: the order in which the protocol adapter
+   processes them. It defines the nullifier order and the created indices, which
+   feed nonce derivation — it must be identical here and in the witness.
+2. `nullifiers = consumed.map(|c| c.nullifier())`, in this order
 3. `digest = Resource::hash_nullifiers(&nullifiers)?`
-4. For each created resource at index `i`: `resource.nonce = Resource::derive_nonce(i as u32, digest)`
+4. For the created resource with index `i` among the created resources:
+   `resource.nonce = Resource::derive_nonce(i as u32, digest)`
 5. `commitments = created.map(|r| r.commitment())` — only valid after step 4
-6. `action_tree = ActionTree::new([nullifiers…, commitments…].concat())`
-7. Logic witnesses for all resources, all against that one root, in
-   `[consumed…, created…]` order
-8. One `ComplianceWitness` over all of them
+6. `action_tree = ActionTree::new(tags in this order)`
+7. Logic witnesses for all resources, all against that one root, in the same
+   order
+8. One `ComplianceWitness` over all of them, with `resources` in the same order
 
 #### `crates/transfer_web/src/proving/parameters.rs` — largest change
 - `compliance_witnesses()` → `compliance_witness()` (singular). Today it `zip`s
   consumed × created × merkle-proof into one `ComplianceWitness` per pair;
-  it becomes one witness built from `Vec<ConsumedResourceWitness>` (resource +
-  `cm_merkle_path` + `nf_key`) and `Vec<Resource>`, plus the kind tree.
+  it becomes one witness built from one `Vec<ResourceWitness>` in processing
+  order (`Consumed`: resource + `cm_merkle_path` + `nf_key`; `Created`:
+  resource), plus the kind tree.
   `JobContext::compliance_witnesses: Vec<_>` collapses to a single value.
 - One `rcv` for the whole transaction, so `DeltaWitness::from_bytes_vec(&rcvs)`
   becomes `DeltaWitness::from_bytes(&rcv)`.
 - All ephemeral consumed resources now share the unit's single `ephemeral_root`
   (previously one per pair — in practice all `INITIAL_ROOT`, so no behaviour change).
 - `action_tree()`: leaves are currently interleaved
-  `[nf₀, cm₀, nf₁, cm₁, …]`. Must become `[all nullifiers…, all commitments…]`,
-  i.e. `ComplianceInstance::tags()` order. `MerkleTree` → `ActionTree`.
-- `logic_witnesses()`: currently emits **created first, then consumed**. Must emit
-  **consumed first, then created**, matching the tag order — `Action::new` and
-  `aggregate()` now match positionally and will hard-fail otherwise.
+  `[nf₀, cm₀, nf₁, cm₁, …]`. Must become the processing order of the resources,
+  the order of `ComplianceWitness::resources`. `MerkleTree` → `ActionTree`.
+- `logic_witnesses()`: currently emits **created first, then consumed**. The order
+  of the compliance witness's resources is now the order in which the protocol
+  adapter processes them, so put the resources in the order their forwarder calls
+  must run, and emit the logic witnesses and build the action tree in the same
+  order.
 - Created-resource nonces: replace `nonce = consumed_nullifier` with the
   `derive_nonce` sequence above.
 - `generate_transaction()`: `Action::new(compliance_units, logic_proofs)` →
@@ -502,8 +517,8 @@ consumed nullifiers, and created commitments depend on those nonces, so
   and `panic!`s when `aggregation` is `None`. A proofless simulation transaction
   has no aggregation. So the simulation path must construct an
   `AggregationInstance` directly — with the single `ActionAggregated` assembled
-  from the constrained `ComplianceInstance` (`consumed_publics`/`created_publics`,
-  `delta_x`, `delta_y`), each resource's logic `app_data`, and the locally computed
+  from the constrained `ComplianceInstance` (`resource_publics`, `delta_x`,
+  `delta_y`), each resource's logic `app_data`, and the locally computed
   `action_tree_root` — rather than going through `Transaction`.
 - `instance_journal()` can be replaced by `proving_system::instance_to_journal()`.
 
@@ -514,18 +529,18 @@ consumed nullifiers, and created commitments depend on those nonces, so
   `aggregationProof`. `_checkSelector` still reads `proof[0:4]`, so the 4-byte
   verifier selector now needs to prefix that one field.
 - `transaction.actions.len()` still works (sol-side `Action[]`), but the elements
-  are the new `Consumed`/`Created` shape.
+  carry the new `PublicResourceData[] resources`.
 - Revert decoding moves to alloy 2 APIs.
 
 #### `crates/transfer_orchestrator/src/handlers/processing.rs`
 - The per-witness invariant loop uses `compliance_witness.created_resource`,
   `.consumed_commitment()`, `.consumed_nullifier(&cm)`, `.created_commitment()`,
   `.delta()` — none exist in v2. Rewrite over `constrain()`'s
-  `ComplianceInstance { consumed_publics, created_publics }`.
+  `ComplianceInstance { resource_publics }`.
 - The loop itself collapses: there is one witness, so the
   "nullifier consumed in multiple CUs" / "commitment created in multiple CUs"
   checks become duplicate checks *within* the single unit's
-  `consumed_publics` / `created_publics`.
+  `resource_publics`.
 - The "created resource nonce must match consumed nullifier" check becomes a
   `derive_nonce` check (and `constrain()` already enforces it, so this can likely
   just be dropped in favour of surfacing `InvalidResourceNonce`).
@@ -545,8 +560,8 @@ consumed nullifiers, and created commitments depend on those nonces, so
   with the one unit from `ctx.compliance_proof_results`.
 - **Ordering is now load-bearing:** `ctx.logic_proof_results` is filled by
   `try_join_all` over the submitted job ids, so it preserves submission order —
-  that order must now equal `[consumed…, created…]`. Worth an explicit assertion
-  against `compliance_instance.tags()` before building the action.
+  that order must now equal the order of the unit's resources. Worth an explicit
+  assertion against `compliance_instance.tags()` before building the action.
 - `DeltaWitness::from_bytes_vec(&rcvs)` → `from_bytes(&rcv)` (single unit, single `rcv`).
 - `Transaction::create(vec![action], …)` unchanged in signature.
 
@@ -554,8 +569,9 @@ consumed nullifiers, and created commitments depend on those nonces, so
 - `compliance_witnesses: Vec<ComplianceWitness>` → a single `Option<ComplianceWitness>`;
   `compliance_proof_results: Vec<ComplianceUnit>` → `Option<ComplianceUnit>`.
   `require_compliance_witnesses` / `all_compliance_proofs_complete` follow.
-- `logic_proof_results: Vec<LogicVerifier>` stays a vec, but now needs a documented
-  order contract (`[consumed…, created…]`) since matching is positional.
+- `logic_proof_results: Vec<LogicVerifier>` stays a vec, but now needs a
+  documented order contract (the order of the unit's resources) since matching
+  is positional.
 
 #### `crates/transfer_orchestrator/src/services/queue.rs`
 - No API break, but `to_vec(compliance_witness)` now serializes the new

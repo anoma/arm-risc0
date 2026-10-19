@@ -7,9 +7,7 @@
 pub use arm_core::compliance::*;
 
 use crate::error::ArmError;
-#[cfg(feature = "transaction")]
-use crate::resource::ConsumedResourceWitness;
-use crate::resource::{ConsumedResourcePublic, CreatedResourcePublic, Resource};
+use crate::resource::{Resource, ResourcePublic, ResourceWitness};
 use crate::utils::{bytes_to_words, words_to_bytes};
 use crate::Digest;
 #[cfg(feature = "transaction")]
@@ -22,38 +20,31 @@ use k256::{
     EncodedPoint, ProjectivePoint, Scalar,
 };
 
-/// Creates a new compliance witness from the given resources with a freshly
-/// drawn `rcv`. It uses the initial root for ephemeral resources.
+/// Creates a new compliance witness from the given resources, in their order,
+/// with a freshly drawn `rcv`. It uses the initial root for ephemeral resources.
 #[cfg(feature = "transaction")]
 pub fn from_resources(
-    consumed_data: Vec<ConsumedResourceWitness>,
-    created_resources: Vec<Resource>,
+    resources: Vec<ResourceWitness>,
     kind_tree: &crate::kind_tree::KindTree,
 ) -> ComplianceWitness {
-    from_resources_with_ephemeral_root(consumed_data, created_resources, INITIAL_ROOT, kind_tree)
+    from_resources_with_ephemeral_root(resources, INITIAL_ROOT, kind_tree)
 }
 
-/// Creates a new compliance witness from the given resources with a freshly
-/// drawn `rcv` and a valid root when consuming an ephemeral resource.
+/// Creates a new compliance witness from the given resources, in their order,
+/// with a freshly drawn `rcv` and a valid root when consuming an ephemeral
+/// resource.
 #[cfg(feature = "transaction")]
 pub fn from_resources_with_ephemeral_root(
-    consumed_data: Vec<ConsumedResourceWitness>,
-    created_resources: Vec<Resource>,
+    resources: Vec<ResourceWitness>,
     valid_root: Digest,
     kind_tree: &crate::kind_tree::KindTree,
 ) -> ComplianceWitness {
     let mut rng = rand::thread_rng();
     let rcv = Scalar::random(&mut rng).to_bytes();
 
-    let kind_paths = kind_tree.kind_paths_for(&consumed_data, &created_resources);
+    let kind_paths = kind_tree.kind_paths_for(&resources);
 
-    ComplianceWitness::from_parts(
-        consumed_data,
-        created_resources,
-        valid_root,
-        rcv.as_ref(),
-        kind_paths,
-    )
+    ComplianceWitness::from_parts(resources, valid_root, rcv.as_ref(), kind_paths)
 }
 
 /// Decodes the kind base from a `KindPath`, verifying its Merkle path
@@ -102,24 +93,23 @@ fn resolve_kind(
     }
 }
 
-/// Compliance constraints. Produces the public outputs of the unit by
-/// re-computing nullifiers, commitments, tree roots, and the delta
-/// commitment from the witness data.
+/// Compliance constraints. Produces the public outputs of the unit, in the
+/// order of the witness resources, by re-computing nullifiers, commitments,
+/// tree roots, and the delta commitment from the witness data.
 ///
-/// Each input resource is touched in a single pass: the same loop over
-/// `consumed_data` (and over `created_resources`) builds the public outputs
-/// and accumulates the (kind, signed-quantity) contributions used for the
-/// delta commitment, so each `commitment()`, `kind()`, and field load
-/// happens once.
+/// Each resource is touched in a single pass that builds its public output
+/// and accumulates its (kind, signed-quantity) contribution to the delta
+/// commitment, so each `commitment()`, `kind()`, and field load happens
+/// once. The nonces of the created resources derive from all consumed
+/// nullifiers, so they are checked after that pass.
 pub fn constrain(witness: &ComplianceWitness) -> Result<ComplianceInstance, ArmError> {
     let rcv_scalar = parse_rcv(&witness.rcv)?;
 
-    let n_consumed = witness.consumed_data.len();
-    let n_created = witness.created_resources.len();
+    let n_resources = witness.resources.len();
 
-    if witness.kind_paths.len() != n_consumed + n_created {
+    if witness.kind_paths.len() != n_resources {
         return Err(ArmError::KindPathCountMismatch {
-            expected: n_consumed + n_created,
+            expected: n_resources,
             found: witness.kind_paths.len(),
         });
     }
@@ -128,67 +118,70 @@ pub fn constrain(witness: &ComplianceWitness) -> Result<ComplianceInstance, ArmE
     // the root of the first non-None path, or PADDING_LEAF if all are None.
     let mut derived_root: Option<Digest> = None;
 
-    let mut consumed_nullifiers = Vec::with_capacity(n_consumed);
-    let mut consumed_publics = Vec::with_capacity(n_consumed);
-    let mut kinds: Vec<ProjectivePoint> = Vec::with_capacity(n_consumed + n_created);
-    let mut sums: Vec<Scalar> = Vec::with_capacity(n_consumed + n_created);
+    let mut consumed_nullifiers = Vec::with_capacity(n_resources);
+    let mut resource_publics = Vec::with_capacity(n_resources);
+    let mut kinds: Vec<ProjectivePoint> = Vec::with_capacity(n_resources);
+    let mut sums: Vec<Scalar> = Vec::with_capacity(n_resources);
 
-    // Constrain consumed resources and accumulate their (kind, +quantity)
-    // contributions to the delta.
-    for (i, w) in witness.consumed_data.iter().enumerate() {
-        let resource_commitment = w.resource.commitment();
-        let resource_nullifier = w
-            .resource
-            .nullifier_from_commitment(&w.nf_key, &resource_commitment)?;
-        let commitment_tree_root = if w.resource.is_ephemeral {
-            witness.ephemeral_root
-        } else {
-            w.cm_merkle_path.root(&resource_commitment)
+    // Constrain the resources and accumulate their contributions to the delta:
+    // (kind, +quantity) for a consumed resource, (kind, -quantity) for a
+    // created one.
+    for (position, (resource_witness, kind_path)) in witness
+        .resources
+        .iter()
+        .zip(&witness.kind_paths)
+        .enumerate()
+    {
+        let resource = resource_witness.resource();
+        let resource_commitment = resource.commitment();
+        let (resource_tag, commitment_tree_root, signed_quantity) = match resource_witness {
+            ResourceWitness::Consumed(w) => {
+                let resource_nullifier =
+                    resource.nullifier_from_commitment(&w.nf_key, &resource_commitment)?;
+                let commitment_tree_root = if resource.is_ephemeral {
+                    witness.ephemeral_root
+                } else {
+                    w.cm_merkle_path.root(&resource_commitment)
+                };
+                consumed_nullifiers.push(resource_nullifier);
+                (
+                    resource_nullifier,
+                    Some(commitment_tree_root),
+                    crate::resource::quantity_scalar(resource),
+                )
+            }
+            ResourceWitness::Created(_) => (
+                resource_commitment,
+                None,
+                -crate::resource::quantity_scalar(resource),
+            ),
         };
         // Reading `logic_ref` here forces it to be loaded from memory onto
         // the computational trace.
-        consumed_publics.push(ConsumedResourcePublic {
-            resource_nullifier,
-            resource_logic_ref: w.resource.logic_ref,
+        resource_publics.push(ResourcePublic {
+            resource_tag,
+            resource_logic_ref: resource.logic_ref,
             commitment_tree_root,
         });
-        consumed_nullifiers.push(resource_nullifier);
         accumulate_kind(
             &mut kinds,
             &mut sums,
-            resolve_kind(
-                witness.kind_paths[i].as_ref(),
-                &w.resource,
-                &mut derived_root,
-                i,
-            )?,
-            crate::resource::quantity_scalar(&w.resource),
+            resolve_kind(kind_path.as_ref(), resource, &mut derived_root, position)?,
+            signed_quantity,
         );
     }
 
-    // Constrain created resources: re-derive each nonce from the consumed
-    // nullifiers, require it to match, and accumulate (kind, -quantity).
+    // Re-derive each created nonce from its index among the created resources
+    // and the consumed nullifiers, and require it to match.
     let consumed_nullifiers_digest = Resource::hash_nullifiers(&consumed_nullifiers)?;
-    let mut created_publics = Vec::with_capacity(n_created);
-    for (j, resource) in witness.created_resources.iter().enumerate() {
+    let created_resources = witness.resources.iter().filter_map(|r| match r {
+        ResourceWitness::Consumed(_) => None,
+        ResourceWitness::Created(resource) => Some(resource),
+    });
+    for (j, resource) in created_resources.enumerate() {
         if Resource::derive_nonce(j as u32, consumed_nullifiers_digest) != resource.nonce {
             return Err(ArmError::InvalidResourceNonce);
         }
-        created_publics.push(CreatedResourcePublic {
-            resource_commitment: resource.commitment(),
-            resource_logic_ref: resource.logic_ref,
-        });
-        accumulate_kind(
-            &mut kinds,
-            &mut sums,
-            resolve_kind(
-                witness.kind_paths[n_consumed + j].as_ref(),
-                resource,
-                &mut derived_root,
-                n_consumed + j,
-            )?,
-            -crate::resource::quantity_scalar(resource),
-        );
     }
 
     // Pedersen commit to the per-kind sums; the binding generators are the
@@ -205,8 +198,7 @@ pub fn constrain(witness: &ComplianceWitness) -> Result<ComplianceInstance, ArmE
     let kind_tree_root = derived_root.unwrap_or(arm_core::merkle_path::PADDING_LEAF);
 
     Ok(ComplianceInstance {
-        consumed_publics,
-        created_publics,
+        resource_publics,
         delta_x,
         delta_y,
         kind_tree_root,
@@ -299,8 +291,10 @@ mod tests {
         let nullifier = consumed.nullifier(&nf_key).unwrap();
         let nonce = Resource::derive_nonce(0, Resource::hash_nullifiers(&[nullifier]).unwrap());
         ComplianceWitness::from_parts(
-            vec![ConsumedResourceWitness::from_resource(consumed, nf_key)],
-            vec![resource(3, quantity, nonce)],
+            vec![
+                ResourceWitness::Consumed(ConsumedResourceWitness::from_resource(consumed, nf_key)),
+                ResourceWitness::Created(resource(3, quantity, nonce)),
+            ],
             INITIAL_ROOT,
             &RCV,
             vec![

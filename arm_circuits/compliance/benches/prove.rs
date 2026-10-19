@@ -34,7 +34,7 @@
 use anoma_rm_risc0::compliance::{ComplianceWitness, KindTreeEntry, INITIAL_ROOT};
 use anoma_rm_risc0::constants::{global_kind_tree, init_kind_tree_from_file, kind_tree, KindTree};
 use anoma_rm_risc0::nullifier_key::NullifierKey;
-use anoma_rm_risc0::resource::{ConsumedResourceWitness, Resource};
+use anoma_rm_risc0::resource::{ConsumedResourceWitness, Resource, ResourceWitness};
 use compliance_methods::COMPLIANCE_GUEST_ELF;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use risc0_zkvm::{default_prover, Digest, ExecutorEnv, ProverOpts};
@@ -105,10 +105,14 @@ fn make_witness_with_tree(
         })
         .collect();
 
-    let kind_paths = kt.kind_paths_for(&consumed_data, &created_resources);
+    let resources: Vec<ResourceWitness> = consumed_data
+        .into_iter()
+        .map(ResourceWitness::Consumed)
+        .chain(created_resources.into_iter().map(ResourceWitness::Created))
+        .collect();
+    let kind_paths = kt.kind_paths_for(&resources);
     ComplianceWitness {
-        consumed_data,
-        created_resources,
+        resources,
         ephemeral_root: INITIAL_ROOT,
         rcv: [vec![0u8; 31], vec![1u8]].concat(),
         kind_paths,

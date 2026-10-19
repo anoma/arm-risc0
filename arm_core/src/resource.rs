@@ -316,30 +316,48 @@ impl Default for ConsumedResourceWitness {
     }
 }
 
-/// Public information of consumed resources.
+/// Private information related to a consumed or a created resource.
 #[cfg_attr(
     feature = "borsh",
     derive(borsh::BorshSerialize, borsh::BorshDeserialize)
 )]
-#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
-pub struct ConsumedResourcePublic {
-    /// The nullifier of the consumed [Resource].
-    pub resource_nullifier: Digest,
-    /// The logic reference of the consumed [Resource].
-    pub resource_logic_ref: Digest,
-    /// The root of the Merkle tree where the resource commitment is in.
-    pub commitment_tree_root: Digest,
+#[derive(Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub enum ResourceWitness {
+    /// A consumed resource.
+    Consumed(ConsumedResourceWitness),
+    /// A created resource.
+    Created(Resource),
 }
 
-/// Public information of created resources.
+impl ResourceWitness {
+    /// The consumed or created resource.
+    pub fn resource(&self) -> &Resource {
+        match self {
+            ResourceWitness::Consumed(witness) => &witness.resource,
+            ResourceWitness::Created(resource) => resource,
+        }
+    }
+}
+
+/// Public information of a consumed or a created resource.
 #[cfg_attr(
     feature = "borsh",
     derive(borsh::BorshSerialize, borsh::BorshDeserialize)
 )]
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
-pub struct CreatedResourcePublic {
-    /// The commitment to the created [Resource].
-    pub resource_commitment: Digest,
-    /// The logic reference of the created [Resource].
+pub struct ResourcePublic {
+    /// The nullifier of a consumed [Resource] or the commitment of a created [Resource].
+    pub resource_tag: Digest,
+    /// The logic reference of the [Resource].
     pub resource_logic_ref: Digest,
+    /// The root of the Merkle tree that holds the commitment of a consumed
+    /// [Resource]; `None` for a created [Resource].
+    pub commitment_tree_root: Option<Digest>,
+}
+
+impl ResourcePublic {
+    /// A resource is consumed exactly if it carries a commitment tree root.
+    pub fn is_consumed(&self) -> bool {
+        self.commitment_tree_root.is_some()
+    }
 }
