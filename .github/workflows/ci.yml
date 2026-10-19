@@ -10,6 +10,8 @@ env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
   RISC0_TOOLCHAIN_VERSION: 3.0.3
+  # The tests prove in dev mode and need no GPU kernels; macos-latest lacks the Metal toolchain at times.
+  RISC0_SKIP_BUILD_KERNELS: true
 
 jobs:
   taplo:
