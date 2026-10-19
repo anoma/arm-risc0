@@ -166,7 +166,7 @@ mod tests {
             ),
             (
                 "TEST_LOGIC_VK",
-                "54fccb0649c20af2d84344e48897e0d92f1d9571e41de807bf20fe81d4fdf913",
+                "1e8deddc609266fc28d50dd33aca7c32dd3257df20b63becf3d0af099c6cb95d",
             ),
         ];
         for (name, hex_vk) in vks {
