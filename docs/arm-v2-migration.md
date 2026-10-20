@@ -22,7 +22,7 @@ The single biggest structural change.
 |---|---|
 | `Action { compliance_units: Vec<ComplianceUnit>, .. }` | `Action { compliance_unit: ComplianceUnit, .. }` |
 | One CU = exactly **1 consumed + 1 created** resource | One CU = **N consumed + M created** resources |
-| `ComplianceInstance { consumed_nullifier, consumed_logic_ref, consumed_commitment_tree_root, created_commitment, created_logic_ref, delta_x, delta_y }` | `ComplianceInstance { consumed_publics: Vec<ConsumedResourcePublic>, created_publics: Vec<CreatedResourcePublic>, delta_x, delta_y, kind_tree_commitment }` |
+| `ComplianceInstance { consumed_nullifier, consumed_logic_ref, consumed_commitment_tree_root, created_commitment, created_logic_ref, delta_x, delta_y }` | `ComplianceInstance { consumed_publics: Vec<ConsumedResourcePublic>, created_publics: Vec<CreatedResourcePublic>, delta_x, delta_y, kind_tree_root }` |
 | `ComplianceWitness { consumed_resource, merkle_path, nf_key, created_resource, ephemeral_root, rcv }` | `ComplianceWitness { consumed_data: Vec<ConsumedResourceWitness>, created_resources: Vec<Resource>, ephemeral_root, rcv, kind_tree }` |
 
 New public types in `arm::resource`:
@@ -80,8 +80,10 @@ fails with `ArmError::InvalidResourceNonce` on mismatch. Any host code that sets
 
 New `KindTreeEntry { logic_ref, label_ref, kind_point }`, carried in
 `ComplianceWitness::kind_tree` and committed to as
-`ComplianceInstance::kind_tree_commitment` (SHA-256 over
-`logic_ref ‖ label_ref ‖ kind_point` for every entry, in order).
+`ComplianceInstance::kind_tree_root` (the Merkle root over leaves
+`sha256(logic_ref ‖ label_ref ‖ kind_point)`, entries sorted by
+`(logic_ref, label_ref)` and the leaf layer padded to a power of two with
+`PADDING_LEAF`).
 
 New global loader in `arm::constants`:
 
@@ -94,7 +96,7 @@ init_kind_tree_from_entries(entries: Vec<KindTreeEntry>) -> Result<(), ArmError>
 init_starter_kind_tree() -> Result<(), ArmError>
 
 kind_tree()      -> &'static [KindTreeEntry]
-kind_tree_hash() -> Option<&'static Digest>
+kind_tree_root() -> Option<Digest>
 ```
 
 Entries are `{ "logic_ref": "<hex>", "label_ref": "<hex>", "kind_point": "<hex>" }`.
@@ -103,11 +105,11 @@ stored in the file; no hash-to-curve is performed at load time. Each point is va
 against the curve on load. A starter `arm/data/kind_tree.json` ships in the crate
 (padding logic + test logic); `init_starter_kind_tree()` loads it wherever the crate is built.
 
-**Operational impact:** `Transaction::verify(kind_tree_commitment)` now takes the
-expected kind tree commitment as an explicit parameter. Callers obtain it from
-`kind_tree_hash()` — do not unwrap; propagate `None` as an error. Pass it explicitly
+**Operational impact:** `Transaction::verify(kind_tree_root)` now takes the
+expected kind tree root as an explicit parameter. Callers obtain it from
+`kind_tree_root()` — do not unwrap; propagate `None` as an error. Pass it explicitly
 to support multi-chain deployments where different chains use different kind trees.
-New error variants: `KindTreeCommitmentMismatch`, `KindTreeCommitmentExpectedMismatch`,
+New error variants: `KindTreeRootMismatch`, `KindTreeRootExpectedMismatch`,
 `KindTreeLoadFailed`.
 
 Measured payoff (Groth16-less succinct compliance bench, from `arm_circuits/compliance/README.md`):
@@ -148,7 +150,7 @@ so three constraints hold *structurally* rather than by assertion:
 | B — root matches action tree root | root recomputed in-circuit from the compliance tags |
 | C — VK matches `resource_logic_ref` | `resource_logic_ref` used directly as the `env::verify` key |
 
-It also asserts `kind_tree_commitment` equality across all actions, and rejects
+It also asserts `kind_tree_root` equality across all actions, and rejects
 an empty action set.
 
 The journal is now a typed, compact struct:
@@ -156,7 +158,7 @@ The journal is now a typed, compact struct:
 ```rust
 pub struct AggregationInstance {
     compliance_key: Digest,
-    kind_tree_commitment: Digest,
+    kind_tree_root: Digest,
     actions: Vec<ActionAggregated>,
 }
 pub struct ActionAggregated {
@@ -389,7 +391,7 @@ These have to land first; neither service can compile without them.
 
 4. **Kind tree + on-chain constants.** Decide the production kind tree, ship it
    to every process, and make sure it hashes to the PA's stored
-   `kindTreeCommitment`. It must include every logic ref actually used
+   `kindTreeRoot`. It must include every logic ref actually used
    (padding, transfer v1/v2, generic-call) and every token, not just arm's sample file.
 
 ---
@@ -628,7 +630,7 @@ longer exists.
 
 1. Re-pin `anomapay-erc20-resource`, `generic-call-resource` and `pa-evm` to
    `v2.0.0-rc.3-abi_encode`;
-2. Agree the production kind tree; regenerate the PA's `kindTreeCommitment`;
+2. Agree the production kind tree; regenerate the PA's `kindTreeRoot`;
    publish the JSON as a shared artifact.
 3. Land the `alloy` 1 → 2 bump in both services as its own PR (no arm changes) —
    it is mechanically large and independent.

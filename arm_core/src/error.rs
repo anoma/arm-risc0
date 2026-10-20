@@ -72,10 +72,10 @@ pub enum ArmError {
     InvalidNullifierCommitment,
     #[error("Nullifier duplication detected")]
     NullifierDuplication,
-    #[error("kind_tree_commitment mismatch across compliance units")]
-    KindTreeCommitmentMismatch,
-    #[error("kind_tree_commitment does not match the expected commitment")]
-    KindTreeCommitmentExpectedMismatch,
+    #[error("kind_tree_root mismatch across compliance units")]
+    KindTreeRootMismatch,
+    #[error("kind_tree_root does not match the expected root")]
+    KindTreeRootExpectedMismatch,
     #[error("Empty tree")]
     EmptyTree,
     #[error("Invalid shared secret")]

@@ -93,7 +93,7 @@ pub fn verify(
 
             // Check for nullifier duplication across all compliance units
             nf_duplication_check(tx)?;
-            kind_tree_commitment_check(tx, kind_tree_root)?;
+            kind_tree_root_check(tx, kind_tree_root)?;
 
             if tx.aggregation.is_some() {
                 #[cfg(not(feature = "aggregation"))]
@@ -125,14 +125,14 @@ pub fn verify(
 ///
 /// A transaction whose effective root is `PADDING_LEAF` (all resources fell
 /// back to `hash_to_curve`) passes the check regardless of `expected`:
-/// such a transaction carries no kind-tree commitment and is valid on any
+/// such a transaction is not bound to any kind tree and is valid on any
 /// chain.
 ///
 /// When `aggregation` is present it is authoritative: the root is read from
 /// the proof-backed `aggregation.instance` (cross-action consistency was
 /// already enforced in-circuit by the aggregation guest), never from
 /// `actions`, even if both happen to be populated.
-pub fn kind_tree_commitment_check(tx: &Transaction, expected: Digest) -> Result<(), ArmError> {
+pub fn kind_tree_root_check(tx: &Transaction, expected: Digest) -> Result<(), ArmError> {
     let padding = arm_core::merkle_path::PADDING_LEAF;
 
     let root = if let Some(agg) = &tx.aggregation {
@@ -144,7 +144,7 @@ pub fn kind_tree_commitment_check(tx: &Transaction, expected: Digest) -> Result<
             if r != padding {
                 match effective {
                     None => effective = Some(r),
-                    Some(prev) if prev != r => return Err(ArmError::KindTreeCommitmentMismatch),
+                    Some(prev) if prev != r => return Err(ArmError::KindTreeRootMismatch),
                     _ => {}
                 }
             }
@@ -155,7 +155,7 @@ pub fn kind_tree_commitment_check(tx: &Transaction, expected: Digest) -> Result<
     };
 
     if root != padding && root != expected {
-        return Err(ArmError::KindTreeCommitmentExpectedMismatch);
+        return Err(ArmError::KindTreeRootExpectedMismatch);
     }
     Ok(())
 }

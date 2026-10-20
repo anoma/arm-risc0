@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 /// A constant padding leaf used in Merkle trees.
 /// This is sha256("EMPTY") — the SHA-256 hash of the five-byte ASCII string "EMPTY",
 /// matching the EVM protocol adapter's `SHA256.EMPTY_HASH`. Not to be confused with
-/// sha256("") (e3b0c442…), which is the empty kind tree commitment. Value:
+/// sha256("") (e3b0c442…), the hash of the empty string. Value:
 /// cc1d2f838445db7aec431df9ee8a871f40e7aa5e064fc056633ef8c60fab7b06.
 ///
 /// A `const` rather than a lazy static: statics with interior mutability

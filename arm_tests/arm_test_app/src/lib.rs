@@ -255,10 +255,10 @@ fn encode_compliance_instance(instance: &ComplianceInstance) -> Vec<u8> {
 }
 
 #[cfg(test)]
-fn set_action_kind_tree_commitment(action: &mut Action, commitment: Digest) {
+fn set_action_kind_tree_root(action: &mut Action, root: Digest) {
     let mut instance: ComplianceInstance =
         journal_to_instance(&action.compliance_unit.instance).expect("instance must decode");
-    instance.kind_tree_root = commitment;
+    instance.kind_tree_root = root;
     action.compliance_unit.instance = encode_compliance_instance(&instance);
 }
 
@@ -368,91 +368,91 @@ fn test_nullifier_duplication_check() {
     assert!(transaction::nf_duplication_check(&tx).is_err());
 }
 
-/// All actions carry the global kind-tree commitment — the check must pass.
+/// All actions carry the global kind-tree root — the check must pass.
 #[test]
-fn test_kind_tree_commitment_check_accepts_global_commitment() {
+fn test_kind_tree_root_check_accepts_global_root() {
     let tx = Tester::default()
         .generate_test_transaction(&[(1, 1)])
         .unwrap();
-    assert!(transaction::kind_tree_commitment_check(&tx, kind_tree_root().unwrap()).is_ok());
+    assert!(transaction::kind_tree_root_check(&tx, kind_tree_root().unwrap()).is_ok());
 }
 
-/// All actions carry a non-global commitment and the caller supplies that same
+/// All actions carry a non-global root and the caller supplies that same
 /// digest as `expected` — the check must succeed. This guards against a
 /// regression back to an implicit global-tree lookup.
 #[test]
-fn test_kind_tree_commitment_check_accepts_explicit_non_global_commitment() {
+fn test_kind_tree_root_check_accepts_explicit_non_global_root() {
     let mut tx = Tester::default()
         .generate_test_transaction(&[(1, 1), (1, 1)])
         .unwrap();
 
     let fake = Digest::from([0xAB; 32]);
     let actions = tx.actions.as_mut().unwrap();
-    set_action_kind_tree_commitment(&mut actions[0], fake);
-    set_action_kind_tree_commitment(&mut actions[1], fake);
+    set_action_kind_tree_root(&mut actions[0], fake);
+    set_action_kind_tree_root(&mut actions[1], fake);
 
-    assert!(transaction::kind_tree_commitment_check(&tx, fake).is_ok());
+    assert!(transaction::kind_tree_root_check(&tx, fake).is_ok());
 }
 
-/// One action has a different commitment from the other — cross-action
+/// One action has a different root from the other — cross-action
 /// consistency check must fire before the global check.
 #[test]
-fn test_kind_tree_commitment_check_rejects_mismatched_actions() {
+fn test_kind_tree_root_check_rejects_mismatched_actions() {
     let mut tx = Tester::default()
         .generate_test_transaction(&[(1, 1), (1, 1)])
         .unwrap();
 
-    set_action_kind_tree_commitment(
+    set_action_kind_tree_root(
         &mut tx.actions.as_mut().unwrap()[1],
         Digest::from([0xA5; 32]),
     );
 
     assert!(matches!(
-        transaction::kind_tree_commitment_check(&tx, kind_tree_root().unwrap()),
-        Err(ArmError::KindTreeCommitmentMismatch)
+        transaction::kind_tree_root_check(&tx, kind_tree_root().unwrap()),
+        Err(ArmError::KindTreeRootMismatch)
     ));
 }
 
-/// Both actions agree on a fake commitment — cross-action check passes but the
+/// Both actions agree on a fake root — cross-action check passes but the
 /// global check must catch the mismatch. Also asserts that passing the fake
-/// commitment explicitly succeeds, covering the multi-chain case.
+/// root explicitly succeeds, covering the multi-chain case.
 #[test]
-fn test_kind_tree_commitment_check_rejects_consistent_non_global() {
+fn test_kind_tree_root_check_rejects_consistent_non_global() {
     let mut tx = Tester::default()
         .generate_test_transaction(&[(1, 1), (1, 1)])
         .unwrap();
 
     let fake = Digest::from([0x5A; 32]);
     let actions = tx.actions.as_mut().unwrap();
-    set_action_kind_tree_commitment(&mut actions[0], fake);
-    set_action_kind_tree_commitment(&mut actions[1], fake);
+    set_action_kind_tree_root(&mut actions[0], fake);
+    set_action_kind_tree_root(&mut actions[1], fake);
 
-    // Caller-provided commitment matching the tx must succeed.
-    assert!(transaction::kind_tree_commitment_check(&tx, fake).is_ok());
+    // Caller-provided root matching the tx must succeed.
+    assert!(transaction::kind_tree_root_check(&tx, fake).is_ok());
 
-    // Passing a different (global) commitment must be rejected.
+    // Passing a different (global) root must be rejected.
     assert!(matches!(
-        transaction::kind_tree_commitment_check(&tx, kind_tree_root().unwrap()),
-        Err(ArmError::KindTreeCommitmentExpectedMismatch)
+        transaction::kind_tree_root_check(&tx, kind_tree_root().unwrap()),
+        Err(ArmError::KindTreeRootExpectedMismatch)
     ));
 }
 
-/// Single action with a non-global commitment — trivially passes cross-action
+/// Single action with a non-global root — trivially passes cross-action
 /// check, global check must reject.
 #[test]
-fn test_kind_tree_commitment_check_rejects_global_mismatch() {
+fn test_kind_tree_root_check_rejects_global_mismatch() {
     let mut tx = Tester::default()
         .generate_test_transaction(&[(1, 1)])
         .unwrap();
 
-    set_action_kind_tree_commitment(
+    set_action_kind_tree_root(
         &mut tx.actions.as_mut().unwrap()[0],
         Digest::from([0x5A; 32]),
     );
 
     assert!(matches!(
-        transaction::kind_tree_commitment_check(&tx, kind_tree_root().unwrap()),
-        Err(ArmError::KindTreeCommitmentExpectedMismatch)
+        transaction::kind_tree_root_check(&tx, kind_tree_root().unwrap()),
+        Err(ArmError::KindTreeRootExpectedMismatch)
     ));
 }
 
