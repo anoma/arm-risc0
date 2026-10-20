@@ -78,10 +78,10 @@ fails with `ArmError::InvalidResourceNonce` on mismatch. Any host code that sets
 
 ### 3. Kind tree (skips `hash_to_curve` in the compliance circuit)
 
-New `KindTreeEntry { logic_ref, label_ref, kind_point }`, carried in
+New `KindTreeEntry { logic_ref, label_ref, kind_base }`, carried in
 `ComplianceWitness::kind_tree` and committed to as
 `ComplianceInstance::kind_tree_root` (the Merkle root over leaves
-`sha256(logic_ref ‖ label_ref ‖ kind_point)`, entries sorted by
+`sha256(logic_ref ‖ label_ref ‖ kind_base)`, entries sorted by
 `(logic_ref, label_ref)` and the leaf layer padded to a power of two with
 `PADDING_LEAF`).
 
@@ -99,8 +99,8 @@ kind_tree()      -> &'static [KindTreeEntry]
 kind_tree_root() -> Option<Digest>
 ```
 
-Entries are `{ "logic_ref": "<hex>", "label_ref": "<hex>", "kind_point": "<hex>" }`.
-The `kind_point` is an uncompressed SEC1-encoded secp256k1 point (65 bytes, `04` prefix)
+Entries are `{ "logic_ref": "<hex>", "label_ref": "<hex>", "kind_base": "<hex>" }`.
+The `kind_base` is an uncompressed SEC1-encoded secp256k1 point (65 bytes, `04` prefix)
 stored in the file; no hash-to-curve is performed at load time. Each point is validated
 against the curve on load. A starter `arm/data/kind_tree.json` ships in the crate
 (padding logic + test logic); `init_starter_kind_tree()` loads it wherever the crate is built.

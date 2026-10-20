@@ -27,13 +27,13 @@ pub use arm_core::constants::{
 static KIND_TREE: OnceLock<KindTree> = OnceLock::new();
 
 /// JSON-serializable representation of a kind tree entry.
-/// All fields are lowercase hex strings. `kind_point` is an uncompressed
+/// All fields are lowercase hex strings. `kind_base` is an uncompressed
 /// SEC1-encoded secp256k1 point (65 bytes = 130 hex chars).
 #[derive(serde::Serialize, serde::Deserialize)]
 struct KindTreeJsonEntry {
     logic_ref: String,
     label_ref: String,
-    kind_point: String,
+    kind_base: String,
     /// Ignored by the loader; present for human readability.
     #[serde(default, rename = "_comment")]
     _comment: String,
@@ -46,7 +46,7 @@ const STARTER_KIND_TREE_JSON: &str = include_str!("../data/kind_tree.json");
 /// Initializes the global kind tree from a JSON file.
 ///
 /// The file must contain a JSON array of objects with `logic_ref`, `label_ref`,
-/// and `kind_point` (all lowercase hex). The kind point is stored verbatim; no
+/// and `kind_base` (all lowercase hex). The kind base is stored verbatim; no
 /// `hash_to_curve` is performed at load time. An optional `_comment` field is
 /// accepted and ignored. Calling this a second time is a no-op; the first call wins.
 pub fn init_kind_tree_from_file(path: &Path) -> Result<(), ArmError> {
@@ -77,12 +77,11 @@ fn parse_kind_tree_json(json: &str) -> Result<Vec<KindTreeEntry>, ArmError> {
                 Digest::from_hex(&e.logic_ref).map_err(|_| ArmError::KindTreeLoadFailed)?;
             let label_ref =
                 Digest::from_hex(&e.label_ref).map_err(|_| ArmError::KindTreeLoadFailed)?;
-            let kind_point =
-                hex::decode(&e.kind_point).map_err(|_| ArmError::KindTreeLoadFailed)?;
+            let kind_base = hex::decode(&e.kind_base).map_err(|_| ArmError::KindTreeLoadFailed)?;
             Ok(KindTreeEntry {
                 logic_ref,
                 label_ref,
-                kind_point,
+                kind_base,
             })
         })
         .collect()
@@ -144,16 +143,16 @@ mod tests {
             .expect("the padding logic's kind")
             .to_encoded_point(false);
         assert_eq!(
-            padding.kind_point,
+            padding.kind_base,
             expected.as_bytes(),
-            "the starter tree's padding kind point is not the one arm computes"
+            "the starter tree's padding kind base is not the one arm computes"
         );
         KindTree::from_entries(entries).expect("the starter kind tree is valid");
     }
 
     #[test]
-    #[ignore = "developer utility: computes kind points for (logic_ref, zero label_ref) pairs"]
-    fn print_kind_points_for_vks() {
+    #[ignore = "developer utility: computes kind bases for (logic_ref, zero label_ref) pairs"]
+    fn print_kind_bases_for_vks() {
         use crate::resource::generate_resource_kind;
         use k256::elliptic_curve::sec1::ToEncodedPoint;
         use risc0_zkvm::sha::DIGEST_BYTES;

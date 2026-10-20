@@ -2,7 +2,7 @@
 ///
 /// Measures wall-clock prove time with three kind-tree configurations:
 /// - `empty_tree`: the circuit falls back to `hash_to_curve` for every resource.
-/// - `file_tree`:  kind points are pre-computed in `kind_tree.json`; the circuit
+/// - `file_tree`:  kind bases are pre-computed in `kind_tree.json`; the circuit
 ///                  resolves them via a Merkle path, skipping `hash_to_curve`.
 /// - `tree_size`:  varying kind-tree sizes (8, 32, 128, 512, 1024, 2048 entries)
 ///                  × resource counts (2, 8, 16) to measure how Merkle path depth
@@ -32,9 +32,7 @@
 /// RISC0_DEV_MODE=1 cargo bench --features prove -p compliance
 /// ```
 use anoma_rm_risc0::compliance::{ComplianceWitness, KindTreeEntry, INITIAL_ROOT};
-use anoma_rm_risc0::constants::{
-    global_kind_tree, init_kind_tree_from_file, kind_tree, KindTree,
-};
+use anoma_rm_risc0::constants::{global_kind_tree, init_kind_tree_from_file, kind_tree, KindTree};
 use anoma_rm_risc0::nullifier_key::NullifierKey;
 use anoma_rm_risc0::resource::{ConsumedResourceWitness, Resource};
 use compliance_methods::COMPLIANCE_GUEST_ELF;
@@ -136,7 +134,7 @@ fn make_witness(logic_ref: Digest, label_ref: Digest, count: usize) -> Complianc
 /// among synthetic filler entries.
 ///
 /// Filler entries use a `[0x00, i_lo, i_hi, 0x00…]` `logic_ref` pattern so
-/// they never collide with each other or with `matching`. Their `kind_point`
+/// they never collide with each other or with `matching`. Their `kind_base`
 /// is borrowed from `matching` — it is a valid curve point, satisfying the
 /// loader's validation, but the (logic_ref, label_ref) key differs so the
 /// circuit will never match against them for the benchmark resources.
@@ -157,7 +155,7 @@ fn make_kind_tree_of_size(size: usize, matching: &KindTreeEntry) -> KindTree {
         entries.push(KindTreeEntry {
             logic_ref: Digest::from(bytes),
             label_ref: matching.label_ref,
-            kind_point: matching.kind_point.clone(),
+            kind_base: matching.kind_base.clone(),
         });
     }
 
@@ -183,7 +181,7 @@ fn bench_empty_tree(c: &mut Criterion) {
     group.finish();
 }
 
-/// Precomputed kind tree from file: the circuit resolves kind points via a
+/// Precomputed kind tree from file: the circuit resolves kind bases via a
 /// Merkle path, skipping `hash_to_curve`. The witness uses the `logic_ref` and
 /// `label_ref` of the first entry in the loaded tree so all resources hit the tree.
 fn bench_file_tree(c: &mut Criterion) {
@@ -257,10 +255,5 @@ fn bench_tree_size(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(
-    benches,
-    bench_empty_tree,
-    bench_file_tree,
-    bench_tree_size
-);
+criterion_group!(benches, bench_empty_tree, bench_file_tree, bench_tree_size);
 criterion_main!(benches);

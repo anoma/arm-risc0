@@ -1,4 +1,4 @@
-//! `KindTree`: a Merkle tree over pre-computed kind points for known resource
+//! `KindTree`: a Merkle tree over pre-computed kind bases for known resource
 //! types, used to skip `hash_to_curve` inside the compliance circuit.
 
 use crate::{
@@ -11,7 +11,7 @@ use arm_core::merkle_path::{MerklePath, PADDING_LEAF};
 use arm_core::utils::hash_two;
 
 /// The kind tree: a fixed binary Merkle tree over known `(logic_ref,
-/// label_ref)` → kind-point mappings that lets a compliance witness skip
+/// label_ref)` → kind-base mappings that lets a compliance witness skip
 /// `hash_to_curve` for well-known resource types.
 ///
 /// **Tree construction** — entries are sorted lexicographically by
@@ -45,10 +45,10 @@ impl KindTree {
     }
 
     /// Builds a `KindTree` from a list of entries, validating every kind
-    /// point, rejecting duplicates, and sorting by `(logic_ref, label_ref)`.
+    /// base, rejecting duplicates, and sorting by `(logic_ref, label_ref)`.
     pub fn from_entries(mut entries: Vec<KindTreeEntry>) -> Result<KindTree, ArmError> {
         for entry in &entries {
-            validate_kind_point(&entry.kind_point)?;
+            validate_kind_base(&entry.kind_base)?;
         }
         entries.sort_by(|a, b| {
             a.logic_ref
@@ -88,9 +88,9 @@ impl KindTree {
             .entries
             .iter()
             .position(|e| e.logic_ref == *logic_ref && e.label_ref == *label_ref)?;
-        let kind_point = self.entries[pos].kind_point.clone();
+        let kind_base = self.entries[pos].kind_base.clone();
         let path = merkle_path(&self.leaves, pos);
-        Some(KindPath { kind_point, path })
+        Some(KindPath { kind_base, path })
     }
 
     /// Returns one `Option<KindPath>` per resource (consumed first, then
@@ -135,7 +135,7 @@ fn merkle_root(leaves: &[Digest]) -> Digest {
 /// child (so `hash_two(sibling, current)`).
 /// Validates that `bytes` is a well-formed uncompressed SEC1 secp256k1 point:
 /// 65 bytes, leading 0x04 byte, and on the curve.
-pub(crate) fn validate_kind_point(bytes: &[u8]) -> Result<(), ArmError> {
+pub(crate) fn validate_kind_base(bytes: &[u8]) -> Result<(), ArmError> {
     use k256::{elliptic_curve::sec1::FromEncodedPoint, EncodedPoint, ProjectivePoint};
     if bytes.len() != 65 || bytes[0] != 0x04 {
         return Err(ArmError::KindTreeLoadFailed);
@@ -173,7 +173,7 @@ mod tests {
     use crate::compliance::hash_kind_tree_leaf;
 
     /// A valid uncompressed secp256k1 generator point (G), used as a
-    /// stand-in kind point in unit tests. 65 bytes, leading 0x04.
+    /// stand-in kind base in unit tests. 65 bytes, leading 0x04.
     fn generator_point() -> Vec<u8> {
         hex::decode(
             "0479be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798\
@@ -190,7 +190,7 @@ mod tests {
         KindTreeEntry {
             logic_ref: Digest::from(logic),
             label_ref: Digest::from(label),
-            kind_point: generator_point(),
+            kind_base: generator_point(),
         }
     }
 
@@ -212,9 +212,9 @@ mod tests {
     }
 
     #[test]
-    fn rejects_invalid_kind_point() {
+    fn rejects_invalid_kind_base() {
         let mut e = entry(1, 0);
-        e.kind_point = vec![0u8; 65]; // all-zero is not a valid curve point
+        e.kind_base = vec![0u8; 65]; // all-zero is not a valid curve point
         assert!(KindTree::from_entries(vec![e]).is_err());
     }
 

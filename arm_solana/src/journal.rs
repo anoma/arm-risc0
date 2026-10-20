@@ -100,7 +100,7 @@ mod tests {
     }
 
     /// The digest is sha256 of the 68-byte journal (compliance key, kind-tree
-    /// commitment, zero actions): the expected bytes come from Python's
+    /// root, zero actions): the expected bytes come from Python's
     /// hashlib over that journal, an implementation independent of the
     /// engine this crate's host build falls back to.
     #[test]
