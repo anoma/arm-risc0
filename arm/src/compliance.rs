@@ -59,6 +59,10 @@ pub fn from_resources_with_ephemeral_root(
 /// Decodes the kind point from a `KindPath`, verifying its Merkle path
 /// against `derived_root` (updated in place on first use). Falls back to
 /// `hash_to_curve` when `kind_path` is `None`.
+///
+/// The kind point must be uncompressed SEC1 (65 bytes, leading `0x04`), the
+/// only encoding the host loader accepts (`kind_table::validate_kind_point`).
+/// That rules out the identity, whose encoding is the single byte `0x00`.
 fn resolve_kind(
     kind_path: Option<&KindPath>,
     resource: &Resource,
@@ -66,6 +70,9 @@ fn resolve_kind(
 ) -> Result<ProjectivePoint, ArmError> {
     match kind_path {
         Some(kp) => {
+            if kp.kind_point.len() != 65 || kp.kind_point[0] != 0x04 {
+                return Err(ArmError::InvalidResourceKind);
+            }
             let leaf =
                 arm_core::compliance::hash_kind_table_leaf(&arm_core::compliance::KindTableEntry {
                     logic_ref: resource.logic_ref,
