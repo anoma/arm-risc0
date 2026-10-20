@@ -26,6 +26,15 @@ ignore = [
   # Deferred until the toolchain is bumped.
   "RUSTSEC-2026-0220",
 
+  # zip 2.4.2 - extract() applies permissions through symlinks, keeps SUID/SGID
+  # bits, and creates symlinks outside the target directory. Transitive dep via
+  # risc0-zkvm -> risc0-circuit-recursion, which reads only its own embedded
+  # archive into memory and never calls extract(). The fix is zip >= 9.0.0, and
+  # every risc0-circuit-recursion 4.x release requires zip ^2.1.
+  "RUSTSEC-2026-0367",
+  "RUSTSEC-2026-0368",
+  "RUSTSEC-2026-0369",
+
   # ruzstd 0.7.3 - decompression bomb (OOM). Transitive dep via
   # risc0-zkvm -> addr2line -> object -> ruzstd. Fix requires object to bump
   # its ruzstd dep to ^0.9, outside our control; used only for ELF/DWARF

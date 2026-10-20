@@ -59,6 +59,10 @@ pub fn from_resources_with_ephemeral_root(
 /// Decodes the kind point from a `KindPath`, verifying its Merkle path
 /// against `derived_root` (updated in place on first use). Falls back to
 /// `hash_to_curve` when `kind_path` is `None`.
+///
+/// The kind point must be uncompressed SEC1 (65 bytes, leading `0x04`), the
+/// only encoding the host loader accepts (`kind_table::validate_kind_point`).
+/// That rules out the identity, whose encoding is the single byte `0x00`.
 fn resolve_kind(
     kind_path: Option<&KindPath>,
     resource: &Resource,
@@ -66,6 +70,9 @@ fn resolve_kind(
 ) -> Result<ProjectivePoint, ArmError> {
     match kind_path {
         Some(kp) => {
+            if kp.kind_point.len() != 65 || kp.kind_point[0] != 0x04 {
+                return Err(ArmError::InvalidResourceKind);
+            }
             let leaf =
                 arm_core::compliance::hash_kind_table_leaf(&arm_core::compliance::KindTableEntry {
                     logic_ref: resource.logic_ref,
@@ -247,4 +254,61 @@ pub fn delta_projective(instance: &ComplianceInstance) -> Result<ProjectivePoint
     ProjectivePoint::from_encoded_point(&encoded_point)
         .into_option()
         .ok_or(ArmError::InvalidDelta)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::merkle_path::MerklePath;
+    use crate::nullifier_key::NullifierKey;
+    use crate::resource::ConsumedResourceWitness;
+
+    const RCV: [u8; 32] = [1u8; 32];
+
+    fn resource(label: u8, quantity: u128, nonce: [u8; 32]) -> Resource {
+        Resource {
+            logic_ref: Digest::from([1u8; 32]),
+            label_ref: Digest::from([label; 32]),
+            quantity,
+            value_ref: Digest::default(),
+            is_ephemeral: true,
+            nonce,
+            nk_commitment: NullifierKey::default().commit(),
+            rand_seed: [0u8; 32],
+        }
+    }
+
+    /// A unit that consumes an ephemeral resource of quantity 0 and creates
+    /// `quantity` of a kind whose path opens a leaf holding `kind_point`. The
+    /// tree is that one leaf, so the path is empty.
+    fn witness(kind_point: Vec<u8>, quantity: u128) -> ComplianceWitness {
+        let nf_key = NullifierKey::default();
+        let consumed = resource(2, 0, [0u8; 32]);
+        let nullifier = consumed.nullifier(&nf_key).unwrap();
+        let nonce = Resource::derive_nonce(0, Resource::hash_nullifiers(&[nullifier]).unwrap());
+        ComplianceWitness::from_parts(
+            vec![ConsumedResourceWitness::from_resource(consumed, nf_key)],
+            vec![resource(3, quantity, nonce)],
+            INITIAL_ROOT,
+            &RCV,
+            vec![
+                None,
+                Some(KindPath {
+                    kind_point,
+                    path: MerklePath::empty(),
+                }),
+            ],
+        )
+    }
+
+    /// The identity has a SEC1 encoding, the single byte `0x00`. A path to a
+    /// leaf holding it is rejected, so no created resource can add nothing to
+    /// the delta.
+    #[test]
+    fn identity_kind_point_is_rejected() {
+        assert_eq!(
+            constrain(&witness(vec![0x00], 1_000_000)).map(|_| ()),
+            Err(ArmError::InvalidResourceKind)
+        );
+    }
 }
