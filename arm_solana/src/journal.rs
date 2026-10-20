@@ -45,7 +45,7 @@ mod tests {
     fn instance() -> AggregationInstance {
         AggregationInstance {
             compliance_key: Digest::from_bytes([0xC0; 32]),
-            kind_table_root: Digest::from_bytes([0xC1; 32]),
+            kind_tree_root: Digest::from_bytes([0xC1; 32]),
             actions: vec![],
         }
     }
@@ -99,8 +99,8 @@ mod tests {
         );
     }
 
-    /// The digest is sha256 of the 68-byte journal (compliance key, kind-table
-    /// commitment, zero actions): the expected bytes come from Python's
+    /// The digest is sha256 of the 68-byte journal (compliance key, kind-tree
+    /// root, zero actions): the expected bytes come from Python's
     /// hashlib over that journal, an implementation independent of the
     /// engine this crate's host build falls back to.
     #[test]

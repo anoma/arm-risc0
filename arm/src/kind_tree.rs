@@ -1,8 +1,8 @@
-//! `KindTable`: a Merkle tree over pre-computed kind points for known resource
+//! `KindTree`: a Merkle tree over pre-computed kind bases for known resource
 //! types, used to skip `hash_to_curve` inside the compliance circuit.
 
 use crate::{
-    compliance::{hash_kind_table_leaf, KindPath, KindTableEntry},
+    compliance::{hash_kind_tree_leaf, KindPath, KindTreeEntry},
     error::ArmError,
     resource::{ConsumedResourceWitness, Resource},
     Digest,
@@ -10,45 +10,45 @@ use crate::{
 use arm_core::merkle_path::{MerklePath, PADDING_LEAF};
 use arm_core::utils::hash_two;
 
-/// A Merkle kind table: a fixed binary tree over known `(logic_ref, label_ref)`
-/// → kind-point mappings that lets a compliance witness skip `hash_to_curve`
-/// for well-known resource types.
+/// The kind tree: a fixed binary Merkle tree over known `(logic_ref,
+/// label_ref)` → kind-base mappings that lets a compliance witness skip
+/// `hash_to_curve` for well-known resource types.
 ///
 /// **Tree construction** — entries are sorted lexicographically by
 /// `(logic_ref, label_ref)` bytes so that host-side path computation is
 /// deterministic regardless of insertion order. Duplicate `(logic_ref,
 /// label_ref)` pairs are rejected. Leaf `i` is
-/// `hash_kind_table_leaf(&entries[i])`. The leaf layer is padded to the next
+/// `hash_kind_tree_leaf(&entries[i])`. The leaf layer is padded to the next
 /// power of two with `PADDING_LEAF`; internal nodes are `hash_two(left,
-/// right)`. An empty table has root `PADDING_LEAF`.
+/// right)`. An empty tree has root `PADDING_LEAF`.
 ///
 /// **In-circuit verification** — `constrain()` derives the committed
-/// `kind_table_root` from the paths supplied in `ComplianceWitness.kind_paths`:
+/// `kind_tree_root` from the paths supplied in `ComplianceWitness.kind_paths`:
 /// each non-`None` path must produce the same root via `MerklePath::root(leaf)`,
 /// and the prover has no freedom to choose a different root.
-pub struct KindTable {
-    entries: Vec<KindTableEntry>,
+pub struct KindTree {
+    entries: Vec<KindTreeEntry>,
     root: Digest,
     /// Pre-computed leaf hashes in the same order as `entries`.
     leaves: Vec<Digest>,
 }
 
-impl KindTable {
-    /// Returns a `KindTable` with no entries. All resources fall back to
+impl KindTree {
+    /// Returns a `KindTree` with no entries. All resources fall back to
     /// `hash_to_curve`; the committed root is `PADDING_LEAF`.
-    pub fn empty() -> KindTable {
-        KindTable {
+    pub fn empty() -> KindTree {
+        KindTree {
             entries: Vec::new(),
             root: PADDING_LEAF,
             leaves: Vec::new(),
         }
     }
 
-    /// Builds a `KindTable` from a list of entries, validating every kind
-    /// point, rejecting duplicates, and sorting by `(logic_ref, label_ref)`.
-    pub fn from_entries(mut entries: Vec<KindTableEntry>) -> Result<KindTable, ArmError> {
+    /// Builds a `KindTree` from a list of entries, validating every kind
+    /// base, rejecting duplicates, and sorting by `(logic_ref, label_ref)`.
+    pub fn from_entries(mut entries: Vec<KindTreeEntry>) -> Result<KindTree, ArmError> {
         for entry in &entries {
-            validate_kind_point(&entry.kind_point)?;
+            validate_kind_base(&entry.kind_base)?;
         }
         entries.sort_by(|a, b| {
             a.logic_ref
@@ -60,37 +60,37 @@ impl KindTable {
             .windows(2)
             .any(|w| w[0].logic_ref == w[1].logic_ref && w[0].label_ref == w[1].label_ref)
         {
-            return Err(ArmError::KindTableLoadFailed);
+            return Err(ArmError::KindTreeLoadFailed);
         }
-        let leaves: Vec<Digest> = entries.iter().map(hash_kind_table_leaf).collect();
+        let leaves: Vec<Digest> = entries.iter().map(hash_kind_tree_leaf).collect();
         let root = merkle_root(&leaves);
-        Ok(KindTable {
+        Ok(KindTree {
             entries,
             root,
             leaves,
         })
     }
 
-    /// The Merkle root committed to in every `ComplianceInstance.kind_table_root`.
+    /// The Merkle root committed to in every `ComplianceInstance.kind_tree_root`.
     pub fn root(&self) -> Digest {
         self.root
     }
 
     /// The sorted entries.
-    pub fn entries(&self) -> &[KindTableEntry] {
+    pub fn entries(&self) -> &[KindTreeEntry] {
         &self.entries
     }
 
     /// Returns the `KindPath` for `(logic_ref, label_ref)`, or `None` if the
-    /// pair is not in the table.
+    /// pair is not in the tree.
     pub fn kind_path_for(&self, logic_ref: &Digest, label_ref: &Digest) -> Option<KindPath> {
         let pos = self
             .entries
             .iter()
             .position(|e| e.logic_ref == *logic_ref && e.label_ref == *label_ref)?;
-        let kind_point = self.entries[pos].kind_point.clone();
+        let kind_base = self.entries[pos].kind_base.clone();
         let path = merkle_path(&self.leaves, pos);
-        Some(KindPath { kind_point, path })
+        Some(KindPath { kind_base, path })
     }
 
     /// Returns one `Option<KindPath>` per resource (consumed first, then
@@ -135,17 +135,17 @@ fn merkle_root(leaves: &[Digest]) -> Digest {
 /// child (so `hash_two(sibling, current)`).
 /// Validates that `bytes` is a well-formed uncompressed SEC1 secp256k1 point:
 /// 65 bytes, leading 0x04 byte, and on the curve.
-pub(crate) fn validate_kind_point(bytes: &[u8]) -> Result<(), ArmError> {
+pub(crate) fn validate_kind_base(bytes: &[u8]) -> Result<(), ArmError> {
     use k256::{elliptic_curve::sec1::FromEncodedPoint, EncodedPoint, ProjectivePoint};
     if bytes.len() != 65 || bytes[0] != 0x04 {
-        return Err(ArmError::KindTableLoadFailed);
+        return Err(ArmError::KindTreeLoadFailed);
     }
-    let encoded = EncodedPoint::from_bytes(bytes).map_err(|_| ArmError::KindTableLoadFailed)?;
+    let encoded = EncodedPoint::from_bytes(bytes).map_err(|_| ArmError::KindTreeLoadFailed)?;
     if ProjectivePoint::from_encoded_point(&encoded)
         .is_none()
         .into()
     {
-        return Err(ArmError::KindTableLoadFailed);
+        return Err(ArmError::KindTreeLoadFailed);
     }
     Ok(())
 }
@@ -170,10 +170,10 @@ fn merkle_path(leaves: &[Digest], pos: usize) -> MerklePath {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::compliance::hash_kind_table_leaf;
+    use crate::compliance::hash_kind_tree_leaf;
 
     /// A valid uncompressed secp256k1 generator point (G), used as a
-    /// stand-in kind point in unit tests. 65 bytes, leading 0x04.
+    /// stand-in kind base in unit tests. 65 bytes, leading 0x04.
     fn generator_point() -> Vec<u8> {
         hex::decode(
             "0479be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798\
@@ -182,47 +182,47 @@ mod tests {
         .unwrap()
     }
 
-    fn entry(logic_byte: u8, label_byte: u8) -> KindTableEntry {
+    fn entry(logic_byte: u8, label_byte: u8) -> KindTreeEntry {
         let mut logic = [0u8; 32];
         logic[31] = logic_byte;
         let mut label = [0u8; 32];
         label[31] = label_byte;
-        KindTableEntry {
+        KindTreeEntry {
             logic_ref: Digest::from(logic),
             label_ref: Digest::from(label),
-            kind_point: generator_point(),
+            kind_base: generator_point(),
         }
     }
 
     // ── construction ──────────────────────────────────────────────────────────
 
     #[test]
-    fn empty_table_has_padding_leaf_root() {
-        assert_eq!(KindTable::empty().root(), PADDING_LEAF);
+    fn empty_tree_has_padding_leaf_root() {
+        assert_eq!(KindTree::empty().root(), PADDING_LEAF);
     }
 
     #[test]
     fn single_entry_root_equals_its_leaf_hash() {
         let e = entry(1, 0);
-        let leaf = hash_kind_table_leaf(&e);
-        let kt = KindTable::from_entries(vec![e]).unwrap();
+        let leaf = hash_kind_tree_leaf(&e);
+        let kt = KindTree::from_entries(vec![e]).unwrap();
         // next_power_of_two(1) == 1: the layer is already width-1, so no
         // padding occurs and the root is the leaf itself.
         assert_eq!(kt.root(), leaf);
     }
 
     #[test]
-    fn rejects_invalid_kind_point() {
+    fn rejects_invalid_kind_base() {
         let mut e = entry(1, 0);
-        e.kind_point = vec![0u8; 65]; // all-zero is not a valid curve point
-        assert!(KindTable::from_entries(vec![e]).is_err());
+        e.kind_base = vec![0u8; 65]; // all-zero is not a valid curve point
+        assert!(KindTree::from_entries(vec![e]).is_err());
     }
 
     #[test]
     fn rejects_duplicate_logic_label_pair() {
         let entries = vec![entry(1, 0), entry(1, 0)];
         assert!(
-            KindTable::from_entries(entries).is_err(),
+            KindTree::from_entries(entries).is_err(),
             "duplicate (logic_ref, label_ref) must be rejected"
         );
     }
@@ -233,9 +233,9 @@ mod tests {
         let e2 = entry(2, 0);
         let e3 = entry(3, 0);
 
-        let kt_abc = KindTable::from_entries(vec![e1.clone(), e2.clone(), e3.clone()]).unwrap();
-        let kt_cba = KindTable::from_entries(vec![e3.clone(), e2.clone(), e1.clone()]).unwrap();
-        let kt_bca = KindTable::from_entries(vec![e2.clone(), e3.clone(), e1.clone()]).unwrap();
+        let kt_abc = KindTree::from_entries(vec![e1.clone(), e2.clone(), e3.clone()]).unwrap();
+        let kt_cba = KindTree::from_entries(vec![e3.clone(), e2.clone(), e1.clone()]).unwrap();
+        let kt_bca = KindTree::from_entries(vec![e2.clone(), e3.clone(), e1.clone()]).unwrap();
 
         assert_eq!(kt_abc.root(), kt_cba.root());
         assert_eq!(kt_abc.root(), kt_bca.root());
@@ -247,12 +247,12 @@ mod tests {
     fn all_paths_reconstruct_root_power_of_two() {
         // Four entries — exact power of two, no padding needed at the leaf layer.
         let entries: Vec<_> = (1u8..=4).map(|i| entry(i, 0)).collect();
-        let kt = KindTable::from_entries(entries.clone()).unwrap();
+        let kt = KindTree::from_entries(entries.clone()).unwrap();
         let root = kt.root();
 
         for e in &entries {
             let kp = kt.kind_path_for(&e.logic_ref, &e.label_ref).unwrap();
-            let leaf = hash_kind_table_leaf(e);
+            let leaf = hash_kind_tree_leaf(e);
             assert_eq!(kp.path.root(&leaf), root, "path did not reconstruct root");
         }
     }
@@ -262,12 +262,12 @@ mod tests {
         // Three entries pad to four; last entry's sibling at the bottom layer
         // is PADDING_LEAF. All paths must still reconstruct the same root.
         let entries: Vec<_> = (1u8..=3).map(|i| entry(i, 0)).collect();
-        let kt = KindTable::from_entries(entries.clone()).unwrap();
+        let kt = KindTree::from_entries(entries.clone()).unwrap();
         let root = kt.root();
 
         for e in &entries {
             let kp = kt.kind_path_for(&e.logic_ref, &e.label_ref).unwrap();
-            let leaf = hash_kind_table_leaf(e);
+            let leaf = hash_kind_tree_leaf(e);
             assert_eq!(
                 kp.path.root(&leaf),
                 root,
@@ -278,12 +278,12 @@ mod tests {
     }
 
     #[test]
-    fn padding_sibling_for_last_entry_in_odd_table() {
+    fn padding_sibling_for_last_entry_in_odd_tree() {
         // Entries sort by (logic_ref, label_ref); entry(3,0) lands at position 2
         // (0-indexed) after sorting, which pads to position 2 in a 4-leaf layer.
         // Its sibling at depth 0 must be PADDING_LEAF.
         let entries: Vec<_> = (1u8..=3).map(|i| entry(i, 0)).collect();
-        let kt = KindTable::from_entries(entries).unwrap();
+        let kt = KindTree::from_entries(entries).unwrap();
 
         // entry(3,0) has the largest logic_ref byte, so it sorts last.
         let e = entry(3, 0);
@@ -291,13 +291,13 @@ mod tests {
         let (sibling, _) = kp.path.0[0];
         assert_eq!(
             sibling, PADDING_LEAF,
-            "last entry in odd table must have PADDING_LEAF sibling"
+            "last entry in odd tree must have PADDING_LEAF sibling"
         );
     }
 
     #[test]
     fn missing_key_returns_none() {
-        let kt = KindTable::from_entries(vec![entry(1, 0), entry(2, 0)]).unwrap();
+        let kt = KindTree::from_entries(vec![entry(1, 0), entry(2, 0)]).unwrap();
         let absent = entry(99, 0);
         assert!(kt
             .kind_path_for(&absent.logic_ref, &absent.label_ref)
@@ -308,7 +308,7 @@ mod tests {
     fn different_label_refs_are_distinct_keys() {
         let e1 = entry(1, 0);
         let e2 = entry(1, 1); // same logic_ref, different label_ref
-        let kt = KindTable::from_entries(vec![e1.clone(), e2.clone()]).unwrap();
+        let kt = KindTree::from_entries(vec![e1.clone(), e2.clone()]).unwrap();
 
         assert!(kt.kind_path_for(&e1.logic_ref, &e1.label_ref).is_some());
         assert!(kt.kind_path_for(&e2.logic_ref, &e2.label_ref).is_some());

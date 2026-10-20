@@ -8,7 +8,7 @@ The `anoma-rm-core` crate provides the types and the checks that need no proof g
 
 - **Resource Management**: Defines resources, their commitments and nullifiers
 - **Transaction Structure**: Transactions, actions, compliance units and logic proofs, with their serialization
-- **Structural Checks**: Action trees, Merkle paths, kind table commitments and the encoding of delta proofs
+- **Structural Checks**: Action trees, Merkle paths, kind tree roots and the encoding of delta proofs
 
 It does not depend on RISC0 zkVM, k256 or a random number generator, so it compiles for targets where those cannot run, such as Solana programs. Proof generation and verification live in `anoma-rm-risc0` (host and zkVM) and `anoma-rm-solana` (Solana programs), which both build on this crate. `anoma-rm-risc0` re-exports every module below, so its users do not need to depend on `anoma-rm-core` directly.
 
@@ -21,7 +21,7 @@ It does not depend on RISC0 zkVM, k256 or a random number generator, so it compi
 - **`transaction`**: Transaction structure and representation checks
 - **`action`**: Actions within transactions
 - **`action_tree`**: Merkle tree over the tags of an action
-- **`compliance`**: Compliance instance and witness, kind table commitment
+- **`compliance`**: Compliance instance and witness, kind tree root
 - **`compliance_unit`**: Compliance proof paired with its instance
 - **`logic_proof`**: Zero-knowledge proof structures for resource logic
 - **`logic_instance`**: Public inputs of resource logic proofs

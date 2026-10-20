@@ -18,7 +18,7 @@ use risc0_zkvm::sha::rust_crypto::Sha256 as Sha256Type;
 const DST: &[u8] = b"QUUX-V01-CS02-with-secp256k1_XMD:SHA-256_SSWU_RO_";
 const DIGEST_BYTES: usize = 32;
 
-/// Computes the kind point for the given `logic_ref` and `label_ref` without
+/// Computes the kind base for the given `logic_ref` and `label_ref` without
 /// requiring a full [`Resource`] to be constructed.
 pub(crate) fn generate_resource_kind(
     logic_ref: Digest,
