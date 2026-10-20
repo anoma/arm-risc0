@@ -18,7 +18,7 @@ pub struct AggregationInstance {
     /// VK of the compliance circuit — single for the whole transaction.
     pub compliance_key: Digest,
     /// Shared across all actions; equality enforced in-circuit.
-    pub kind_table_root: Digest,
+    pub kind_tree_root: Digest,
     /// One entry per compliance unit / action.
     pub actions: Vec<ActionAggregated>,
 }
@@ -88,7 +88,7 @@ impl AggregationInstance {
     pub fn to_journal(&self) -> Vec<u8> {
         let mut words: Vec<u32> = Vec::new();
         words.extend_from_slice(self.compliance_key.as_words());
-        words.extend_from_slice(self.kind_table_root.as_words());
+        words.extend_from_slice(self.kind_tree_root.as_words());
         words.push(self.actions.len() as u32);
         for action in &self.actions {
             words.push(action.consumed_publics.len() as u32);

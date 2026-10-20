@@ -34,19 +34,19 @@ pub struct ComplianceInstance {
     pub delta_x: [u32; 8],
     /// The delta y coordinate of the created resource(use u32 array to avoid padding issues in risc0).
     pub delta_y: [u32; 8],
-    /// Merkle root of the kind lookup table supplied with this proof.
-    pub kind_table_root: Digest,
+    /// Merkle root of the kind tree supplied with this proof.
+    pub kind_tree_root: Digest,
 }
 
-/// An entry in the kind lookup table, mapping (logic_ref, label_ref) to a
-/// pre-computed kind point. Avoids hash-to-curve inside the circuit for known
-/// resource types.
+/// A leaf of the kind tree, binding (logic_ref, label_ref) to a pre-computed
+/// kind point. Avoids hash-to-curve inside the circuit for known resource
+/// types.
 #[cfg_attr(
     feature = "borsh",
     derive(borsh::BorshSerialize, borsh::BorshDeserialize)
 )]
 #[derive(Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct KindTableEntry {
+pub struct KindTreeEntry {
     /// Logic ref component of the key.
     pub logic_ref: Digest,
     /// Label ref component of the key.
@@ -55,8 +55,9 @@ pub struct KindTableEntry {
     pub kind_point: Vec<u8>,
 }
 
-/// A per-resource kind-table lookup: the pre-computed kind point for a
-/// resource together with a Merkle path proving its leaf is in the table.
+/// A per-resource kind point read out of the kind tree: the pre-computed kind
+/// point for a resource together with a Merkle path proving its leaf is in the
+/// tree.
 #[cfg_attr(
     feature = "borsh",
     derive(borsh::BorshSerialize, borsh::BorshDeserialize)
@@ -65,7 +66,7 @@ pub struct KindTableEntry {
 pub struct KindPath {
     /// Uncompressed SEC1-encoded kind point (65 bytes).
     pub kind_point: Vec<u8>,
-    /// Merkle path from `hash_kind_table_leaf(logic_ref, label_ref, kind_point)` to the root.
+    /// Merkle path from `hash_kind_tree_leaf(logic_ref, label_ref, kind_point)` to the root.
     pub path: MerklePath,
 }
 
@@ -84,10 +85,10 @@ pub struct ComplianceWitness {
     pub ephemeral_root: Digest,
     /// Bytes of randomness for the delta commitment `rcv`
     pub rcv: Vec<u8>,
-    /// Per-resource Merkle paths into the kind table, indexed as
+    /// Per-resource Merkle paths into the kind tree, indexed as
     /// `consumed_data[0..n]` then `created_resources[0..m]`.
     /// `None` means no pre-computed kind point — fall back to `hash_to_curve`.
-    /// The `kind_table_root` committed in the instance is derived in-circuit:
+    /// The `kind_tree_root` committed in the instance is derived in-circuit:
     /// the root of the first non-`None` path, or `PADDING_LEAF` if all are `None`.
     pub kind_paths: Vec<Option<KindPath>>,
 }
@@ -114,11 +115,11 @@ impl ComplianceWitness {
     }
 }
 
-/// SHA-256 leaf hash for a kind table entry:
+/// SHA-256 leaf hash for a kind tree entry:
 /// `sha256(logic_ref || label_ref || kind_point)`.
 /// This is the leaf encoding used when building the Merkle tree and when
 /// verifying per-resource Merkle paths inside the compliance circuit.
-pub fn hash_kind_table_leaf(entry: &KindTableEntry) -> Digest {
+pub fn hash_kind_tree_leaf(entry: &KindTreeEntry) -> Digest {
     let mut bytes = Vec::with_capacity(32 + 32 + entry.kind_point.len());
     bytes.extend_from_slice(entry.logic_ref.as_bytes());
     bytes.extend_from_slice(entry.label_ref.as_bytes());

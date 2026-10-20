@@ -22,8 +22,8 @@ The single biggest structural change.
 |---|---|
 | `Action { compliance_units: Vec<ComplianceUnit>, .. }` | `Action { compliance_unit: ComplianceUnit, .. }` |
 | One CU = exactly **1 consumed + 1 created** resource | One CU = **N consumed + M created** resources |
-| `ComplianceInstance { consumed_nullifier, consumed_logic_ref, consumed_commitment_tree_root, created_commitment, created_logic_ref, delta_x, delta_y }` | `ComplianceInstance { consumed_publics: Vec<ConsumedResourcePublic>, created_publics: Vec<CreatedResourcePublic>, delta_x, delta_y, kind_table_commitment }` |
-| `ComplianceWitness { consumed_resource, merkle_path, nf_key, created_resource, ephemeral_root, rcv }` | `ComplianceWitness { consumed_data: Vec<ConsumedResourceWitness>, created_resources: Vec<Resource>, ephemeral_root, rcv, kind_table }` |
+| `ComplianceInstance { consumed_nullifier, consumed_logic_ref, consumed_commitment_tree_root, created_commitment, created_logic_ref, delta_x, delta_y }` | `ComplianceInstance { consumed_publics: Vec<ConsumedResourcePublic>, created_publics: Vec<CreatedResourcePublic>, delta_x, delta_y, kind_tree_commitment }` |
+| `ComplianceWitness { consumed_resource, merkle_path, nf_key, created_resource, ephemeral_root, rcv }` | `ComplianceWitness { consumed_data: Vec<ConsumedResourceWitness>, created_resources: Vec<Resource>, ephemeral_root, rcv, kind_tree }` |
 
 New public types in `arm::resource`:
 
@@ -39,8 +39,8 @@ Constructor change:
 // v1
 ComplianceWitness::from_resources_with_path(consumed, nf_key, path, created)
 // v2
-ComplianceWitness::from_resources_with_ephemeral_root(&consumed_data, &created_resources, valid_root, kind_table)
-ComplianceWitness::from_resources(&consumed_data, &created_resources, kind_table)  // uses INITIAL_ROOT
+ComplianceWitness::from_resources_with_ephemeral_root(&consumed_data, &created_resources, valid_root, kind_tree)
+ComplianceWitness::from_resources(&consumed_data, &created_resources, kind_tree)  // uses INITIAL_ROOT
 ```
 
 The per-field helpers on `ComplianceWitness` (`consumed_commitment()`,
@@ -76,43 +76,43 @@ with domain separator `b"ARM_NONCE_DERIVATION"` and a big-endian index.
 fails with `ArmError::InvalidResourceNonce` on mismatch. Any host code that sets
 `created.nonce = consumed_nullifier` must switch to `derive_nonce`.
 
-### 3. Kind lookup table (skips `hash_to_curve` in the compliance circuit)
+### 3. Kind tree (skips `hash_to_curve` in the compliance circuit)
 
-New `KindTableEntry { logic_ref, label_ref, kind_point }`, carried in
-`ComplianceWitness::kind_table` and committed to as
-`ComplianceInstance::kind_table_commitment` (SHA-256 over
+New `KindTreeEntry { logic_ref, label_ref, kind_point }`, carried in
+`ComplianceWitness::kind_tree` and committed to as
+`ComplianceInstance::kind_tree_commitment` (SHA-256 over
 `logic_ref ‖ label_ref ‖ kind_point` for every entry, in order).
 
 New global loader in `arm::constants`:
 
 ```rust
 // Initialize from a JSON file (first call wins; subsequent calls are no-ops)
-init_kind_table_from_file(path: &Path) -> Result<(), ArmError>
+init_kind_tree_from_file(path: &Path) -> Result<(), ArmError>
 // Initialize from pre-built entries (same semantics; useful in tests)
-init_kind_table_from_entries(entries: Vec<KindTableEntry>) -> Result<(), ArmError>
-// Initialize from the starter table embedded in the crate (same semantics)
-init_starter_kind_table() -> Result<(), ArmError>
+init_kind_tree_from_entries(entries: Vec<KindTreeEntry>) -> Result<(), ArmError>
+// Initialize from the starter tree embedded in the crate (same semantics)
+init_starter_kind_tree() -> Result<(), ArmError>
 
-kind_table()      -> &'static [KindTableEntry]
-kind_table_hash() -> Option<&'static Digest>
+kind_tree()      -> &'static [KindTreeEntry]
+kind_tree_hash() -> Option<&'static Digest>
 ```
 
 Entries are `{ "logic_ref": "<hex>", "label_ref": "<hex>", "kind_point": "<hex>" }`.
 The `kind_point` is an uncompressed SEC1-encoded secp256k1 point (65 bytes, `04` prefix)
 stored in the file; no hash-to-curve is performed at load time. Each point is validated
-against the curve on load. A starter `arm/data/kind_table.json` ships in the crate
-(padding logic + test logic); `init_starter_kind_table()` loads it wherever the crate is built.
+against the curve on load. A starter `arm/data/kind_tree.json` ships in the crate
+(padding logic + test logic); `init_starter_kind_tree()` loads it wherever the crate is built.
 
-**Operational impact:** `Transaction::verify(kind_table_commitment)` now takes the
-expected kind table commitment as an explicit parameter. Callers obtain it from
-`kind_table_hash()` — do not unwrap; propagate `None` as an error. Pass it explicitly
-to support multi-chain deployments where different chains use different kind tables.
-New error variants: `KindTableCommitmentMismatch`, `KindTableCommitmentExpectedMismatch`,
-`KindTableLoadFailed`.
+**Operational impact:** `Transaction::verify(kind_tree_commitment)` now takes the
+expected kind tree commitment as an explicit parameter. Callers obtain it from
+`kind_tree_hash()` — do not unwrap; propagate `None` as an error. Pass it explicitly
+to support multi-chain deployments where different chains use different kind trees.
+New error variants: `KindTreeCommitmentMismatch`, `KindTreeCommitmentExpectedMismatch`,
+`KindTreeLoadFailed`.
 
 Measured payoff (Groth16-less succinct compliance bench, from `arm_circuits/compliance/README.md`):
 
-| batch | no table | with table |
+| batch | no tree | with tree |
 |---:|:--:|:--:|
 | 1 | 2.125 s | 808.7 ms |
 | 2 | 3.084 s | 844.7 ms |
@@ -148,7 +148,7 @@ so three constraints hold *structurally* rather than by assertion:
 | B — root matches action tree root | root recomputed in-circuit from the compliance tags |
 | C — VK matches `resource_logic_ref` | `resource_logic_ref` used directly as the `env::verify` key |
 
-It also asserts `kind_table_commitment` equality across all actions, and rejects
+It also asserts `kind_tree_commitment` equality across all actions, and rejects
 an empty action set.
 
 The journal is now a typed, compact struct:
@@ -156,7 +156,7 @@ The journal is now a typed, compact struct:
 ```rust
 pub struct AggregationInstance {
     compliance_key: Digest,
-    kind_table_commitment: Digest,
+    kind_tree_commitment: Digest,
     actions: Vec<ActionAggregated>,
 }
 pub struct ActionAggregated {
@@ -184,7 +184,7 @@ is gone — the instance is decoded from the journal and stored.
 New invariant, enforced by `Transaction::check_representation()`: a transaction
 must carry **exactly one** of `actions` / `aggregation`. Both → `AmbiguousTransactionRepresentation`;
 neither → `MissingActions`. When `aggregation` is present it is *authoritative* for
-delta, nullifier and kind-table checks — deliberately, so a crafted transaction can't
+delta, nullifier and kind-tree checks — deliberately, so a crafted transaction can't
 pair a genuine aggregation proof with unverified attacker-controlled `actions`.
 `verify_aggregation()` additionally pins `instance.compliance_key == COMPLIANCE_VK`.
 
@@ -281,7 +281,7 @@ The `Option` existed only to model "erased after aggregation"; that state is now
 - New error variants: `EmptyNullifiers`, `IncompatibleDeltaTypes`,
   `EmptyDeltaWitnesses`, `InvalidPaddingResource`, `MissingActions`,
   `CannotComposeAggregated`, `AmbiguousTransactionRepresentation`, plus the four
-  kind-table ones.
+  kind-tree ones.
 - `arm/src/lib.rs` re-exports `ActionAggregated`, `AggregationInstance`,
   `ConsumedResourceAggregated`, `CreatedResourceAggregated`.
 
@@ -310,7 +310,7 @@ The three circuits that ship *inside* arm were rebuilt, so their image IDs chang
 keep their existing ELFs and verifying keys; only the host-side libraries
 (`transfer_library*`, `generic_call_library`) move to arm v2. This is already how
 the two resource repos were bumped — `9b9076c` and `106f360` touch only
-`Cargo.toml` / `Cargo.lock` (plus `migrate_tx.rs` and a new `kind_table.json`) and
+`Cargo.toml` / `Cargo.lock` (plus `migrate_tx.rs` and a new `kind_tree.json`) and
 leave `transfer_library/elf/` untouched. Those ELFs were last built against arm
 **1.1.1** and stay that way.
 
@@ -338,7 +338,7 @@ Two things this does *not* excuse:
 
 - **`PADDING_LOGIC_VK` is not frozen** — it ships from arm and did change
   (`TrivialLogicWitness::constrain` now returns `InvalidPaddingResource` instead of
-  `assert!`-panicking, and the ELF was rebuilt). The kind table and anything
+  `assert!`-panicking, and the ELF was rebuilt). The kind tree and anything
   on-chain referencing the padding logic ref must use `4527548f…`.
 - **The freeze is implicit and can break silently.** The bump commits updated
   `transfer_circuit/methods/guest/Cargo.lock`, so the next `cargo risczero build`
@@ -387,9 +387,9 @@ These have to land first; neither service can compile without them.
    and revert-decoding types do not cross the major boundary, so this is a separate,
    non-trivial sub-migration touching every provider/broadcast/simulation call site.
 
-4. **Kind table + on-chain constants.** Decide the production kind table, ship it
+4. **Kind tree + on-chain constants.** Decide the production kind tree, ship it
    to every process, and make sure it hashes to the PA's stored
-   `kindTableCommitment`. It must include every logic ref actually used
+   `kindTreeCommitment`. It must include every logic ref actually used
    (padding, transfer v1/v2, generic-call) and every token, not just arm's sample file.
 
 ---
@@ -418,7 +418,7 @@ What it buys:
 | Compliance proofs per tx | N (one per resource pair) | **1** |
 | Base-proof jobs per tx | N + L | **1 + L** |
 | Aggregation batch size | N actions | **1 action** (~6.2 s Groth16, flat) |
-| Compliance proving cost | ~linear in N | ~flat with the kind table (1.29 s at 8 resources) |
+| Compliance proving cost | ~linear in N | ~flat with the kind tree (1.29 s at 8 resources) |
 | Delta message | concat of each unit's tags | a single 32-byte action tree root |
 | Padding resources | required to make counts match | **no longer needed** |
 
@@ -429,7 +429,7 @@ An N:M unit has no count-matching requirement — `constrain()` iterates
 `consumed_data` and `created_resources` independently and only the per-kind
 quantity sums must balance. Padding resources are ephemeral and zero-quantity,
 so dropping them changes no balance. Keep `PaddingResourceLogic` around (the
-padding logic ref stays in the kind table), but stop inserting padding purely to
+padding logic ref stays in the kind tree), but stop inserting padding purely to
 pair things up.
 
 **Construction order is now a hard sequence.** Created nonces depend on the
@@ -451,7 +451,7 @@ consumed nullifiers, and created commitments depend on those nonces, so
 - `compliance_witnesses()` → `compliance_witness()` (singular). Today it `zip`s
   consumed × created × merkle-proof into one `ComplianceWitness` per pair;
   it becomes one witness built from `Vec<ConsumedResourceWitness>` (resource +
-  `cm_merkle_path` + `nf_key`) and `Vec<Resource>`, plus the kind table.
+  `cm_merkle_path` + `nf_key`) and `Vec<Resource>`, plus the kind tree.
   `JobContext::compliance_witnesses: Vec<_>` collapses to a single value.
 - One `rcv` for the whole transaction, so `DeltaWitness::from_bytes_vec(&rcvs)`
   becomes `DeltaWitness::from_bytes(&rcv)`.
@@ -545,7 +545,7 @@ consumed nullifiers, and created commitments depend on those nonces, so
   results are invalidated.
 
 #### Startup
-- Call `anoma_rm_risc0::constants::init_kind_table_from_file(path)` in
+- Call `anoma_rm_risc0::constants::init_kind_tree_from_file(path)` in
   `transfer_app` before any verification, and ship the JSON in the Docker image.
 
 #### Tests
@@ -628,7 +628,7 @@ longer exists.
 
 1. Re-pin `anomapay-erc20-resource`, `generic-call-resource` and `pa-evm` to
    `v2.0.0-rc.3-abi_encode`;
-2. Agree the production kind table; regenerate the PA's `kindTableCommitment`;
+2. Agree the production kind tree; regenerate the PA's `kindTreeCommitment`;
    publish the JSON as a shared artifact.
 3. Land the `alloy` 1 → 2 bump in both services as its own PR (no arm changes) —
    it is mechanically large and independent.

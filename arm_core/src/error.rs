@@ -72,10 +72,10 @@ pub enum ArmError {
     InvalidNullifierCommitment,
     #[error("Nullifier duplication detected")]
     NullifierDuplication,
-    #[error("kind_table_commitment mismatch across compliance units")]
-    KindTableCommitmentMismatch,
-    #[error("kind_table_commitment does not match the expected commitment")]
-    KindTableCommitmentExpectedMismatch,
+    #[error("kind_tree_commitment mismatch across compliance units")]
+    KindTreeCommitmentMismatch,
+    #[error("kind_tree_commitment does not match the expected commitment")]
+    KindTreeCommitmentExpectedMismatch,
     #[error("Empty tree")]
     EmptyTree,
     #[error("Invalid shared secret")]
@@ -84,8 +84,8 @@ pub enum ArmError {
     TreeTooLarge,
     #[error("Invalid delta proof: pls regenerate the proof")]
     InvalidDeltaProof,
-    #[error("Failed to load kind table")]
-    KindTableLoadFailed,
+    #[error("Failed to load kind tree")]
+    KindTreeLoadFailed,
     #[error("Cannot derive nonces from an empty nullifier set")]
     EmptyNullifiers,
     #[error("Cannot compose transactions with different delta types")]

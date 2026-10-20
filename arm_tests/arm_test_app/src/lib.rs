@@ -7,7 +7,7 @@ use anoma_rm_risc0::{
     action_tree::ActionTree,
     compliance,
     compliance_unit::{self, ComplianceUnit},
-    constants::{global_kind_table, init_starter_kind_table},
+    constants::{global_kind_tree, init_starter_kind_tree},
     delta_proof::{self, DeltaWitness},
     error::ArmError,
     logic_proof::{LogicProver, LogicVerifier},
@@ -21,7 +21,7 @@ use anoma_rm_risc0::{
 #[cfg(test)]
 use anoma_rm_risc0::{
     compliance::ComplianceInstance,
-    constants::kind_table_root,
+    constants::kind_tree_root,
     logic_proof,
     proving_system::{instance_to_journal, journal_to_instance, JournalEncoding},
 };
@@ -150,11 +150,11 @@ impl Tester {
         self.populate_consumed_resources(consumed_num);
         self.populate_created_resources(created_num)?;
 
-        init_test_kind_table();
+        init_test_kind_tree();
         let compliance_witness = compliance::from_resources(
             self.consumed_data[self.current].clone(),
             self.created_resources[self.current].clone(),
-            global_kind_table().expect("kind table not initialised"),
+            global_kind_tree().expect("kind tree not initialised"),
         );
         self.rcvs.push(compliance_witness.rcv.clone());
 
@@ -245,8 +245,8 @@ impl Tester {
     }
 }
 
-fn init_test_kind_table() {
-    init_starter_kind_table().expect("Failed to load arm's starter kind table");
+fn init_test_kind_tree() {
+    init_starter_kind_tree().expect("Failed to load arm's starter kind tree");
 }
 
 #[cfg(test)]
@@ -255,10 +255,10 @@ fn encode_compliance_instance(instance: &ComplianceInstance) -> Vec<u8> {
 }
 
 #[cfg(test)]
-fn set_action_kind_table_commitment(action: &mut Action, commitment: Digest) {
+fn set_action_kind_tree_commitment(action: &mut Action, commitment: Digest) {
     let mut instance: ComplianceInstance =
         journal_to_instance(&action.compliance_unit.instance).expect("instance must decode");
-    instance.kind_table_root = commitment;
+    instance.kind_tree_root = commitment;
     action.compliance_unit.instance = encode_compliance_instance(&instance);
 }
 
@@ -304,7 +304,7 @@ fn test_transaction() {
         .unwrap();
     assert!(transaction::verify(
         &balanced_tx,
-        kind_table_root().unwrap(),
+        kind_tree_root().unwrap(),
         JournalEncoding::Risc0Serde
     )
     .is_ok())
@@ -317,7 +317,7 @@ fn test_unbalanced_tx_fails_to_verify() {
         .unwrap();
     assert!(transaction::verify(
         &unbalanced_tx,
-        kind_table_root().unwrap(),
+        kind_tree_root().unwrap(),
         JournalEncoding::Risc0Serde
     )
     .is_err())
@@ -368,48 +368,48 @@ fn test_nullifier_duplication_check() {
     assert!(transaction::nf_duplication_check(&tx).is_err());
 }
 
-/// All actions carry the global kind-table commitment — the check must pass.
+/// All actions carry the global kind-tree commitment — the check must pass.
 #[test]
-fn test_kind_table_commitment_check_accepts_global_commitment() {
+fn test_kind_tree_commitment_check_accepts_global_commitment() {
     let tx = Tester::default()
         .generate_test_transaction(&[(1, 1)])
         .unwrap();
-    assert!(transaction::kind_table_commitment_check(&tx, kind_table_root().unwrap()).is_ok());
+    assert!(transaction::kind_tree_commitment_check(&tx, kind_tree_root().unwrap()).is_ok());
 }
 
 /// All actions carry a non-global commitment and the caller supplies that same
 /// digest as `expected` — the check must succeed. This guards against a
-/// regression back to an implicit global-table lookup.
+/// regression back to an implicit global-tree lookup.
 #[test]
-fn test_kind_table_commitment_check_accepts_explicit_non_global_commitment() {
+fn test_kind_tree_commitment_check_accepts_explicit_non_global_commitment() {
     let mut tx = Tester::default()
         .generate_test_transaction(&[(1, 1), (1, 1)])
         .unwrap();
 
     let fake = Digest::from([0xAB; 32]);
     let actions = tx.actions.as_mut().unwrap();
-    set_action_kind_table_commitment(&mut actions[0], fake);
-    set_action_kind_table_commitment(&mut actions[1], fake);
+    set_action_kind_tree_commitment(&mut actions[0], fake);
+    set_action_kind_tree_commitment(&mut actions[1], fake);
 
-    assert!(transaction::kind_table_commitment_check(&tx, fake).is_ok());
+    assert!(transaction::kind_tree_commitment_check(&tx, fake).is_ok());
 }
 
 /// One action has a different commitment from the other — cross-action
 /// consistency check must fire before the global check.
 #[test]
-fn test_kind_table_commitment_check_rejects_mismatched_actions() {
+fn test_kind_tree_commitment_check_rejects_mismatched_actions() {
     let mut tx = Tester::default()
         .generate_test_transaction(&[(1, 1), (1, 1)])
         .unwrap();
 
-    set_action_kind_table_commitment(
+    set_action_kind_tree_commitment(
         &mut tx.actions.as_mut().unwrap()[1],
         Digest::from([0xA5; 32]),
     );
 
     assert!(matches!(
-        transaction::kind_table_commitment_check(&tx, kind_table_root().unwrap()),
-        Err(ArmError::KindTableCommitmentMismatch)
+        transaction::kind_tree_commitment_check(&tx, kind_tree_root().unwrap()),
+        Err(ArmError::KindTreeCommitmentMismatch)
     ));
 }
 
@@ -417,42 +417,42 @@ fn test_kind_table_commitment_check_rejects_mismatched_actions() {
 /// global check must catch the mismatch. Also asserts that passing the fake
 /// commitment explicitly succeeds, covering the multi-chain case.
 #[test]
-fn test_kind_table_commitment_check_rejects_consistent_non_global() {
+fn test_kind_tree_commitment_check_rejects_consistent_non_global() {
     let mut tx = Tester::default()
         .generate_test_transaction(&[(1, 1), (1, 1)])
         .unwrap();
 
     let fake = Digest::from([0x5A; 32]);
     let actions = tx.actions.as_mut().unwrap();
-    set_action_kind_table_commitment(&mut actions[0], fake);
-    set_action_kind_table_commitment(&mut actions[1], fake);
+    set_action_kind_tree_commitment(&mut actions[0], fake);
+    set_action_kind_tree_commitment(&mut actions[1], fake);
 
     // Caller-provided commitment matching the tx must succeed.
-    assert!(transaction::kind_table_commitment_check(&tx, fake).is_ok());
+    assert!(transaction::kind_tree_commitment_check(&tx, fake).is_ok());
 
     // Passing a different (global) commitment must be rejected.
     assert!(matches!(
-        transaction::kind_table_commitment_check(&tx, kind_table_root().unwrap()),
-        Err(ArmError::KindTableCommitmentExpectedMismatch)
+        transaction::kind_tree_commitment_check(&tx, kind_tree_root().unwrap()),
+        Err(ArmError::KindTreeCommitmentExpectedMismatch)
     ));
 }
 
 /// Single action with a non-global commitment — trivially passes cross-action
 /// check, global check must reject.
 #[test]
-fn test_kind_table_commitment_check_rejects_global_mismatch() {
+fn test_kind_tree_commitment_check_rejects_global_mismatch() {
     let mut tx = Tester::default()
         .generate_test_transaction(&[(1, 1)])
         .unwrap();
 
-    set_action_kind_table_commitment(
+    set_action_kind_tree_commitment(
         &mut tx.actions.as_mut().unwrap()[0],
         Digest::from([0x5A; 32]),
     );
 
     assert!(matches!(
-        transaction::kind_table_commitment_check(&tx, kind_table_root().unwrap()),
-        Err(ArmError::KindTableCommitmentExpectedMismatch)
+        transaction::kind_tree_commitment_check(&tx, kind_tree_root().unwrap()),
+        Err(ArmError::KindTreeCommitmentExpectedMismatch)
     ));
 }
 
@@ -475,7 +475,7 @@ fn test_aggregation_works() {
     // Full verify() must also succeed on the post-aggregation transaction.
     assert!(transaction::verify(
         &tx_str,
-        kind_table_root().unwrap(),
+        kind_tree_root().unwrap(),
         JournalEncoding::Risc0Serde
     )
     .is_ok());
@@ -591,7 +591,7 @@ fn test_verify_aggregation_fails_for_tampered_instance() {
     // verify_aggregation() must reject it without needing the new ELF.
     let fake_instance = AggregationInstance {
         compliance_key: Digest::from([0xFFu8; 32]),
-        kind_table_root: Digest::default(),
+        kind_tree_root: Digest::default(),
         actions: vec![],
     };
     tx.aggregation = Some(Aggregation {
@@ -625,7 +625,7 @@ fn test_verify_rejects_transaction_with_both_actions_and_aggregation() {
         proof: vec![0u8; 64],
         instance: AggregationInstance {
             compliance_key: Digest::default(),
-            kind_table_root: Digest::default(),
+            kind_tree_root: Digest::default(),
             actions: vec![],
         },
     });
@@ -674,7 +674,7 @@ fn test_compose_transactions() {
         transaction::generate_delta_proof(transaction::compose(tx_a, tx_b).unwrap()).unwrap();
     assert!(transaction::verify(
         &composed,
-        kind_table_root().unwrap(),
+        kind_tree_root().unwrap(),
         JournalEncoding::Risc0Serde
     )
     .is_ok());
@@ -701,7 +701,7 @@ fn test_compose_rejects_ambiguous_transaction() {
         proof: vec![0u8; 64],
         instance: AggregationInstance {
             compliance_key: Digest::from([0xFFu8; 32]),
-            kind_table_root: Digest::default(),
+            kind_tree_root: Digest::default(),
             actions: vec![],
         },
     });
@@ -771,11 +771,11 @@ fn test_invalid_created_nonce_rejected() {
     tester.populate_created_resources(1).unwrap();
     tester.set_created_nonce(0, 0, [0xAA; 32]);
 
-    init_test_kind_table();
+    init_test_kind_tree();
     let witness = compliance::from_resources(
         tester.consumed_data[0].clone(),
         tester.created_resources[0].clone(),
-        global_kind_table().expect("kind table not initialised"),
+        global_kind_tree().expect("kind tree not initialised"),
     );
 
     assert!(matches!(

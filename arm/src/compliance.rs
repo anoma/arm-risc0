@@ -28,9 +28,9 @@ use k256::{
 pub fn from_resources(
     consumed_data: Vec<ConsumedResourceWitness>,
     created_resources: Vec<Resource>,
-    kind_table: &crate::kind_table::KindTable,
+    kind_tree: &crate::kind_tree::KindTree,
 ) -> ComplianceWitness {
-    from_resources_with_ephemeral_root(consumed_data, created_resources, INITIAL_ROOT, kind_table)
+    from_resources_with_ephemeral_root(consumed_data, created_resources, INITIAL_ROOT, kind_tree)
 }
 
 /// Creates a new compliance witness from the given resources with a freshly
@@ -40,12 +40,12 @@ pub fn from_resources_with_ephemeral_root(
     consumed_data: Vec<ConsumedResourceWitness>,
     created_resources: Vec<Resource>,
     valid_root: Digest,
-    kind_table: &crate::kind_table::KindTable,
+    kind_tree: &crate::kind_tree::KindTree,
 ) -> ComplianceWitness {
     let mut rng = rand::thread_rng();
     let rcv = Scalar::random(&mut rng).to_bytes();
 
-    let kind_paths = kind_table.kind_paths_for(&consumed_data, &created_resources);
+    let kind_paths = kind_tree.kind_paths_for(&consumed_data, &created_resources);
 
     ComplianceWitness::from_parts(
         consumed_data,
@@ -61,7 +61,7 @@ pub fn from_resources_with_ephemeral_root(
 /// `hash_to_curve` when `kind_path` is `None`.
 ///
 /// The kind point must be uncompressed SEC1 (65 bytes, leading `0x04`), the
-/// only encoding the host loader accepts (`kind_table::validate_kind_point`).
+/// only encoding the host loader accepts (`kind_tree::validate_kind_point`).
 /// That rules out the identity, whose encoding is the single byte `0x00`.
 fn resolve_kind(
     kind_path: Option<&KindPath>,
@@ -74,7 +74,7 @@ fn resolve_kind(
                 return Err(ArmError::InvalidResourceKind);
             }
             let leaf =
-                arm_core::compliance::hash_kind_table_leaf(&arm_core::compliance::KindTableEntry {
+                arm_core::compliance::hash_kind_tree_leaf(&arm_core::compliance::KindTreeEntry {
                     logic_ref: resource.logic_ref,
                     label_ref: resource.label_ref,
                     kind_point: kp.kind_point.clone(),
@@ -114,7 +114,7 @@ pub fn constrain(witness: &ComplianceWitness) -> Result<ComplianceInstance, ArmE
         return Err(ArmError::InvalidResourceKind);
     }
 
-    // The kind_table_root committed in the instance is derived from the paths:
+    // The kind_tree_root committed in the instance is derived from the paths:
     // the root of the first non-None path, or PADDING_LEAF if all are None.
     let mut derived_root: Option<Digest> = None;
 
@@ -190,14 +190,14 @@ pub fn constrain(witness: &ComplianceWitness) -> Result<ComplianceInstance, ArmE
         + ProjectivePoint::GENERATOR * rcv_scalar;
     let (delta_x, delta_y) = encode_delta(delta)?;
 
-    let kind_table_root = derived_root.unwrap_or(arm_core::merkle_path::PADDING_LEAF);
+    let kind_tree_root = derived_root.unwrap_or(arm_core::merkle_path::PADDING_LEAF);
 
     Ok(ComplianceInstance {
         consumed_publics,
         created_publics,
         delta_x,
         delta_y,
-        kind_table_root,
+        kind_tree_root,
     })
 }
 

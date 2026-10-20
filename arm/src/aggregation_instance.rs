@@ -41,11 +41,11 @@ mod evm {
 
         /// @notice The top-level aggregation instance committed by the batch aggregation guest.
         /// @param compliance_key The verifying key of the compliance circuit.
-        /// @param kind_table_root The shared kind table Merkle root across all actions.
+        /// @param kind_tree_root The shared kind tree Merkle root across all actions.
         /// @param actions One entry per compliance unit / action.
         struct AggregationInstanceEvm {
             bytes32 compliance_key;
-            bytes32 kind_table_root;
+            bytes32 kind_tree_root;
             Action[] actions;
         }
 
@@ -160,7 +160,7 @@ mod evm {
         fn from(inst: AggregationInstance) -> Self {
             Self {
                 compliance_key: digest_to_bytes32(&inst.compliance_key),
-                kind_table_root: digest_to_bytes32(&inst.kind_table_root),
+                kind_tree_root: digest_to_bytes32(&inst.kind_tree_root),
                 actions: inst.actions.into_iter().map(convert_action).collect(),
             }
         }
@@ -170,7 +170,7 @@ mod evm {
         fn from(evm: AggregationInstanceEvm) -> Self {
             Self {
                 compliance_key: bytes32_to_digest(evm.compliance_key),
-                kind_table_root: bytes32_to_digest(evm.kind_table_root),
+                kind_tree_root: bytes32_to_digest(evm.kind_tree_root),
                 actions: evm.actions.into_iter().map(evm_action_to_native).collect(),
             }
         }
@@ -306,7 +306,7 @@ mod evm {
         fn sample_instance() -> AggregationInstance {
             AggregationInstance {
                 compliance_key: make_digest(0x01),
-                kind_table_root: make_digest(0x02),
+                kind_tree_root: make_digest(0x02),
                 actions: vec![ActionAggregated {
                     consumed_publics: vec![ConsumedResourceAggregated {
                         resource_nullifier: make_digest(0x03),
@@ -357,7 +357,7 @@ mod evm {
         fn test_empty_instance_roundtrip() {
             let original = AggregationInstance {
                 compliance_key: make_digest(0xAA),
-                kind_table_root: make_digest(0xBB),
+                kind_tree_root: make_digest(0xBB),
                 actions: vec![],
             };
             let encoded = abi_encode_instance(original.clone());

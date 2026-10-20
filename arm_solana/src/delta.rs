@@ -200,7 +200,7 @@ mod tests {
     fn instance_with_actions(actions: Vec<ActionAggregated>) -> AggregationInstance {
         AggregationInstance {
             compliance_key: Digest::default(),
-            kind_table_root: Digest::default(),
+            kind_tree_root: Digest::default(),
             actions,
         }
     }

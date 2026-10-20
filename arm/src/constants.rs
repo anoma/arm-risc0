@@ -1,11 +1,11 @@
 //! Constants for compliance and padding logic proving and verification keys,
-//! and the global kind-table singleton.
+//! and the global kind-tree singleton.
 
-use crate::{compliance::KindTableEntry, error::ArmError, Digest};
+use crate::{compliance::KindTreeEntry, error::ArmError, Digest};
 use hex::FromHex;
 use std::{path::Path, sync::OnceLock};
 
-pub use crate::kind_table::KindTable;
+pub use crate::kind_tree::KindTree;
 
 /// Compliance proving key / compliance guest ELF binary
 pub const COMPLIANCE_PK: &[u8] = include_bytes!("../elfs/compliance-guest.bin");
@@ -23,14 +23,14 @@ pub use arm_core::constants::{
     BATCH_AGGREGATION_EVM_VK, BATCH_AGGREGATION_VK, COMPLIANCE_VK, PADDING_LOGIC_VK,
 };
 
-/// Global kind table, loaded once.
-static KIND_TABLE: OnceLock<KindTable> = OnceLock::new();
+/// Global kind tree, loaded once.
+static KIND_TREE: OnceLock<KindTree> = OnceLock::new();
 
-/// JSON-serializable representation of a kind table entry.
+/// JSON-serializable representation of a kind tree entry.
 /// All fields are lowercase hex strings. `kind_point` is an uncompressed
 /// SEC1-encoded secp256k1 point (65 bytes = 130 hex chars).
 #[derive(serde::Serialize, serde::Deserialize)]
-struct KindTableJsonEntry {
+struct KindTreeJsonEntry {
     logic_ref: String,
     label_ref: String,
     kind_point: String,
@@ -39,47 +39,47 @@ struct KindTableJsonEntry {
     _comment: String,
 }
 
-/// The starter kind table this crate ships (`data/kind_table.json`): the
+/// The starter kind tree this crate ships (`data/kind_tree.json`): the
 /// padding logic and the test logic, each under the zero label.
-const STARTER_KIND_TABLE_JSON: &str = include_str!("../data/kind_table.json");
+const STARTER_KIND_TREE_JSON: &str = include_str!("../data/kind_tree.json");
 
-/// Initializes the global kind table from a JSON file.
+/// Initializes the global kind tree from a JSON file.
 ///
 /// The file must contain a JSON array of objects with `logic_ref`, `label_ref`,
 /// and `kind_point` (all lowercase hex). The kind point is stored verbatim; no
 /// `hash_to_curve` is performed at load time. An optional `_comment` field is
 /// accepted and ignored. Calling this a second time is a no-op; the first call wins.
-pub fn init_kind_table_from_file(path: &Path) -> Result<(), ArmError> {
-    if KIND_TABLE.get().is_some() {
+pub fn init_kind_tree_from_file(path: &Path) -> Result<(), ArmError> {
+    if KIND_TREE.get().is_some() {
         return Ok(());
     }
-    let content = std::fs::read_to_string(path).map_err(|_| ArmError::KindTableLoadFailed)?;
-    init_kind_table_from_entries(parse_kind_table_json(&content)?)
+    let content = std::fs::read_to_string(path).map_err(|_| ArmError::KindTreeLoadFailed)?;
+    init_kind_tree_from_entries(parse_kind_tree_json(&content)?)
 }
 
-/// Initializes the global kind table from the starter table this crate ships
-/// (`data/kind_table.json`), embedded at compile time, so it loads wherever
+/// Initializes the global kind tree from the starter entries this crate ships
+/// (`data/kind_tree.json`), embedded at compile time, so it loads wherever
 /// the crate is built. Calling this a second time is a no-op; the first call
 /// wins.
-pub fn init_starter_kind_table() -> Result<(), ArmError> {
-    init_kind_table_from_entries(parse_kind_table_json(STARTER_KIND_TABLE_JSON)?)
+pub fn init_starter_kind_tree() -> Result<(), ArmError> {
+    init_kind_tree_from_entries(parse_kind_tree_json(STARTER_KIND_TREE_JSON)?)
 }
 
-/// The entries of a kind table in the JSON format `init_kind_table_from_file`
+/// Parses kind tree entries from the JSON format `init_kind_tree_from_file`
 /// reads.
-fn parse_kind_table_json(json: &str) -> Result<Vec<KindTableEntry>, ArmError> {
-    let json_entries: Vec<KindTableJsonEntry> =
-        serde_json::from_str(json).map_err(|_| ArmError::KindTableLoadFailed)?;
+fn parse_kind_tree_json(json: &str) -> Result<Vec<KindTreeEntry>, ArmError> {
+    let json_entries: Vec<KindTreeJsonEntry> =
+        serde_json::from_str(json).map_err(|_| ArmError::KindTreeLoadFailed)?;
     json_entries
         .into_iter()
-        .map(|e| -> Result<KindTableEntry, ArmError> {
+        .map(|e| -> Result<KindTreeEntry, ArmError> {
             let logic_ref =
-                Digest::from_hex(&e.logic_ref).map_err(|_| ArmError::KindTableLoadFailed)?;
+                Digest::from_hex(&e.logic_ref).map_err(|_| ArmError::KindTreeLoadFailed)?;
             let label_ref =
-                Digest::from_hex(&e.label_ref).map_err(|_| ArmError::KindTableLoadFailed)?;
+                Digest::from_hex(&e.label_ref).map_err(|_| ArmError::KindTreeLoadFailed)?;
             let kind_point =
-                hex::decode(&e.kind_point).map_err(|_| ArmError::KindTableLoadFailed)?;
-            Ok(KindTableEntry {
+                hex::decode(&e.kind_point).map_err(|_| ArmError::KindTreeLoadFailed)?;
+            Ok(KindTreeEntry {
                 logic_ref,
                 label_ref,
                 kind_point,
@@ -88,39 +88,39 @@ fn parse_kind_table_json(json: &str) -> Result<Vec<KindTableEntry>, ArmError> {
         .collect()
 }
 
-/// Initializes the global kind table from a pre-built list of entries.
+/// Initializes the global kind tree from a pre-built list of entries.
 ///
 /// Useful for tests or callers that construct entries programmatically.
 /// Calling this a second time is a no-op; the first call wins.
-pub fn init_kind_table_from_entries(entries: Vec<KindTableEntry>) -> Result<(), ArmError> {
-    if KIND_TABLE.get().is_some() {
+pub fn init_kind_tree_from_entries(entries: Vec<KindTreeEntry>) -> Result<(), ArmError> {
+    if KIND_TREE.get().is_some() {
         return Ok(());
     }
-    install_kind_table(entries)
+    install_kind_tree(entries)
 }
 
-fn install_kind_table(entries: Vec<KindTableEntry>) -> Result<(), ArmError> {
-    let table = KindTable::from_entries(entries)?;
+fn install_kind_tree(entries: Vec<KindTreeEntry>) -> Result<(), ArmError> {
+    let tree = KindTree::from_entries(entries)?;
     // First call wins; a race between two threads is benign.
-    let _ = KIND_TABLE.set(table);
+    let _ = KIND_TREE.set(tree);
     Ok(())
 }
 
-/// Returns the sorted entries of the global kind table, or an empty slice if
-/// the table has not been initialised yet.
-pub fn kind_table() -> &'static [KindTableEntry] {
-    KIND_TABLE.get().map_or(&[], KindTable::entries)
+/// Returns the sorted entries of the global kind tree, or an empty slice if
+/// the tree has not been initialised yet.
+pub fn kind_tree() -> &'static [KindTreeEntry] {
+    KIND_TREE.get().map_or(&[], KindTree::entries)
 }
 
-/// Returns the global `KindTable`, or `None` if it has not been initialised.
-pub fn global_kind_table() -> Option<&'static KindTable> {
-    KIND_TABLE.get()
+/// Returns the global `KindTree`, or `None` if it has not been initialised.
+pub fn global_kind_tree() -> Option<&'static KindTree> {
+    KIND_TREE.get()
 }
 
-/// Returns the Merkle root of the global kind table, or `None` if the table
+/// Returns the Merkle root of the global kind tree, or `None` if the tree
 /// has not been initialised yet.
-pub fn kind_table_root() -> Option<Digest> {
-    KIND_TABLE.get().map(|t| t.root())
+pub fn kind_tree_root() -> Option<Digest> {
+    KIND_TREE.get().map(|t| t.root())
 }
 
 #[cfg(test)]
@@ -128,27 +128,27 @@ mod tests {
     use super::*;
 
     #[test]
-    fn the_starter_kind_table_holds_the_padding_logics_kind_under_the_zero_label() {
+    fn the_starter_kind_tree_holds_the_padding_logics_kind_under_the_zero_label() {
         use crate::resource::generate_resource_kind;
         use k256::elliptic_curve::sec1::ToEncodedPoint;
         use risc0_zkvm::sha::DIGEST_BYTES;
 
-        let entries = parse_kind_table_json(STARTER_KIND_TABLE_JSON)
-            .expect("the embedded starter kind table parses");
+        let entries = parse_kind_tree_json(STARTER_KIND_TREE_JSON)
+            .expect("the embedded starter kind tree parses");
         let zero_label = Digest::from([0u8; DIGEST_BYTES]);
         let padding = entries
             .iter()
             .find(|e| e.logic_ref == PADDING_LOGIC_VK && e.label_ref == zero_label)
-            .expect("the starter kind table has the padding logic under the zero label");
+            .expect("the starter kind tree has the padding logic under the zero label");
         let expected = generate_resource_kind(PADDING_LOGIC_VK, zero_label)
             .expect("the padding logic's kind")
             .to_encoded_point(false);
         assert_eq!(
             padding.kind_point,
             expected.as_bytes(),
-            "the starter table's padding kind point is not the one arm computes"
+            "the starter tree's padding kind point is not the one arm computes"
         );
-        KindTable::from_entries(entries).expect("the starter kind table is a valid table");
+        KindTree::from_entries(entries).expect("the starter kind tree is valid");
     }
 
     #[test]
@@ -179,12 +179,12 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "developer utility: mutates global KIND_TABLE, run in isolation with --include-ignored"]
-    fn print_kind_table_root() {
-        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("data/kind_table.json");
-        init_kind_table_from_file(&path).expect("failed to load kind table");
-        let root = kind_table_root().expect("kind table not initialised");
-        println!("kind_table_root: {root:?}");
+    #[ignore = "developer utility: mutates global KIND_TREE, run in isolation with --include-ignored"]
+    fn print_kind_tree_root() {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("data/kind_tree.json");
+        init_kind_tree_from_file(&path).expect("failed to load kind tree");
+        let root = kind_tree_root().expect("kind tree not initialised");
+        println!("kind_tree_root: {root:?}");
         println!(
             "hex: {}",
             root.as_bytes()

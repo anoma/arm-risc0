@@ -59,9 +59,9 @@ pub fn generate_delta_proof(tx: Transaction) -> Result<Transaction, ArmError> {
 
 /// Verifies all the proofs and corresponding checks in the transaction.
 ///
-/// `kind_table_root` is the expected Merkle root of the kind table for the
-/// target chain. Callers that use the loaded global table should obtain it
-/// via `kind_table_root()` and propagate the `None` case as an error rather
+/// `kind_tree_root` is the expected Merkle root of the kind tree for the
+/// target chain. Callers that use the loaded global tree should obtain it
+/// via `kind_tree_root()` and propagate the `None` case as an error rather
 /// than panicking.
 ///
 /// `encoding` selects how the batch aggregation journal is interpreted when
@@ -70,7 +70,7 @@ pub fn generate_delta_proof(tx: Transaction) -> Result<Transaction, ArmError> {
 /// EVM path. For non-aggregated transactions the parameter is ignored.
 pub fn verify(
     tx: &Transaction,
-    kind_table_root: Digest,
+    kind_tree_root: Digest,
     encoding: JournalEncoding,
 ) -> Result<(), ArmError> {
     // A transaction must carry exactly one representation. Rejecting the
@@ -93,7 +93,7 @@ pub fn verify(
 
             // Check for nullifier duplication across all compliance units
             nf_duplication_check(tx)?;
-            kind_table_commitment_check(tx, kind_table_root)?;
+            kind_tree_commitment_check(tx, kind_tree_root)?;
 
             if tx.aggregation.is_some() {
                 #[cfg(not(feature = "aggregation"))]
@@ -116,35 +116,35 @@ pub fn verify(
 }
 
 /// Checks that all compliance units in the transaction commit to a consistent
-/// kind table root, and that the effective root matches `expected`.
+/// kind tree root, and that the effective root matches `expected`.
 ///
 /// Actions that committed [`arm_core::merkle_path::PADDING_LEAF`] (no kind
-/// table used) are compatible with any root; only actions with a real root
+/// tree used) are compatible with any root; only actions with a real root
 /// participate in the consistency check. The effective root is the shared
 /// real root, or `PADDING_LEAF` if every action used none.
 ///
 /// A transaction whose effective root is `PADDING_LEAF` (all resources fell
 /// back to `hash_to_curve`) passes the check regardless of `expected`:
-/// such a transaction carries no kind-table commitment and is valid on any
+/// such a transaction carries no kind-tree commitment and is valid on any
 /// chain.
 ///
 /// When `aggregation` is present it is authoritative: the root is read from
 /// the proof-backed `aggregation.instance` (cross-action consistency was
 /// already enforced in-circuit by the aggregation guest), never from
 /// `actions`, even if both happen to be populated.
-pub fn kind_table_commitment_check(tx: &Transaction, expected: Digest) -> Result<(), ArmError> {
+pub fn kind_tree_commitment_check(tx: &Transaction, expected: Digest) -> Result<(), ArmError> {
     let padding = arm_core::merkle_path::PADDING_LEAF;
 
     let root = if let Some(agg) = &tx.aggregation {
-        agg.instance.kind_table_root
+        agg.instance.kind_tree_root
     } else if let Some(actions) = &tx.actions {
         let mut effective: Option<Digest> = None;
         for action in actions {
-            let r = crate::compliance_unit::get_instance(&action.compliance_unit)?.kind_table_root;
+            let r = crate::compliance_unit::get_instance(&action.compliance_unit)?.kind_tree_root;
             if r != padding {
                 match effective {
                     None => effective = Some(r),
-                    Some(prev) if prev != r => return Err(ArmError::KindTableCommitmentMismatch),
+                    Some(prev) if prev != r => return Err(ArmError::KindTreeCommitmentMismatch),
                     _ => {}
                 }
             }
@@ -155,7 +155,7 @@ pub fn kind_table_commitment_check(tx: &Transaction, expected: Digest) -> Result
     };
 
     if root != padding && root != expected {
-        return Err(ArmError::KindTableCommitmentExpectedMismatch);
+        return Err(ArmError::KindTreeCommitmentExpectedMismatch);
     }
     Ok(())
 }
