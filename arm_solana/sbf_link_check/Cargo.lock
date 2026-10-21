@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "anoma-rm-core"
-version = "2.0.0-rc.7"
+version = "2.0.0-rc.7.1"
 dependencies = [
  "bincode",
  "borsh",
@@ -17,7 +17,7 @@ dependencies = [
 
 [[package]]
 name = "anoma-rm-solana"
-version = "2.0.0-rc.7"
+version = "2.0.0-rc.7.1"
 dependencies = [
  "anoma-rm-core",
  "borsh",
