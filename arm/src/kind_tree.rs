@@ -46,9 +46,11 @@ impl KindTree {
 
     /// Builds a `KindTree` from a list of entries, validating every kind
     /// base, rejecting duplicates, and sorting by `(logic_ref, label_ref)`.
+    /// A rejection names the position of the offending kind base, or the
+    /// `(logic_ref, label_ref)` pair that appears twice.
     pub fn from_entries(mut entries: Vec<KindTreeEntry>) -> Result<KindTree, ArmError> {
-        for entry in &entries {
-            validate_kind_base(&entry.kind_base)?;
+        for (position, entry) in entries.iter().enumerate() {
+            validate_kind_base(&entry.kind_base, position)?;
         }
         entries.sort_by(|a, b| {
             a.logic_ref
@@ -56,11 +58,14 @@ impl KindTree {
                 .cmp(b.logic_ref.as_bytes())
                 .then_with(|| a.label_ref.as_bytes().cmp(b.label_ref.as_bytes()))
         });
-        if entries
+        if let Some(w) = entries
             .windows(2)
-            .any(|w| w[0].logic_ref == w[1].logic_ref && w[0].label_ref == w[1].label_ref)
+            .find(|w| w[0].logic_ref == w[1].logic_ref && w[0].label_ref == w[1].label_ref)
         {
-            return Err(ArmError::KindTreeLoadFailed);
+            return Err(ArmError::DuplicateKindTreeEntry {
+                logic_ref: w[0].logic_ref,
+                label_ref: w[0].label_ref,
+            });
         }
         let leaves: Vec<Digest> = entries.iter().map(hash_kind_tree_leaf).collect();
         let root = merkle_root(&leaves);
@@ -135,17 +140,18 @@ fn merkle_root(leaves: &[Digest]) -> Digest {
 /// child (so `hash_two(sibling, current)`).
 /// Validates that `bytes` is a well-formed uncompressed SEC1 secp256k1 point:
 /// 65 bytes, leading 0x04 byte, and on the curve.
-pub(crate) fn validate_kind_base(bytes: &[u8]) -> Result<(), ArmError> {
+pub(crate) fn validate_kind_base(bytes: &[u8], position: usize) -> Result<(), ArmError> {
     use k256::{elliptic_curve::sec1::FromEncodedPoint, EncodedPoint, ProjectivePoint};
     if bytes.len() != 65 || bytes[0] != 0x04 {
-        return Err(ArmError::KindTreeLoadFailed);
+        return Err(ArmError::InvalidKindBaseEncoding { position });
     }
-    let encoded = EncodedPoint::from_bytes(bytes).map_err(|_| ArmError::KindTreeLoadFailed)?;
+    let encoded =
+        EncodedPoint::from_bytes(bytes).map_err(|_| ArmError::KindBaseNotOnCurve { position })?;
     if ProjectivePoint::from_encoded_point(&encoded)
         .is_none()
         .into()
     {
-        return Err(ArmError::KindTreeLoadFailed);
+        return Err(ArmError::KindBaseNotOnCurve { position });
     }
     Ok(())
 }
@@ -214,15 +220,38 @@ mod tests {
     #[test]
     fn rejects_invalid_kind_base() {
         let mut e = entry(1, 0);
-        e.kind_base = vec![0u8; 65]; // all-zero is not a valid curve point
-        assert!(KindTree::from_entries(vec![e]).is_err());
+        // 65 bytes, but no 0x04 prefix: it fails the encoding check before
+        // the curve check is reached.
+        e.kind_base = vec![0u8; 65];
+        assert_eq!(
+            KindTree::from_entries(vec![e]).err(),
+            Some(ArmError::InvalidKindBaseEncoding { position: 0 })
+        );
+
+        // A well-formed uncompressed encoding whose coordinates are not on
+        // the curve reaches, and fails, the curve check.
+        let mut off_curve = entry(1, 0);
+        off_curve.kind_base = {
+            let mut b = vec![0u8; 65];
+            b[0] = 0x04;
+            b
+        };
+        assert_eq!(
+            KindTree::from_entries(vec![off_curve]).err(),
+            Some(ArmError::KindBaseNotOnCurve { position: 0 })
+        );
     }
 
     #[test]
     fn rejects_duplicate_logic_label_pair() {
         let entries = vec![entry(1, 0), entry(1, 0)];
-        assert!(
-            KindTree::from_entries(entries).is_err(),
+        let e = entry(1, 0);
+        assert_eq!(
+            KindTree::from_entries(entries).err(),
+            Some(ArmError::DuplicateKindTreeEntry {
+                logic_ref: e.logic_ref,
+                label_ref: e.label_ref,
+            }),
             "duplicate (logic_ref, label_ref) must be rejected"
         );
     }

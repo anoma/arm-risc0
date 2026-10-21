@@ -55,7 +55,12 @@ The action tree is built from that order, so **action tree roots change** for an
 transaction with more than one resource pair, and `logic_verifier_inputs` must be
 supplied in exactly that positional order. `Action::get_logic_verifiers()` and
 `Transaction::aggregate()` now do **positional** matching (v1 did a `HashMap`/`find`
-lookup by tag), and return `ArmError::TagNotFound` on mismatch.
+lookup by tag), and return `ArmError::LogicVerifierInputCountMismatch` or
+`ArmError::LogicVerifierTagMismatch` on mismatch. Both carry the position and,
+for a tag mismatch, the expected and found tag. Where the failure happens inside
+a loop over actions (`Transaction::verify`, `aggregation_witness`), it is wrapped
+in `ArmError::InAction { action, source }`, so a message reads
+`action 0: logic verifier input 2 has tag …, the compliance instance expects tag …`.
 
 `ComplianceInstanceWords` and `COMPLIANCE_INSTANCE_SIZE` were removed — the
 instance is variable-size now.
@@ -284,6 +289,18 @@ The `Option` existed only to model "erased after aggregation"; that state is now
   `EmptyDeltaWitnesses`, `InvalidPaddingResource`, `MissingActions`,
   `CannotComposeAggregated`, `AmbiguousTransactionRepresentation`, plus the four
   kind-tree ones.
+- Conditions that used to be reported under a name that did not describe them now
+  have their own variants, each carrying what locates the failure:
+  `LogicVerifierInputCountMismatch` and `LogicVerifierTagMismatch` (were
+  `TagNotFound`); `KindPathCountMismatch`, `InvalidKindBaseEncoding`,
+  `KindBaseNotOnCurve` and `KindPathRootMismatch` (were `InvalidResourceKind`);
+  `EmptyActions` and `AlreadyAggregated` (were `ProveFailed(String)`);
+  `MissingAggregation` (was `ProofVerificationFailed(String)`);
+  `LeafNotInActionTree` (was `InvalidLeaf`, which now means the padding leaf only);
+  and `InAction { action, source }`, which names the action an error came from.
+  `Transaction::compose` no longer relabels a representation error as
+  `CannotComposeAggregated`; it propagates `AmbiguousTransactionRepresentation` or
+  `MissingActions` as raised.
 - `arm/src/lib.rs` re-exports `ActionAggregated`, `AggregationInstance`,
   `ConsumedResourceAggregated`, `CreatedResourceAggregated`.
 

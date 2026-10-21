@@ -40,7 +40,10 @@ pub(crate) fn get_logic_verifiers(action: &Action) -> Result<Vec<LogicVerifier>,
     let tags: Vec<Digest> = compliance_instance.tags().collect();
 
     if tags.len() != action.logic_verifier_inputs.len() {
-        return Err(ArmError::TagNotFound);
+        return Err(ArmError::LogicVerifierInputCountMismatch {
+            expected: tags.len(),
+            found: action.logic_verifier_inputs.len(),
+        });
     }
 
     let action_tree_root = ActionTree::new(tags).root()?;
@@ -58,19 +61,26 @@ pub(crate) fn get_logic_verifiers(action: &Action) -> Result<Vec<LogicVerifier>,
 
     entries
         .zip(action.logic_verifier_inputs.iter())
-        .map(|((tag, resource_logic_ref, is_consumed), input)| {
-            // Positional tag assertion — catches wrong ordering or missing instances.
-            if input.tag != tag {
-                return Err(ArmError::TagNotFound);
-            }
-            // The proof must be for the logic circuit the resource itself declares;
-            // otherwise a proof for an unrelated (e.g. trivially-passing) circuit
-            // could be substituted for the resource's real logic.
-            if input.verifying_key != resource_logic_ref {
-                return Err(ArmError::VerifyingKeyMismatch);
-            }
-            crate::logic_proof::input_to_verifier(input.clone(), is_consumed, action_tree_root)
-        })
+        .enumerate()
+        .map(
+            |(position, ((tag, resource_logic_ref, is_consumed), input))| {
+                // Positional tag assertion — catches wrong ordering or missing instances.
+                if input.tag != tag {
+                    return Err(ArmError::LogicVerifierTagMismatch {
+                        position,
+                        expected: tag,
+                        found: input.tag,
+                    });
+                }
+                // The proof must be for the logic circuit the resource itself declares;
+                // otherwise a proof for an unrelated (e.g. trivially-passing) circuit
+                // could be substituted for the resource's real logic.
+                if input.verifying_key != resource_logic_ref {
+                    return Err(ArmError::VerifyingKeyMismatch);
+                }
+                crate::logic_proof::input_to_verifier(input.clone(), is_consumed, action_tree_root)
+            },
+        )
         .collect()
 }
 

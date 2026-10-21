@@ -105,8 +105,11 @@ pub fn verify(
                 verify_aggregation(tx, encoding)?;
             } else {
                 let actions = tx.actions.as_ref().ok_or(ArmError::MissingActions)?;
-                for action in actions {
-                    crate::action::verify(action)?;
+                for (action_index, action) in actions.iter().enumerate() {
+                    crate::action::verify(action).map_err(|source| ArmError::InAction {
+                        action: action_index,
+                        source: Box::new(source),
+                    })?;
                 }
             }
             Ok(())
@@ -237,10 +240,8 @@ pub fn delta(tx: &Transaction) -> Result<DeltaInstance, ArmError> {
 /// Composes two transactions by concatenating their actions and combining their delta witnesses.
 /// Both transactions must carry a `Delta::Witness` and must not have been aggregated.
 pub fn compose(tx1: Transaction, tx2: Transaction) -> Result<Transaction, ArmError> {
-    tx1.check_representation()
-        .map_err(|_| ArmError::CannotComposeAggregated)?;
-    tx2.check_representation()
-        .map_err(|_| ArmError::CannotComposeAggregated)?;
+    tx1.check_representation()?;
+    tx2.check_representation()?;
     let actions1 = tx1.actions.ok_or(ArmError::CannotComposeAggregated)?;
     let actions2 = tx2.actions.ok_or(ArmError::CannotComposeAggregated)?;
     let mut actions = actions1;
@@ -325,7 +326,11 @@ pub fn aggregation_witness(
 ) -> Result<AggregationWitness, ArmError> {
     let mut action_witnesses = Vec::with_capacity(actions.len());
 
-    for action in actions {
+    for (action_index, action) in actions.iter().enumerate() {
+        let in_action = |source: ArmError| ArmError::InAction {
+            action: action_index,
+            source: Box::new(source),
+        };
         let compliance_instance = crate::compliance_unit::get_instance(&action.compliance_unit)?;
         env_builder.add_assumption(crate::compliance_unit::get_inner_receipt(
             &action.compliance_unit,
@@ -338,24 +343,36 @@ pub fn aggregation_witness(
         // a HashMap would cause when duplicate tags are present.
         let tags: Vec<Digest> = compliance_instance.tags().collect();
         if tags.len() != action.logic_verifier_inputs.len() {
-            return Err(ArmError::TagNotFound);
+            return Err(in_action(ArmError::LogicVerifierInputCountMismatch {
+                expected: tags.len(),
+                found: action.logic_verifier_inputs.len(),
+            }));
         }
         let n_consumed = compliance_instance.consumed_publics.len();
         let (consumed_lvis, created_lvis) = action.logic_verifier_inputs.split_at(n_consumed);
 
         let mut consumed_app_data = Vec::with_capacity(n_consumed);
-        for (lvi, tag) in consumed_lvis.iter().zip(&tags[..n_consumed]) {
+        for (position, (lvi, tag)) in consumed_lvis.iter().zip(&tags[..n_consumed]).enumerate() {
             if lvi.tag != *tag {
-                return Err(ArmError::TagNotFound);
+                return Err(in_action(ArmError::LogicVerifierTagMismatch {
+                    position,
+                    expected: *tag,
+                    found: lvi.tag,
+                }));
             }
             env_builder.add_assumption(crate::logic_proof::get_inner_receipt(lvi)?);
             consumed_app_data.push(lvi.app_data.clone());
         }
 
         let mut created_app_data = Vec::with_capacity(compliance_instance.created_publics.len());
-        for (lvi, tag) in created_lvis.iter().zip(&tags[n_consumed..]) {
+        for (offset, (lvi, tag)) in created_lvis.iter().zip(&tags[n_consumed..]).enumerate() {
             if lvi.tag != *tag {
-                return Err(ArmError::TagNotFound);
+                // Positions are absolute, in canonical tag order.
+                return Err(in_action(ArmError::LogicVerifierTagMismatch {
+                    position: n_consumed + offset,
+                    expected: *tag,
+                    found: lvi.tag,
+                }));
             }
             env_builder.add_assumption(crate::logic_proof::get_inner_receipt(lvi)?);
             created_app_data.push(lvi.app_data.clone());
@@ -392,17 +409,13 @@ pub fn aggregate(
     encoding: JournalEncoding,
 ) -> Result<(), ArmError> {
     if tx.base_proofs_are_empty() {
-        return Err(ArmError::ProveFailed(
-            "Cannot aggregate: transaction has already been aggregated (actions is None)".into(),
-        ));
+        return Err(ArmError::AlreadyAggregated);
     }
 
     let actions = tx.actions.as_ref().ok_or(ArmError::MissingActions)?;
 
     if actions.is_empty() {
-        return Err(ArmError::ProveFailed(
-            "Cannot aggregate: transaction has no actions".into(),
-        ));
+        return Err(ArmError::EmptyActions);
     }
 
     let mut env_builder = ExecutorEnv::builder();
@@ -465,7 +478,7 @@ pub fn verify_aggregation(tx: &Transaction, encoding: JournalEncoding) -> Result
     let agg = tx
         .aggregation
         .as_ref()
-        .ok_or_else(|| ArmError::ProofVerificationFailed("Missing aggregation".into()))?;
+        .ok_or(ArmError::MissingAggregation)?;
 
     let inner_receipt: InnerReceipt =
         bincode::deserialize(&agg.proof).map_err(|_| ArmError::InnerReceiptDeserializationError)?;

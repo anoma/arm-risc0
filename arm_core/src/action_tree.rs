@@ -39,7 +39,8 @@ impl ActionTree {
 
     /// Generates the Merkle path for a given leaf in the action tree.
     ///
-    /// Returns `ArmError::InvalidLeaf` if the leaf is not found in the tree.
+    /// Returns `ArmError::InvalidLeaf` for the padding leaf, and
+    /// `ArmError::LeafNotInActionTree` if the leaf is not in the tree.
     pub fn generate_path(&self, cur_leaf: &Digest) -> Result<MerklePath, ArmError> {
         if *cur_leaf == PADDING_LEAF {
             return Err(ArmError::InvalidLeaf);
@@ -49,7 +50,7 @@ impl ActionTree {
         let mut position = cur_layer
             .iter()
             .position(|v| v == cur_leaf)
-            .ok_or(ArmError::InvalidLeaf)?;
+            .ok_or(ArmError::LeafNotInActionTree { leaf: *cur_leaf })?;
         let mut merkle_path = Vec::new();
 
         while cur_layer.len() > 1 {
