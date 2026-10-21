@@ -50,13 +50,13 @@ Add to your `Cargo.toml`:
 
 ```toml
 # Default configuration
-anoma-rm-risc0 = "2.0.0-rc.7"
+anoma-rm-risc0 = "2.0.0-rc.7.1"
 
 # Proof aggregation (a single succinct proof per transaction)
-anoma-rm-risc0 = { version = "2.0.0-rc.7", features = ["aggregation"] }
+anoma-rm-risc0 = { version = "2.0.0-rc.7.1", features = ["aggregation"] }
 
 # Logic-circuit-only usage
-anoma-rm-risc0 = { version = "2.0.0-rc.7", default-features = false }
+anoma-rm-risc0 = { version = "2.0.0-rc.7.1", default-features = false }
 ```
 
 ## Documentation

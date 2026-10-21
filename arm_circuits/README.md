@@ -22,7 +22,8 @@ This workspace includes circuit crates and their corresponding RISC0 method buil
 
 Run the update script from the repository root. It builds all guests, copies the
 ELFs to their checked-in paths, and patches the image IDs in
-`arm/src/constants.rs` and `arm_tests/arm_test_app/src/lib.rs` in one step:
+`arm_core/src/constants.rs` (the `*_VK` consts, which `arm/src/constants.rs`
+re-exports) and `arm_tests/arm_test_app/src/lib.rs` in one step:
 
 ```bash
 ./scripts/update_elfs.sh
@@ -54,7 +55,10 @@ cp arm_circuits/batch_aggregation/methods/guest/target/riscv32im-risc0-zkvm-elf/
 After each build, copy the ELF from
 `<circuit>/methods/guest/target/riscv32im-risc0-zkvm-elf/docker/<name>.bin`
 to the appropriate path under `arm/elfs/` or `arm_tests/arm_test_app/elf/`,
-then update the corresponding `*_VK` constant with the printed image ID.
+then update the corresponding `*_VK` constant in `arm_core/src/constants.rs`
+with the printed image ID. Each const is pinned against its canonical hex in a
+test there, so the hex in the doc comment and in `vk_consts_match_hex` has to
+move with it — `./scripts/update_elfs.sh` does both.
 
 ## Regenerating After Changes
 

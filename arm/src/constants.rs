@@ -158,19 +158,26 @@ mod tests {
         use risc0_zkvm::sha::DIGEST_BYTES;
 
         let zero_label = Digest::from([0u8; DIGEST_BYTES]);
+        // PADDING_LOGIC_VK comes from the const so it cannot drift from the
+        // ELFs; TEST_LOGIC_VK lives in arm_test_app, which this crate cannot
+        // see, so it is spelled out and must be updated with the ELFs.
         let vks = [
-            (
-                "PADDING_LOGIC_VK",
-                "2ba12576f5caf1149c18fe98b35c56adecc9ffaf39eafef49ea050e38d04d012",
-            ),
+            ("PADDING_LOGIC_VK", PADDING_LOGIC_VK),
             (
                 "TEST_LOGIC_VK",
-                "54fccb0649c20af2d84344e48897e0d92f1d9571e41de807bf20fe81d4fdf913",
+                Digest::from(
+                    <[u8; 32]>::try_from(
+                        hex::decode(
+                            "2f494b55a99e5bc790cc416edbfc08974b0056cfb4ab5fef3b5b49fdeec6ce3e",
+                        )
+                        .unwrap()
+                        .as_slice(),
+                    )
+                    .unwrap(),
+                ),
             ),
         ];
-        for (name, hex_vk) in vks {
-            let bytes: [u8; 32] = hex::decode(hex_vk).unwrap().try_into().unwrap();
-            let logic_ref = Digest::from(bytes);
+        for (name, logic_ref) in vks {
             let point = generate_resource_kind(logic_ref, zero_label).unwrap();
             let encoded = point.to_encoded_point(false);
             println!("{name}: {}", hex::encode(encoded.as_bytes()));

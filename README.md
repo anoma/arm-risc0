@@ -117,13 +117,13 @@ We have the following feature flags in arm lib:
 
 ```toml
 # Default configuration
-anoma-rm-risc0 = "2.0.0-rc.7"
+anoma-rm-risc0 = "2.0.0-rc.7.1"
 
 # Proof aggregation (a single succinct proof per transaction)
-anoma-rm-risc0 = { version = "2.0.0-rc.7", features = ["aggregation"] }
+anoma-rm-risc0 = { version = "2.0.0-rc.7.1", features = ["aggregation"] }
 
 # Logic-circuit-only usage
-anoma-rm-risc0 = { version = "2.0.0-rc.7", default-features = false }
+anoma-rm-risc0 = { version = "2.0.0-rc.7.1", default-features = false }
 ```
 
 ## Reproducibly generate proving and verifying keys (ELF and ImageID)
@@ -142,7 +142,7 @@ will reproduce the output to:
 View build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/zbrzf1brqyb5evydjxs9h3gvl
 
 ELFs ready at:
-ImageID: 5d3ea0a27561e9e66e6a7c12c7022d1a814a0724d13f7f8e083c4b4f14b5f1c7 -
+ImageID: bc4edaeea98f6501547cba34cf94d8b59631e7f86cf1a47119ba6f17c29a517c -
 arm-risc0/arm_circuits/compliance/methods/guest/target/riscv32im-risc0-zkvm-elf/docker/compliance-guest.bin
 ```
 
