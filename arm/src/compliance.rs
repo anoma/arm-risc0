@@ -67,11 +67,12 @@ fn resolve_kind(
     kind_path: Option<&KindPath>,
     resource: &Resource,
     derived_root: &mut Option<Digest>,
+    position: usize,
 ) -> Result<ProjectivePoint, ArmError> {
     match kind_path {
         Some(kp) => {
             if kp.kind_base.len() != 65 || kp.kind_base[0] != 0x04 {
-                return Err(ArmError::InvalidResourceKind);
+                return Err(ArmError::InvalidKindBaseEncoding { position });
             }
             let leaf =
                 arm_core::compliance::hash_kind_tree_leaf(&arm_core::compliance::KindTreeEntry {
@@ -82,14 +83,20 @@ fn resolve_kind(
             let path_root = kp.path.root(&leaf);
             match *derived_root {
                 None => *derived_root = Some(path_root),
-                Some(r) if r != path_root => return Err(ArmError::InvalidResourceKind),
+                Some(r) if r != path_root => {
+                    return Err(ArmError::KindPathRootMismatch {
+                        position,
+                        expected: r,
+                        found: path_root,
+                    })
+                }
                 _ => {}
             }
             let encoded = EncodedPoint::from_bytes(&kp.kind_base)
-                .map_err(|_| ArmError::InvalidResourceKind)?;
+                .map_err(|_| ArmError::KindBaseNotOnCurve { position })?;
             ProjectivePoint::from_encoded_point(&encoded)
                 .into_option()
-                .ok_or(ArmError::InvalidResourceKind)
+                .ok_or(ArmError::KindBaseNotOnCurve { position })
         }
         None => crate::resource::kind(resource),
     }
@@ -111,7 +118,10 @@ pub fn constrain(witness: &ComplianceWitness) -> Result<ComplianceInstance, ArmE
     let n_created = witness.created_resources.len();
 
     if witness.kind_paths.len() != n_consumed + n_created {
-        return Err(ArmError::InvalidResourceKind);
+        return Err(ArmError::KindPathCountMismatch {
+            expected: n_consumed + n_created,
+            found: witness.kind_paths.len(),
+        });
     }
 
     // The kind_tree_root committed in the instance is derived from the paths:
@@ -150,6 +160,7 @@ pub fn constrain(witness: &ComplianceWitness) -> Result<ComplianceInstance, ArmE
                 witness.kind_paths[i].as_ref(),
                 &w.resource,
                 &mut derived_root,
+                i,
             )?,
             crate::resource::quantity_scalar(&w.resource),
         );
@@ -174,6 +185,7 @@ pub fn constrain(witness: &ComplianceWitness) -> Result<ComplianceInstance, ArmE
                 witness.kind_paths[n_consumed + j].as_ref(),
                 resource,
                 &mut derived_root,
+                n_consumed + j,
             )?,
             -crate::resource::quantity_scalar(resource),
         );
@@ -303,12 +315,13 @@ mod tests {
 
     /// The identity has a SEC1 encoding, the single byte `0x00`. A path to a
     /// leaf holding it is rejected, so no created resource can add nothing to
-    /// the delta.
+    /// the delta. Position 1 is the created resource: the consumed one at
+    /// position 0 carries no path.
     #[test]
     fn identity_kind_base_is_rejected() {
         assert_eq!(
             constrain(&witness(vec![0x00], 1_000_000)).map(|_| ()),
-            Err(ArmError::InvalidResourceKind)
+            Err(ArmError::InvalidKindBaseEncoding { position: 1 })
         );
     }
 }

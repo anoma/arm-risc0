@@ -1,11 +1,26 @@
 //! Arm-specific error types.
 #![allow(missing_docs)]
+use risc0_zkp::core::digest::Digest;
 use thiserror::Error;
 
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
 pub enum ArmError {
     #[error("Invalid resource kind")]
     InvalidResourceKind,
+    #[error("{found} kind paths, the compliance witness has {expected} resources")]
+    KindPathCountMismatch { expected: usize, found: usize },
+    #[error("kind base at position {position} is not an uncompressed SEC1 point (65 bytes, leading 0x04)")]
+    InvalidKindBaseEncoding { position: usize },
+    #[error("kind base at position {position} is not a point on secp256k1")]
+    KindBaseNotOnCurve { position: usize },
+    #[error(
+        "kind path {position} opens under root {found}, an earlier path opened under {expected}"
+    )]
+    KindPathRootMismatch {
+        position: usize,
+        expected: Digest,
+        found: Digest,
+    },
     #[error("Invalid resource serialization")]
     InvalidResourceSerialization,
     #[error("Invalid resource deserialization")]
@@ -36,8 +51,20 @@ pub enum ArmError {
     BuildProverEnvFailed,
     #[error("Verifying key mismatch")]
     VerifyingKeyMismatch,
-    #[error("Tag not found")]
-    TagNotFound,
+    #[error("{found} logic verifier inputs, the compliance instance expects {expected}")]
+    LogicVerifierInputCountMismatch { expected: usize, found: usize },
+    #[error("logic verifier input {position} has tag {found}, the compliance instance expects tag {expected}")]
+    LogicVerifierTagMismatch {
+        position: usize,
+        expected: Digest,
+        found: Digest,
+    },
+    /// Locates an error at the action it came from; `source` is the condition.
+    #[error("action {action}: {source}")]
+    InAction {
+        action: usize,
+        source: Box<ArmError>,
+    },
     #[error("Delta proof verification failed")]
     DeltaProofVerificationFailed,
     #[error("Expected delta proof, but found witness")]
@@ -46,6 +73,8 @@ pub enum ArmError {
     InvalidResourceValueRef,
     #[error("Invalid leaf")]
     InvalidLeaf,
+    #[error("leaf {leaf} is not in the action tree")]
+    LeafNotInActionTree { leaf: Digest },
     #[error("Failed to generate proof with error: {0}")]
     ProveFailed(String),
     #[error("Proof verification failed with return code {0}")]
@@ -86,6 +115,11 @@ pub enum ArmError {
     InvalidDeltaProof,
     #[error("Failed to load kind tree")]
     KindTreeLoadFailed,
+    #[error("kind tree has two entries for (logic_ref {logic_ref}, label_ref {label_ref})")]
+    DuplicateKindTreeEntry {
+        logic_ref: Digest,
+        label_ref: Digest,
+    },
     #[error("Cannot derive nonces from an empty nullifier set")]
     EmptyNullifiers,
     #[error("Cannot compose transactions with different delta types")]
@@ -96,6 +130,12 @@ pub enum ArmError {
     InvalidPaddingResource,
     #[error("Actions are missing (transaction has been aggregated or is otherwise invalid)")]
     MissingActions,
+    #[error("transaction has no actions")]
+    EmptyActions,
+    #[error("transaction has already been aggregated")]
+    AlreadyAggregated,
+    #[error("transaction carries no aggregation proof")]
+    MissingAggregation,
     #[error("Cannot compose a transaction that has already been aggregated")]
     CannotComposeAggregated,
     #[error("Transaction must carry exactly one of `actions` or `aggregation`, not both")]

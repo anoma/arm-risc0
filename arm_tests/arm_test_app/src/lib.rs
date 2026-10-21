@@ -521,10 +521,25 @@ fn test_aggregation_witness_takes_the_callers_compliance_key() {
     // A consumed resource's logic input swapped with a created one's.
     let mut swapped = actions.clone();
     swapped[0].logic_verifier_inputs.swap(0, 2);
-    assert!(matches!(
-        transaction::aggregation_witness(&swapped, key, &mut ExecutorEnv::builder()),
-        Err(ArmError::TagNotFound)
-    ));
+    // The error names the action, the position, and both tags.
+    let err = transaction::aggregation_witness(&swapped, key, &mut ExecutorEnv::builder())
+        .err()
+        .expect("swapped logic inputs must be rejected");
+    let ArmError::InAction { action, source } = err else {
+        panic!("expected the error to name its action, got {err:?}");
+    };
+    assert_eq!(action, 0);
+    assert!(
+        matches!(
+            *source,
+            ArmError::LogicVerifierTagMismatch {
+                position: 0,
+                expected,
+                found,
+            } if expected != found
+        ),
+        "expected a located tag mismatch, got {source:?}"
+    );
 }
 
 /// After aggregation, the decoded `AggregationInstance` survives a round-trip
@@ -706,13 +721,15 @@ fn test_compose_rejects_ambiguous_transaction() {
         },
     });
 
+    // compose() propagates the representation error as raised, rather than
+    // relabelling the ambiguous shape as "cannot compose aggregated".
     assert_eq!(
         transaction::compose(tx_ambiguous.clone(), tx_clean.clone()),
-        Err(ArmError::CannotComposeAggregated),
+        Err(ArmError::AmbiguousTransactionRepresentation),
     );
     assert_eq!(
         transaction::compose(tx_clean, tx_ambiguous),
-        Err(ArmError::CannotComposeAggregated),
+        Err(ArmError::AmbiguousTransactionRepresentation),
     );
 }
 
