@@ -331,12 +331,21 @@ fn test_unmatched_logic_verifier_inputs_in_action() {
     // Swap logic verifier inputs to cause tag mismatch at position 0 in action0.
     let mut action0 = actions[0].clone();
     action0.logic_verifier_inputs = actions[1].logic_verifier_inputs.clone();
-    assert!(action::verify(&action0).is_err());
+    assert!(matches!(
+        action::verify(&action0),
+        Err(ArmError::LogicVerifierTagMismatch { position: 0, .. })
+    ));
 
     // Empty logic verifier inputs: length mismatch must be rejected.
     let mut action1 = actions[1].clone();
     action1.logic_verifier_inputs = vec![];
-    assert!(action::verify(&action1).is_err());
+    assert_eq!(
+        action::verify(&action1),
+        Err(ArmError::LogicVerifierInputCountMismatch {
+            expected: 2,
+            found: 0
+        })
+    );
 }
 
 #[test]
@@ -461,6 +470,10 @@ fn test_aggregation_works() {
     let tx = Tester::default()
         .generate_test_transaction(&[(2, 2), (2, 2)])
         .unwrap();
+    assert_eq!(
+        transaction::verify_aggregation(&tx, JournalEncoding::Risc0Serde),
+        Err(ArmError::MissingAggregation)
+    );
     let mut tx_str = tx.clone();
     assert!(transaction::aggregate(
         &mut tx_str,
@@ -471,6 +484,14 @@ fn test_aggregation_works() {
     // After aggregation: actions must be None, aggregation must be Some.
     assert!(tx_str.actions.is_none());
     assert!(tx_str.aggregation.is_some());
+    assert_eq!(
+        transaction::aggregate(
+            &mut tx_str,
+            ProofType::Succinct,
+            JournalEncoding::Risc0Serde
+        ),
+        Err(ArmError::AlreadyAggregated)
+    );
     assert!(transaction::verify_aggregation(&tx_str, JournalEncoding::Risc0Serde).is_ok());
     // Full verify() must also succeed on the post-aggregation transaction.
     assert!(transaction::verify(
@@ -775,7 +796,7 @@ fn test_cannot_aggregate_empty_actions() {
     let mut tx =
         transaction::generate_delta_proof(Transaction::create(vec![], dummy_delta)).unwrap();
     let result = transaction::aggregate(&mut tx, ProofType::Succinct, JournalEncoding::Risc0Serde);
-    assert!(result.is_err());
+    assert_eq!(result, Err(ArmError::EmptyActions));
     assert!(tx.aggregation.is_none());
 }
 
