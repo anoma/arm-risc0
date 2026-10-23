@@ -480,13 +480,15 @@ fn test_aggregation_works() {
     )
     .is_ok());
 
-    // Tamper the compliance_key in the decoded instance — the receipt is still
-    // valid against BATCH_AGGREGATION_VK, but the compliance_key check must
-    // now catch the mismatch before the verifier accepts the proof.
+    // Tamper the compliance_key in the decoded instance: the compliance_key
+    // check must catch the mismatch before the receipt is verified.
     if let Some(ref mut agg) = tx_str.aggregation {
         agg.instance.compliance_key = Digest::from([0xABu8; 32]);
     }
-    assert!(transaction::verify_aggregation(&tx_str, JournalEncoding::Risc0Serde).is_err());
+    assert_eq!(
+        transaction::verify_aggregation(&tx_str, JournalEncoding::Risc0Serde),
+        Err(ArmError::VerifyingKeyMismatch)
+    );
 }
 
 /// `aggregation_witness` builds the guest's input under the compliance key the
@@ -652,6 +654,19 @@ fn test_verify_rejects_transaction_with_both_actions_and_aggregation() {
     assert_eq!(
         transaction::verify(&tx, Digest::from([0u8; 32]), JournalEncoding::Risc0Serde),
         Err(ArmError::AmbiguousTransactionRepresentation)
+    );
+}
+
+/// A transaction with neither `actions` nor `aggregation` was never
+/// aggregated: `aggregate()` reports it as `check_representation` does.
+#[test]
+fn test_aggregate_rejects_transaction_without_actions_or_aggregation() {
+    let dummy_delta = Delta::Witness(delta_proof::from_bytes_vec(&[vec![1u8; 32]]).unwrap());
+    let mut tx = Transaction::create(vec![], dummy_delta);
+    tx.actions = None;
+    assert_eq!(
+        transaction::aggregate(&mut tx, ProofType::Succinct, JournalEncoding::Risc0Serde),
+        Err(ArmError::MissingActions)
     );
 }
 
