@@ -46,10 +46,7 @@ pub struct AggregationWitness {
 pub struct ActionWitness {
     /// Typed compliance instance for this action.
     pub compliance_instance: ComplianceInstance,
-    /// `app_data` for each consumed resource, in the same order as
-    /// `compliance_instance.consumed_publics`.
-    pub consumed_app_data: Vec<AppData>,
-    /// `app_data` for each created resource, in the same order as
-    /// `compliance_instance.created_publics`.
-    pub created_app_data: Vec<AppData>,
+    /// `app_data` for each resource, in the same order as
+    /// `compliance_instance.resource_publics`.
+    pub app_data: Vec<AppData>,
 }

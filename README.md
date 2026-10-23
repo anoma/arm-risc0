@@ -142,7 +142,7 @@ will reproduce the output to:
 View build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/zbrzf1brqyb5evydjxs9h3gvl
 
 ELFs ready at:
-ImageID: bc4edaeea98f6501547cba34cf94d8b59631e7f86cf1a47119ba6f17c29a517c -
+ImageID: 6771d2b47a3c3f40a1a2e635b2ddf0db3159e95856879e4e8d0a665025b0026b -
 arm-risc0/arm_circuits/compliance/methods/guest/target/riscv32im-risc0-zkvm-elf/docker/compliance-guest.bin
 ```
 

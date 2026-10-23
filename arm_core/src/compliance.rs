@@ -3,9 +3,9 @@
 use crate::merkle_path::MerklePath;
 #[cfg(test)]
 use crate::nullifier_key::NullifierKey;
-use crate::resource::{
-    ConsumedResourcePublic, ConsumedResourceWitness, CreatedResourcePublic, Resource,
-};
+#[cfg(test)]
+use crate::resource::{ConsumedResourceWitness, Resource};
+use crate::resource::{ResourcePublic, ResourceWitness};
 use risc0_zkp::core::digest::Digest;
 
 /// The initial root of the empty commitment tree is the hash of an empty
@@ -26,10 +26,9 @@ pub const INITIAL_ROOT: Digest = Digest::new([
 )]
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct ComplianceInstance {
-    /// Public information of consumed resources
-    pub consumed_publics: Vec<ConsumedResourcePublic>,
-    /// Public information of created resources
-    pub created_publics: Vec<CreatedResourcePublic>,
+    /// Public information of the consumed and created resources, in the order
+    /// of the witness.
+    pub resource_publics: Vec<ResourcePublic>,
     /// The delta x coordinate of the created resource(use u32 array to avoid padding issues in risc0).
     pub delta_x: [u32; 8],
     /// The delta y coordinate of the created resource(use u32 array to avoid padding issues in risc0).
@@ -76,16 +75,17 @@ pub struct KindPath {
 )]
 #[derive(Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct ComplianceWitness {
-    /// Private information of consumed resources
-    pub consumed_data: Vec<ConsumedResourceWitness>,
-    /// Private information of created resources
-    pub created_resources: Vec<Resource>,
+    /// Private information of the consumed and created resources. Their order
+    /// sets the order of the resources in the instance and of the leaves of
+    /// the action tree. The nonce of a created resource derives from its index
+    /// among the created resources and from the consumed nullifiers, both in
+    /// this order.
+    pub resources: Vec<ResourceWitness>,
     /// The existing root for ephemeral resources
     pub ephemeral_root: Digest,
     /// Bytes of randomness for the delta commitment `rcv`
     pub rcv: Vec<u8>,
-    /// Per-resource Merkle paths into the kind tree, indexed as
-    /// `consumed_data[0..n]` then `created_resources[0..m]`.
+    /// Per-resource Merkle paths into the kind tree, in the order of `resources`.
     /// `None` means no pre-computed kind base — fall back to `hash_to_curve`.
     /// The `kind_tree_root` committed in the instance is derived in-circuit:
     /// the root of the first non-`None` path, or `PADDING_LEAF` if all are `None`.
@@ -98,15 +98,13 @@ impl ComplianceWitness {
     /// (`anoma-rm-risc0`'s `compliance::from_resources*`) are convenience
     /// wrappers that draw `rcv` and delegate here.
     pub fn from_parts(
-        consumed_data: Vec<ConsumedResourceWitness>,
-        created_resources: Vec<Resource>,
+        resources: Vec<ResourceWitness>,
         ephemeral_root: Digest,
         rcv: &[u8],
         kind_paths: Vec<Option<KindPath>>,
     ) -> ComplianceWitness {
         ComplianceWitness {
-            consumed_data,
-            created_resources,
+            resources,
             ephemeral_root,
             rcv: rcv.to_vec(),
             kind_paths,
@@ -152,11 +150,14 @@ impl Default for ComplianceWitness {
             rand_seed: [0u8; 32],
         };
 
-        let created_resources = vec![make_created(nonce_0), make_created(nonce_1)];
-        let n_paths = consumed_data.len() + created_resources.len();
+        let resources: Vec<ResourceWitness> = consumed_data
+            .into_iter()
+            .map(ResourceWitness::Consumed)
+            .chain([make_created(nonce_0), make_created(nonce_1)].map(ResourceWitness::Created))
+            .collect();
+        let n_paths = resources.len();
         ComplianceWitness {
-            consumed_data,
-            created_resources,
+            resources,
             ephemeral_root: INITIAL_ROOT,
             // Scalar 1 in big-endian repr (k256's Scalar::ONE.to_bytes()).
             rcv: {
@@ -180,14 +181,9 @@ impl ComplianceInstance {
         msg
     }
 
-    /// Canonical ordering of the unit's tags: consumed nullifiers first, then
-    /// created commitments. Both the action tree and the per-resource logic
-    /// verifier proofs MUST be built against this order; any other ordering
-    /// will produce a different action-tree root and verification will fail.
+    /// The unit's tags in the order of its resources: the nullifier of a
+    /// consumed resource, the commitment of a created resource.
     pub fn tags(&self) -> impl Iterator<Item = Digest> + '_ {
-        self.consumed_publics
-            .iter()
-            .map(|r| r.resource_nullifier)
-            .chain(self.created_publics.iter().map(|r| r.resource_commitment))
+        self.resource_publics.iter().map(|r| r.resource_tag)
     }
 }

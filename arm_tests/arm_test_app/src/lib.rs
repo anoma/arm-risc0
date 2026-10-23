@@ -14,7 +14,7 @@ use anoma_rm_risc0::{
     merkle_path::MerklePath,
     nullifier_key::{self, NullifierKey},
     proving_system::ProofType,
-    resource::{ConsumedResourceWitness, Resource},
+    resource::{ConsumedResourceWitness, Resource, ResourceWitness},
     transaction::{self, Delta, Transaction},
     Digest,
 };
@@ -36,7 +36,7 @@ pub const TEST_LOGIC_PK: &[u8] = include_bytes!("../elf/logic-test-guest.bin");
 lazy_static! {
     // test logic verification key / test image id
     pub static ref TEST_LOGIC_VK: Digest =
-        Digest::from_hex("2f494b55a99e5bc790cc416edbfc08974b0056cfb4ab5fef3b5b49fdeec6ce3e")
+        Digest::from_hex("162840be4f2f7e77806d1a0dfc6f0d8af3a270d9a30fbc14fc69e02e965de607")
             .unwrap();
 }
 
@@ -147,18 +147,60 @@ impl Tester {
         consumed_num: u32,
         created_num: u32,
     ) -> Result<ComplianceUnit, ArmError> {
+        let order = consumed_first(consumed_num, created_num);
+        let (compliance_unit, _) =
+            self.create_compliance_unit_in_order(consumed_num, created_num, &order)?;
+        Ok(compliance_unit)
+    }
+
+    /// Creates a compliance unit for the current action with its resources in
+    /// `order`, and returns it with its resources in this order.
+    fn create_compliance_unit_in_order(
+        &mut self,
+        consumed_num: u32,
+        created_num: u32,
+        order: &[usize],
+    ) -> Result<(ComplianceUnit, Vec<ResourceWitness>), ArmError> {
         self.populate_consumed_resources(consumed_num);
         self.populate_created_resources(created_num)?;
+        let resources = self.resources_in_order(order)?;
 
         init_test_kind_tree();
         let compliance_witness = compliance::from_resources(
-            self.consumed_data[self.current].clone(),
-            self.created_resources[self.current].clone(),
+            resources.clone(),
             global_kind_tree().expect("kind tree not initialised"),
         );
         self.rcvs.push(compliance_witness.rcv.clone());
 
-        compliance_unit::create(&compliance_witness, ProofType::Succinct)
+        let compliance_unit = compliance_unit::create(&compliance_witness, ProofType::Succinct)?;
+        Ok((compliance_unit, resources))
+    }
+
+    /// Lists the resources of the current action in `order`: positions in the
+    /// list of its consumed, then its created resources. The nonces of the
+    /// created resources are derived again for this order.
+    fn resources_in_order(&mut self, order: &[usize]) -> Result<Vec<ResourceWitness>, ArmError> {
+        let consumed = &self.consumed_data[self.current];
+        let created = &mut self.created_resources[self.current];
+        let n_consumed = consumed.len();
+
+        let nullifiers = order
+            .iter()
+            .filter(|&&i| i < n_consumed)
+            .map(|&i| consumed[i].resource.nullifier(&consumed[i].nf_key))
+            .collect::<Result<Vec<Digest>, _>>()?;
+        let nullifiers_digest = Resource::hash_nullifiers(&nullifiers)?;
+        for (index, &i) in order.iter().filter(|&&i| i >= n_consumed).enumerate() {
+            created[i - n_consumed].nonce = Resource::derive_nonce(index as u32, nullifiers_digest);
+        }
+
+        Ok(order
+            .iter()
+            .map(|&i| match i.checked_sub(n_consumed) {
+                None => ResourceWitness::Consumed(consumed[i].clone()),
+                Some(k) => ResourceWitness::Created(created[k]),
+            })
+            .collect())
     }
 
     /// Creates an action with `consumed_num` consumed and `created_num` created resources.
@@ -167,42 +209,26 @@ impl Tester {
         consumed_num: u32,
         created_num: u32,
     ) -> Result<Action, ArmError> {
-        let compliance_unit = self.create_compliance_unit(consumed_num, created_num)?;
+        let order = consumed_first(consumed_num, created_num);
+        self.create_an_action_in_order(consumed_num, created_num, &order)
+    }
 
-        // Build (tag, resource, nf_key, is_consumed) entries in the compliance
-        // unit's canonical tag order (consumed nullifiers, then created
-        // commitments) — exactly what `ComplianceInstance::tags()` returns.
-        // Computing the tag once here avoids re-deriving it inside the
-        // verifier loop.
-        let consumed = &self.consumed_data[self.current];
-        let created = &self.created_resources[self.current];
-        let entries: Vec<(Digest, Resource, NullifierKey, bool)> = consumed
-            .iter()
-            .map(|w| {
-                let tag = w.resource.nullifier(&w.nf_key).unwrap();
-                (tag, w.resource, w.nf_key.clone(), true)
-            })
-            .chain(
-                created
-                    .iter()
-                    .map(|r| (r.commitment(), *r, NullifierKey::default(), false)),
-            )
+    /// Creates an action whose compliance unit lists the resources in `order`:
+    /// positions in the list of the consumed, then the created resources.
+    pub fn create_an_action_in_order(
+        &mut self,
+        consumed_num: u32,
+        created_num: u32,
+        order: &[usize],
+    ) -> Result<Action, ArmError> {
+        let (compliance_unit, resources) =
+            self.create_compliance_unit_in_order(consumed_num, created_num, order)?;
+        let tags = compliance_unit::get_instance(&compliance_unit)?
+            .tags()
             .collect();
+        let logic_verifiers = prove_logics(&resources, &ActionTree::new(tags));
 
-        let tags: Vec<Digest> = entries.iter().map(|(tag, ..)| *tag).collect();
-        let action_tree = ActionTree::new(tags);
-
-        let logic_verifiers = entries
-            .into_iter()
-            .map(|(tag, resource, nf_key, is_consumed)| {
-                let action_tree_path = action_tree.generate_path(&tag).unwrap();
-                TestLogic::new(resource, action_tree_path, nf_key, is_consumed)
-                    .prove(ProofType::Succinct)
-                    .unwrap()
-            })
-            .collect::<Vec<LogicVerifier>>();
-
-        let action = action::new(compliance_unit, logic_verifiers).unwrap();
+        let action = action::new(compliance_unit, logic_verifiers)?;
         self.current += 1;
         Ok(action)
     }
@@ -247,6 +273,40 @@ impl Tester {
 
 fn init_test_kind_tree() {
     init_starter_kind_tree().expect("Failed to load arm's starter kind tree");
+}
+
+/// The positions of all consumed resources, then all created resources.
+fn consumed_first(consumed_num: u32, created_num: u32) -> Vec<usize> {
+    (0..(consumed_num + created_num) as usize).collect()
+}
+
+/// Proves the test logic of each resource, in the order of `resources`,
+/// against the root of `action_tree`.
+fn prove_logics(resources: &[ResourceWitness], action_tree: &ActionTree) -> Vec<LogicVerifier> {
+    resources
+        .iter()
+        .map(|resource_witness| {
+            let (tag, nf_key, is_consumed) = match resource_witness {
+                ResourceWitness::Consumed(w) => (
+                    w.resource.nullifier(&w.nf_key).unwrap(),
+                    w.nf_key.clone(),
+                    true,
+                ),
+                ResourceWitness::Created(resource) => {
+                    (resource.commitment(), NullifierKey::default(), false)
+                }
+            };
+            let action_tree_path = action_tree.generate_path(&tag).unwrap();
+            TestLogic::new(
+                *resource_witness.resource(),
+                action_tree_path,
+                nf_key,
+                is_consumed,
+            )
+            .prove(ProofType::Succinct)
+            .unwrap()
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -490,9 +550,8 @@ fn test_aggregation_works() {
 }
 
 /// `aggregation_witness` builds the guest's input under the compliance key the
-/// caller names: one action witness per action, each carrying its consumed
-/// and created resources' app data in tag order. Logic inputs out of tag
-/// order are refused.
+/// caller names: one action witness per action, each carrying its resources'
+/// app data in the order of the compliance unit.
 #[test]
 fn test_aggregation_witness_takes_the_callers_compliance_key() {
     use risc0_zkvm::ExecutorEnv;
@@ -508,14 +567,12 @@ fn test_aggregation_witness_takes_the_callers_compliance_key() {
     assert_eq!(witness.compliance_key, key);
     assert_eq!(witness.actions.len(), actions.len());
     for (action, action_witness) in actions.iter().zip(&witness.actions) {
-        let n_consumed = action_witness.compliance_instance.consumed_publics.len();
         let app_data: Vec<_> = action
             .logic_verifier_inputs
             .iter()
             .map(|lvi| lvi.app_data.clone())
             .collect();
-        assert_eq!(action_witness.consumed_app_data, app_data[..n_consumed]);
-        assert_eq!(action_witness.created_app_data, app_data[n_consumed..]);
+        assert_eq!(action_witness.app_data, app_data);
     }
 
     // A consumed resource's logic input swapped with a created one's.
@@ -539,6 +596,154 @@ fn test_aggregation_witness_takes_the_callers_compliance_key() {
             } if expected != found
         ),
         "expected a located tag mismatch, got {source:?}"
+    );
+}
+
+/// The compliance instance lists the resources in the order of the witness,
+/// and the nonce of a created resource counts only the created resources.
+#[test]
+fn test_compliance_instance_follows_the_order_of_the_witness() {
+    let mut tester = Tester::default();
+    tester.populate_consumed_resources(2);
+    tester.populate_created_resources(2).unwrap();
+    // The first created resource ahead of both consumed ones: the second
+    // created resource is at position 3 but has the created index 1.
+    let resources = tester.resources_in_order(&[2, 0, 1, 3]).unwrap();
+
+    init_test_kind_tree();
+    let witness = compliance::from_resources(
+        resources.clone(),
+        global_kind_tree().expect("kind tree not initialised"),
+    );
+    let instance = compliance::constrain(&witness).unwrap();
+
+    let tags: Vec<Digest> = resources
+        .iter()
+        .map(|r| match r {
+            ResourceWitness::Consumed(w) => w.resource.nullifier(&w.nf_key).unwrap(),
+            ResourceWitness::Created(resource) => resource.commitment(),
+        })
+        .collect();
+    assert_eq!(instance.tags().collect::<Vec<_>>(), tags);
+    let is_consumed: Vec<bool> = instance
+        .resource_publics
+        .iter()
+        .map(|r| r.is_consumed())
+        .collect();
+    assert_eq!(is_consumed, [false, true, true, false]);
+}
+
+/// The nonce of a created resource derives from its index among the created
+/// resources and from the consumed nullifiers in their order, so a witness
+/// with two swapped resources of one kind is refused.
+#[test]
+fn test_constrain_rejects_resources_in_another_order_than_their_nonces() {
+    let mut tester = Tester::default();
+    tester.populate_consumed_resources(2);
+    tester.populate_created_resources(2).unwrap();
+    let resources = tester.resources_in_order(&[0, 1, 2, 3]).unwrap();
+
+    init_test_kind_tree();
+    let kind_tree = global_kind_tree().expect("kind tree not initialised");
+    let constrain_in_order = |order: [usize; 4]| {
+        let resources = order.map(|i| resources[i].clone()).to_vec();
+        compliance::constrain(&compliance::from_resources(resources, kind_tree))
+    };
+
+    assert!(
+        constrain_in_order([0, 1, 2, 3]).is_ok(),
+        "the resources in the order of their nonces are accepted"
+    );
+    assert!(matches!(
+        constrain_in_order([0, 1, 3, 2]),
+        Err(ArmError::InvalidResourceNonce)
+    ));
+    assert!(matches!(
+        constrain_in_order([1, 0, 2, 3]),
+        Err(ArmError::InvalidResourceNonce)
+    ));
+}
+
+/// The aggregation instance lists an action's resources in the order of its
+/// compliance unit, the action tree root covers this order, and a created
+/// resource carries no commitment tree root.
+#[test]
+fn test_aggregation_follows_the_order_of_the_compliance_unit() {
+    let mut tester = Tester::default();
+    // The first created resource ahead of both consumed ones, which swap places.
+    let action = tester
+        .create_an_action_in_order(2, 2, &[2, 1, 0, 3])
+        .unwrap();
+    let tags: Vec<Digest> = compliance_unit::get_instance(&action.compliance_unit)
+        .unwrap()
+        .tags()
+        .collect();
+    let mut tx = transaction::generate_delta_proof(Transaction::create(
+        vec![action],
+        Delta::Witness(tester.delta_witness()),
+    ))
+    .unwrap();
+
+    transaction::aggregate(&mut tx, ProofType::Succinct, JournalEncoding::Risc0Serde).unwrap();
+    assert!(transaction::verify_aggregation(&tx, JournalEncoding::Risc0Serde).is_ok());
+
+    let action = &tx.aggregation.as_ref().unwrap().instance.actions[0];
+    let aggregated_tags: Vec<Digest> = action
+        .resource_publics
+        .iter()
+        .map(|r| r.resource_tag)
+        .collect();
+    assert_eq!(aggregated_tags, tags);
+    assert_eq!(
+        action.action_tree_root,
+        ActionTree::new(tags).root().unwrap()
+    );
+    let is_consumed: Vec<bool> = action
+        .resource_publics
+        .iter()
+        .map(|r| r.is_consumed())
+        .collect();
+    assert_eq!(is_consumed, [false, true, true, false]);
+}
+
+/// The logic proofs commit to the action tree root, which covers the order of
+/// the compliance unit, so logic proofs for another order do not verify.
+#[test]
+fn test_aggregation_rejects_logic_proofs_for_another_order_than_the_compliance_unit() {
+    let mut tester = Tester::default();
+    let (compliance_unit, resources) = tester
+        .create_compliance_unit_in_order(2, 2, &consumed_first(2, 2))
+        .unwrap();
+    let tags: Vec<Digest> = compliance_unit::get_instance(&compliance_unit)
+        .unwrap()
+        .tags()
+        .collect();
+
+    let action = action::new(
+        compliance_unit.clone(),
+        prove_logics(&resources, &ActionTree::new(tags.clone())),
+    )
+    .unwrap();
+    assert!(
+        action::verify(&action).is_ok(),
+        "logic proofs for the order of the unit verify"
+    );
+
+    let other_order = vec![tags[2], tags[1], tags[0], tags[3]];
+    let action = action::new(
+        compliance_unit,
+        prove_logics(&resources, &ActionTree::new(other_order)),
+    )
+    .unwrap();
+    assert!(action::verify(&action).is_err());
+
+    let mut tx = transaction::generate_delta_proof(Transaction::create(
+        vec![action],
+        Delta::Witness(tester.delta_witness()),
+    ))
+    .unwrap();
+    assert!(
+        transaction::aggregate(&mut tx, ProofType::Succinct, JournalEncoding::Risc0Serde).is_err()
     );
 }
 
@@ -568,10 +773,15 @@ fn test_evm_instance_roundtrip_after_aggregation() {
 
     // Structural sanity: two actions, first has 2 consumed + 2 created, second 1 + 1.
     assert_eq!(instance.actions.len(), 2);
-    assert_eq!(instance.actions[0].consumed_publics.len(), 2);
-    assert_eq!(instance.actions[0].created_publics.len(), 2);
-    assert_eq!(instance.actions[1].consumed_publics.len(), 1);
-    assert_eq!(instance.actions[1].created_publics.len(), 1);
+    let is_consumed = |action: usize| -> Vec<bool> {
+        instance.actions[action]
+            .resource_publics
+            .iter()
+            .map(|r| r.is_consumed())
+            .collect()
+    };
+    assert_eq!(is_consumed(0), [true, true, false, false]);
+    assert_eq!(is_consumed(1), [true, false]);
 }
 
 /// Same as `test_aggregation_works` but with a Groth16 outer aggregation
@@ -789,9 +999,19 @@ fn test_invalid_created_nonce_rejected() {
     tester.set_created_nonce(0, 0, [0xAA; 32]);
 
     init_test_kind_tree();
+    let resources = tester.consumed_data[0]
+        .iter()
+        .cloned()
+        .map(ResourceWitness::Consumed)
+        .chain(
+            tester.created_resources[0]
+                .iter()
+                .copied()
+                .map(ResourceWitness::Created),
+        )
+        .collect();
     let witness = compliance::from_resources(
-        tester.consumed_data[0].clone(),
-        tester.created_resources[0].clone(),
+        resources,
         global_kind_tree().expect("kind tree not initialised"),
     );
 
