@@ -146,4 +146,13 @@ mod tests {
             Err(ArmError::InvalidLeaf)
         );
     }
+
+    #[test]
+    fn rejects_leaf_not_in_tree() {
+        let tree = ActionTree::new(vec![digest(1)]);
+        assert_eq!(
+            tree.generate_path(&digest(2)),
+            Err(ArmError::LeafNotInActionTree { leaf: digest(2) })
+        );
+    }
 }

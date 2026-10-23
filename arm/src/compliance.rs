@@ -324,4 +324,36 @@ mod tests {
             Err(ArmError::InvalidKindBaseEncoding { position: 1 })
         );
     }
+
+    #[test]
+    fn kind_path_count_mismatch_is_rejected() {
+        let mut w = witness(vec![0x00], 1_000_000);
+        w.kind_paths.pop();
+        assert_eq!(
+            constrain(&w).map(|_| ()),
+            Err(ArmError::KindPathCountMismatch {
+                expected: 2,
+                found: 1
+            })
+        );
+    }
+
+    /// Both resources carry a path, to leaves for two different labels. The
+    /// consumed resource at position 0 sets the root, so position 1 fails.
+    #[test]
+    fn kind_paths_under_different_roots_are_rejected() {
+        let generator = k256::AffinePoint::GENERATOR
+            .to_encoded_point(false)
+            .as_bytes()
+            .to_vec();
+        let mut w = witness(generator.clone(), 1_000_000);
+        w.kind_paths[0] = Some(KindPath {
+            kind_base: generator,
+            path: MerklePath::empty(),
+        });
+        assert!(matches!(
+            constrain(&w),
+            Err(ArmError::KindPathRootMismatch { position: 1, expected, found }) if expected != found
+        ));
+    }
 }
