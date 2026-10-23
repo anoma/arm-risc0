@@ -655,6 +655,19 @@ fn test_verify_rejects_transaction_with_both_actions_and_aggregation() {
     );
 }
 
+/// A transaction with neither `actions` nor `aggregation` was never
+/// aggregated: `aggregate()` reports it as `check_representation` does.
+#[test]
+fn test_aggregate_rejects_transaction_without_actions_or_aggregation() {
+    let dummy_delta = Delta::Witness(delta_proof::from_bytes_vec(&[vec![1u8; 32]]).unwrap());
+    let mut tx = Transaction::create(vec![], dummy_delta);
+    tx.actions = None;
+    assert_eq!(
+        transaction::aggregate(&mut tx, ProofType::Succinct, JournalEncoding::Risc0Serde),
+        Err(ArmError::MissingActions)
+    );
+}
+
 /// A balanced action with no created resources (1 ephemeral consumed, 0
 /// created). Per-action verification only checks the unit + logic proofs;
 /// balance is enforced at the transaction level.

@@ -408,11 +408,9 @@ pub fn aggregate(
     proof_type: ProofType,
     encoding: JournalEncoding,
 ) -> Result<(), ArmError> {
-    if tx.base_proofs_are_empty() {
-        return Err(ArmError::AlreadyAggregated);
-    }
+    tx.check_representation()?;
 
-    let actions = tx.actions.as_ref().ok_or(ArmError::MissingActions)?;
+    let actions = tx.actions.as_ref().ok_or(ArmError::AlreadyAggregated)?;
 
     if actions.is_empty() {
         return Err(ArmError::EmptyActions);
