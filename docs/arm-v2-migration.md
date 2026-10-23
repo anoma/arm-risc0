@@ -296,6 +296,8 @@ The `Option` existed only to model "erased after aggregation"; that state is now
   `KindBaseNotOnCurve` and `KindPathRootMismatch` (were `InvalidResourceKind`);
   `EmptyActions` and `AlreadyAggregated` (were `ProveFailed(String)`);
   `MissingAggregation` (was `ProofVerificationFailed(String)`);
+  an aggregation proven under another compliance key is now `VerifyingKeyMismatch`
+  (was `ProofVerificationFailed(String)`);
   `LeafNotInActionTree` (was `InvalidLeaf`, which now means the padding leaf only);
   and `InAction { action, source }`, which names the action an error came from.
   `Transaction::compose` no longer relabels a representation error as

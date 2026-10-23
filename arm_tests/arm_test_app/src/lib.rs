@@ -480,13 +480,15 @@ fn test_aggregation_works() {
     )
     .is_ok());
 
-    // Tamper the compliance_key in the decoded instance — the receipt is still
-    // valid against BATCH_AGGREGATION_VK, but the compliance_key check must
-    // now catch the mismatch before the verifier accepts the proof.
+    // Tamper the compliance_key in the decoded instance: the compliance_key
+    // check must catch the mismatch before the receipt is verified.
     if let Some(ref mut agg) = tx_str.aggregation {
         agg.instance.compliance_key = Digest::from([0xABu8; 32]);
     }
-    assert!(transaction::verify_aggregation(&tx_str, JournalEncoding::Risc0Serde).is_err());
+    assert_eq!(
+        transaction::verify_aggregation(&tx_str, JournalEncoding::Risc0Serde),
+        Err(ArmError::VerifyingKeyMismatch)
+    );
 }
 
 /// `aggregation_witness` builds the guest's input under the compliance key the
