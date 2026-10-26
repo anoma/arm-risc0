@@ -684,7 +684,7 @@ fn test_aggregation_follows_the_order_of_the_compliance_unit() {
     assert!(transaction::verify_aggregation(&tx, JournalEncoding::Risc0Serde).is_ok());
 
     let action = &tx.aggregation.as_ref().unwrap().instance.actions[0];
-    let aggregated_tags: Vec<Digest> = action.resources.iter().map(|r| r.tag).collect();
+    let aggregated_tags: Vec<Digest> = action.resources.iter().map(|r| r.tag()).collect();
     assert_eq!(aggregated_tags, tags);
     assert_eq!(
         action.action_tree_root,

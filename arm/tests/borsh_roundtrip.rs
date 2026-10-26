@@ -6,7 +6,7 @@
 //! read like the serde path), everything else follows the derives.
 
 use anoma_rm_risc0::aggregation_instance::{
-    ActionAggregated, AggregationInstance, ResourceAggregated,
+    ActionAggregated, AggregationInstance, AggregationResourceInstance,
 };
 use anoma_rm_risc0::delta_proof::{DeltaProof, DeltaWitness};
 use anoma_rm_risc0::logic_instance::{AppData, ExpirableBlob};
@@ -36,9 +36,8 @@ fn instance() -> AggregationInstance {
         kind_tree_root: Digest::from_bytes([0xC1; 32]),
         actions: vec![ActionAggregated {
             resources: vec![
-                ResourceAggregated {
-                    consumed: 1,
-                    tag: Digest::from_bytes([0x01; 32]),
+                AggregationResourceInstance::Consumed {
+                    nullifier: Digest::from_bytes([0x01; 32]),
                     logic_ref: Digest::from_bytes([0x02; 32]),
                     commitment_tree_root: Digest::from_bytes([0x03; 32]),
                     app_data: AppData {
@@ -54,11 +53,9 @@ fn instance() -> AggregationInstance {
                         application_payload: vec![],
                     },
                 },
-                ResourceAggregated {
-                    consumed: 0,
-                    tag: Digest::from_bytes([0x04; 32]),
+                AggregationResourceInstance::Created {
+                    commitment: Digest::from_bytes([0x04; 32]),
                     logic_ref: Digest::from_bytes([0x05; 32]),
-                    commitment_tree_root: Digest::ZERO,
                     app_data: AppData::new(),
                 },
             ],

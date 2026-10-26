@@ -30,7 +30,8 @@ mod evm {
     use crate::Digest;
     use crate::{
         aggregation_instance::{
-            ActionAggregated, AggregationInstance as NativeAggregationInstance, ResourceAggregated,
+            ActionAggregated, AggregationInstance as NativeAggregationInstance,
+            AggregationResourceInstance,
         },
         logic_instance::{AppData as NativeAppData, ExpirableBlob as NativeExpirableBlob},
         utils::{bytes_to_words, words_to_bytes},
@@ -170,7 +171,7 @@ mod evm {
                 resources: evm
                     .resources
                     .into_iter()
-                    .map(ResourceAggregated::from)
+                    .map(AggregationResourceInstance::from)
                     .collect(),
                 delta_x: u256_to_words(evm.unitDelta.x),
                 delta_y: u256_to_words(evm.unitDelta.y),
@@ -179,26 +180,41 @@ mod evm {
         }
     }
 
-    impl From<ResourceAggregated> for ResourceInstance {
-        fn from(native: ResourceAggregated) -> Self {
+    impl From<AggregationResourceInstance> for ResourceInstance {
+        fn from(native: AggregationResourceInstance) -> Self {
             Self {
                 consumed: native.is_consumed(),
-                tag: digest_to_bytes32(&native.tag),
-                logicRef: digest_to_bytes32(&native.logic_ref),
-                commitmentTreeRoot: digest_to_bytes32(&native.commitment_tree_root),
-                appData: AppData::from(native.app_data),
+                tag: digest_to_bytes32(&native.tag()),
+                logicRef: digest_to_bytes32(&native.logic_ref()),
+                commitmentTreeRoot: digest_to_bytes32(
+                    &native.commitment_tree_root().unwrap_or(Digest::ZERO),
+                ),
+                appData: AppData::from(match native {
+                    AggregationResourceInstance::Consumed { app_data, .. } => app_data,
+                    AggregationResourceInstance::Created { app_data, .. } => app_data,
+                }),
             }
         }
     }
 
-    impl From<ResourceInstance> for ResourceAggregated {
+    impl From<ResourceInstance> for AggregationResourceInstance {
         fn from(evm: ResourceInstance) -> Self {
-            Self {
-                consumed: u32::from(evm.consumed),
-                tag: bytes32_to_digest(evm.tag),
-                logic_ref: bytes32_to_digest(evm.logicRef),
-                commitment_tree_root: bytes32_to_digest(evm.commitmentTreeRoot),
-                app_data: NativeAppData::from(evm.appData),
+            let tag = bytes32_to_digest(evm.tag);
+            let logic_ref = bytes32_to_digest(evm.logicRef);
+            let app_data = NativeAppData::from(evm.appData);
+            if evm.consumed {
+                AggregationResourceInstance::Consumed {
+                    nullifier: tag,
+                    logic_ref,
+                    commitment_tree_root: bytes32_to_digest(evm.commitmentTreeRoot),
+                    app_data,
+                }
+            } else {
+                AggregationResourceInstance::Created {
+                    commitment: tag,
+                    logic_ref,
+                    app_data,
+                }
             }
         }
     }
@@ -316,16 +332,13 @@ mod evm {
                 kind_tree_root: make_digest(0x02),
                 actions: vec![ActionAggregated {
                     resources: vec![
-                        ResourceAggregated {
-                            consumed: 0,
-                            tag: make_digest(0x06),
+                        AggregationResourceInstance::Created {
+                            commitment: make_digest(0x06),
                             logic_ref: make_digest(0x07),
-                            commitment_tree_root: Digest::ZERO,
                             app_data: NativeAppData::new(),
                         },
-                        ResourceAggregated {
-                            consumed: 1,
-                            tag: make_digest(0x03),
+                        AggregationResourceInstance::Consumed {
+                            nullifier: make_digest(0x03),
                             logic_ref: make_digest(0x04),
                             commitment_tree_root: make_digest(0x05),
                             app_data: NativeAppData {

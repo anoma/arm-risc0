@@ -1,9 +1,10 @@
 use anoma_rm_risc0::{
     action_tree::ActionTree,
-    aggregation_instance::{ActionAggregated, AggregationInstance, ResourceAggregated},
+    aggregation_instance::{ActionAggregated, AggregationInstance, AggregationResourceInstance},
     aggregation_witness::AggregationWitness,
     logic_instance::LogicInstance,
     merkle_path::PADDING_LEAF,
+    resource::ComplianceResourceInstance,
 };
 use risc0_zkvm::{guest::env, serde::to_vec, Digest};
 
@@ -65,12 +66,23 @@ fn main() {
             };
             let li_words = to_vec(&li).expect("failed to serialize LogicInstance");
             env::verify(r.logic_ref(), &li_words).expect("logic proof verification failed");
-            resources.push(ResourceAggregated {
-                consumed: u32::from(r.is_consumed()),
-                tag: r.tag(),
-                logic_ref: r.logic_ref(),
-                commitment_tree_root: r.commitment_tree_root().unwrap_or(Digest::ZERO),
-                app_data: li.app_data,
+            resources.push(match r {
+                ComplianceResourceInstance::Consumed {
+                    commitment_tree_root,
+                    ..
+                } => AggregationResourceInstance::Consumed {
+                    nullifier: li.tag,
+                    logic_ref: r.logic_ref(),
+                    commitment_tree_root: *commitment_tree_root,
+                    app_data: li.app_data,
+                },
+                ComplianceResourceInstance::Created { .. } => {
+                    AggregationResourceInstance::Created {
+                        commitment: li.tag,
+                        logic_ref: r.logic_ref(),
+                        app_data: li.app_data,
+                    }
+                }
             });
         }
 
