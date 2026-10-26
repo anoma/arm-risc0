@@ -5,7 +5,7 @@ use crate::{compliance_unit::ComplianceUnit, logic_proof::LogicVerifierInput};
 use serde::{Deserialize, Serialize};
 
 /// A compliance unit paired with the inputs needed to verify the resource
-/// logics referenced by the unit's consumed and created memorandums.
+/// logics referenced by the unit's consumed and created resources.
 ///
 /// Constructing an `Action` from raw [`crate::logic_proof::LogicVerifier`]s
 /// requires decoding their journals, so the constructor is a host/zkVM
