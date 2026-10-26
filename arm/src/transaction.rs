@@ -177,10 +177,10 @@ pub fn nf_duplication_check(tx: &Transaction) -> Result<(), ArmError> {
             let compliance_instance =
                 crate::compliance_unit::get_instance(&action.compliance_unit)?;
             for consumed_nullifier in compliance_instance
-                .resource_publics
+                .resources
                 .iter()
                 .filter(|p| p.is_consumed())
-                .map(|p| p.resource_tag)
+                .map(|p| p.tag)
             {
                 if !seen_nullifiers.insert(consumed_nullifier) {
                     return Err(ArmError::NullifierDuplication);

@@ -40,7 +40,7 @@ fn main() {
 
         assert_eq!(
             aw.app_data.len(),
-            ci.resource_publics.len(),
+            ci.resources.len(),
             "resource app_data count mismatch"
         );
 
@@ -54,28 +54,28 @@ fn main() {
         // serialize it, then verify the logic proof. Constraints A/B/C are enforced structurally:
         //   A – tag  comes from the compliance nullifier/commitment
         //   B – root comes from the in-circuit recomputed action_tree_root
-        //   C – VK   comes from resource_logic_ref in the compliance instance
-        let mut resource_publics = Vec::with_capacity(ci.resource_publics.len());
-        for (r, app_data) in ci.resource_publics.iter().zip(&aw.app_data) {
+        //   C – VK   comes from logic_ref in the compliance instance
+        let mut resources = Vec::with_capacity(ci.resources.len());
+        for (r, app_data) in ci.resources.iter().zip(&aw.app_data) {
             let li = LogicInstance {
-                tag: r.resource_tag,
+                tag: r.tag,
                 is_consumed: r.is_consumed(),
                 root: action_tree_root,
                 app_data: app_data.clone(),
             };
             let li_words = to_vec(&li).expect("failed to serialize LogicInstance");
-            env::verify(r.resource_logic_ref, &li_words).expect("logic proof verification failed");
-            resource_publics.push(ResourceAggregated {
+            env::verify(r.logic_ref, &li_words).expect("logic proof verification failed");
+            resources.push(ResourceAggregated {
                 consumed: u32::from(r.is_consumed()),
-                resource_tag: r.resource_tag,
-                resource_logic_ref: r.resource_logic_ref,
+                tag: r.tag,
+                logic_ref: r.logic_ref,
                 commitment_tree_root: r.commitment_tree_root.unwrap_or(Digest::ZERO),
                 app_data: li.app_data,
             });
         }
 
         actions_out.push(ActionAggregated {
-            resource_publics,
+            resources,
             delta_x: ci.delta_x,
             delta_y: ci.delta_y,
             action_tree_root,

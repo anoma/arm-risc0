@@ -4,8 +4,8 @@ use crate::merkle_path::MerklePath;
 #[cfg(test)]
 use crate::nullifier_key::NullifierKey;
 #[cfg(test)]
-use crate::resource::{ConsumedResourceWitness, Resource};
-use crate::resource::{ResourcePublic, ResourceWitness};
+use crate::resource::{Resource, ResourceWitnessConsumed};
+use crate::resource::{ResourceInstance, ResourceWitness};
 use risc0_zkp::core::digest::Digest;
 
 /// The initial root of the empty commitment tree is the hash of an empty
@@ -26,9 +26,9 @@ pub const INITIAL_ROOT: Digest = Digest::new([
 )]
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct ComplianceInstance {
-    /// Public information of the consumed and created resources, in the order
-    /// of the witness.
-    pub resource_publics: Vec<ResourcePublic>,
+    /// The part of the instance for each consumed and created resource, in the
+    /// order of the witness.
+    pub resources: Vec<ResourceInstance>,
     /// The delta x coordinate of the created resource(use u32 array to avoid padding issues in risc0).
     pub delta_x: [u32; 8],
     /// The delta y coordinate of the created resource(use u32 array to avoid padding issues in risc0).
@@ -75,7 +75,7 @@ pub struct KindPath {
 )]
 #[derive(Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct ComplianceWitness {
-    /// Private information of the consumed and created resources. Their order
+    /// The part of the witness for each consumed and created resource. Their order
     /// sets the order of the resources in the instance and of the leaves of
     /// the action tree. The nonce of a created resource derives from its index
     /// among the created resources and from the consumed nullifiers, both in
@@ -129,7 +129,7 @@ impl Default for ComplianceWitness {
     /// The default value is meaningless and only for testing.
     /// It contains three consumed and two created resources.
     fn default() -> Self {
-        let consumed_data = vec![ConsumedResourceWitness::default(); 3];
+        let consumed_data = vec![ResourceWitnessConsumed::default(); 3];
 
         let consumed_nullifiers: Vec<Digest> = consumed_data
             .iter()
@@ -184,6 +184,6 @@ impl ComplianceInstance {
     /// The unit's tags in the order of its resources: the nullifier of a
     /// consumed resource, the commitment of a created resource.
     pub fn tags(&self) -> impl Iterator<Item = Digest> + '_ {
-        self.resource_publics.iter().map(|r| r.resource_tag)
+        self.resources.iter().map(|r| r.tag)
     }
 }

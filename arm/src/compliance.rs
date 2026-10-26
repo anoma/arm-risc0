@@ -7,7 +7,7 @@
 pub use arm_core::compliance::*;
 
 use crate::error::ArmError;
-use crate::resource::{Resource, ResourcePublic, ResourceWitness};
+use crate::resource::{Resource, ResourceInstance, ResourceWitness};
 use crate::utils::{bytes_to_words, words_to_bytes};
 use crate::Digest;
 #[cfg(feature = "transaction")]
@@ -119,7 +119,7 @@ pub fn constrain(witness: &ComplianceWitness) -> Result<ComplianceInstance, ArmE
     let mut derived_root: Option<Digest> = None;
 
     let mut consumed_nullifiers = Vec::with_capacity(n_resources);
-    let mut resource_publics = Vec::with_capacity(n_resources);
+    let mut resources = Vec::with_capacity(n_resources);
     let mut kinds: Vec<ProjectivePoint> = Vec::with_capacity(n_resources);
     let mut sums: Vec<Scalar> = Vec::with_capacity(n_resources);
 
@@ -134,7 +134,7 @@ pub fn constrain(witness: &ComplianceWitness) -> Result<ComplianceInstance, ArmE
     {
         let resource = resource_witness.resource();
         let resource_commitment = resource.commitment();
-        let (resource_tag, commitment_tree_root, signed_quantity) = match resource_witness {
+        let (tag, commitment_tree_root, signed_quantity) = match resource_witness {
             ResourceWitness::Consumed(w) => {
                 let resource_nullifier =
                     resource.nullifier_from_commitment(&w.nf_key, &resource_commitment)?;
@@ -158,9 +158,9 @@ pub fn constrain(witness: &ComplianceWitness) -> Result<ComplianceInstance, ArmE
         };
         // Reading `logic_ref` here forces it to be loaded from memory onto
         // the computational trace.
-        resource_publics.push(ResourcePublic {
-            resource_tag,
-            resource_logic_ref: resource.logic_ref,
+        resources.push(ResourceInstance {
+            tag,
+            logic_ref: resource.logic_ref,
             commitment_tree_root,
         });
         accumulate_kind(
@@ -198,7 +198,7 @@ pub fn constrain(witness: &ComplianceWitness) -> Result<ComplianceInstance, ArmE
     let kind_tree_root = derived_root.unwrap_or(arm_core::merkle_path::PADDING_LEAF);
 
     Ok(ComplianceInstance {
-        resource_publics,
+        resources,
         delta_x,
         delta_y,
         kind_tree_root,
@@ -265,7 +265,7 @@ mod tests {
     use super::*;
     use crate::merkle_path::MerklePath;
     use crate::nullifier_key::NullifierKey;
-    use crate::resource::ConsumedResourceWitness;
+    use crate::resource::ResourceWitnessConsumed;
 
     const RCV: [u8; 32] = [1u8; 32];
 
@@ -292,7 +292,7 @@ mod tests {
         let nonce = Resource::derive_nonce(0, Resource::hash_nullifiers(&[nullifier]).unwrap());
         ComplianceWitness::from_parts(
             vec![
-                ResourceWitness::Consumed(ConsumedResourceWitness::from_resource(consumed, nf_key)),
+                ResourceWitness::Consumed(ResourceWitnessConsumed::from_resource(consumed, nf_key)),
                 ResourceWitness::Created(resource(3, quantity, nonce)),
             ],
             INITIAL_ROOT,

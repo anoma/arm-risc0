@@ -30,11 +30,11 @@ fn rich_instance() -> AggregationInstance {
         kind_tree_root: Digest::from_bytes([0xC1; 32]),
         actions: vec![
             ActionAggregated {
-                resource_publics: vec![
+                resources: vec![
                     ResourceAggregated {
                         consumed: 1,
-                        resource_tag: Digest::from_bytes([0x01; 32]),
-                        resource_logic_ref: Digest::from_bytes([0x02; 32]),
+                        tag: Digest::from_bytes([0x01; 32]),
+                        logic_ref: Digest::from_bytes([0x02; 32]),
                         commitment_tree_root: Digest::from_bytes([0x03; 32]),
                         app_data: AppData {
                             resource_payload: vec![blob(100, 3), blob(200, 0)],
@@ -45,8 +45,8 @@ fn rich_instance() -> AggregationInstance {
                     },
                     ResourceAggregated {
                         consumed: 0,
-                        resource_tag: Digest::from_bytes([0x07; 32]),
-                        resource_logic_ref: Digest::from_bytes([0x08; 32]),
+                        tag: Digest::from_bytes([0x07; 32]),
+                        logic_ref: Digest::from_bytes([0x08; 32]),
                         commitment_tree_root: Digest::ZERO,
                         app_data: AppData {
                             resource_payload: vec![],
@@ -57,8 +57,8 @@ fn rich_instance() -> AggregationInstance {
                     },
                     ResourceAggregated {
                         consumed: 1,
-                        resource_tag: Digest::from_bytes([0x04; 32]),
-                        resource_logic_ref: Digest::from_bytes([0x05; 32]),
+                        tag: Digest::from_bytes([0x04; 32]),
+                        logic_ref: Digest::from_bytes([0x05; 32]),
                         commitment_tree_root: Digest::from_bytes([0x06; 32]),
                         app_data: AppData::new(),
                     },
@@ -68,7 +68,7 @@ fn rich_instance() -> AggregationInstance {
                 action_tree_root: Digest::from_bytes([0x09; 32]),
             },
             ActionAggregated {
-                resource_publics: vec![],
+                resources: vec![],
                 delta_x: [0; 8],
                 delta_y: [0xFFFFFFFF; 8],
                 action_tree_root: Digest::from_bytes([0x0A; 32]),

@@ -2,7 +2,7 @@
 
 use alloy_primitives::B256;
 use alloy_sol_types::{sol, SolValue};
-use anoma_rm_risc0::resource::Resource as ArmResource;
+use anoma_rm_risc0::resource::Resource as NativeResource;
 
 sol! {
     struct Resource {
@@ -29,8 +29,8 @@ impl Resource {
     }
 }
 
-impl From<ArmResource> for Resource {
-    fn from(r: ArmResource) -> Self {
+impl From<NativeResource> for Resource {
+    fn from(r: NativeResource) -> Self {
         Self {
             logicRef: B256::from_slice(r.logic_ref.as_bytes()),
             labelRef: B256::from_slice(r.label_ref.as_bytes()),
@@ -156,28 +156,31 @@ fn forward_call_data_carries_the_ordering_constraints() {
 
 #[test]
 fn evm_resource_test() {
-    let arm_resource = ArmResource::default();
-    let evm_resource: Resource = arm_resource.into();
+    let native_resource = NativeResource::default();
+    let evm_resource: Resource = native_resource.into();
     let encoded_resource = evm_resource.encode();
     let decoded_resource = Resource::decode(&encoded_resource).unwrap();
     assert_eq!(
-        arm_resource.logic_ref.as_bytes(),
+        native_resource.logic_ref.as_bytes(),
         decoded_resource.logicRef.as_slice()
     );
     assert_eq!(
-        arm_resource.label_ref.as_bytes(),
+        native_resource.label_ref.as_bytes(),
         decoded_resource.labelRef.as_slice()
     );
     assert_eq!(
-        arm_resource.value_ref.as_bytes(),
+        native_resource.value_ref.as_bytes(),
         decoded_resource.valueRef.as_slice()
     );
-    assert_eq!(arm_resource.nonce, decoded_resource.nonce.as_slice());
-    assert_eq!(arm_resource.rand_seed, decoded_resource.randSeed.as_slice());
-    assert_eq!(arm_resource.is_ephemeral, decoded_resource.ephemeral);
-    assert_eq!(arm_resource.quantity, decoded_resource.quantity);
+    assert_eq!(native_resource.nonce, decoded_resource.nonce.as_slice());
     assert_eq!(
-        arm_resource.nk_commitment.as_bytes(),
+        native_resource.rand_seed,
+        decoded_resource.randSeed.as_slice()
+    );
+    assert_eq!(native_resource.is_ephemeral, decoded_resource.ephemeral);
+    assert_eq!(native_resource.quantity, decoded_resource.quantity);
+    assert_eq!(
+        native_resource.nk_commitment.as_bytes(),
         decoded_resource.nullifierKeyCommitment.as_slice()
     );
 }

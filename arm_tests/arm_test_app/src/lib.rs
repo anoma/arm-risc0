@@ -14,7 +14,7 @@ use anoma_rm_risc0::{
     merkle_path::MerklePath,
     nullifier_key::{self, NullifierKey},
     proving_system::ProofType,
-    resource::{ConsumedResourceWitness, Resource, ResourceWitness},
+    resource::{Resource, ResourceWitness, ResourceWitnessConsumed},
     transaction::{self, Delta, Transaction},
     Digest,
 };
@@ -81,7 +81,7 @@ impl LogicProver for TestLogic {
 #[derive(Default)]
 pub struct Tester {
     /// Consumed resources across all actions
-    pub consumed_data: Vec<Vec<ConsumedResourceWitness>>,
+    pub consumed_data: Vec<Vec<ResourceWitnessConsumed>>,
     /// Created resources across all actions
     pub created_resources: Vec<Vec<Resource>>,
     /// The randomness of the delta commitments for each CU/action.
@@ -105,7 +105,7 @@ impl Tester {
                     nonce: nonce_from_index(index),
                     ..Default::default()
                 };
-                ConsumedResourceWitness::from_resource(resource, nf_key.clone())
+                ResourceWitnessConsumed::from_resource(resource, nf_key.clone())
             })
             .collect();
         self.consumed_data.push(consumed_data);
@@ -402,7 +402,7 @@ fn test_unmatched_logic_verifier_inputs_in_action() {
 #[test]
 fn test_logic_verifier_input_with_wrong_verifying_key_rejected() {
     // A logic verifier input whose tag and position are correct but whose
-    // `verifying_key` does not match the resource's declared `resource_logic_ref`
+    // `verifying_key` does not match the resource's declared `logic_ref`
     // must be rejected, even before any proof is checked. Without this check a
     // proof for an unrelated logic circuit could be substituted for the
     // resource's real logic.
@@ -625,11 +625,7 @@ fn test_compliance_instance_follows_the_order_of_the_witness() {
         })
         .collect();
     assert_eq!(instance.tags().collect::<Vec<_>>(), tags);
-    let is_consumed: Vec<bool> = instance
-        .resource_publics
-        .iter()
-        .map(|r| r.is_consumed())
-        .collect();
+    let is_consumed: Vec<bool> = instance.resources.iter().map(|r| r.is_consumed()).collect();
     assert_eq!(is_consumed, [false, true, true, false]);
 }
 
@@ -688,21 +684,13 @@ fn test_aggregation_follows_the_order_of_the_compliance_unit() {
     assert!(transaction::verify_aggregation(&tx, JournalEncoding::Risc0Serde).is_ok());
 
     let action = &tx.aggregation.as_ref().unwrap().instance.actions[0];
-    let aggregated_tags: Vec<Digest> = action
-        .resource_publics
-        .iter()
-        .map(|r| r.resource_tag)
-        .collect();
+    let aggregated_tags: Vec<Digest> = action.resources.iter().map(|r| r.tag).collect();
     assert_eq!(aggregated_tags, tags);
     assert_eq!(
         action.action_tree_root,
         ActionTree::new(tags).root().unwrap()
     );
-    let is_consumed: Vec<bool> = action
-        .resource_publics
-        .iter()
-        .map(|r| r.is_consumed())
-        .collect();
+    let is_consumed: Vec<bool> = action.resources.iter().map(|r| r.is_consumed()).collect();
     assert_eq!(is_consumed, [false, true, true, false]);
 }
 
@@ -748,10 +736,10 @@ fn test_aggregation_rejects_logic_proofs_for_another_order_than_the_compliance_u
 }
 
 /// After aggregation, the decoded `AggregationInstance` survives a round-trip
-/// through `AggregationInstanceEvm` and matches structural expectations.
+/// through `EvmAggregationInstance` and matches structural expectations.
 #[test]
 fn test_evm_instance_roundtrip_after_aggregation() {
-    use anoma_rm_risc0::aggregation_instance::{abi_encode_instance, AggregationInstanceEvm};
+    use anoma_rm_risc0::aggregation_instance::{abi_encode_instance, EvmAggregationInstance};
 
     let tx = Tester::default()
         .generate_test_transaction(&[(2, 2), (1, 1)])
@@ -762,7 +750,7 @@ fn test_evm_instance_roundtrip_after_aggregation() {
     let instance = tx_str.aggregation.as_ref().unwrap().instance.clone();
 
     // Native → EVM → Native round-trip must be lossless.
-    let evm = AggregationInstanceEvm::from(instance.clone());
+    let evm = EvmAggregationInstance::from(instance.clone());
     let recovered = anoma_rm_risc0::aggregation_instance::AggregationInstance::from(evm);
     assert_eq!(instance, recovered);
 
@@ -775,7 +763,7 @@ fn test_evm_instance_roundtrip_after_aggregation() {
     assert_eq!(instance.actions.len(), 2);
     let is_consumed = |action: usize| -> Vec<bool> {
         instance.actions[action]
-            .resource_publics
+            .resources
             .iter()
             .map(|r| r.is_consumed())
             .collect()

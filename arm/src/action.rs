@@ -48,23 +48,23 @@ pub(crate) fn get_logic_verifiers(action: &Action) -> Result<Vec<LogicVerifier>,
     let action_tree_root = ActionTree::new(tags).root()?;
 
     compliance_instance
-        .resource_publics
+        .resources
         .iter()
         .zip(action.logic_verifier_inputs.iter())
         .enumerate()
         .map(|(position, (resource, input))| {
             // Positional tag assertion — catches wrong ordering or missing instances.
-            if input.tag != resource.resource_tag {
+            if input.tag != resource.tag {
                 return Err(ArmError::LogicVerifierTagMismatch {
                     position,
-                    expected: resource.resource_tag,
+                    expected: resource.tag,
                     found: input.tag,
                 });
             }
             // The proof must be for the logic circuit the resource itself declares;
             // otherwise a proof for an unrelated (e.g. trivially-passing) circuit
             // could be substituted for the resource's real logic.
-            if input.verifying_key != resource.resource_logic_ref {
+            if input.verifying_key != resource.logic_ref {
                 return Err(ArmError::VerifyingKeyMismatch);
             }
             crate::logic_proof::input_to_verifier(

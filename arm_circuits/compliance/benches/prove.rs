@@ -34,7 +34,7 @@
 use anoma_rm_risc0::compliance::{ComplianceWitness, KindTreeEntry, INITIAL_ROOT};
 use anoma_rm_risc0::constants::{global_kind_tree, init_kind_tree_from_file, kind_tree, KindTree};
 use anoma_rm_risc0::nullifier_key::NullifierKey;
-use anoma_rm_risc0::resource::{ConsumedResourceWitness, Resource, ResourceWitness};
+use anoma_rm_risc0::resource::{Resource, ResourceWitness, ResourceWitnessConsumed};
 use compliance_methods::COMPLIANCE_GUEST_ELF;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use risc0_zkvm::{default_prover, Digest, ExecutorEnv, ProverOpts};
@@ -66,7 +66,7 @@ fn make_witness_with_tree(
 ) -> ComplianceWitness {
     let nf_key = NullifierKey::default();
 
-    let consumed_data: Vec<ConsumedResourceWitness> = (0..count)
+    let consumed_data: Vec<ResourceWitnessConsumed> = (0..count)
         .map(|i| {
             let mut nonce = [0u8; 32];
             nonce[31] = i as u8;
@@ -80,7 +80,7 @@ fn make_witness_with_tree(
                 nk_commitment: nf_key.commit(),
                 rand_seed: [0u8; 32],
             };
-            ConsumedResourceWitness::from_resource(resource, nf_key.clone())
+            ResourceWitnessConsumed::from_resource(resource, nf_key.clone())
         })
         .collect();
 

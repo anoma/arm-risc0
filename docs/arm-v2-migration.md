@@ -22,15 +22,15 @@ The single biggest structural change.
 |---|---|
 | `Action { compliance_units: Vec<ComplianceUnit>, .. }` | `Action { compliance_unit: ComplianceUnit, .. }` |
 | One CU = exactly **1 consumed + 1 created** resource | One CU = **N consumed + M created** resources |
-| `ComplianceInstance { consumed_nullifier, consumed_logic_ref, consumed_commitment_tree_root, created_commitment, created_logic_ref, delta_x, delta_y }` | `ComplianceInstance { resource_publics: Vec<ResourcePublic>, delta_x, delta_y, kind_tree_root }` |
+| `ComplianceInstance { consumed_nullifier, consumed_logic_ref, consumed_commitment_tree_root, created_commitment, created_logic_ref, delta_x, delta_y }` | `ComplianceInstance { resources: Vec<ResourceInstance>, delta_x, delta_y, kind_tree_root }` |
 | `ComplianceWitness { consumed_resource, merkle_path, nf_key, created_resource, ephemeral_root, rcv }` | `ComplianceWitness { resources: Vec<ResourceWitness>, ephemeral_root, rcv, kind_tree }` |
 
 New public types in `arm::resource`:
 
 ```rust
-pub struct ConsumedResourceWitness { resource: Resource, cm_merkle_path: MerklePath, nf_key: NullifierKey }
-pub enum   ResourceWitness         { Consumed(ConsumedResourceWitness), Created(Resource) }
-pub struct ResourcePublic          { resource_tag: Digest, resource_logic_ref: Digest, commitment_tree_root: Option<Digest> }  // None for a created resource
+pub struct ResourceWitnessConsumed { resource: Resource, cm_merkle_path: MerklePath, nf_key: NullifierKey }
+pub enum   ResourceWitness         { Consumed(ResourceWitnessConsumed), Created(Resource) }
+pub struct ResourceInstance        { tag: Digest, logic_ref: Digest, commitment_tree_root: Option<Digest> }  // None for a created resource
 ```
 
 Constructor change:
@@ -158,7 +158,7 @@ so three constraints hold *structurally* rather than by assertion:
 |---|---|
 | A — tag matches nullifier/commitment | tag read from the compliance instance |
 | B — root matches action tree root | root recomputed in-circuit from the compliance tags |
-| C — VK matches `resource_logic_ref` | `resource_logic_ref` used directly as the `env::verify` key |
+| C — VK matches `logic_ref` | `logic_ref` used directly as the `env::verify` key |
 
 It also asserts `kind_tree_root` equality across all actions, and rejects
 an empty action set.
@@ -172,14 +172,14 @@ pub struct AggregationInstance {
     actions: Vec<ActionAggregated>,
 }
 pub struct ActionAggregated {
-    resource_publics: Vec<ResourceAggregated>,  // + app_data, in the order of the compliance unit
+    resources: Vec<ResourceAggregated>,  // + app_data, in the order of the compliance unit
     delta_x: [u32; 8], delta_y: [u32; 8],
     action_tree_root: Digest,                 // computed in-circuit
 }
 pub struct ResourceAggregated {
     consumed: u32,                            // 1 if consumed, 0 if created
-    resource_tag: Digest,
-    resource_logic_ref: Digest,
+    tag: Digest,
+    logic_ref: Digest,
     commitment_tree_root: Digest,             // zero for a created resource
     app_data: AppData,
 }
@@ -221,8 +221,8 @@ abi_encoding = ["dep:alloy-sol-types", "dep:alloy-primitives"]
 ```
 
 - New guest ELF + image ID: `BATCH_AGGREGATION_EVM_PK`, `BATCH_AGGREGATION_EVM_VK = 0x4c0a771d29fce1983f108f4509552bb7f950c226f173f8d3244ef952dcde6978`.
-- New `alloy` `sol!` mirror of the journal: `AggregationInstanceEvm` with
-  `Action` / `Consumed` / `Created` / `Delta` / `AppData` / `ExpirableBlob`,
+- New `alloy` `sol!` mirror of the journal: `EvmAggregationInstance` with
+  `Action` / `ResourceInstance` / `Delta` / `AppData` / `ExpirableBlob`,
   plus `abi_encode_instance` / `abi_decode_instance`.
 - With the feature on, `aggregate()` proves against the EVM guest and
   `verify_aggregation()` reconstructs the journal via `abi_encode_instance` and
@@ -283,7 +283,7 @@ The `Option` existed only to model "erased after aggregation"; that state is now
 
 - `action_tree::MerkleTree` → `action_tree::ActionTree` (and `generate_path` was
   de-recursed; new `padded_leaves` helper; unit tests added).
-- `ComplianceWitness::merkle_path` → `ConsumedResourceWitness::cm_merkle_path`;
+- `ComplianceWitness::merkle_path` → `ResourceWitnessConsumed::cm_merkle_path`;
   logic-side paths are `action_tree_path`.
 - `Transaction::verify(self)` → `verify(&self)`; `Action::verify(self)` → `verify(&self)`.
 - `Transaction::compose` returns `Result<Transaction, ArmError>` instead of
@@ -517,7 +517,7 @@ consumed nullifiers, and created commitments depend on those nonces, so
   and `panic!`s when `aggregation` is `None`. A proofless simulation transaction
   has no aggregation. So the simulation path must construct an
   `AggregationInstance` directly — with the single `ActionAggregated` assembled
-  from the constrained `ComplianceInstance` (`resource_publics`, `delta_x`,
+  from the constrained `ComplianceInstance` (`resources`, `delta_x`,
   `delta_y`), each resource's logic `app_data`, and the locally computed
   `action_tree_root` — rather than going through `Transaction`.
 - `instance_journal()` can be replaced by `proving_system::instance_to_journal()`.
@@ -529,18 +529,18 @@ consumed nullifiers, and created commitments depend on those nonces, so
   `aggregationProof`. `_checkSelector` still reads `proof[0:4]`, so the 4-byte
   verifier selector now needs to prefix that one field.
 - `transaction.actions.len()` still works (sol-side `Action[]`), but the elements
-  carry the new `PublicResourceData[] resources`.
+  carry the new `ResourceInstance[] resources`.
 - Revert decoding moves to alloy 2 APIs.
 
 #### `crates/transfer_orchestrator/src/handlers/processing.rs`
 - The per-witness invariant loop uses `compliance_witness.created_resource`,
   `.consumed_commitment()`, `.consumed_nullifier(&cm)`, `.created_commitment()`,
   `.delta()` — none exist in v2. Rewrite over `constrain()`'s
-  `ComplianceInstance { resource_publics }`.
+  `ComplianceInstance { resources }`.
 - The loop itself collapses: there is one witness, so the
   "nullifier consumed in multiple CUs" / "commitment created in multiple CUs"
   checks become duplicate checks *within* the single unit's
-  `resource_publics`.
+  `resources`.
 - The "created resource nonce must match consumed nullifier" check becomes a
   `derive_nonce` check (and `constrain()` already enforces it, so this can likely
   just be dropped in favour of surfacing `InvalidResourceNonce`).
