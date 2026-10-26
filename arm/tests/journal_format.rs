@@ -6,7 +6,7 @@
 //! every non-zkVM verifier.
 
 use anoma_rm_risc0::aggregation_instance::{
-    ActionAggregated, AggregationInstance, ConsumedResourceAggregated, CreatedResourceAggregated,
+    ActionAggregated, AggregationInstance, AggregationResourceInstance,
 };
 use anoma_rm_risc0::logic_instance::{AppData, ExpirableBlob};
 use anoma_rm_risc0::utils::words_to_bytes;
@@ -18,7 +18,8 @@ fn risc0_serde_journal(instance: &AggregationInstance) -> Vec<u8> {
 }
 
 /// Structurally rich: multiple actions, asymmetric consumed/created counts,
-/// empty and non-empty payload vectors, empty and multi-word blobs.
+/// a created resource between consumed ones, empty and non-empty payload
+/// vectors, empty and multi-word blobs.
 fn rich_instance() -> AggregationInstance {
     let blob = |seed: u32, len: usize| ExpirableBlob {
         blob: (0..len as u32).map(|i| seed + i).collect(),
@@ -29,10 +30,10 @@ fn rich_instance() -> AggregationInstance {
         kind_tree_root: Digest::from_bytes([0xC1; 32]),
         actions: vec![
             ActionAggregated {
-                consumed_publics: vec![
-                    ConsumedResourceAggregated {
-                        resource_nullifier: Digest::from_bytes([0x01; 32]),
-                        resource_logic_ref: Digest::from_bytes([0x02; 32]),
+                resource_instances: vec![
+                    AggregationResourceInstance::Consumed {
+                        nullifier: Digest::from_bytes([0x01; 32]),
+                        logic_ref: Digest::from_bytes([0x02; 32]),
                         commitment_tree_root: Digest::from_bytes([0x03; 32]),
                         app_data: AppData {
                             resource_payload: vec![blob(100, 3), blob(200, 0)],
@@ -41,30 +42,29 @@ fn rich_instance() -> AggregationInstance {
                             application_payload: vec![blob(400, 5)],
                         },
                     },
-                    ConsumedResourceAggregated {
-                        resource_nullifier: Digest::from_bytes([0x04; 32]),
-                        resource_logic_ref: Digest::from_bytes([0x05; 32]),
+                    AggregationResourceInstance::Created {
+                        commitment: Digest::from_bytes([0x07; 32]),
+                        logic_ref: Digest::from_bytes([0x08; 32]),
+                        app_data: AppData {
+                            resource_payload: vec![],
+                            discovery_payload: vec![blob(500, 2)],
+                            external_payload: vec![],
+                            application_payload: vec![],
+                        },
+                    },
+                    AggregationResourceInstance::Consumed {
+                        nullifier: Digest::from_bytes([0x04; 32]),
+                        logic_ref: Digest::from_bytes([0x05; 32]),
                         commitment_tree_root: Digest::from_bytes([0x06; 32]),
                         app_data: AppData::new(),
                     },
                 ],
-                created_publics: vec![CreatedResourceAggregated {
-                    resource_commitment: Digest::from_bytes([0x07; 32]),
-                    resource_logic_ref: Digest::from_bytes([0x08; 32]),
-                    app_data: AppData {
-                        resource_payload: vec![],
-                        discovery_payload: vec![blob(500, 2)],
-                        external_payload: vec![],
-                        application_payload: vec![],
-                    },
-                }],
                 delta_x: [0x11111111; 8],
                 delta_y: [0x22222222; 8],
                 action_tree_root: Digest::from_bytes([0x09; 32]),
             },
             ActionAggregated {
-                consumed_publics: vec![],
-                created_publics: vec![],
+                resource_instances: vec![],
                 delta_x: [0; 8],
                 delta_y: [0xFFFFFFFF; 8],
                 action_tree_root: Digest::from_bytes([0x0A; 32]),
@@ -89,26 +89,31 @@ fn empty_aggregation_journal_matches_risc0_serde() {
     assert_eq!(instance.to_journal(), risc0_serde_journal(&instance));
 }
 
-/// Every field of the instance is a `u32` word, a `[u32; N]`, a `Digest`
-/// (`[u32; 8]`) or a `Vec` of those, so risc0-serde's word stream and the
-/// Borsh encoding coincide byte for byte. A verifier that Borsh-encodes the
-/// instance therefore obtains the default guest's journal; no separate
-/// Borsh-committing guest variant is needed. Adding a field that is not
-/// word-shaped (`bool`, `u8`, `u64`, `Vec<u8>`) breaks this — risc0-serde
-/// pads to words, Borsh does not — and this test is what would notice.
+/// Borsh encodes enum variants with a u8 discriminant; risc0-serde uses u32.
+/// Now that `AggregationResourceInstance` is an enum these two encodings
+/// diverge, so non-zkVM verifiers must use `to_journal()` rather than borsh
+/// to re-derive the journal digest.
 #[test]
-fn borsh_encoding_equals_aggregation_journal() {
-    for instance in [
-        rich_instance(),
-        AggregationInstance {
-            compliance_key: Digest::from_bytes([0xAA; 32]),
-            kind_tree_root: Digest::from_bytes([0xBB; 32]),
-            actions: vec![],
-        },
-    ] {
-        assert_eq!(
-            borsh::to_vec(&instance).expect("borsh encoding succeeds"),
-            instance.to_journal()
-        );
-    }
+fn borsh_encoding_differs_from_aggregation_journal_for_nonempty_actions() {
+    let instance = rich_instance();
+    assert_ne!(
+        borsh::to_vec(&instance).expect("borsh encoding succeeds"),
+        instance.to_journal(),
+        "borsh and journal encodings must differ now that AggregationResourceInstance is an enum"
+    );
+}
+
+/// For an instance with no resources, borsh and journal still agree (no
+/// enum fields are encoded).
+#[test]
+fn borsh_encoding_equals_aggregation_journal_for_empty_actions() {
+    let instance = AggregationInstance {
+        compliance_key: Digest::from_bytes([0xAA; 32]),
+        kind_tree_root: Digest::from_bytes([0xBB; 32]),
+        actions: vec![],
+    };
+    assert_eq!(
+        borsh::to_vec(&instance).expect("borsh encoding succeeds"),
+        instance.to_journal()
+    );
 }

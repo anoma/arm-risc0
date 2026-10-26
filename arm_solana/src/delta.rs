@@ -189,8 +189,7 @@ mod tests {
 
     fn action_with_delta(root: Digest, delta_x: [u32; 8], delta_y: [u32; 8]) -> ActionAggregated {
         ActionAggregated {
-            consumed_publics: vec![],
-            created_publics: vec![],
+            resource_instances: vec![],
             delta_x,
             delta_y,
             action_tree_root: root,

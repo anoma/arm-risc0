@@ -250,13 +250,13 @@ impl Default for Resource {
     }
 }
 
-/// Private information related to a consumed resource.
+/// The part of the compliance witness for one consumed resource.
 #[cfg_attr(
     feature = "borsh",
     derive(borsh::BorshSerialize, borsh::BorshDeserialize)
 )]
 #[derive(Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
-pub struct ConsumedResourceWitness {
+pub struct ResourceWitnessConsumed {
     /// The consumed resource.
     pub resource: Resource,
     /// The path from the consumed commitment to the root of the commitment tree.
@@ -265,10 +265,10 @@ pub struct ConsumedResourceWitness {
     pub nf_key: NullifierKey,
 }
 
-impl ConsumedResourceWitness {
+impl ResourceWitnessConsumed {
     /// Constructor for an ephemeral resource (uses an empty merkle path).
-    pub fn from_resource(resource: Resource, nf_key: NullifierKey) -> ConsumedResourceWitness {
-        ConsumedResourceWitness {
+    pub fn from_resource(resource: Resource, nf_key: NullifierKey) -> ResourceWitnessConsumed {
+        ResourceWitnessConsumed {
             resource,
             cm_merkle_path: MerklePath::empty(),
             nf_key,
@@ -281,8 +281,8 @@ impl ConsumedResourceWitness {
         resource: Resource,
         nf_key: NullifierKey,
         cm_merkle_path: MerklePath,
-    ) -> ConsumedResourceWitness {
-        ConsumedResourceWitness {
+    ) -> ResourceWitnessConsumed {
+        ResourceWitnessConsumed {
             resource,
             cm_merkle_path,
             nf_key,
@@ -290,7 +290,7 @@ impl ConsumedResourceWitness {
     }
 }
 
-impl Default for ConsumedResourceWitness {
+impl Default for ResourceWitnessConsumed {
     /// The default value is meaningless and only for testing.
     fn default() -> Self {
         let nf_key = NullifierKey::default();
@@ -316,30 +316,84 @@ impl Default for ConsumedResourceWitness {
     }
 }
 
-/// Public information of consumed resources.
+/// The part of the compliance witness for one resource.
 #[cfg_attr(
     feature = "borsh",
     derive(borsh::BorshSerialize, borsh::BorshDeserialize)
 )]
-#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
-pub struct ConsumedResourcePublic {
-    /// The nullifier of the consumed [Resource].
-    pub resource_nullifier: Digest,
-    /// The logic reference of the consumed [Resource].
-    pub resource_logic_ref: Digest,
-    /// The root of the Merkle tree where the resource commitment is in.
-    pub commitment_tree_root: Digest,
+#[derive(Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub enum ResourceWitness {
+    /// A consumed resource.
+    Consumed(ResourceWitnessConsumed),
+    /// A created resource.
+    Created(Resource),
 }
 
-/// Public information of created resources.
+impl ResourceWitness {
+    /// The consumed or created resource.
+    pub fn resource(&self) -> &Resource {
+        match self {
+            ResourceWitness::Consumed(witness) => &witness.resource,
+            ResourceWitness::Created(resource) => resource,
+        }
+    }
+}
+
+/// The part of the compliance instance for one resource.
 #[cfg_attr(
     feature = "borsh",
     derive(borsh::BorshSerialize, borsh::BorshDeserialize)
 )]
-#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
-pub struct CreatedResourcePublic {
-    /// The commitment to the created [Resource].
-    pub resource_commitment: Digest,
-    /// The logic reference of the created [Resource].
-    pub resource_logic_ref: Digest,
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub enum ComplianceResourceInstance {
+    /// A consumed resource, identified by its nullifier.
+    Consumed {
+        /// The nullifier (tag) of the consumed [Resource].
+        nullifier: Digest,
+        /// The logic reference of the [Resource].
+        logic_ref: Digest,
+        /// The root of the Merkle tree that holds the commitment of the consumed [Resource].
+        commitment_tree_root: Digest,
+    },
+    /// A created resource, identified by its commitment.
+    Created {
+        /// The commitment (tag) of the created [Resource].
+        commitment: Digest,
+        /// The logic reference of the [Resource].
+        logic_ref: Digest,
+    },
+}
+
+impl ComplianceResourceInstance {
+    /// The tag of the resource: the nullifier if consumed, the commitment if created.
+    pub fn tag(&self) -> Digest {
+        match self {
+            ComplianceResourceInstance::Consumed { nullifier, .. } => *nullifier,
+            ComplianceResourceInstance::Created { commitment, .. } => *commitment,
+        }
+    }
+
+    /// The logic reference of the resource.
+    pub fn logic_ref(&self) -> Digest {
+        match self {
+            ComplianceResourceInstance::Consumed { logic_ref, .. } => *logic_ref,
+            ComplianceResourceInstance::Created { logic_ref, .. } => *logic_ref,
+        }
+    }
+
+    /// A resource is consumed exactly if it is a [ComplianceResourceInstance::Consumed] variant.
+    pub fn is_consumed(&self) -> bool {
+        matches!(self, ComplianceResourceInstance::Consumed { .. })
+    }
+
+    /// The commitment tree root for a consumed resource, or `None` for a created resource.
+    pub fn commitment_tree_root(&self) -> Option<Digest> {
+        match self {
+            ComplianceResourceInstance::Consumed {
+                commitment_tree_root,
+                ..
+            } => Some(*commitment_tree_root),
+            ComplianceResourceInstance::Created { .. } => None,
+        }
+    }
 }

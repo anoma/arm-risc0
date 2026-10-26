@@ -8,7 +8,7 @@
 //! Only data that is not already present in the compliance instance is included
 //! here.  Specifically, each [`ActionWitness`] carries the typed
 //! [`ComplianceInstance`] (from which the guest derives tags,
-//! `resource_logic_ref` values, and the action-tree root in-circuit) together
+//! `logic_ref` values, and the action-tree root in-circuit) together
 //! with the per-resource [`AppData`] values — the only information that the
 //! compliance instance does not contain.
 //!
@@ -20,7 +20,7 @@
 //! |---|---|
 //! | A – tag matches nullifier/commitment | tag comes from the compliance instance |
 //! | B – root matches action-tree root    | root recomputed in-circuit from compliance tags |
-//! | C – VK matches `resource_logic_ref`  | `resource_logic_ref` used directly as the `env::verify` key |
+//! | C – VK matches `logic_ref`  | `logic_ref` used directly as the `env::verify` key |
 
 use crate::{compliance::ComplianceInstance, logic_instance::AppData};
 use risc0_zkp::core::digest::Digest;
@@ -37,8 +37,7 @@ pub struct AggregationWitness {
 
 /// Aggregation witness for a single action.
 ///
-/// The compliance instance carries the tags (`resource_nullifier` /
-/// `resource_commitment`) and `resource_logic_ref` values that the guest uses
+/// The compliance instance carries the tags and the `logic_ref` values that the guest uses
 /// to reconstruct each `LogicInstance` in-circuit.  Only the `app_data` fields
 /// — the only information not already present in the compliance instance — are
 /// supplied separately.
@@ -46,10 +45,7 @@ pub struct AggregationWitness {
 pub struct ActionWitness {
     /// Typed compliance instance for this action.
     pub compliance_instance: ComplianceInstance,
-    /// `app_data` for each consumed resource, in the same order as
-    /// `compliance_instance.consumed_publics`.
-    pub consumed_app_data: Vec<AppData>,
-    /// `app_data` for each created resource, in the same order as
-    /// `compliance_instance.created_publics`.
-    pub created_app_data: Vec<AppData>,
+    /// `app_data` for each resource, in the same order as
+    /// `compliance_instance.resource_instances`.
+    pub app_data: Vec<AppData>,
 }

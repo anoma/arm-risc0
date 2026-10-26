@@ -7,7 +7,9 @@ pub use arm_core::aggregation_instance::*;
 use crate::{error::ArmError, utils::words_to_bytes};
 use k256::{elliptic_curve::sec1::FromEncodedPoint, EncodedPoint, ProjectivePoint};
 
-pub use evm::{abi_decode_instance, abi_encode_instance, AggregationInstanceEvm};
+pub use evm::{
+    abi_decode_instance, abi_encode_instance, AggregationInstance as EvmAggregationInstance,
+};
 
 /// Decodes an action's stored delta_x/delta_y coordinates into a projective point.
 pub fn delta_projective(action: &ActionAggregated) -> Result<ProjectivePoint, ArmError> {
@@ -28,8 +30,8 @@ mod evm {
     use crate::Digest;
     use crate::{
         aggregation_instance::{
-            ActionAggregated, AggregationInstance, ConsumedResourceAggregated,
-            CreatedResourceAggregated,
+            ActionAggregated, AggregationInstance as NativeAggregationInstance,
+            AggregationResourceInstance,
         },
         logic_instance::{AppData as NativeAppData, ExpirableBlob as NativeExpirableBlob},
         utils::{bytes_to_words, words_to_bytes},
@@ -40,47 +42,42 @@ mod evm {
         type DeletionCriterion is uint32;
 
         /// @notice The top-level aggregation instance committed by the batch aggregation guest.
-        /// @param compliance_key The verifying key of the compliance circuit.
-        /// @param kind_tree_root The shared kind tree Merkle root across all actions.
+        /// @param complianceKey The verifying key of the compliance circuit.
+        /// @param kindTreeRoot The shared kind tree Merkle root across all actions.
         /// @param actions One entry per compliance unit / action.
-        struct AggregationInstanceEvm {
-            bytes32 compliance_key;
-            bytes32 kind_tree_root;
+        struct AggregationInstance {
+            bytes32 complianceKey;
+            bytes32 kindTreeRoot;
             Action[] actions;
         }
 
         /// @notice The action object providing context separation between non-intersecting sets of resources. An action
         /// corresponds to one compliance unit constraining its consumed and created resources.
-        /// @param consumed The public data of the consumed resources.
-        /// @param created The public data of the created resources.
+        /// @param resources The part of the aggregation instance for each consumed and created resource, in the order
+        /// in which the protocol adapter processes them.
         /// @param unitDelta The action's delta value obtained from the underlying compliance unit.
-        /// @param actionTreeRoot The root of the tree containing the tags of all resources present in the action.
+        /// @param actionTreeRoot The root of the tree whose leaves are the tags of the action's resources, in the order
+        /// of `resources`.
         struct Action {
-            Consumed[] consumed;
-            Created[] created;
+            ResourceInstance[] resources;
             Delta unitDelta;
             bytes32 actionTreeRoot;
         }
 
-        /// @notice The public data of a consumed resource.
-        /// @param nullifier The nullifier of the resource.
+        /// @notice The part of the aggregation instance for one resource: its compliance data and the app data of its
+        /// logic proof.
+        /// @param consumed Whether the resource is consumed.
+        /// @param tag The tag of the resource: the nullifier of a consumed resource or the commitment of a created
+        /// resource.
         /// @param logicRef The reference to (the verifying key of) the resource logic.
-        /// @param commitmentTreeRoot The historical commitment tree root the resource's inclusion is proven against.
+        /// @param commitmentTreeRoot The historical commitment tree root that a consumed resource's inclusion is
+        /// proven against, or `bytes32(0)` for a created resource.
         /// @param appData The application data associated with the resource.
-        struct Consumed {
-            bytes32 nullifier;
+        struct ResourceInstance {
+            bool consumed;
+            bytes32 tag;
             bytes32 logicRef;
             bytes32 commitmentTreeRoot;
-            AppData appData;
-        }
-
-        /// @notice The public data of a created resource.
-        /// @param commitment The commitment of the resource.
-        /// @param logicRef The reference to (the verifying key of) the resource logic.
-        /// @param appData The application data associated with the resource.
-        struct Created {
-            bytes32 commitment;
-            bytes32 logicRef;
             AppData appData;
         }
 
@@ -113,67 +110,189 @@ mod evm {
         }
     }
 
+    /// ABI-encodes a [`NativeAggregationInstance`] as an [`AggregationInstance`].
+    pub fn abi_encode_instance(instance: NativeAggregationInstance) -> Vec<u8> {
+        use alloy_sol_types::SolValue;
+        AggregationInstance::from(instance).abi_encode_params()
+    }
+
+    /// ABI-decodes bytes produced by [`abi_encode_instance`] back into a [`NativeAggregationInstance`].
+    pub fn abi_decode_instance(
+        bytes: &[u8],
+    ) -> Result<NativeAggregationInstance, alloy_sol_types::Error> {
+        use alloy_sol_types::SolValue;
+        AggregationInstance::abi_decode_params(bytes).map(NativeAggregationInstance::from)
+    }
+
+    impl From<NativeAggregationInstance> for AggregationInstance {
+        fn from(native: NativeAggregationInstance) -> Self {
+            Self {
+                complianceKey: digest_to_bytes32(&native.compliance_key),
+                kindTreeRoot: digest_to_bytes32(&native.kind_tree_root),
+                actions: native.actions.into_iter().map(Action::from).collect(),
+            }
+        }
+    }
+
+    impl From<AggregationInstance> for NativeAggregationInstance {
+        fn from(evm: AggregationInstance) -> Self {
+            Self {
+                compliance_key: bytes32_to_digest(evm.complianceKey),
+                kind_tree_root: bytes32_to_digest(evm.kindTreeRoot),
+                actions: evm
+                    .actions
+                    .into_iter()
+                    .map(ActionAggregated::from)
+                    .collect(),
+            }
+        }
+    }
+
+    impl From<ActionAggregated> for Action {
+        fn from(native: ActionAggregated) -> Self {
+            Self {
+                resources: native
+                    .resource_instances
+                    .into_iter()
+                    .map(ResourceInstance::from)
+                    .collect(),
+                unitDelta: Delta {
+                    x: words_to_u256(&native.delta_x),
+                    y: words_to_u256(&native.delta_y),
+                },
+                actionTreeRoot: digest_to_bytes32(&native.action_tree_root),
+            }
+        }
+    }
+
+    impl From<Action> for ActionAggregated {
+        fn from(evm: Action) -> Self {
+            Self {
+                resource_instances: evm
+                    .resources
+                    .into_iter()
+                    .map(AggregationResourceInstance::from)
+                    .collect(),
+                delta_x: u256_to_words(evm.unitDelta.x),
+                delta_y: u256_to_words(evm.unitDelta.y),
+                action_tree_root: bytes32_to_digest(evm.actionTreeRoot),
+            }
+        }
+    }
+
+    impl From<AggregationResourceInstance> for ResourceInstance {
+        fn from(native: AggregationResourceInstance) -> Self {
+            Self {
+                consumed: native.is_consumed(),
+                tag: digest_to_bytes32(&native.tag()),
+                logicRef: digest_to_bytes32(&native.logic_ref()),
+                commitmentTreeRoot: digest_to_bytes32(
+                    &native.commitment_tree_root().unwrap_or(Digest::ZERO),
+                ),
+                appData: AppData::from(match native {
+                    AggregationResourceInstance::Consumed { app_data, .. } => app_data,
+                    AggregationResourceInstance::Created { app_data, .. } => app_data,
+                }),
+            }
+        }
+    }
+
+    impl From<ResourceInstance> for AggregationResourceInstance {
+        fn from(evm: ResourceInstance) -> Self {
+            let tag = bytes32_to_digest(evm.tag);
+            let logic_ref = bytes32_to_digest(evm.logicRef);
+            let app_data = NativeAppData::from(evm.appData);
+            if evm.consumed {
+                AggregationResourceInstance::Consumed {
+                    nullifier: tag,
+                    logic_ref,
+                    commitment_tree_root: bytes32_to_digest(evm.commitmentTreeRoot),
+                    app_data,
+                }
+            } else {
+                AggregationResourceInstance::Created {
+                    commitment: tag,
+                    logic_ref,
+                    app_data,
+                }
+            }
+        }
+    }
+
+    impl From<NativeAppData> for AppData {
+        fn from(native: NativeAppData) -> Self {
+            Self {
+                resourcePayload: native
+                    .resource_payload
+                    .into_iter()
+                    .map(ExpirableBlob::from)
+                    .collect(),
+                discoveryPayload: native
+                    .discovery_payload
+                    .into_iter()
+                    .map(ExpirableBlob::from)
+                    .collect(),
+                externalPayload: native
+                    .external_payload
+                    .into_iter()
+                    .map(ExpirableBlob::from)
+                    .collect(),
+                applicationPayload: native
+                    .application_payload
+                    .into_iter()
+                    .map(ExpirableBlob::from)
+                    .collect(),
+            }
+        }
+    }
+
+    impl From<AppData> for NativeAppData {
+        fn from(evm: AppData) -> Self {
+            Self {
+                resource_payload: evm
+                    .resourcePayload
+                    .into_iter()
+                    .map(NativeExpirableBlob::from)
+                    .collect(),
+                discovery_payload: evm
+                    .discoveryPayload
+                    .into_iter()
+                    .map(NativeExpirableBlob::from)
+                    .collect(),
+                external_payload: evm
+                    .externalPayload
+                    .into_iter()
+                    .map(NativeExpirableBlob::from)
+                    .collect(),
+                application_payload: evm
+                    .applicationPayload
+                    .into_iter()
+                    .map(NativeExpirableBlob::from)
+                    .collect(),
+            }
+        }
+    }
+
+    impl From<NativeExpirableBlob> for ExpirableBlob {
+        fn from(native: NativeExpirableBlob) -> Self {
+            Self {
+                deletionCriterion: native.deletion_criterion,
+                blob: words_to_bytes(&native.blob).to_vec().into(),
+            }
+        }
+    }
+
+    impl From<ExpirableBlob> for NativeExpirableBlob {
+        fn from(evm: ExpirableBlob) -> Self {
+            Self {
+                deletion_criterion: evm.deletionCriterion,
+                blob: bytes_to_words(&evm.blob),
+            }
+        }
+    }
+
     fn digest_to_bytes32(d: &Digest) -> FixedBytes<32> {
         FixedBytes::from_slice(d.as_bytes())
-    }
-
-    fn words_to_u256(words: &[u32; 8]) -> U256 {
-        let bytes: [u8; 32] = words_to_bytes(words)
-            .try_into()
-            .expect("delta coordinate is always 32 bytes");
-        U256::from_be_bytes(bytes)
-    }
-
-    fn convert_expirable_blob(b: &NativeExpirableBlob) -> ExpirableBlob {
-        ExpirableBlob {
-            deletionCriterion: b.deletion_criterion,
-            blob: words_to_bytes(&b.blob).to_vec().into(),
-        }
-    }
-
-    fn convert_app_data(a: &NativeAppData) -> AppData {
-        AppData {
-            resourcePayload: a
-                .resource_payload
-                .iter()
-                .map(convert_expirable_blob)
-                .collect(),
-            discoveryPayload: a
-                .discovery_payload
-                .iter()
-                .map(convert_expirable_blob)
-                .collect(),
-            externalPayload: a
-                .external_payload
-                .iter()
-                .map(convert_expirable_blob)
-                .collect(),
-            applicationPayload: a
-                .application_payload
-                .iter()
-                .map(convert_expirable_blob)
-                .collect(),
-        }
-    }
-
-    impl From<AggregationInstance> for AggregationInstanceEvm {
-        fn from(inst: AggregationInstance) -> Self {
-            Self {
-                compliance_key: digest_to_bytes32(&inst.compliance_key),
-                kind_tree_root: digest_to_bytes32(&inst.kind_tree_root),
-                actions: inst.actions.into_iter().map(convert_action).collect(),
-            }
-        }
-    }
-
-    impl From<AggregationInstanceEvm> for AggregationInstance {
-        fn from(evm: AggregationInstanceEvm) -> Self {
-            Self {
-                compliance_key: bytes32_to_digest(evm.compliance_key),
-                kind_tree_root: bytes32_to_digest(evm.kind_tree_root),
-                actions: evm.actions.into_iter().map(evm_action_to_native).collect(),
-            }
-        }
     }
 
     fn bytes32_to_digest(fb: FixedBytes<32>) -> Digest {
@@ -183,6 +302,13 @@ mod evm {
         Digest::from(words)
     }
 
+    fn words_to_u256(words: &[u32; 8]) -> U256 {
+        let bytes: [u8; 32] = words_to_bytes(words)
+            .try_into()
+            .expect("delta coordinate is always 32 bytes");
+        U256::from_be_bytes(bytes)
+    }
+
     fn u256_to_words(n: U256) -> [u32; 8] {
         let bytes = n.to_be_bytes::<32>();
         bytes_to_words(&bytes)
@@ -190,112 +316,9 @@ mod evm {
             .expect("32 bytes → 8 words")
     }
 
-    fn evm_expirable_blob_to_native(b: ExpirableBlob) -> NativeExpirableBlob {
-        NativeExpirableBlob {
-            deletion_criterion: b.deletionCriterion,
-            blob: bytes_to_words(&b.blob),
-        }
-    }
-
-    fn evm_app_data_to_native(a: AppData) -> NativeAppData {
-        NativeAppData {
-            resource_payload: a
-                .resourcePayload
-                .into_iter()
-                .map(evm_expirable_blob_to_native)
-                .collect(),
-            discovery_payload: a
-                .discoveryPayload
-                .into_iter()
-                .map(evm_expirable_blob_to_native)
-                .collect(),
-            external_payload: a
-                .externalPayload
-                .into_iter()
-                .map(evm_expirable_blob_to_native)
-                .collect(),
-            application_payload: a
-                .applicationPayload
-                .into_iter()
-                .map(evm_expirable_blob_to_native)
-                .collect(),
-        }
-    }
-
-    fn evm_action_to_native(a: Action) -> ActionAggregated {
-        ActionAggregated {
-            consumed_publics: a
-                .consumed
-                .into_iter()
-                .map(|c| ConsumedResourceAggregated {
-                    resource_nullifier: bytes32_to_digest(c.nullifier),
-                    resource_logic_ref: bytes32_to_digest(c.logicRef),
-                    commitment_tree_root: bytes32_to_digest(c.commitmentTreeRoot),
-                    app_data: evm_app_data_to_native(c.appData),
-                })
-                .collect(),
-            created_publics: a
-                .created
-                .into_iter()
-                .map(|c| CreatedResourceAggregated {
-                    resource_commitment: bytes32_to_digest(c.commitment),
-                    resource_logic_ref: bytes32_to_digest(c.logicRef),
-                    app_data: evm_app_data_to_native(c.appData),
-                })
-                .collect(),
-            delta_x: u256_to_words(a.unitDelta.x),
-            delta_y: u256_to_words(a.unitDelta.y),
-            action_tree_root: bytes32_to_digest(a.actionTreeRoot),
-        }
-    }
-
-    /// ABI-encodes an [`AggregationInstance`] as an [`AggregationInstanceEvm`].
-    pub fn abi_encode_instance(inst: AggregationInstance) -> Vec<u8> {
-        use alloy_sol_types::SolValue;
-        AggregationInstanceEvm::from(inst).abi_encode_params()
-    }
-
-    /// ABI-decodes bytes produced by [`abi_encode_instance`] back into an [`AggregationInstance`].
-    pub fn abi_decode_instance(
-        bytes: &[u8],
-    ) -> Result<AggregationInstance, alloy_sol_types::Error> {
-        use alloy_sol_types::SolValue;
-        AggregationInstanceEvm::abi_decode_params(bytes).map(AggregationInstance::from)
-    }
-
-    fn convert_action(a: ActionAggregated) -> Action {
-        Action {
-            consumed: a
-                .consumed_publics
-                .iter()
-                .map(|c| Consumed {
-                    nullifier: digest_to_bytes32(&c.resource_nullifier),
-                    logicRef: digest_to_bytes32(&c.resource_logic_ref),
-                    commitmentTreeRoot: digest_to_bytes32(&c.commitment_tree_root),
-                    appData: convert_app_data(&c.app_data),
-                })
-                .collect(),
-            created: a
-                .created_publics
-                .iter()
-                .map(|c| Created {
-                    commitment: digest_to_bytes32(&c.resource_commitment),
-                    logicRef: digest_to_bytes32(&c.resource_logic_ref),
-                    appData: convert_app_data(&c.app_data),
-                })
-                .collect(),
-            unitDelta: Delta {
-                x: words_to_u256(&a.delta_x),
-                y: words_to_u256(&a.delta_y),
-            },
-            actionTreeRoot: digest_to_bytes32(&a.action_tree_root),
-        }
-    }
-
     #[cfg(test)]
     mod tests {
         use super::*;
-        use crate::logic_instance::{AppData, ExpirableBlob as NativeExpirableBlob};
         use crate::Digest;
         use hex::FromHex;
 
@@ -303,33 +326,35 @@ mod evm {
             Digest::from_hex(hex::encode([byte; 32])).unwrap()
         }
 
-        fn sample_instance() -> AggregationInstance {
-            AggregationInstance {
+        fn sample_instance() -> NativeAggregationInstance {
+            NativeAggregationInstance {
                 compliance_key: make_digest(0x01),
                 kind_tree_root: make_digest(0x02),
                 actions: vec![ActionAggregated {
-                    consumed_publics: vec![ConsumedResourceAggregated {
-                        resource_nullifier: make_digest(0x03),
-                        resource_logic_ref: make_digest(0x04),
-                        commitment_tree_root: make_digest(0x05),
-                        app_data: AppData {
-                            resource_payload: vec![NativeExpirableBlob {
-                                deletion_criterion: 7,
-                                blob: vec![0xDEADBEEFu32, 0xCAFEBABEu32],
-                            }],
-                            discovery_payload: vec![NativeExpirableBlob {
-                                deletion_criterion: 0,
-                                blob: vec![],
-                            }],
-                            external_payload: vec![],
-                            application_payload: vec![],
+                    resource_instances: vec![
+                        AggregationResourceInstance::Created {
+                            commitment: make_digest(0x06),
+                            logic_ref: make_digest(0x07),
+                            app_data: NativeAppData::new(),
                         },
-                    }],
-                    created_publics: vec![CreatedResourceAggregated {
-                        resource_commitment: make_digest(0x06),
-                        resource_logic_ref: make_digest(0x07),
-                        app_data: AppData::new(),
-                    }],
+                        AggregationResourceInstance::Consumed {
+                            nullifier: make_digest(0x03),
+                            logic_ref: make_digest(0x04),
+                            commitment_tree_root: make_digest(0x05),
+                            app_data: NativeAppData {
+                                resource_payload: vec![NativeExpirableBlob {
+                                    deletion_criterion: 7,
+                                    blob: vec![0xDEADBEEFu32, 0xCAFEBABEu32],
+                                }],
+                                discovery_payload: vec![NativeExpirableBlob {
+                                    deletion_criterion: 0,
+                                    blob: vec![],
+                                }],
+                                external_payload: vec![],
+                                application_payload: vec![],
+                            },
+                        },
+                    ],
                     delta_x: [0x11223344u32; 8],
                     delta_y: [0x55667788u32; 8],
                     action_tree_root: make_digest(0x08),
@@ -340,9 +365,23 @@ mod evm {
         #[test]
         fn test_evm_conversion_roundtrip() {
             let original = sample_instance();
-            let evm = AggregationInstanceEvm::from(original.clone());
-            let recovered = AggregationInstance::from(evm);
+            let evm = AggregationInstance::from(original.clone());
+            let recovered = NativeAggregationInstance::from(evm);
             assert_eq!(original, recovered);
+        }
+
+        #[test]
+        fn test_evm_conversion_marks_consumed_resources_and_writes_the_zero_root_for_created_ones()
+        {
+            let evm = AggregationInstance::from(sample_instance());
+            let resources = &evm.actions[0].resources;
+            assert!(!resources[0].consumed);
+            assert_eq!(resources[0].commitmentTreeRoot, FixedBytes::ZERO);
+            assert!(resources[1].consumed);
+            assert_eq!(
+                resources[1].commitmentTreeRoot,
+                digest_to_bytes32(&make_digest(0x05))
+            );
         }
 
         #[test]
@@ -355,7 +394,7 @@ mod evm {
 
         #[test]
         fn test_empty_instance_roundtrip() {
-            let original = AggregationInstance {
+            let original = NativeAggregationInstance {
                 compliance_key: make_digest(0xAA),
                 kind_tree_root: make_digest(0xBB),
                 actions: vec![],

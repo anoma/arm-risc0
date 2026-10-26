@@ -32,6 +32,6 @@ pub mod transaction;
 pub use arm_core::utils;
 
 pub use aggregation_instance::{
-    ActionAggregated, AggregationInstance, ConsumedResourceAggregated, CreatedResourceAggregated,
+    ActionAggregated, AggregationInstance, AggregationResourceInstance,
 };
 pub use arm_core::Digest;

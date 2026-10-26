@@ -23,17 +23,16 @@ pub struct AggregationInstance {
     pub actions: Vec<ActionAggregated>,
 }
 
-/// Per-action aggregated public data.
+/// The part of the aggregation instance for one action.
 #[cfg_attr(
     feature = "borsh",
     derive(borsh::BorshSerialize, borsh::BorshDeserialize)
 )]
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct ActionAggregated {
-    /// Consumed resources with merged app_data.
-    pub consumed_publics: Vec<ConsumedResourceAggregated>,
-    /// Created resources with merged app_data.
-    pub created_publics: Vec<CreatedResourceAggregated>,
+    /// The part of the aggregation instance for each consumed and created resource, in the order
+    /// in which the verifier processes them.
+    pub resource_instances: Vec<AggregationResourceInstance>,
     /// Delta x coordinate ([u32; 8] avoids risc0 padding issues).
     pub delta_x: [u32; 8],
     /// Delta y coordinate ([u32; 8] avoids risc0 padding issues).
@@ -42,36 +41,76 @@ pub struct ActionAggregated {
     pub action_tree_root: Digest,
 }
 
-/// Consumed resource public data merged with its logic circuit app_data.
+/// The part of the aggregation instance for one resource: its compliance data and the app data
+/// of its logic proof.
 #[cfg_attr(
     feature = "borsh",
     derive(borsh::BorshSerialize, borsh::BorshDeserialize)
 )]
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
-pub struct ConsumedResourceAggregated {
-    /// The resource's nullifier.
-    pub resource_nullifier: Digest,
-    /// The logic circuit VK that was verified for this resource.
-    pub resource_logic_ref: Digest,
-    /// Merkle root of the commitment tree in which the resource is included.
-    pub commitment_tree_root: Digest,
-    /// Application data emitted by the logic circuit.
-    pub app_data: AppData,
+pub enum AggregationResourceInstance {
+    /// A consumed resource, identified by its nullifier.
+    Consumed {
+        /// The nullifier (tag) of the consumed resource.
+        nullifier: Digest,
+        /// The logic circuit VK that was verified for this resource.
+        logic_ref: Digest,
+        /// Merkle root of the commitment tree in which this resource is included.
+        commitment_tree_root: Digest,
+        /// Application data emitted by the logic circuit.
+        app_data: AppData,
+    },
+    /// A created resource, identified by its commitment.
+    Created {
+        /// The commitment (tag) of the created resource.
+        commitment: Digest,
+        /// The logic circuit VK that was verified for this resource.
+        logic_ref: Digest,
+        /// Application data emitted by the logic circuit.
+        app_data: AppData,
+    },
 }
 
-/// Created resource public data merged with its logic circuit app_data.
-#[cfg_attr(
-    feature = "borsh",
-    derive(borsh::BorshSerialize, borsh::BorshDeserialize)
-)]
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
-pub struct CreatedResourceAggregated {
-    /// The resource's commitment.
-    pub resource_commitment: Digest,
-    /// The logic circuit VK that was verified for this resource.
-    pub resource_logic_ref: Digest,
-    /// Application data emitted by the logic circuit.
-    pub app_data: AppData,
+impl AggregationResourceInstance {
+    /// The tag of the resource: the nullifier if consumed, the commitment if created.
+    pub fn tag(&self) -> Digest {
+        match self {
+            AggregationResourceInstance::Consumed { nullifier, .. } => *nullifier,
+            AggregationResourceInstance::Created { commitment, .. } => *commitment,
+        }
+    }
+
+    /// The logic circuit VK of the resource.
+    pub fn logic_ref(&self) -> Digest {
+        match self {
+            AggregationResourceInstance::Consumed { logic_ref, .. } => *logic_ref,
+            AggregationResourceInstance::Created { logic_ref, .. } => *logic_ref,
+        }
+    }
+
+    /// Whether the resource is consumed.
+    pub fn is_consumed(&self) -> bool {
+        matches!(self, AggregationResourceInstance::Consumed { .. })
+    }
+
+    /// The commitment tree root for a consumed resource, or `None` for a created resource.
+    pub fn commitment_tree_root(&self) -> Option<Digest> {
+        match self {
+            AggregationResourceInstance::Consumed {
+                commitment_tree_root,
+                ..
+            } => Some(*commitment_tree_root),
+            AggregationResourceInstance::Created { .. } => None,
+        }
+    }
+
+    /// The application data emitted by the logic circuit.
+    pub fn app_data(&self) -> &AppData {
+        match self {
+            AggregationResourceInstance::Consumed { app_data, .. } => app_data,
+            AggregationResourceInstance::Created { app_data, .. } => app_data,
+        }
+    }
 }
 
 impl AggregationInstance {
@@ -80,29 +119,43 @@ impl AggregationInstance {
     /// is the Groth16 journal digest an on-chain verifier must re-derive.
     ///
     /// Hand-rolled so no zkVM dependency is needed: risc0-serde encodes a
-    /// value as a `u32` word stream (structs as their fields in order,
-    /// `Digest` as its 8 words, `Vec` as a length word plus elements,
-    /// fixed arrays with no length prefix), emitted as little-endian bytes.
-    /// Equivalence with `risc0_zkvm::serde::to_vec` is pinned by the
-    /// `journal_format` tests in `anoma-rm-risc0`.
+    /// value as a `u32` word stream (`Digest` as its 8 words, `Vec` as a
+    /// length word plus elements, fixed arrays with no length prefix, enums
+    /// as a variant-index word followed by the variant's fields), emitted as
+    /// little-endian bytes. Equivalence with `risc0_zkvm::serde::to_vec` is
+    /// pinned by the `journal_format` tests in `anoma-rm-risc0`.
     pub fn to_journal(&self) -> Vec<u8> {
         let mut words: Vec<u32> = Vec::new();
         words.extend_from_slice(self.compliance_key.as_words());
         words.extend_from_slice(self.kind_tree_root.as_words());
         words.push(self.actions.len() as u32);
         for action in &self.actions {
-            words.push(action.consumed_publics.len() as u32);
-            for consumed in &action.consumed_publics {
-                words.extend_from_slice(consumed.resource_nullifier.as_words());
-                words.extend_from_slice(consumed.resource_logic_ref.as_words());
-                words.extend_from_slice(consumed.commitment_tree_root.as_words());
-                consumed.app_data.encode_journal(&mut words);
-            }
-            words.push(action.created_publics.len() as u32);
-            for created in &action.created_publics {
-                words.extend_from_slice(created.resource_commitment.as_words());
-                words.extend_from_slice(created.resource_logic_ref.as_words());
-                created.app_data.encode_journal(&mut words);
+            words.push(action.resource_instances.len() as u32);
+            for resource in &action.resource_instances {
+                match resource {
+                    AggregationResourceInstance::Consumed {
+                        nullifier,
+                        logic_ref,
+                        commitment_tree_root,
+                        app_data,
+                    } => {
+                        words.push(0u32); // variant index for Consumed
+                        words.extend_from_slice(nullifier.as_words());
+                        words.extend_from_slice(logic_ref.as_words());
+                        words.extend_from_slice(commitment_tree_root.as_words());
+                        app_data.encode_journal(&mut words);
+                    }
+                    AggregationResourceInstance::Created {
+                        commitment,
+                        logic_ref,
+                        app_data,
+                    } => {
+                        words.push(1u32); // variant index for Created
+                        words.extend_from_slice(commitment.as_words());
+                        words.extend_from_slice(logic_ref.as_words());
+                        app_data.encode_journal(&mut words);
+                    }
+                }
             }
             words.extend_from_slice(&action.delta_x);
             words.extend_from_slice(&action.delta_y);
@@ -126,8 +179,8 @@ impl AggregationInstance {
     pub fn nf_duplication_check(&self) -> Result<(), crate::error::ArmError> {
         let mut seen_nullifiers = std::collections::HashSet::new();
         for action in &self.actions {
-            for consumed in &action.consumed_publics {
-                if !seen_nullifiers.insert(consumed.resource_nullifier) {
+            for consumed in action.resource_instances.iter().filter(|r| r.is_consumed()) {
+                if !seen_nullifiers.insert(consumed.tag()) {
                     return Err(crate::error::ArmError::NullifierDuplication);
                 }
             }

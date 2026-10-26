@@ -18,7 +18,8 @@ use serde::{Deserialize, Serialize};
 pub struct Action {
     /// The compliance unit constraining the consumed and created resources.
     pub compliance_unit: ComplianceUnit,
-    /// One logic-verifier input per tag (consumed nullifier or created commitment) in the unit.
+    /// One logic-verifier input per tag (consumed nullifier or created commitment) in the unit,
+    /// in the order of the unit's resources.
     pub logic_verifier_inputs: Vec<LogicVerifierInput>,
 }
 

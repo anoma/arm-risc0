@@ -6,7 +6,7 @@
 //! read like the serde path), everything else follows the derives.
 
 use anoma_rm_risc0::aggregation_instance::{
-    ActionAggregated, AggregationInstance, ConsumedResourceAggregated, CreatedResourceAggregated,
+    ActionAggregated, AggregationInstance, AggregationResourceInstance,
 };
 use anoma_rm_risc0::delta_proof::{DeltaProof, DeltaWitness};
 use anoma_rm_risc0::logic_instance::{AppData, ExpirableBlob};
@@ -35,28 +35,30 @@ fn instance() -> AggregationInstance {
         compliance_key: Digest::from_bytes([0xC0; 32]),
         kind_tree_root: Digest::from_bytes([0xC1; 32]),
         actions: vec![ActionAggregated {
-            consumed_publics: vec![ConsumedResourceAggregated {
-                resource_nullifier: Digest::from_bytes([0x01; 32]),
-                resource_logic_ref: Digest::from_bytes([0x02; 32]),
-                commitment_tree_root: Digest::from_bytes([0x03; 32]),
-                app_data: AppData {
-                    resource_payload: vec![ExpirableBlob {
-                        blob: vec![1, 2, 3],
-                        deletion_criterion: 1,
-                    }],
-                    discovery_payload: vec![],
-                    external_payload: vec![ExpirableBlob {
-                        blob: vec![],
-                        deletion_criterion: 0,
-                    }],
-                    application_payload: vec![],
+            resource_instances: vec![
+                AggregationResourceInstance::Consumed {
+                    nullifier: Digest::from_bytes([0x01; 32]),
+                    logic_ref: Digest::from_bytes([0x02; 32]),
+                    commitment_tree_root: Digest::from_bytes([0x03; 32]),
+                    app_data: AppData {
+                        resource_payload: vec![ExpirableBlob {
+                            blob: vec![1, 2, 3],
+                            deletion_criterion: 1,
+                        }],
+                        discovery_payload: vec![],
+                        external_payload: vec![ExpirableBlob {
+                            blob: vec![],
+                            deletion_criterion: 0,
+                        }],
+                        application_payload: vec![],
+                    },
                 },
-            }],
-            created_publics: vec![CreatedResourceAggregated {
-                resource_commitment: Digest::from_bytes([0x04; 32]),
-                resource_logic_ref: Digest::from_bytes([0x05; 32]),
-                app_data: AppData::new(),
-            }],
+                AggregationResourceInstance::Created {
+                    commitment: Digest::from_bytes([0x04; 32]),
+                    logic_ref: Digest::from_bytes([0x05; 32]),
+                    app_data: AppData::new(),
+                },
+            ],
             delta_x: [0x11111111; 8],
             delta_y: [0x22222222; 8],
             action_tree_root: Digest::from_bytes([0x06; 32]),
