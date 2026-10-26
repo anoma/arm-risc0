@@ -408,11 +408,9 @@ pub fn aggregate(
     proof_type: ProofType,
     encoding: JournalEncoding,
 ) -> Result<(), ArmError> {
-    if tx.base_proofs_are_empty() {
-        return Err(ArmError::AlreadyAggregated);
-    }
+    tx.check_representation()?;
 
-    let actions = tx.actions.as_ref().ok_or(ArmError::MissingActions)?;
+    let actions = tx.actions.as_ref().ok_or(ArmError::AlreadyAggregated)?;
 
     if actions.is_empty() {
         return Err(ArmError::EmptyActions);
@@ -480,6 +478,10 @@ pub fn verify_aggregation(tx: &Transaction, encoding: JournalEncoding) -> Result
         .as_ref()
         .ok_or(ArmError::MissingAggregation)?;
 
+    if agg.instance.compliance_key != COMPLIANCE_VK {
+        return Err(ArmError::VerifyingKeyMismatch);
+    }
+
     let inner_receipt: InnerReceipt =
         bincode::deserialize(&agg.proof).map_err(|_| ArmError::InnerReceiptDeserializationError)?;
 
@@ -503,12 +505,6 @@ pub fn verify_aggregation(tx: &Transaction, encoding: JournalEncoding) -> Result
     receipt.verify(vk).map_err(|err| {
         ArmError::ProofVerificationFailed(format!("Proof verification failed: {}", err))
     })?;
-
-    if agg.instance.compliance_key != COMPLIANCE_VK {
-        return Err(ArmError::ProofVerificationFailed(
-            "aggregation compliance_key does not match expected COMPLIANCE_VK".into(),
-        ));
-    }
 
     Ok(())
 }
