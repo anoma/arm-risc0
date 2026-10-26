@@ -48,7 +48,7 @@ pub(crate) fn get_logic_verifiers(action: &Action) -> Result<Vec<LogicVerifier>,
     let action_tree_root = ActionTree::new(tags).root()?;
 
     compliance_instance
-        .resources
+        .resource_instances
         .iter()
         .zip(action.logic_verifier_inputs.iter())
         .enumerate()

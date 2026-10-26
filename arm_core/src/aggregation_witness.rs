@@ -46,6 +46,6 @@ pub struct ActionWitness {
     /// Typed compliance instance for this action.
     pub compliance_instance: ComplianceInstance,
     /// `app_data` for each resource, in the same order as
-    /// `compliance_instance.resources`.
+    /// `compliance_instance.resource_instances`.
     pub app_data: Vec<AppData>,
 }

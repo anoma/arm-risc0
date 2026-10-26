@@ -30,7 +30,7 @@ fn rich_instance() -> AggregationInstance {
         kind_tree_root: Digest::from_bytes([0xC1; 32]),
         actions: vec![
             ActionAggregated {
-                resources: vec![
+                resource_instances: vec![
                     AggregationResourceInstance::Consumed {
                         nullifier: Digest::from_bytes([0x01; 32]),
                         logic_ref: Digest::from_bytes([0x02; 32]),
@@ -64,7 +64,7 @@ fn rich_instance() -> AggregationInstance {
                 action_tree_root: Digest::from_bytes([0x09; 32]),
             },
             ActionAggregated {
-                resources: vec![],
+                resource_instances: vec![],
                 delta_x: [0; 8],
                 delta_y: [0xFFFFFFFF; 8],
                 action_tree_root: Digest::from_bytes([0x0A; 32]),

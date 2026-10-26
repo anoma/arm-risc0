@@ -32,7 +32,7 @@ pub struct AggregationInstance {
 pub struct ActionAggregated {
     /// The part of the aggregation instance for each consumed and created resource, in the order
     /// in which the verifier processes them.
-    pub resources: Vec<AggregationResourceInstance>,
+    pub resource_instances: Vec<AggregationResourceInstance>,
     /// Delta x coordinate ([u32; 8] avoids risc0 padding issues).
     pub delta_x: [u32; 8],
     /// Delta y coordinate ([u32; 8] avoids risc0 padding issues).
@@ -130,8 +130,8 @@ impl AggregationInstance {
         words.extend_from_slice(self.kind_tree_root.as_words());
         words.push(self.actions.len() as u32);
         for action in &self.actions {
-            words.push(action.resources.len() as u32);
-            for resource in &action.resources {
+            words.push(action.resource_instances.len() as u32);
+            for resource in &action.resource_instances {
                 match resource {
                     AggregationResourceInstance::Consumed {
                         nullifier,
@@ -179,7 +179,7 @@ impl AggregationInstance {
     pub fn nf_duplication_check(&self) -> Result<(), crate::error::ArmError> {
         let mut seen_nullifiers = std::collections::HashSet::new();
         for action in &self.actions {
-            for consumed in action.resources.iter().filter(|r| r.is_consumed()) {
+            for consumed in action.resource_instances.iter().filter(|r| r.is_consumed()) {
                 if !seen_nullifiers.insert(consumed.tag()) {
                     return Err(crate::error::ArmError::NullifierDuplication);
                 }

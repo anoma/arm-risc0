@@ -41,7 +41,7 @@ fn main() {
 
         assert_eq!(
             aw.app_data.len(),
-            ci.resources.len(),
+            ci.resource_instances.len(),
             "resource app_data count mismatch"
         );
 
@@ -56,8 +56,8 @@ fn main() {
         //   A – tag  comes from the compliance nullifier/commitment
         //   B – root comes from the in-circuit recomputed action_tree_root
         //   C – VK   comes from logic_ref in the compliance instance
-        let mut resources = Vec::with_capacity(ci.resources.len());
-        for (r, app_data) in ci.resources.iter().zip(&aw.app_data) {
+        let mut resources = Vec::with_capacity(ci.resource_instances.len());
+        for (r, app_data) in ci.resource_instances.iter().zip(&aw.app_data) {
             let li = LogicInstance {
                 tag: r.tag(),
                 is_consumed: r.is_consumed(),
@@ -87,7 +87,7 @@ fn main() {
         }
 
         actions_out.push(ActionAggregated {
-            resources,
+            resource_instances: resources,
             delta_x: ci.delta_x,
             delta_y: ci.delta_y,
             action_tree_root,

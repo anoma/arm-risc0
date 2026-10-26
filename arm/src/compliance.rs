@@ -105,7 +105,7 @@ fn resolve_kind(
 pub fn constrain(witness: &ComplianceWitness) -> Result<ComplianceInstance, ArmError> {
     let rcv_scalar = parse_rcv(&witness.rcv)?;
 
-    let n_resources = witness.resources.len();
+    let n_resources = witness.resource_instances.len();
 
     if witness.kind_paths.len() != n_resources {
         return Err(ArmError::KindPathCountMismatch {
@@ -127,7 +127,7 @@ pub fn constrain(witness: &ComplianceWitness) -> Result<ComplianceInstance, ArmE
     // (kind, +quantity) for a consumed resource, (kind, -quantity) for a
     // created one.
     for (position, (resource_witness, kind_path)) in witness
-        .resources
+        .resource_instances
         .iter()
         .zip(&witness.kind_paths)
         .enumerate()
@@ -175,7 +175,7 @@ pub fn constrain(witness: &ComplianceWitness) -> Result<ComplianceInstance, ArmE
     // Re-derive each created nonce from its index among the created resources
     // and the consumed nullifiers, and require it to match.
     let consumed_nullifiers_digest = Resource::hash_nullifiers(&consumed_nullifiers)?;
-    let created_resources = witness.resources.iter().filter_map(|r| match r {
+    let created_resources = witness.resource_instances.iter().filter_map(|r| match r {
         ResourceWitness::Consumed(_) => None,
         ResourceWitness::Created(resource) => Some(resource),
     });
@@ -199,7 +199,7 @@ pub fn constrain(witness: &ComplianceWitness) -> Result<ComplianceInstance, ArmE
     let kind_tree_root = derived_root.unwrap_or(arm_core::merkle_path::PADDING_LEAF);
 
     Ok(ComplianceInstance {
-        resources,
+        resource_instances: resources,
         delta_x,
         delta_y,
         kind_tree_root,

@@ -177,7 +177,7 @@ pub fn nf_duplication_check(tx: &Transaction) -> Result<(), ArmError> {
             let compliance_instance =
                 crate::compliance_unit::get_instance(&action.compliance_unit)?;
             for consumed_nullifier in compliance_instance
-                .resources
+                .resource_instances
                 .iter()
                 .filter(|p| p.is_consumed())
                 .map(|p| p.tag())

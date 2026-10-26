@@ -152,7 +152,7 @@ mod evm {
         fn from(native: ActionAggregated) -> Self {
             Self {
                 resources: native
-                    .resources
+                    .resource_instances
                     .into_iter()
                     .map(ResourceInstance::from)
                     .collect(),
@@ -168,7 +168,7 @@ mod evm {
     impl From<Action> for ActionAggregated {
         fn from(evm: Action) -> Self {
             Self {
-                resources: evm
+                resource_instances: evm
                     .resources
                     .into_iter()
                     .map(AggregationResourceInstance::from)
@@ -331,7 +331,7 @@ mod evm {
                 compliance_key: make_digest(0x01),
                 kind_tree_root: make_digest(0x02),
                 actions: vec![ActionAggregated {
-                    resources: vec![
+                    resource_instances: vec![
                         AggregationResourceInstance::Created {
                             commitment: make_digest(0x06),
                             logic_ref: make_digest(0x07),

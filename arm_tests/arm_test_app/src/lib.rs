@@ -625,7 +625,11 @@ fn test_compliance_instance_follows_the_order_of_the_witness() {
         })
         .collect();
     assert_eq!(instance.tags().collect::<Vec<_>>(), tags);
-    let is_consumed: Vec<bool> = instance.resources.iter().map(|r| r.is_consumed()).collect();
+    let is_consumed: Vec<bool> = instance
+        .resource_instances
+        .iter()
+        .map(|r| r.is_consumed())
+        .collect();
     assert_eq!(is_consumed, [false, true, true, false]);
 }
 
@@ -684,13 +688,17 @@ fn test_aggregation_follows_the_order_of_the_compliance_unit() {
     assert!(transaction::verify_aggregation(&tx, JournalEncoding::Risc0Serde).is_ok());
 
     let action = &tx.aggregation.as_ref().unwrap().instance.actions[0];
-    let aggregated_tags: Vec<Digest> = action.resources.iter().map(|r| r.tag()).collect();
+    let aggregated_tags: Vec<Digest> = action.resource_instances.iter().map(|r| r.tag()).collect();
     assert_eq!(aggregated_tags, tags);
     assert_eq!(
         action.action_tree_root,
         ActionTree::new(tags).root().unwrap()
     );
-    let is_consumed: Vec<bool> = action.resources.iter().map(|r| r.is_consumed()).collect();
+    let is_consumed: Vec<bool> = action
+        .resource_instances
+        .iter()
+        .map(|r| r.is_consumed())
+        .collect();
     assert_eq!(is_consumed, [false, true, true, false]);
 }
 
@@ -763,7 +771,7 @@ fn test_evm_instance_roundtrip_after_aggregation() {
     assert_eq!(instance.actions.len(), 2);
     let is_consumed = |action: usize| -> Vec<bool> {
         instance.actions[action]
-            .resources
+            .resource_instances
             .iter()
             .map(|r| r.is_consumed())
             .collect()

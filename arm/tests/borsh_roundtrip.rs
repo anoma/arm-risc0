@@ -35,7 +35,7 @@ fn instance() -> AggregationInstance {
         compliance_key: Digest::from_bytes([0xC0; 32]),
         kind_tree_root: Digest::from_bytes([0xC1; 32]),
         actions: vec![ActionAggregated {
-            resources: vec![
+            resource_instances: vec![
                 AggregationResourceInstance::Consumed {
                     nullifier: Digest::from_bytes([0x01; 32]),
                     logic_ref: Digest::from_bytes([0x02; 32]),
