@@ -180,7 +180,7 @@ pub fn nf_duplication_check(tx: &Transaction) -> Result<(), ArmError> {
                 .resources
                 .iter()
                 .filter(|p| p.is_consumed())
-                .map(|p| p.tag)
+                .map(|p| p.tag())
             {
                 if !seen_nullifiers.insert(consumed_nullifier) {
                     return Err(ArmError::NullifierDuplication);

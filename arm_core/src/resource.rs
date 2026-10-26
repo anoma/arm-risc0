@@ -344,20 +344,56 @@ impl ResourceWitness {
     feature = "borsh",
     derive(borsh::BorshSerialize, borsh::BorshDeserialize)
 )]
-#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
-pub struct ResourceInstance {
-    /// The nullifier of a consumed [Resource] or the commitment of a created [Resource].
-    pub tag: Digest,
-    /// The logic reference of the [Resource].
-    pub logic_ref: Digest,
-    /// The root of the Merkle tree that holds the commitment of a consumed
-    /// [Resource]; `None` for a created [Resource].
-    pub commitment_tree_root: Option<Digest>,
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub enum ComplianceResourceInstance {
+    /// A consumed resource, identified by its nullifier.
+    Consumed {
+        /// The nullifier (tag) of the consumed [Resource].
+        nullifier: Digest,
+        /// The logic reference of the [Resource].
+        logic_ref: Digest,
+        /// The root of the Merkle tree that holds the commitment of the consumed [Resource].
+        commitment_tree_root: Digest,
+    },
+    /// A created resource, identified by its commitment.
+    Created {
+        /// The commitment (tag) of the created [Resource].
+        commitment: Digest,
+        /// The logic reference of the [Resource].
+        logic_ref: Digest,
+    },
 }
 
-impl ResourceInstance {
-    /// A resource is consumed exactly if it carries a commitment tree root.
+impl ComplianceResourceInstance {
+    /// The tag of the resource: the nullifier if consumed, the commitment if created.
+    pub fn tag(&self) -> Digest {
+        match self {
+            ComplianceResourceInstance::Consumed { nullifier, .. } => *nullifier,
+            ComplianceResourceInstance::Created { commitment, .. } => *commitment,
+        }
+    }
+
+    /// The logic reference of the resource.
+    pub fn logic_ref(&self) -> Digest {
+        match self {
+            ComplianceResourceInstance::Consumed { logic_ref, .. } => *logic_ref,
+            ComplianceResourceInstance::Created { logic_ref, .. } => *logic_ref,
+        }
+    }
+
+    /// A resource is consumed exactly if it is a [ComplianceResourceInstance::Consumed] variant.
     pub fn is_consumed(&self) -> bool {
-        self.commitment_tree_root.is_some()
+        matches!(self, ComplianceResourceInstance::Consumed { .. })
+    }
+
+    /// The commitment tree root for a consumed resource, or `None` for a created resource.
+    pub fn commitment_tree_root(&self) -> Option<Digest> {
+        match self {
+            ComplianceResourceInstance::Consumed {
+                commitment_tree_root,
+                ..
+            } => Some(*commitment_tree_root),
+            ComplianceResourceInstance::Created { .. } => None,
+        }
     }
 }

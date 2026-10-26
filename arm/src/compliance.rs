@@ -7,7 +7,7 @@
 pub use arm_core::compliance::*;
 
 use crate::error::ArmError;
-use crate::resource::{Resource, ResourceInstance, ResourceWitness};
+use crate::resource::{ComplianceResourceInstance, Resource, ResourceWitness};
 use crate::utils::{bytes_to_words, words_to_bytes};
 use crate::Digest;
 #[cfg(feature = "transaction")]
@@ -134,7 +134,9 @@ pub fn constrain(witness: &ComplianceWitness) -> Result<ComplianceInstance, ArmE
     {
         let resource = resource_witness.resource();
         let resource_commitment = resource.commitment();
-        let (tag, commitment_tree_root, signed_quantity) = match resource_witness {
+        // Reading `logic_ref` here forces it to be loaded from memory onto
+        // the computational trace.
+        let (resource_instance, signed_quantity) = match resource_witness {
             ResourceWitness::Consumed(w) => {
                 let resource_nullifier =
                     resource.nullifier_from_commitment(&w.nf_key, &resource_commitment)?;
@@ -145,24 +147,23 @@ pub fn constrain(witness: &ComplianceWitness) -> Result<ComplianceInstance, ArmE
                 };
                 consumed_nullifiers.push(resource_nullifier);
                 (
-                    resource_nullifier,
-                    Some(commitment_tree_root),
+                    ComplianceResourceInstance::Consumed {
+                        nullifier: resource_nullifier,
+                        logic_ref: resource.logic_ref,
+                        commitment_tree_root,
+                    },
                     crate::resource::quantity_scalar(resource),
                 )
             }
             ResourceWitness::Created(_) => (
-                resource_commitment,
-                None,
+                ComplianceResourceInstance::Created {
+                    commitment: resource_commitment,
+                    logic_ref: resource.logic_ref,
+                },
                 -crate::resource::quantity_scalar(resource),
             ),
         };
-        // Reading `logic_ref` here forces it to be loaded from memory onto
-        // the computational trace.
-        resources.push(ResourceInstance {
-            tag,
-            logic_ref: resource.logic_ref,
-            commitment_tree_root,
-        });
+        resources.push(resource_instance);
         accumulate_kind(
             &mut kinds,
             &mut sums,

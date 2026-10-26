@@ -3,9 +3,9 @@
 use crate::merkle_path::MerklePath;
 #[cfg(test)]
 use crate::nullifier_key::NullifierKey;
+use crate::resource::{ComplianceResourceInstance, ResourceWitness};
 #[cfg(test)]
 use crate::resource::{Resource, ResourceWitnessConsumed};
-use crate::resource::{ResourceInstance, ResourceWitness};
 use risc0_zkp::core::digest::Digest;
 
 /// The initial root of the empty commitment tree is the hash of an empty
@@ -28,7 +28,7 @@ pub const INITIAL_ROOT: Digest = Digest::new([
 pub struct ComplianceInstance {
     /// The part of the instance for each consumed and created resource, in the
     /// order of the witness.
-    pub resources: Vec<ResourceInstance>,
+    pub resources: Vec<ComplianceResourceInstance>,
     /// The delta x coordinate of the created resource(use u32 array to avoid padding issues in risc0).
     pub delta_x: [u32; 8],
     /// The delta y coordinate of the created resource(use u32 array to avoid padding issues in risc0).
@@ -184,6 +184,6 @@ impl ComplianceInstance {
     /// The unit's tags in the order of its resources: the nullifier of a
     /// consumed resource, the commitment of a created resource.
     pub fn tags(&self) -> impl Iterator<Item = Digest> + '_ {
-        self.resources.iter().map(|r| r.tag)
+        self.resources.iter().map(|r| r.tag())
     }
 }

@@ -58,18 +58,18 @@ fn main() {
         let mut resources = Vec::with_capacity(ci.resources.len());
         for (r, app_data) in ci.resources.iter().zip(&aw.app_data) {
             let li = LogicInstance {
-                tag: r.tag,
+                tag: r.tag(),
                 is_consumed: r.is_consumed(),
                 root: action_tree_root,
                 app_data: app_data.clone(),
             };
             let li_words = to_vec(&li).expect("failed to serialize LogicInstance");
-            env::verify(r.logic_ref, &li_words).expect("logic proof verification failed");
+            env::verify(r.logic_ref(), &li_words).expect("logic proof verification failed");
             resources.push(ResourceAggregated {
                 consumed: u32::from(r.is_consumed()),
-                tag: r.tag,
-                logic_ref: r.logic_ref,
-                commitment_tree_root: r.commitment_tree_root.unwrap_or(Digest::ZERO),
+                tag: r.tag(),
+                logic_ref: r.logic_ref(),
+                commitment_tree_root: r.commitment_tree_root().unwrap_or(Digest::ZERO),
                 app_data: li.app_data,
             });
         }
