@@ -13,9 +13,18 @@ pub use evm::{
 
 /// Decodes an action's stored delta_x/delta_y coordinates into a projective point.
 pub fn delta_projective(action: &ActionAggregated) -> Result<ProjectivePoint, ArmError> {
+    delta_projective_from_words(&action.delta_x, &action.delta_y)
+}
+
+/// Decodes delta coordinates stored as words into a projective point.
+/// It fails if they are not a valid point.
+pub(crate) fn delta_projective_from_words(
+    x: &[u32; 8],
+    y: &[u32; 8],
+) -> Result<ProjectivePoint, ArmError> {
     let encoded = EncodedPoint::from_affine_coordinates(
-        words_to_bytes(&action.delta_x).into(),
-        words_to_bytes(&action.delta_y).into(),
+        words_to_bytes(x).into(),
+        words_to_bytes(y).into(),
         false,
     );
     ProjectivePoint::from_encoded_point(&encoded)
