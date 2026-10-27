@@ -61,7 +61,7 @@ fn main() {
             let li = LogicInstance {
                 tag: r.tag(),
                 is_consumed: r.is_consumed(),
-                root: action_tree_root,
+                action_tree_root,
                 app_data: app_data.clone(),
             };
             let li_words = to_vec(&li).expect("failed to serialize LogicInstance");

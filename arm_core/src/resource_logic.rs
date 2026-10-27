@@ -46,7 +46,7 @@ impl LogicCircuit for TrivialLogicWitness {
         Ok(LogicInstance {
             tag,
             is_consumed: self.is_consumed, // It can be either consumed or created to reduce padding resources
-            root: self.action_tree_root,
+            action_tree_root: self.action_tree_root,
             app_data: AppData::default(), // No app data for trivial logic
         })
     }

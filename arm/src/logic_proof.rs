@@ -71,9 +71,9 @@ pub fn get_instance(verifier: &LogicVerifier) -> Result<LogicInstance, ArmError>
 pub fn input_to_verifier(
     input: LogicVerifierInput,
     is_consumed: bool,
-    root: Digest,
+    action_tree_root: Digest,
 ) -> Result<LogicVerifier, ArmError> {
-    let instance_words = to_vec(&input.to_instance(is_consumed, root))
+    let instance_words = to_vec(&input.to_instance(is_consumed, action_tree_root))
         .map_err(|_| ArmError::InstanceSerializationFailed)?;
     Ok(LogicVerifier {
         proof: input.proof,
