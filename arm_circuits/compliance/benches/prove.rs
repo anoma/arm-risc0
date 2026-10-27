@@ -32,7 +32,9 @@
 /// RISC0_DEV_MODE=1 cargo bench --features prove -p compliance
 /// ```
 use anoma_rm_risc0::compliance::{ComplianceWitness, KindTreeEntry, INITIAL_ROOT};
-use anoma_rm_risc0::constants::{global_kind_tree, init_kind_tree_from_file, kind_tree, KindTree};
+use anoma_rm_risc0::constants::{
+    global_kind_tree, init_kind_tree_from_file, kind_tree_entries, KindTree,
+};
 use anoma_rm_risc0::nullifier_key::NullifierKey;
 use anoma_rm_risc0::resource::{Resource, ResourceWitness, ResourceWitnessConsumed};
 use compliance_methods::COMPLIANCE_GUEST_ELF;
@@ -193,7 +195,7 @@ fn bench_file_tree(c: &mut Criterion) {
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../arm/data/kind_tree.json");
     init_kind_tree_from_file(&kind_tree_path).expect("Failed to load kind_tree.json");
 
-    let entry = &kind_tree()[0];
+    let entry = &kind_tree_entries()[0];
     let logic_ref = entry.logic_ref;
     let label_ref = entry.label_ref;
 
@@ -226,7 +228,7 @@ fn bench_tree_size(c: &mut Criterion) {
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../arm/data/kind_tree.json");
     init_kind_tree_from_file(&kind_tree_path).expect("Failed to load kind_tree.json");
 
-    let matching = kind_tree()[0].clone();
+    let matching = kind_tree_entries()[0].clone();
 
     let mut group = c.benchmark_group("compliance/tree_size");
     group.sample_size(10);

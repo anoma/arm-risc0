@@ -106,8 +106,8 @@ init_kind_tree_from_entries(entries: Vec<KindTreeEntry>) -> Result<(), ArmError>
 // Initialize from the starter tree embedded in the crate (same semantics)
 init_starter_kind_tree() -> Result<(), ArmError>
 
-kind_tree()      -> &'static [KindTreeEntry]
-kind_tree_root() -> Option<Digest>
+kind_tree_entries() -> &'static [KindTreeEntry]
+kind_tree_root()    -> Option<Digest>
 ```
 
 Entries are `{ "logic_ref": "<hex>", "label_ref": "<hex>", "kind_base": "<hex>" }`.
