@@ -29,3 +29,22 @@ pub enum SolanaArmError {
     #[error("Delta mismatch: recovered key does not match accumulated delta")]
     DeltaMismatch,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::SolanaArmError;
+    use arm_core::error::ArmError;
+
+    /// The Solana variants that mirror an ArmError print the same message.
+    #[test]
+    fn messages_match_arm_error() {
+        assert_eq!(
+            SolanaArmError::MissingAggregation.to_string(),
+            ArmError::MissingAggregation.to_string()
+        );
+        assert_eq!(
+            SolanaArmError::AmbiguousTransaction.to_string(),
+            ArmError::AmbiguousTransactionRepresentation.to_string()
+        );
+    }
+}
