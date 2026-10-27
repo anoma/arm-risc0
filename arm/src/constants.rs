@@ -168,7 +168,7 @@ mod tests {
                 Digest::from(
                     <[u8; 32]>::try_from(
                         hex::decode(
-                            "829c77a7151dd953bbac04f6e70e6c48f7edf91766ef1da8a40d1156c11d3879",
+                            "80f67eb4947afa799475c0bb06f58b490c64507ffa2aeee0ef29613dd12f7a29",
                         )
                         .unwrap()
                         .as_slice(),
