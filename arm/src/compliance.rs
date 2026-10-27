@@ -105,7 +105,7 @@ fn resolve_kind(
 pub fn constrain(witness: &ComplianceWitness) -> Result<ComplianceInstance, ArmError> {
     let rcv_scalar = parse_rcv(&witness.rcv)?;
 
-    let n_resources = witness.resource_instances.len();
+    let n_resources = witness.resource_witnesses.len();
 
     if witness.kind_paths.len() != n_resources {
         return Err(ArmError::KindPathCountMismatch {
@@ -127,7 +127,7 @@ pub fn constrain(witness: &ComplianceWitness) -> Result<ComplianceInstance, ArmE
     // (kind, +quantity) for a consumed resource, (kind, -quantity) for a
     // created one.
     for (position, (resource_witness, kind_path)) in witness
-        .resource_instances
+        .resource_witnesses
         .iter()
         .zip(&witness.kind_paths)
         .enumerate()
@@ -175,7 +175,7 @@ pub fn constrain(witness: &ComplianceWitness) -> Result<ComplianceInstance, ArmE
     // Re-derive each created nonce from its index among the created resources
     // and the consumed nullifiers, and require it to match.
     let consumed_nullifiers_digest = Resource::hash_nullifiers(&consumed_nullifiers)?;
-    let created_resources = witness.resource_instances.iter().filter_map(|r| match r {
+    let created_resources = witness.resource_witnesses.iter().filter_map(|r| match r {
         ResourceWitness::Consumed(_) => None,
         ResourceWitness::Created(resource) => Some(resource),
     });
