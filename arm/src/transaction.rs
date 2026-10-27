@@ -313,7 +313,7 @@ pub fn get_logic_vks_and_instances(
 
 /// The batch aggregation guest's input for `actions`: the witness the guest
 /// reads, with each action's compliance proof and each of its logic proofs
-/// added to `env_builder` as assumptions. `compliance_key` is the compliance
+/// added to `env_builder` as assumptions. `compliance_vk` is the compliance
 /// circuit's verifying key the guest checks the compliance proofs against.
 ///
 /// [`aggregate`] proves with this input on the default prover; a caller with
@@ -322,7 +322,7 @@ pub fn get_logic_vks_and_instances(
 #[cfg(all(feature = "aggregation", feature = "prove"))]
 pub fn aggregation_witness(
     actions: &[Action],
-    compliance_key: Digest,
+    compliance_vk: Digest,
     env_builder: &mut ExecutorEnvBuilder<'_>,
 ) -> Result<AggregationWitness, ArmError> {
     let mut action_witnesses = Vec::with_capacity(actions.len());
@@ -370,7 +370,7 @@ pub fn aggregation_witness(
     }
 
     Ok(AggregationWitness {
-        compliance_key,
+        compliance_vk,
         actions: action_witnesses,
     })
 }
@@ -462,7 +462,7 @@ pub fn verify_aggregation(tx: &Transaction, encoding: JournalEncoding) -> Result
         .as_ref()
         .ok_or(ArmError::MissingAggregation)?;
 
-    if agg.instance.compliance_key != COMPLIANCE_VK {
+    if agg.instance.compliance_vk != COMPLIANCE_VK {
         return Err(ArmError::VerifyingKeyMismatch);
     }
 

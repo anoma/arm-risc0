@@ -32,7 +32,7 @@ fn proof() -> DeltaProof {
 
 fn instance() -> AggregationInstance {
     AggregationInstance {
-        compliance_key: Digest::from_bytes([0xC0; 32]),
+        compliance_vk: Digest::from_bytes([0xC0; 32]),
         kind_tree_root: Digest::from_bytes([0xC1; 32]),
         actions: vec![ActionAggregated {
             resource_instances: vec![

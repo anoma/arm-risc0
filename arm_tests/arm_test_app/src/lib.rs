@@ -561,10 +561,10 @@ fn test_aggregation_works() {
     )
     .is_ok());
 
-    // Tamper the compliance_key in the decoded instance: the compliance_key
+    // Tamper the compliance_vk in the decoded instance: the compliance_vk
     // check must catch the mismatch before the receipt is verified.
     if let Some(ref mut agg) = tx_str.aggregation {
-        agg.instance.compliance_key = Digest::from([0xABu8; 32]);
+        agg.instance.compliance_vk = Digest::from([0xABu8; 32]);
     }
     assert_eq!(
         transaction::verify_aggregation(&tx_str, JournalEncoding::Risc0Serde),
@@ -587,7 +587,7 @@ fn test_aggregation_witness_takes_the_callers_compliance_key() {
 
     let witness =
         transaction::aggregation_witness(actions, key, &mut ExecutorEnv::builder()).unwrap();
-    assert_eq!(witness.compliance_key, key);
+    assert_eq!(witness.compliance_vk, key);
     assert_eq!(witness.actions.len(), actions.len());
     for (action, action_witness) in actions.iter().zip(&witness.actions) {
         let app_data: Vec<_> = action
@@ -834,7 +834,7 @@ fn test_verify_aggregation_fails_for_tampered_instance() {
     // Inject a fake Aggregation with a garbage proof and a tampered instance.
     // verify_aggregation() must reject it without needing the new ELF.
     let fake_instance = AggregationInstance {
-        compliance_key: Digest::from([0xFFu8; 32]),
+        compliance_vk: Digest::from([0xFFu8; 32]),
         kind_tree_root: Digest::default(),
         actions: vec![],
     };
@@ -868,7 +868,7 @@ fn test_verify_rejects_transaction_with_both_actions_and_aggregation() {
     tx.aggregation = Some(Aggregation {
         proof: vec![0u8; 64],
         instance: AggregationInstance {
-            compliance_key: Digest::default(),
+            compliance_vk: Digest::default(),
             kind_tree_root: Digest::default(),
             actions: vec![],
         },
@@ -957,7 +957,7 @@ fn test_compose_rejects_ambiguous_transaction() {
     tx_ambiguous.aggregation = Some(Aggregation {
         proof: vec![0u8; 64],
         instance: AggregationInstance {
-            compliance_key: Digest::from([0xFFu8; 32]),
+            compliance_vk: Digest::from([0xFFu8; 32]),
             kind_tree_root: Digest::default(),
             actions: vec![],
         },

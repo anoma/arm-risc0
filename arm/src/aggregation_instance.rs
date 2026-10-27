@@ -127,7 +127,7 @@ mod evm {
     impl From<NativeAggregationInstance> for AggregationInstance {
         fn from(native: NativeAggregationInstance) -> Self {
             Self {
-                complianceKey: digest_to_bytes32(&native.compliance_key),
+                complianceKey: digest_to_bytes32(&native.compliance_vk),
                 kindTreeRoot: digest_to_bytes32(&native.kind_tree_root),
                 actions: native.actions.into_iter().map(Action::from).collect(),
             }
@@ -137,7 +137,7 @@ mod evm {
     impl From<AggregationInstance> for NativeAggregationInstance {
         fn from(evm: AggregationInstance) -> Self {
             Self {
-                compliance_key: bytes32_to_digest(evm.complianceKey),
+                compliance_vk: bytes32_to_digest(evm.complianceKey),
                 kind_tree_root: bytes32_to_digest(evm.kindTreeRoot),
                 actions: evm
                     .actions
@@ -328,7 +328,7 @@ mod evm {
 
         fn sample_instance() -> NativeAggregationInstance {
             NativeAggregationInstance {
-                compliance_key: make_digest(0x01),
+                compliance_vk: make_digest(0x01),
                 kind_tree_root: make_digest(0x02),
                 actions: vec![ActionAggregated {
                     resource_instances: vec![
@@ -395,7 +395,7 @@ mod evm {
         #[test]
         fn test_empty_instance_roundtrip() {
             let original = NativeAggregationInstance {
-                compliance_key: make_digest(0xAA),
+                compliance_vk: make_digest(0xAA),
                 kind_tree_root: make_digest(0xBB),
                 actions: vec![],
             };
