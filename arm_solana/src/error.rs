@@ -6,11 +6,11 @@ use thiserror::Error;
 pub enum SolanaArmError {
     /// Transaction carries no aggregation; settlement only accepts
     /// aggregated transactions.
-    #[error("Transaction has no aggregation proof")]
+    #[error("Transaction carries no aggregation proof")]
     MissingAggregation,
     /// Transaction carries both base actions and an aggregation — an
     /// ambiguous representation that must be rejected outright.
-    #[error("Transaction carries both actions and aggregation")]
+    #[error("Transaction must carry exactly one of `actions` or `aggregation`, not both")]
     AmbiguousTransaction,
     /// Transaction contains a delta witness instead of a finalized proof.
     #[error("Expected delta proof, but found witness")]
