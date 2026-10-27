@@ -43,11 +43,11 @@ pub struct LogicVerifierInput {
 impl LogicVerifierInput {
     /// Reconstructs the logic instance this input's proof commits to, given
     /// the two pieces of context the input does not carry.
-    pub fn to_instance(&self, is_consumed: bool, root: Digest) -> LogicInstance {
+    pub fn to_instance(&self, is_consumed: bool, action_tree_root: Digest) -> LogicInstance {
         LogicInstance {
             tag: self.tag,
             is_consumed,
-            root,
+            action_tree_root,
             app_data: self.app_data.clone(),
         }
     }

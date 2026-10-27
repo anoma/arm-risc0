@@ -14,8 +14,8 @@ pub struct LogicInstance {
     pub tag: Digest,
     /// Indicates whether the logic instance is for a consumed resource.
     pub is_consumed: bool,
-    /// The root digest of the logic instance.
-    pub root: Digest,
+    /// The action tree root this logic proof is bound to.
+    pub action_tree_root: Digest,
     /// The application data associated with the logic instance.
     pub app_data: AppData,
 }

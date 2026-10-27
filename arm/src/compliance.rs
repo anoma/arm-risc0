@@ -24,10 +24,10 @@ use k256::{
 /// with a freshly drawn `rcv`. It uses the initial root for ephemeral resources.
 #[cfg(feature = "transaction")]
 pub fn from_resources(
-    resources: Vec<ResourceWitness>,
+    resource_witnesses: Vec<ResourceWitness>,
     kind_tree: &crate::kind_tree::KindTree,
 ) -> ComplianceWitness {
-    from_resources_with_ephemeral_root(resources, INITIAL_ROOT, kind_tree)
+    from_resources_with_ephemeral_root(resource_witnesses, INITIAL_ROOT, kind_tree)
 }
 
 /// Creates a new compliance witness from the given resources, in their order,
@@ -35,16 +35,16 @@ pub fn from_resources(
 /// resource.
 #[cfg(feature = "transaction")]
 pub fn from_resources_with_ephemeral_root(
-    resources: Vec<ResourceWitness>,
+    resource_witnesses: Vec<ResourceWitness>,
     valid_root: Digest,
     kind_tree: &crate::kind_tree::KindTree,
 ) -> ComplianceWitness {
     let mut rng = rand::thread_rng();
     let rcv = Scalar::random(&mut rng).to_bytes();
 
-    let kind_paths = kind_tree.kind_paths_for(&resources);
+    let kind_paths = kind_tree.kind_paths_for(&resource_witnesses);
 
-    ComplianceWitness::from_parts(resources, valid_root, rcv.as_ref(), kind_paths)
+    ComplianceWitness::from_parts(resource_witnesses, valid_root, rcv.as_ref(), kind_paths)
 }
 
 /// Decodes the kind base from a `KindPath`, verifying its Merkle path
@@ -105,7 +105,7 @@ fn resolve_kind(
 pub fn constrain(witness: &ComplianceWitness) -> Result<ComplianceInstance, ArmError> {
     let rcv_scalar = parse_rcv(&witness.rcv)?;
 
-    let n_resources = witness.resource_instances.len();
+    let n_resources = witness.resource_witnesses.len();
 
     if witness.kind_paths.len() != n_resources {
         return Err(ArmError::KindPathCountMismatch {
@@ -127,7 +127,7 @@ pub fn constrain(witness: &ComplianceWitness) -> Result<ComplianceInstance, ArmE
     // (kind, +quantity) for a consumed resource, (kind, -quantity) for a
     // created one.
     for (position, (resource_witness, kind_path)) in witness
-        .resource_instances
+        .resource_witnesses
         .iter()
         .zip(&witness.kind_paths)
         .enumerate()
@@ -175,7 +175,7 @@ pub fn constrain(witness: &ComplianceWitness) -> Result<ComplianceInstance, ArmE
     // Re-derive each created nonce from its index among the created resources
     // and the consumed nullifiers, and require it to match.
     let consumed_nullifiers_digest = Resource::hash_nullifiers(&consumed_nullifiers)?;
-    let created_resources = witness.resource_instances.iter().filter_map(|r| match r {
+    let created_resources = witness.resource_witnesses.iter().filter_map(|r| match r {
         ResourceWitness::Consumed(_) => None,
         ResourceWitness::Created(resource) => Some(resource),
     });

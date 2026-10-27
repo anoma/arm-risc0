@@ -12,7 +12,7 @@ fn main() {
     let witness: AggregationWitness = env::read();
     assert!(!witness.actions.is_empty(), "no actions provided");
 
-    let compliance_key = witness.compliance_key;
+    let compliance_vk = witness.compliance_vk;
     // The aggregated kind_tree_root is the shared root across all actions that
     // committed a real kind tree (i.e. any root other than PADDING_LEAF). All
     // such roots must be identical; actions that committed PADDING_LEAF (no kind
@@ -26,7 +26,7 @@ fn main() {
 
         // Serialize the typed compliance instance and verify the proof.
         let ci_words = to_vec(ci).expect("failed to serialize ComplianceInstance");
-        env::verify(compliance_key, &ci_words).expect("compliance proof verification failed");
+        env::verify(compliance_vk, &ci_words).expect("compliance proof verification failed");
 
         // Actions that used a kind tree commit a non-PADDING_LEAF root; all
         // such roots must agree. Actions that committed PADDING_LEAF are
@@ -61,7 +61,7 @@ fn main() {
             let li = LogicInstance {
                 tag: r.tag(),
                 is_consumed: r.is_consumed(),
-                root: action_tree_root,
+                action_tree_root,
                 app_data: app_data.clone(),
             };
             let li_words = to_vec(&li).expect("failed to serialize LogicInstance");
@@ -95,7 +95,7 @@ fn main() {
     }
 
     let instance = AggregationInstance {
-        compliance_key,
+        compliance_vk,
         kind_tree_root: kind_tree_root.unwrap_or(PADDING_LEAF),
         actions: actions_out,
     };

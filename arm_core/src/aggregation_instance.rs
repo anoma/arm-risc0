@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct AggregationInstance {
     /// VK of the compliance circuit — single for the whole transaction.
-    pub compliance_key: Digest,
+    pub compliance_vk: Digest,
     /// Shared across all actions; equality enforced in-circuit.
     pub kind_tree_root: Digest,
     /// One entry per compliance unit / action.
@@ -126,7 +126,7 @@ impl AggregationInstance {
     /// pinned by the `journal_format` tests in `anoma-rm-risc0`.
     pub fn to_journal(&self) -> Vec<u8> {
         let mut words: Vec<u32> = Vec::new();
-        words.extend_from_slice(self.compliance_key.as_words());
+        words.extend_from_slice(self.compliance_vk.as_words());
         words.extend_from_slice(self.kind_tree_root.as_words());
         words.push(self.actions.len() as u32);
         for action in &self.actions {

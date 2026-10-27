@@ -30,7 +30,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize)]
 pub struct AggregationWitness {
     /// Verification key of the compliance circuit.
-    pub compliance_key: Digest,
+    pub compliance_vk: Digest,
     /// One witness per action, in the order they appear in the transaction.
     pub actions: Vec<ActionWitness>,
 }

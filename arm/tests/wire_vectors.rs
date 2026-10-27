@@ -47,7 +47,7 @@ fn rich_instance() -> AggregationInstance {
         application_payload: vec![blob(seed + 20)],
     };
     AggregationInstance {
-        compliance_key: Digest::from_bytes([0xC0; 32]),
+        compliance_vk: Digest::from_bytes([0xC0; 32]),
         kind_tree_root: Digest::from_bytes([0xC1; 32]),
         actions: vec![
             ActionAggregated {

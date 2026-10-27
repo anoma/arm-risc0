@@ -169,8 +169,8 @@ impl Resource {
     }
 
     /// Set the nonce of the resource
-    pub fn set_nonce(&mut self, nf: Digest) {
-        self.nonce = nf.into();
+    pub fn set_nonce(&mut self, nonce: Digest) {
+        self.nonce = nonce.into();
     }
 
     /// Set the nonce of the resource from consumed nullifier

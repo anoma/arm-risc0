@@ -26,7 +26,7 @@ fn rich_instance() -> AggregationInstance {
         deletion_criterion: seed % 2,
     };
     AggregationInstance {
-        compliance_key: Digest::from_bytes([0xC0; 32]),
+        compliance_vk: Digest::from_bytes([0xC0; 32]),
         kind_tree_root: Digest::from_bytes([0xC1; 32]),
         actions: vec![
             ActionAggregated {
@@ -82,7 +82,7 @@ fn aggregation_journal_matches_risc0_serde() {
 #[test]
 fn empty_aggregation_journal_matches_risc0_serde() {
     let instance = AggregationInstance {
-        compliance_key: Digest::from_bytes([0xAA; 32]),
+        compliance_vk: Digest::from_bytes([0xAA; 32]),
         kind_tree_root: Digest::from_bytes([0xBB; 32]),
         actions: vec![],
     };
@@ -108,7 +108,7 @@ fn borsh_encoding_differs_from_aggregation_journal_for_nonempty_actions() {
 #[test]
 fn borsh_encoding_equals_aggregation_journal_for_empty_actions() {
     let instance = AggregationInstance {
-        compliance_key: Digest::from_bytes([0xAA; 32]),
+        compliance_vk: Digest::from_bytes([0xAA; 32]),
         kind_tree_root: Digest::from_bytes([0xBB; 32]),
         actions: vec![],
     };
