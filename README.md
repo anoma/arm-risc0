@@ -4,6 +4,7 @@ This is a shielded resource machine implementation based on [Risc0-zkvm](https:/
 
 ## Docs
 
+- [Specification of arm-risc0](./docs/README.md)
 - [General RM Specification](https://specs.anoma.net/latest/arch/system/state/resource_machine/index.html)
 - Shielded RM Specification(TBD)
 - [Anoma SDK](https://github.com/anoma/anoma-sdk)
