@@ -80,12 +80,12 @@ pub struct ComplianceWitness {
     /// the action tree. The nonce of a created resource derives from its index
     /// among the created resources and from the consumed nullifiers, both in
     /// this order.
-    pub resource_instances: Vec<ResourceWitness>,
+    pub resource_witnesses: Vec<ResourceWitness>,
     /// The existing root for ephemeral resources
     pub ephemeral_root: Digest,
     /// Bytes of randomness for the delta commitment `rcv`
     pub rcv: Vec<u8>,
-    /// Per-resource Merkle paths into the kind tree, in the order of `resource_instances`.
+    /// Per-resource Merkle paths into the kind tree, in the order of `resource_witnesses`.
     /// `None` means no pre-computed kind base — fall back to `hash_to_curve`.
     /// The `kind_tree_root` committed in the instance is derived in-circuit:
     /// the root of the first non-`None` path, or `PADDING_LEAF` if all are `None`.
@@ -98,13 +98,13 @@ impl ComplianceWitness {
     /// (`anoma-rm-risc0`'s `compliance::from_resources*`) are convenience
     /// wrappers that draw `rcv` and delegate here.
     pub fn from_parts(
-        resource_instances: Vec<ResourceWitness>,
+        resource_witnesses: Vec<ResourceWitness>,
         ephemeral_root: Digest,
         rcv: &[u8],
         kind_paths: Vec<Option<KindPath>>,
     ) -> ComplianceWitness {
         ComplianceWitness {
-            resource_instances,
+            resource_witnesses,
             ephemeral_root,
             rcv: rcv.to_vec(),
             kind_paths,
@@ -150,14 +150,14 @@ impl Default for ComplianceWitness {
             rand_seed: [0u8; 32],
         };
 
-        let resource_instances: Vec<ResourceWitness> = consumed_data
+        let resource_witnesses: Vec<ResourceWitness> = consumed_data
             .into_iter()
             .map(ResourceWitness::Consumed)
             .chain([make_created(nonce_0), make_created(nonce_1)].map(ResourceWitness::Created))
             .collect();
-        let n_paths = resource_instances.len();
+        let n_paths = resource_witnesses.len();
         ComplianceWitness {
-            resource_instances,
+            resource_witnesses,
             ephemeral_root: INITIAL_ROOT,
             // Scalar 1 in big-endian repr (k256's Scalar::ONE.to_bytes()).
             rcv: {
