@@ -439,7 +439,8 @@ pub fn aggregate(
         }
     };
 
-    let proof = bincode::serialize(&agg_receipt.inner).map_err(|_| ArmError::SerializationError)?;
+    let proof =
+        bincode::serialize(&agg_receipt.inner).map_err(|_| ArmError::SerializationFailed)?;
 
     tx.aggregation = Some(Aggregation { proof, instance });
     tx.actions = None;
@@ -466,8 +467,8 @@ pub fn verify_aggregation(tx: &Transaction, encoding: JournalEncoding) -> Result
         return Err(ArmError::VerifyingKeyMismatch);
     }
 
-    let inner_receipt: InnerReceipt =
-        bincode::deserialize(&agg.proof).map_err(|_| ArmError::InnerReceiptDeserializationError)?;
+    let inner_receipt: InnerReceipt = bincode::deserialize(&agg.proof)
+        .map_err(|_| ArmError::InnerReceiptDeserializationFailed)?;
 
     let (journal_bytes, vk) = match encoding {
         JournalEncoding::Risc0Serde => {

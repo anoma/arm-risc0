@@ -49,5 +49,5 @@ pub fn get_instance(unit: &ComplianceUnit) -> Result<ComplianceInstance, ArmErro
 
 /// Retrieves the inner receipt from the compliance proof.
 pub fn get_inner_receipt(unit: &ComplianceUnit) -> Result<InnerReceipt, ArmError> {
-    bincode::deserialize(&unit.proof).map_err(|_| ArmError::InnerReceiptDeserializationError)
+    bincode::deserialize(&unit.proof).map_err(|_| ArmError::InnerReceiptDeserializationFailed)
 }

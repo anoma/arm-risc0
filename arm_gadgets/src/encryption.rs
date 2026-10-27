@@ -101,7 +101,7 @@ impl Ciphertext {
         let pk = generate_public_key(sender_sk.inner());
         let cipher = InnerCiphert { cipher, nonce, pk };
         Ok(Self(
-            bincode::serialize(&cipher).map_err(|_| ArmError::SerializationError)?,
+            bincode::serialize(&cipher).map_err(|_| ArmError::SerializationFailed)?,
         ))
     }
 
@@ -111,7 +111,7 @@ impl Ciphertext {
             return Err(ArmError::DecryptionFailed);
         }
         let cipher: InnerCiphert =
-            bincode::deserialize(self.inner()).map_err(|_| ArmError::DeserializationError)?;
+            bincode::deserialize(self.inner()).map_err(|_| ArmError::DeserializationFailed)?;
         // Generate the secret key using Diffie-Hellman exchange
         let inner_secret_key = InnerSecretKey::from_decryption(&cipher.pk, sk.inner())?;
 

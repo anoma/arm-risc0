@@ -84,7 +84,7 @@ pub fn input_to_verifier(
 
 /// Retrieves the inner receipt from a logic-verifier input's proof.
 pub fn get_inner_receipt(input: &LogicVerifierInput) -> Result<InnerReceipt, ArmError> {
-    bincode::deserialize(&input.proof).map_err(|_| ArmError::InnerReceiptDeserializationError)
+    bincode::deserialize(&input.proof).map_err(|_| ArmError::InnerReceiptDeserializationFailed)
 }
 
 /// Converts a `LogicVerifier` into a `LogicVerifierInput` by decoding its
