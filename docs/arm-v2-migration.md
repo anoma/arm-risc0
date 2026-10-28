@@ -1,5 +1,12 @@
 # Bumping `anoma-rm-risc0` from `1.1.1` to `v2.0.0-rc.3-abi_encode`
 
+> The type shapes in this guide are as of rc.3. Later releases renamed and reshaped some
+> of them: `resources` is now `resource_instances`, `ResourceInstance` and
+> `ResourceAggregated` are now the `ComplianceResourceInstance` and
+> `AggregationResourceInstance` enums, and `ComplianceWitness::kind_tree` is now
+> `kind_paths`. See [the changelog](changelog-v1.1.1-v2.0.0-rc.7.md) and the release
+> notes for the current API.
+
 Migration notes for **anomapay-backend-multichain** and **anomapay-workers-queue**.
 
 - **From:** `anoma-rm-risc0 = "1.1.1"` (crates.io)

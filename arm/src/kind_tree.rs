@@ -124,11 +124,6 @@ fn merkle_root(leaves: &[Digest]) -> Digest {
     layer[0]
 }
 
-/// Computes the Merkle authentication path for `leaves[pos]`.
-/// Each entry is `(sibling_digest, leaf_is_right_child)`, matching the
-/// convention in `MerklePath::root()`: `false` means the current node is the
-/// left child (so `hash_two(current, sibling)`), `true` means it is the right
-/// child (so `hash_two(sibling, current)`).
 /// Validates that `bytes` is a well-formed uncompressed SEC1 secp256k1 point:
 /// 65 bytes, leading 0x04 byte, and on the curve.
 pub(crate) fn validate_kind_base(bytes: &[u8], position: usize) -> Result<(), ArmError> {
@@ -147,6 +142,11 @@ pub(crate) fn validate_kind_base(bytes: &[u8], position: usize) -> Result<(), Ar
     Ok(())
 }
 
+/// Computes the Merkle authentication path for `leaves[pos]`.
+/// Each entry is `(sibling_digest, leaf_is_right_child)`, matching the
+/// convention in `MerklePath::root()`: `false` means the current node is the
+/// left child (so `hash_two(current, sibling)`), `true` means it is the right
+/// child (so `hash_two(sibling, current)`).
 fn merkle_path(leaves: &[Digest], pos: usize) -> MerklePath {
     let n = leaves.len().next_power_of_two();
     let mut layer: Vec<Digest> = leaves.to_vec();
