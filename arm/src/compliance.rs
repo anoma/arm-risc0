@@ -8,7 +8,7 @@ pub use arm_core::compliance::*;
 
 use crate::error::ArmError;
 use crate::resource::{ComplianceResourceInstance, Resource, ResourceWitness};
-use crate::utils::{bytes_to_words, words_to_bytes};
+use crate::utils::bytes_to_words;
 use crate::Digest;
 #[cfg(feature = "transaction")]
 use k256::elliptic_curve::Field;
@@ -251,14 +251,7 @@ fn encode_delta(delta: ProjectivePoint) -> Result<([u32; 8], [u32; 8]), ArmError
 /// Returns the delta of a compliance instance as a projective point.
 /// It fails if the delta is not a valid point.
 pub fn delta_projective(instance: &ComplianceInstance) -> Result<ProjectivePoint, ArmError> {
-    let encoded_point = EncodedPoint::from_affine_coordinates(
-        words_to_bytes(&instance.delta_x).into(),
-        words_to_bytes(&instance.delta_y).into(),
-        false,
-    );
-    ProjectivePoint::from_encoded_point(&encoded_point)
-        .into_option()
-        .ok_or(ArmError::InvalidDelta)
+    crate::aggregation_instance::delta_projective_from_words(&instance.delta_x, &instance.delta_y)
 }
 
 #[cfg(test)]
