@@ -1,6 +1,6 @@
 //! Compliance module containing the compliance instance and witness.
 
-use crate::merkle_path::MerklePath;
+use crate::merkle_path::{MerklePath, PADDING_LEAF};
 #[cfg(test)]
 use crate::nullifier_key::NullifierKey;
 use crate::resource::{ComplianceResourceInstance, ResourceWitness};
@@ -8,16 +8,8 @@ use crate::resource::{ComplianceResourceInstance, ResourceWitness};
 use crate::resource::{Resource, ResourceWitnessConsumed};
 use risc0_zkp::core::digest::Digest;
 
-/// The initial root of the empty commitment tree is the hash of an empty
-/// string, cc1d2f838445db7aec431df9ee8a871f40e7aa5e064fc056633ef8c60fab7b06
-/// (the same value as [`crate::merkle_path::PADDING_LEAF`]).
-///
-/// A `const` rather than a lazy static: statics with interior mutability
-/// compile to writable `.bss` sections, which the Solana loader rejects at
-/// deploy time. The value is pinned against `Digest::from_hex` in tests.
-pub const INITIAL_ROOT: Digest = Digest::new([
-    0x832f1dcc, 0x7adb4584, 0xf91d43ec, 0x1f878aee, 0x5eaae740, 0x56c04f06, 0xc6f83e63, 0x067bab0f,
-]);
+/// The root of the empty commitment tree: [`PADDING_LEAF`], sha256("EMPTY").
+pub const INITIAL_ROOT: Digest = PADDING_LEAF;
 
 /// The compliance instance contains all public inputs to the compliance proof.
 #[cfg_attr(
