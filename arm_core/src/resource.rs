@@ -164,8 +164,8 @@ impl Resource {
     }
 
     /// Set the nullifier key commitment of the resource
-    pub fn set_nf_commitment(&mut self, nf_commitment: NullifierKeyCommitment) {
-        self.nk_commitment = nf_commitment;
+    pub fn set_nk_commitment(&mut self, nk_commitment: NullifierKeyCommitment) {
+        self.nk_commitment = nk_commitment;
     }
 
     /// Set the nonce of the resource
