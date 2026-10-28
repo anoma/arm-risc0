@@ -114,7 +114,7 @@ fn make_witness_with_tree(
         .collect();
     let kind_paths = kt.kind_paths_for(&resources);
     ComplianceWitness {
-        resource_instances: resources,
+        resource_witnesses: resources,
         ephemeral_root: INITIAL_ROOT,
         rcv: [vec![0u8; 31], vec![1u8]].concat(),
         kind_paths,
