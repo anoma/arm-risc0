@@ -107,7 +107,7 @@ fn install_kind_tree(entries: Vec<KindTreeEntry>) -> Result<(), ArmError> {
 
 /// Returns the sorted entries of the global kind tree, or an empty slice if
 /// the tree has not been initialised yet.
-pub fn kind_tree() -> &'static [KindTreeEntry] {
+pub fn kind_tree_entries() -> &'static [KindTreeEntry] {
     KIND_TREE.get().map_or(&[], KindTree::entries)
 }
 
