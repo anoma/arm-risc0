@@ -99,9 +99,9 @@ fn resolve_kind(
 ///
 /// Each resource is touched in a single pass that builds its public output
 /// and accumulates its (kind, signed-quantity) contribution to the delta
-/// commitment, so each `commitment()`, `kind()`, and field load happens
-/// once. The nonces of the created resources derive from all consumed
-/// nullifiers, so they are checked after that pass.
+/// commitment, so each `commitment()` and field load happens once, and each
+/// distinct kind is resolved once. The nonces of the created resources derive
+/// from all consumed nullifiers, so they are checked after that pass.
 pub fn constrain(witness: &ComplianceWitness) -> Result<ComplianceInstance, ArmError> {
     let rcv_scalar = parse_rcv(&witness.rcv)?;
 
@@ -122,6 +122,10 @@ pub fn constrain(witness: &ComplianceWitness) -> Result<ComplianceInstance, ArmE
     let mut resources = Vec::with_capacity(n_resources);
     let mut kinds: Vec<ProjectivePoint> = Vec::with_capacity(n_resources);
     let mut sums: Vec<Scalar> = Vec::with_capacity(n_resources);
+    // The (logic_ref, label_ref, kind path) each entry of `kinds` resolved
+    // from. Looking a key up is a linear scan, O(N²) in distinct kinds, which
+    // is cheap next to resolving a kind in the circuit.
+    let mut kind_keys = Vec::with_capacity(n_resources);
 
     // Constrain the resources and accumulate their contributions to the delta:
     // (kind, +quantity) for a consumed resource, (kind, -quantity) for a
@@ -164,12 +168,22 @@ pub fn constrain(witness: &ComplianceWitness) -> Result<ComplianceInstance, ArmE
             ),
         };
         resources.push(resource_instance);
-        accumulate_kind(
-            &mut kinds,
-            &mut sums,
-            resolve_kind(kind_path.as_ref(), resource, &mut derived_root, position)?,
-            signed_quantity,
-        );
+        // A resource with the key of an earlier one resolves to the same kind
+        // and passes the same root check, so it reuses that kind.
+        let kind_key = (resource.logic_ref, resource.label_ref, kind_path.as_ref());
+        match kind_keys.iter().position(|k| *k == kind_key) {
+            Some(i) => sums[i] += signed_quantity,
+            None => {
+                kinds.push(resolve_kind(
+                    kind_path.as_ref(),
+                    resource,
+                    &mut derived_root,
+                    position,
+                )?);
+                sums.push(signed_quantity);
+                kind_keys.push(kind_key);
+            }
+        }
     }
 
     // Re-derive each created nonce from its index among the created resources
@@ -204,28 +218,6 @@ pub fn constrain(witness: &ComplianceWitness) -> Result<ComplianceInstance, ArmE
         delta_y,
         kind_tree_root,
     })
-}
-
-/// Adds `signed_quantity` to the running sum for `kind`, inserting a new
-/// (kind, sum) pair when the kind is seen for the first time.
-///
-/// The lookup is a linear scan, so this is O(N²) in the number of distinct
-/// kinds. That is intentional: in a circuit, a scalar multiplication is far
-/// more expensive than a curve-point equality, so trading per-resource scalar
-/// mults for a few extra comparisons is the right side of the trade-off for
-/// the unit sizes we expect.
-fn accumulate_kind(
-    kinds: &mut Vec<ProjectivePoint>,
-    sums: &mut Vec<Scalar>,
-    kind: ProjectivePoint,
-    signed_quantity: Scalar,
-) {
-    if let Some(i) = kinds.iter().position(|k| *k == kind) {
-        sums[i] += signed_quantity;
-    } else {
-        kinds.push(kind);
-        sums.push(signed_quantity);
-    }
 }
 
 /// Decodes the 32-byte `rcv` blob into a scalar.
@@ -339,6 +331,43 @@ mod tests {
             kind_base: generator,
             path: MerklePath::empty(),
         });
+        assert!(matches!(
+            constrain(&w),
+            Err(ArmError::KindPathRootMismatch { position: 1, expected, found }) if expected != found
+        ));
+    }
+
+    /// Both resources are of one kind but carry different paths. The second
+    /// does not reuse the kind the first resolved: its path is still checked
+    /// against the root, so position 1 fails.
+    #[test]
+    fn repeated_kind_under_another_path_is_rejected() {
+        let generator = k256::AffinePoint::GENERATOR
+            .to_encoded_point(false)
+            .as_bytes()
+            .to_vec();
+        let nf_key = NullifierKey::default();
+        let consumed = resource(3, 0, [0u8; 32]);
+        let nullifier = consumed.nullifier(&nf_key).unwrap();
+        let nonce = Resource::derive_nonce(0, Resource::hash_nullifiers(&[nullifier]).unwrap());
+        let w = ComplianceWitness::from_parts(
+            vec![
+                ResourceWitness::Consumed(ResourceWitnessConsumed::from_resource(consumed, nf_key)),
+                ResourceWitness::Created(resource(3, 1_000_000, nonce)),
+            ],
+            INITIAL_ROOT,
+            &RCV,
+            vec![
+                Some(KindPath {
+                    kind_base: generator.clone(),
+                    path: MerklePath::empty(),
+                }),
+                Some(KindPath {
+                    kind_base: generator,
+                    path: MerklePath::from_path(&[(Digest::default(), false)]),
+                }),
+            ],
+        );
         assert!(matches!(
             constrain(&w),
             Err(ArmError::KindPathRootMismatch { position: 1, expected, found }) if expected != found
