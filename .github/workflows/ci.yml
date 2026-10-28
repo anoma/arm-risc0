@@ -141,6 +141,14 @@ jobs:
         env:
           RISC0_SKIP_BUILD: 1
 
+      # The compliance bench needs the prove feature, which the build above
+      # leaves off, so it is checked on its own.
+      - name: Check the compliance bench builds
+        run: cargo check -p compliance --benches --features prove --locked
+        working-directory: arm_circuits
+        env:
+          RISC0_SKIP_BUILD: 1
+
   test:
     name: Test
     strategy:
