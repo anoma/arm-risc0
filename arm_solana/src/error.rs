@@ -6,11 +6,11 @@ use thiserror::Error;
 pub enum SolanaArmError {
     /// Transaction carries no aggregation; settlement only accepts
     /// aggregated transactions.
-    #[error("Transaction has no aggregation proof")]
+    #[error("Transaction carries no aggregation proof")]
     MissingAggregation,
     /// Transaction carries both base actions and an aggregation — an
     /// ambiguous representation that must be rejected outright.
-    #[error("Transaction carries both actions and aggregation")]
+    #[error("Transaction must carry exactly one of `actions` or `aggregation`, not both")]
     AmbiguousTransaction,
     /// Transaction contains a delta witness instead of a finalized proof.
     #[error("Expected delta proof, but found witness")]
@@ -28,4 +28,23 @@ pub enum SolanaArmError {
     /// Recovered public key does not match the accumulated delta point.
     #[error("Delta mismatch: recovered key does not match accumulated delta")]
     DeltaMismatch,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::SolanaArmError;
+    use arm_core::error::ArmError;
+
+    /// The Solana variants that mirror an ArmError print the same message.
+    #[test]
+    fn messages_match_arm_error() {
+        assert_eq!(
+            SolanaArmError::MissingAggregation.to_string(),
+            ArmError::MissingAggregation.to_string()
+        );
+        assert_eq!(
+            SolanaArmError::AmbiguousTransaction.to_string(),
+            ArmError::AmbiguousTransactionRepresentation.to_string()
+        );
+    }
 }

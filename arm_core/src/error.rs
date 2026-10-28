@@ -101,7 +101,7 @@ pub enum ArmError {
     InvalidNullifierCommitment,
     #[error("Nullifier duplication detected")]
     NullifierDuplication,
-    #[error("kind_tree_root mismatch across compliance units")]
+    #[error("kind_tree_root mismatch across actions")]
     KindTreeRootMismatch,
     #[error("kind_tree_root does not match the expected root")]
     KindTreeRootExpectedMismatch,
@@ -134,7 +134,7 @@ pub enum ArmError {
     EmptyActions,
     #[error("transaction has already been aggregated")]
     AlreadyAggregated,
-    #[error("transaction carries no aggregation proof")]
+    #[error("Transaction carries no aggregation proof")]
     MissingAggregation,
     #[error("Cannot compose a transaction that has already been aggregated")]
     CannotComposeAggregated,
