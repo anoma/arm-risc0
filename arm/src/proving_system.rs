@@ -36,7 +36,7 @@ pub fn prove<T: Serialize>(
 ) -> Result<(Vec<u8>, Vec<u8>), ArmError> {
     let receipt = prove_inner(witness, proving_key, proof_type)?;
 
-    let proof = bincode::serialize(&receipt.inner).map_err(|_| ArmError::SerializationError)?;
+    let proof = bincode::serialize(&receipt.inner).map_err(|_| ArmError::SerializationFailed)?;
     let instance = receipt.journal.bytes;
     Ok((proof, instance))
 }
@@ -44,7 +44,7 @@ pub fn prove<T: Serialize>(
 /// Verifies a proof against the given verifying key and instance.
 pub fn verify(verifying_key: &Digest, instance: &[u8], proof: &[u8]) -> Result<(), ArmError> {
     let inner: InnerReceipt =
-        bincode::deserialize(proof).map_err(|_| ArmError::InnerReceiptDeserializationError)?;
+        bincode::deserialize(proof).map_err(|_| ArmError::InnerReceiptDeserializationFailed)?;
     let receipt = Receipt::new(inner, instance.to_vec());
 
     receipt.verify(*verifying_key).map_err(|err| {
@@ -64,13 +64,15 @@ pub fn journal_to_instance<T: DeserializeOwned>(journal: &[u8]) -> Result<T, Arm
     let journal = risc0_zkvm::Journal {
         bytes: journal.to_vec(),
     };
-    journal.decode().map_err(|_| ArmError::JournalDecodingError)
+    journal
+        .decode()
+        .map_err(|_| ArmError::JournalDecodingFailed)
 }
 
 /// Encode the seal of the given proof for use with EVM smart contract verifiers.
 pub fn encode_seal(proof: &[u8]) -> Result<Vec<u8>, ArmError> {
     let inner: InnerReceipt =
-        bincode::deserialize(proof).map_err(|_| ArmError::InnerReceiptDeserializationError)?;
+        bincode::deserialize(proof).map_err(|_| ArmError::InnerReceiptDeserializationFailed)?;
     let seal = match inner {
         InnerReceipt::Groth16(receipt) => {
             let selector = &receipt.verifier_parameters.as_bytes()[..4];

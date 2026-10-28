@@ -35,14 +35,14 @@ pub enum ArmError {
     InvalidSigningKey,
     #[error("Invalid public key")]
     InvalidPublicKey,
-    #[error("Serialization error")]
-    SerializationError,
-    #[error("Deserialization error")]
-    DeserializationError,
-    #[error("Journal decode error")]
-    JournalDecodingError,
-    #[error("Inner receipt deserialization error")]
-    InnerReceiptDeserializationError,
+    #[error("Serialization failed")]
+    SerializationFailed,
+    #[error("Deserialization failed")]
+    DeserializationFailed,
+    #[error("Journal decoding failed")]
+    JournalDecodingFailed,
+    #[error("Inner receipt deserialization failed")]
+    InnerReceiptDeserializationFailed,
     #[error("Unsupported proof type")]
     UnsupportedProofType,
     #[error("Failed to write witness")]
