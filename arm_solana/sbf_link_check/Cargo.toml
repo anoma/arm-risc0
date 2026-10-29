@@ -14,10 +14,10 @@ resolver = "2"
 crate-type = ["cdylib"]
 
 [dependencies]
-anoma-rm-core = { path = "../../arm_core", version = "2.0.0-rc.8.1", features = [
+anoma-rm-core = { path = "../../arm_core", version = "2.0.0-rc.8.2", features = [
   "borsh",
 ] }
-anoma-rm-solana = { path = "..", version = "2.0.0-rc.8.1" }
+anoma-rm-solana = { path = "..", version = "2.0.0-rc.8.2" }
 borsh = { version = "1.5", default-features = false }
 solana-account-info = "3"
 solana-program-entrypoint = "3"

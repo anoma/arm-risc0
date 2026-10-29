@@ -17,7 +17,7 @@ Add as a dev dependency in a test app or examples:
 
 ```toml
 [dependencies]
-anoma-rm-risc0-test-witness = "2.0.0-rc.8.1"
+anoma-rm-risc0-test-witness = "2.0.0-rc.8.2"
 ```
 
 ## Relationship to Test App

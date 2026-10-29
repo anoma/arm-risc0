@@ -110,7 +110,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-anoma-rm-risc0-test-app = "2.0.0-rc.8.1"
+anoma-rm-risc0-test-app = "2.0.0-rc.8.2"
 ```
 
 ## Running Tests
