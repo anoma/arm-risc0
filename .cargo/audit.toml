@@ -41,6 +41,13 @@ ignore = [
   # debug-symbol resolution, not for processing untrusted network input.
   "RUSTSEC-2026-0344",
 
+  # crypto-bigint 0.5.5 - operations meant to be constant-time can branch on
+  # secret data. Transitive dep via k256 0.13 -> ecdsa 0.16/elliptic-curve 0.13
+  # and the Solana secp256k1 recover crates. Fixed only in crypto-bigint >= 0.7.6,
+  # which needs the k256/elliptic-curve 0.14 migration, including the risc0 guest
+  # forks. The 0.7 copy, via solana-secp256k1, is on a fixed release.
+  "RUSTSEC-2026-0387",
+
   # --- unmaintained direct dependency, migration deferred ---
   # bincode 1.3.3, used directly in arm/arm_gadgets to (de)serialize proofs and
   # resources. Migrating to bincode 2.x requires reworking ~15 call sites and
