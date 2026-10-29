@@ -129,7 +129,7 @@ dependencies = [
 
 [[package]]
 name = "anoma-rm-core"
-version = "2.0.0-rc.8.1"
+version = "2.0.0-rc.8.2"
 dependencies = [
  "bincode",
  "bytemuck",
@@ -141,7 +141,7 @@ dependencies = [
 
 [[package]]
 name = "anoma-rm-risc0"
-version = "2.0.0-rc.8.1"
+version = "2.0.0-rc.8.2"
 dependencies = [
  "alloy-primitives",
  "alloy-sol-types",
