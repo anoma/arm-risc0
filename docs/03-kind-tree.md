@@ -47,8 +47,8 @@ A transaction without kind paths therefore passes these checks with each kind tr
 
 ## 5. Trust assumptions
 
-- **The tree decides which kinds are fungible.** No in-circuit or out-of-circuit check of arm-risc0 compares a kind base with its pair. An entry that gives a kind the kind base of another kind lets transactions create resources of one kind from resources of the other. So a verifier must accept only the roots of reviewed trees. The repository risc0-kind-trees holds the kind trees of the protocol adapters and gives the rules for their entries.
-- **No known linear relation.** Nobody may know a linear relation between the generator `G` of the curve and the different kind bases of a tree. Equal points, the aliases, are the only permitted relation. A known relation, for example a kind base that is the sum of two other kind bases, lets a prover hide an imbalance in the delta proof. Points from hash to curve meet this condition. The in-circuit and out-of-circuit checks of arm-risc0 cover only the encoding of a kind base and that it is on the curve.
+- **A verifier accepts only the roots of reviewed trees.** The tree decides which kinds are fungible, and no in-circuit or out-of-circuit check of arm-risc0 compares a kind base with its pair. An entry that gives a kind the kind base of another kind lets transactions create resources of one kind from resources of the other. The repository risc0-kind-trees holds the kind trees of the protocol adapters and gives the rules for their entries.
+- **Nobody knows a linear relation between the generator `G` of the curve and the different kind bases of a tree.** Equal points, the aliases, are the only permitted relation. A known relation, for example a kind base that is the sum of two other kind bases, lets a prover hide an imbalance in the delta proof. Points from hash to curve meet this condition. The in-circuit and out-of-circuit checks of arm-risc0 cover only the encoding of a kind base and that it is on the curve.
 
 ## 6. Parameters
 

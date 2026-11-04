@@ -51,4 +51,4 @@ The ABI form, `abi_encode_instance`, uses the types of [`arm/src/aggregation_ins
 
 ## 5. Trust assumptions
 
-- **The delta proof shows balance only for unrelated kind bases.** [`03-kind-tree.md`](./03-kind-tree.md) states the condition.
+- **Nobody knows a linear relation between `G` and the kind bases.** The delta proof shows balance only under this condition, which [`03-kind-tree.md`](./03-kind-tree.md) states in full.
