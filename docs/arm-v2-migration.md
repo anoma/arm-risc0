@@ -264,7 +264,8 @@ DeltaProof::verify(proof: &DeltaProof, instance: &DeltaInstance)
 
 The **delta message changed**: v1 concatenated each compliance unit's
 `delta_msg()` (its tags); v2 concatenates each action's **action tree root**
-(32 bytes per action). `Transaction::get_delta_msg()` is now private.
+(32 bytes per action). `Transaction::get_delta_msg()` is now private, and
+`ComplianceInstance::delta_msg()` has been removed (use `tags()` for the raw tags).
 
 Also in `delta_proof.rs`:
 - `DeltaWitness::from_scalars`, `compose`, `compress` now return `Result` (were

@@ -163,16 +163,6 @@ impl Default for ComplianceWitness {
 }
 
 impl ComplianceInstance {
-    /// Returns the contribution of this compliance instance to the delta message.
-    /// Namely, the list of tags as bytes.
-    pub fn delta_msg(&self) -> Vec<u8> {
-        let mut msg = Vec::new();
-        for tag in self.tags() {
-            msg.extend_from_slice(tag.as_bytes());
-        }
-        msg
-    }
-
     /// The unit's tags in the order of its resources: the nullifier of a
     /// consumed resource, the commitment of a created resource.
     pub fn tags(&self) -> impl Iterator<Item = Digest> + '_ {
