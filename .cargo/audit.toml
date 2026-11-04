@@ -27,13 +27,16 @@ ignore = [
   "RUSTSEC-2026-0220",
 
   # zip 2.4.2 - extract() applies permissions through symlinks, keeps SUID/SGID
-  # bits, and creates symlinks outside the target directory. Transitive dep via
-  # risc0-zkvm -> risc0-circuit-recursion, which reads only its own embedded
-  # archive into memory and never calls extract(). The fix is zip >= 9.0.0, and
-  # every risc0-circuit-recursion 4.x release requires zip ^2.1.
+  # bits, creates symlinks outside the target directory (0367-0369), and aborts
+  # the process on a symlink entry with a large declared size (0429). Transitive
+  # dep via risc0-zkvm -> risc0-circuit-recursion, which reads only its own
+  # embedded archive into memory (by_name + read_exact) and never calls
+  # extract(). The fix is zip >= 9.0.0, and every risc0-circuit-recursion 4.x
+  # release (through 4.0.5) requires zip ^2.1.
   "RUSTSEC-2026-0367",
   "RUSTSEC-2026-0368",
   "RUSTSEC-2026-0369",
+  "RUSTSEC-2026-0429",
 
   # ruzstd 0.7.3 - decompression bomb (OOM). Transitive dep via
   # risc0-zkvm -> addr2line -> object -> ruzstd. Fix requires object to bump
