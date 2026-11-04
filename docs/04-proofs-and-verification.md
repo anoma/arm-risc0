@@ -45,7 +45,10 @@ The ABI form, `abi_encode_instance`, uses the types of [`arm/src/aggregation_ins
 
 `Transaction` holds the actions, the delta proof, an unused field `expected_balance`, and the aggregation. `Transaction::check_representation` requires either the actions or the aggregation, not both. `transaction::verify` takes the transaction, the expected kind tree root and the encoding. Its out-of-circuit checks verify the delta proof, reject repeated nullifiers, check the kind tree root, and then verify either the aggregation proof or each action.
 
-## 4. Trust assumptions
+## 4. Out-of-circuit checks
 
 - **The out-of-circuit checks cover what the in-circuit checks do not.** No in-circuit check rejects repeated nullifiers, compares commitment tree roots or the kind tree root with stored values, or verifies the delta proof, and the aggregation circuit outputs the compliance verifying key of its input. The out-of-circuit checks of `transaction::verify` cover the delta proof, the repeated nullifiers of the transaction, the kind tree root and the compliance verifying key. Only a verifier with state can check that each commitment tree root is a historical root and that no transaction consumed a nullifier before. The protocol adapter on EVM makes both out-of-circuit checks, and it uses its own copy of the compliance verifying key.
+
+## 5. Trust assumptions
+
 - **The delta proof shows balance only for unrelated kind bases.** [`03-kind-tree.md`](./03-kind-tree.md) states the condition.

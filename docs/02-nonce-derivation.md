@@ -33,7 +33,7 @@ So on one chain, no two created resources get the same nonce, if SHA-256 has no 
 
 `compliance::constrain` collects the nullifiers of the consumed resources in its pass over the list, calculates the digest, and then requires `nonce_j` for each created resource `j`. A different nonce makes it fail with `InvalidResourceNonce`.
 
-## 5. Trust assumptions
+## 5. Out-of-circuit checks
 
 - **The verifier rejects repeated nullifiers.** The uniqueness of the nonces depends on this out-of-circuit check. The protocol adapter keeps a nullifier set for it.
 

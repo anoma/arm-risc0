@@ -28,6 +28,8 @@ The instance also holds the delta point of the unit and the kind tree root.
 
 After the pass, it checks the nonce of each created resource ([`02-nonce-derivation.md`](./02-nonce-derivation.md)). A unit whose delta is the identity point fails (`InvalidDelta`).
 
+The list has no length limit. The time to make the proof and the gas limit of the chain limit an action.
+
 ## 2. The order of the list
 
 The order of the witness list is also the order of these items:
@@ -50,8 +52,7 @@ An `Action` holds one `ComplianceUnit` and one `LogicVerifierInput` for each res
 
 `transaction::aggregation_witness`, which builds the input of the aggregation circuit, checks only the count and the tags. An in-circuit check of the aggregation circuit covers the third condition: the circuit builds each logic instance from the compliance instance and verifies the logic proof against the logic ref of the resource. So a proof of another circuit makes the aggregation fail ([`04-proofs-and-verification.md`](./04-proofs-and-verification.md)). Whether a resource is consumed comes from its variant in the compliance instance, not from its position.
 
-## 4. Trust assumptions
+## 4. Out-of-circuit checks
 
 - **The verifier rejects repeated nullifiers.** No in-circuit check compares the nullifiers of the consumed resources of a unit. Two out-of-circuit checks reject a repeated nullifier: `transaction::nf_duplication_check` over the whole transaction, and the nullifier set of the protocol adapter over all transactions.
 - **The verifier checks the commitment tree roots.** The compliance circuit calculates the root of each consumed resource, but no in-circuit check compares it with a stored root. An out-of-circuit check of the protocol adapter requires each root to be a historical root.
-- **The list has no length limit.** The compliance circuit accepts any number of resources. The time to make the proof and the gas limit of the chain limit an action.

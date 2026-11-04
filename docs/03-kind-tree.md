@@ -43,13 +43,12 @@ The compliance instance holds the kind tree root of the unit: the root of the ki
 - The out-of-circuit check `transaction::kind_tree_root_check` accepts the root of a transaction if it is the expected root or `PADDING_LEAF`.
 - The protocol adapter on EVM stores one kind tree root. Its out-of-circuit check accepts a transaction with that root or with the root of the empty tree.
 
-A transaction without kind paths therefore passes these checks with each kind tree.
+A transaction without kind paths therefore passes these checks with each kind tree. So a kind tree cannot block a kind: a prover can leave out the kind path of a resource, and the circuit then uses the kind base from hash to curve. A kind tree adds aliases, but it cannot stop a kind from balancing with itself.
 
 ## 5. Trust assumptions
 
 - **The tree decides which kinds are fungible.** No in-circuit or out-of-circuit check of arm-risc0 compares a kind base with its pair. An entry that gives a kind the kind base of another kind lets transactions create resources of one kind from resources of the other. So a verifier must accept only the roots of reviewed trees. The repository risc0-kind-trees holds the kind trees of the protocol adapters and gives the rules for their entries.
 - **No known linear relation.** Nobody may know a linear relation between the generator `G` of the curve and the different kind bases of a tree. Equal points, the aliases, are the only permitted relation. A known relation, for example a kind base that is the sum of two other kind bases, lets a prover hide an imbalance in the delta proof. Points from hash to curve meet this condition. The in-circuit and out-of-circuit checks of arm-risc0 cover only the encoding of a kind base and that it is on the curve.
-- **A tree cannot block a kind.** A prover can leave out the kind path of a resource. Then the circuit uses the kind base from hash to curve. So a kind tree adds aliases, but it cannot stop a kind from balancing with itself.
 
 ## 6. Parameters
 
