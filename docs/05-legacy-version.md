@@ -1,6 +1,6 @@
 # Legacy Version
 
-This document states how arm-risc0 differs from its legacy version. The legacy protocol adapters verify proofs of the legacy version: they store the verifying keys of its circuits.
+This document states how arm-risc0 differs from its legacy version. The legacy protocol adapters verify proofs of the legacy version: they store the verifying keys of its circuits. The glossary [`CONTEXT.md`](../CONTEXT.md#language) defines the terms.
 
 The comparisons hold for the tag `v1.1.1`.
 

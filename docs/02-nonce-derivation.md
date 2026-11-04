@@ -1,6 +1,6 @@
 # Nonce Derivation
 
-This document specifies how the nonce of each created resource derives from the consumed resources of its compliance unit. The code is in [`arm_core/src/resource.rs`](../arm_core/src/resource.rs) (`Resource::hash_nullifiers`, `Resource::derive_nonce`, `Resource::derive_nonce_from_nullifiers`) and in `compliance::constrain` in [`arm/src/compliance.rs`](../arm/src/compliance.rs).
+This document specifies how the nonce of each created resource derives from the consumed resources of its compliance unit. The code is in [`arm_core/src/resource.rs`](../arm_core/src/resource.rs) (`Resource::hash_nullifiers`, `Resource::derive_nonce`, `Resource::derive_nonce_from_nullifiers`) and in `compliance::constrain` in [`arm/src/compliance.rs`](../arm/src/compliance.rs). The glossary [`CONTEXT.md`](../CONTEXT.md#language) defines the terms.
 
 ## 1. The derivation
 

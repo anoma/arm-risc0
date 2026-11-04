@@ -1,6 +1,6 @@
 # Kind Tree
 
-This document specifies the kind tree: how the compliance circuit reads kind bases from it instead of calculating them, and how it makes kinds fungible. The code is in [`arm/src/kind_tree.rs`](../arm/src/kind_tree.rs), [`arm/src/compliance.rs`](../arm/src/compliance.rs) (`resolve_kind`, `constrain`) and [`arm_core/src/compliance.rs`](../arm_core/src/compliance.rs).
+This document specifies the kind tree: how the compliance circuit reads kind bases from it instead of calculating them, and how it makes kinds fungible. The code is in [`arm/src/kind_tree.rs`](../arm/src/kind_tree.rs), [`arm/src/compliance.rs`](../arm/src/compliance.rs) (`resolve_kind`, `constrain`) and [`arm_core/src/compliance.rs`](../arm_core/src/compliance.rs). The glossary [`CONTEXT.md`](../CONTEXT.md#language) defines the terms.
 
 ## 1. Two uses
 

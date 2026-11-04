@@ -1,6 +1,6 @@
 # Compliance Units of Variable Size
 
-This document specifies the compliance unit: one unit for each action, with one or more consumed resources and any number of created resources in one ordered list. It also specifies how the logic proofs pair with the resources. The code is in [`arm_core/src/compliance.rs`](../arm_core/src/compliance.rs), [`arm_core/src/resource.rs`](../arm_core/src/resource.rs), [`arm/src/compliance.rs`](../arm/src/compliance.rs) and [`arm/src/action.rs`](../arm/src/action.rs).
+This document specifies the compliance unit: one unit for each action, with one or more consumed resources and any number of created resources in one ordered list. It also specifies how the logic proofs pair with the resources. The code is in [`arm_core/src/compliance.rs`](../arm_core/src/compliance.rs), [`arm_core/src/resource.rs`](../arm_core/src/resource.rs), [`arm/src/compliance.rs`](../arm/src/compliance.rs) and [`arm/src/action.rs`](../arm/src/action.rs). The glossary [`CONTEXT.md`](../CONTEXT.md#language) defines the terms.
 
 ## 1. The unit
 

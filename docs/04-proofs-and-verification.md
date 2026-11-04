@@ -1,6 +1,6 @@
 # Proofs and Verification
 
-This document specifies the delta proof, the aggregation proof and its journal, the transaction, and the out-of-circuit checks of a verifier. The code is in [`arm_core/src/delta_proof.rs`](../arm_core/src/delta_proof.rs), [`arm/src/delta_proof.rs`](../arm/src/delta_proof.rs), [`arm_core/src/aggregation_witness.rs`](../arm_core/src/aggregation_witness.rs), [`arm_core/src/aggregation_instance.rs`](../arm_core/src/aggregation_instance.rs), [`arm/src/aggregation_instance.rs`](../arm/src/aggregation_instance.rs), [`arm/src/transaction.rs`](../arm/src/transaction.rs) and the [aggregation circuit](../arm_circuits/batch_aggregation/methods/guest/src/main.rs).
+This document specifies the delta proof, the aggregation proof and its journal, the transaction, and the out-of-circuit checks of a verifier. The code is in [`arm_core/src/delta_proof.rs`](../arm_core/src/delta_proof.rs), [`arm/src/delta_proof.rs`](../arm/src/delta_proof.rs), [`arm_core/src/aggregation_witness.rs`](../arm_core/src/aggregation_witness.rs), [`arm_core/src/aggregation_instance.rs`](../arm_core/src/aggregation_instance.rs), [`arm/src/aggregation_instance.rs`](../arm/src/aggregation_instance.rs), [`arm/src/transaction.rs`](../arm/src/transaction.rs) and the [aggregation circuit](../arm_circuits/batch_aggregation/methods/guest/src/main.rs). The glossary [`CONTEXT.md`](../CONTEXT.md#language) defines the terms.
 
 ## 1. Delta proof
 
