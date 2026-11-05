@@ -743,9 +743,9 @@ dependencies = [
 
 [[package]]
 name = "risc0-zkp"
-version = "3.0.5"
+version = "3.0.6-rc.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "21c0c921e5e2d44197940d387a45e29c6165e318b5a168fdfdbd50f50ba03678"
+checksum = "b36e5f09f0c80b0cf841af94f1f0e21202a370baf8e3b55a2a6c1c418f8ab472"
 dependencies = [
  "anyhow",
  "blake2",

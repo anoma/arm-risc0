@@ -9,7 +9,7 @@ on:
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
-  RISC0_TOOLCHAIN_VERSION: 3.0.3
+  RISC0_TOOLCHAIN_VERSION: 3.1.0-rc.1
 
 jobs:
   taplo:

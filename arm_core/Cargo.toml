@@ -17,7 +17,7 @@ repository = { workspace = true }
 [dependencies]
 # Source of `Digest` (the identical type risc0-zkvm re-exports) and the
 # featureless software sha256 used for commitments/nullifiers/tree roots.
-risc0-zkp = { version = "3.0", default-features = false }
+risc0-zkp = { version = "3.0.6-rc.1", default-features = false }
 serde = { version = "1.0.197", default-features = false, features = ["derive"] }
 bincode = "1.3.3"
 hex = "0.4"
