@@ -141,15 +141,20 @@ will reproduce the output to:
 
 ```bash
 ELFs ready at:
-ImageID: 78482ab858bc1efad251cf56f069617560e5aa22995028dcc2af3c95317cf153 -
+ImageID: 3c76e65f2e225756d29f23e8b79bcd88fc10ae4365af517993c9a28ceb37d35f -
 arm-risc0/arm_circuits/compliance/methods/guest/target/riscv32im-risc0-zkvm-elf/docker/compliance-guest.bin
 ```
 
-Note: The `unstable` feature of `risc0-zkvm` currently causes issues in circuits. This can be temporarily fixed by manually updating the tool. The problem will be fully resolved in the next release of RISC Zero.
+Use the RISC Zero 3.1.0 tools with the matching crate versions:
 
 ```bash
-cargo install --force --git https://github.com/risc0/risc0 --tag v3.0.3 -Fexperimental cargo-risczero
+rzup install cargo-risczero 3.1.0
+rzup install r0vm 3.1.0
 ```
+
+RISC Zero 3.1.0 changes the proof circuits and control root. Regenerate receipts
+produced by earlier versions and update deployed verifiers before using new proofs.
+See the [3.1.0 release notes](https://github.com/risc0/risc0/releases/tag/v3.1.0).
 
 ## Proof aggregation
 
