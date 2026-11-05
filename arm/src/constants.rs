@@ -33,6 +33,10 @@ static KIND_TREE: OnceLock<KindTree> = OnceLock::new();
 struct KindTreeJsonEntry {
     logic_ref: String,
     label_ref: String,
+    /// The target logic ref of a redirect. Defaults to `logic_ref`, an entry
+    /// without a redirect.
+    #[serde(default)]
+    target_logic_ref: Option<String>,
     kind_base: String,
     /// Ignored by the loader; present for human readability.
     #[serde(default, rename = "_comment")]
@@ -46,7 +50,8 @@ const STARTER_KIND_TREE_JSON: &str = include_str!("../data/kind_tree.json");
 /// Initializes the global kind tree from a JSON file.
 ///
 /// The file must contain a JSON array of objects with `logic_ref`, `label_ref`,
-/// and `kind_base` (all lowercase hex). The kind base is stored verbatim; no
+/// and `kind_base` (all lowercase hex), and an optional `target_logic_ref`
+/// whose default is `logic_ref`. The kind base is stored verbatim; no
 /// `hash_to_curve` is performed at load time. An optional `_comment` field is
 /// accepted and ignored. Calling this a second time is a no-op; the first call wins.
 pub fn init_kind_tree_from_file(path: &Path) -> Result<(), ArmError> {
@@ -77,10 +82,15 @@ fn parse_kind_tree_json(json: &str) -> Result<Vec<KindTreeEntry>, ArmError> {
                 Digest::from_hex(&e.logic_ref).map_err(|_| ArmError::KindTreeLoadFailed)?;
             let label_ref =
                 Digest::from_hex(&e.label_ref).map_err(|_| ArmError::KindTreeLoadFailed)?;
+            let target_logic_ref = match &e.target_logic_ref {
+                Some(t) => Digest::from_hex(t).map_err(|_| ArmError::KindTreeLoadFailed)?,
+                None => logic_ref,
+            };
             let kind_base = hex::decode(&e.kind_base).map_err(|_| ArmError::KindTreeLoadFailed)?;
             Ok(KindTreeEntry {
                 logic_ref,
                 label_ref,
+                target_logic_ref,
                 kind_base,
             })
         })
@@ -168,7 +178,7 @@ mod tests {
                 Digest::from(
                     <[u8; 32]>::try_from(
                         hex::decode(
-                            "138ff48f4f987d184549c1a7056940bc70600d66cdd08de1ab4349b3c18d5bb4",
+                            "9d09cb7614b3e67806449c5b0b126b010c79e68a382c10696b8c833e9d1bb807",
                         )
                         .unwrap()
                         .as_slice(),

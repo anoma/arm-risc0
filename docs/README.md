@@ -15,6 +15,7 @@ arm-risc0 proves the transactions of the ARM with RISC Zero. Each action has one
 | [`03-kind-tree.md`](./03-kind-tree.md)                             | The compliance circuit reads the kind base of a resource from a kind tree if the prover gives a kind path, else it calculates the kind base by hash to curve. Aliases in the tree make kinds fungible.                                                                |
 | [`04-proofs-and-verification.md`](./04-proofs-and-verification.md) | The delta proof signs the action tree roots. One aggregation proof covers all compliance units and logic proofs of a transaction, and its journal has an encoding for EVM verifiers. The out-of-circuit checks of a verifier cover what the in-circuit checks do not. |
 | [`05-legacy-version.md`](./05-legacy-version.md)                   | How arm-risc0 differs from its legacy version, whose proofs the legacy protocol adapters verify                                                                                                                                                                       |
+| [`06-logic-upgrades.md`](./06-logic-upgrades.md)                   | A kind tree entry redirects a consumed resource from a vulnerable logic to a new logic, and the verifiers revoke the old logic.                                                                                                                                       |
 
 ## 3. Crates
 

@@ -43,7 +43,7 @@ The ABI form, `abi_encode_instance`, uses the types of [`arm/src/aggregation_ins
 
 ## 3. Transaction
 
-`Transaction` holds the actions, the delta proof, an unused field `expected_balance`, and the aggregation. `Transaction::check_representation` requires either the actions or the aggregation, not both. `transaction::verify` takes the transaction, the expected kind tree root and the encoding. Its out-of-circuit checks verify the delta proof, reject repeated nullifiers, check the kind tree root, and then verify either the aggregation proof or each action.
+`Transaction` holds the actions, the delta proof, an unused field `expected_balance`, and the aggregation. `Transaction::check_representation` requires either the actions or the aggregation, not both. `transaction::verify` takes the transaction, the expected kind tree root, the revoked logic refs and the encoding. Its out-of-circuit checks verify the delta proof, reject repeated nullifiers, check the kind tree root, reject revoked logic refs ([`06-logic-upgrades.md`](./06-logic-upgrades.md)), and then verify either the aggregation proof or each action.
 
 ## 4. Out-of-circuit checks
 

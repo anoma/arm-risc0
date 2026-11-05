@@ -21,6 +21,10 @@ pub enum ArmError {
         expected: Digest,
         found: Digest,
     },
+    #[error("kind path at position {position} redirects a created resource to another logic")]
+    RedirectOnCreatedResource { position: usize },
+    #[error("the transaction uses the revoked logic {logic_ref}")]
+    RevokedLogic { logic_ref: Digest },
     #[error("Invalid resource serialization")]
     InvalidResourceSerialization,
     #[error("Invalid resource deserialization")]

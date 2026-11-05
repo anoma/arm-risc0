@@ -69,6 +69,7 @@ fn resolve_kind(
                 arm_core::compliance::hash_kind_tree_leaf(&arm_core::compliance::KindTreeEntry {
                     logic_ref: resource.logic_ref,
                     label_ref: resource.label_ref,
+                    target_logic_ref: kp.target_logic_ref,
                     kind_base: kp.kind_base.clone(),
                 });
             let path_root = kp.path.root(&leaf);
@@ -138,6 +139,20 @@ pub fn constrain(witness: &ComplianceWitness) -> Result<ComplianceInstance, ArmE
     {
         let resource = resource_witness.resource();
         let resource_commitment = resource.commitment();
+        // The logic ref the instance holds: the target of the kind path for a
+        // consumed resource (a redirect, see `docs/06-logic-upgrades.md`),
+        // else the logic ref of the resource. The leaf checked in
+        // `resolve_kind` binds the target to the pair of the resource. A
+        // created resource never gets a redirect.
+        let logic_ref = match (resource_witness, kind_path) {
+            (ResourceWitness::Consumed(_), Some(kp)) => kp.target_logic_ref,
+            (ResourceWitness::Created(_), Some(kp))
+                if kp.target_logic_ref != resource.logic_ref =>
+            {
+                return Err(ArmError::RedirectOnCreatedResource { position });
+            }
+            _ => resource.logic_ref,
+        };
         // Reading `logic_ref` here forces it to be loaded from memory onto
         // the computational trace.
         let (resource_instance, signed_quantity) = match resource_witness {
@@ -153,7 +168,7 @@ pub fn constrain(witness: &ComplianceWitness) -> Result<ComplianceInstance, ArmE
                 (
                     ComplianceResourceInstance::Consumed {
                         nullifier: resource_nullifier,
-                        logic_ref: resource.logic_ref,
+                        logic_ref,
                         commitment_tree_root,
                     },
                     crate::resource::quantity_scalar(resource),
@@ -162,7 +177,7 @@ pub fn constrain(witness: &ComplianceWitness) -> Result<ComplianceInstance, ArmE
             ResourceWitness::Created(_) => (
                 ComplianceResourceInstance::Created {
                     commitment: resource_commitment,
-                    logic_ref: resource.logic_ref,
+                    logic_ref,
                 },
                 -crate::resource::quantity_scalar(resource),
             ),
@@ -254,10 +269,15 @@ mod tests {
     use crate::resource::ResourceWitnessConsumed;
 
     const RCV: [u8; 32] = [1u8; 32];
+    const LOGIC: Digest = Digest::new([0x01010101; 8]);
 
     fn resource(label: u8, quantity: u128, nonce: [u8; 32]) -> Resource {
+        resource_of(LOGIC, label, quantity, nonce)
+    }
+
+    fn resource_of(logic_ref: Digest, label: u8, quantity: u128, nonce: [u8; 32]) -> Resource {
         Resource {
-            logic_ref: Digest::from([1u8; 32]),
+            logic_ref,
             label_ref: Digest::from([label; 32]),
             quantity,
             value_ref: Digest::default(),
@@ -286,6 +306,7 @@ mod tests {
             vec![
                 None,
                 Some(KindPath {
+                    target_logic_ref: LOGIC,
                     kind_base,
                     path: MerklePath::empty(),
                 }),
@@ -328,6 +349,7 @@ mod tests {
             .to_vec();
         let mut w = witness(generator.clone(), 1_000_000);
         w.kind_paths[0] = Some(KindPath {
+            target_logic_ref: LOGIC,
             kind_base: generator,
             path: MerklePath::empty(),
         });
@@ -359,10 +381,12 @@ mod tests {
             &RCV,
             vec![
                 Some(KindPath {
+                    target_logic_ref: LOGIC,
                     kind_base: generator.clone(),
                     path: MerklePath::empty(),
                 }),
                 Some(KindPath {
+                    target_logic_ref: LOGIC,
                     kind_base: generator,
                     path: MerklePath::from_path(&[(Digest::default(), false)]),
                 }),
@@ -371,6 +395,102 @@ mod tests {
         assert!(matches!(
             constrain(&w),
             Err(ArmError::KindPathRootMismatch { position: 1, expected, found }) if expected != found
+        ));
+    }
+
+    const NEW_LOGIC: Digest = Digest::new([0x02020202; 8]);
+    const LABEL: u8 = 7;
+
+    fn generator() -> Vec<u8> {
+        k256::AffinePoint::GENERATOR
+            .to_encoded_point(false)
+            .as_bytes()
+            .to_vec()
+    }
+
+    /// A kind tree with the redirect entry `(LOGIC, LABEL) -> NEW_LOGIC` and
+    /// the entry of the new kind, both with the kind base `G`.
+    fn redirect_tree() -> crate::kind_tree::KindTree {
+        let label_ref = Digest::from([LABEL; 32]);
+        crate::kind_tree::KindTree::from_entries(vec![
+            KindTreeEntry {
+                logic_ref: LOGIC,
+                label_ref,
+                target_logic_ref: NEW_LOGIC,
+                kind_base: generator(),
+            },
+            KindTreeEntry {
+                logic_ref: NEW_LOGIC,
+                label_ref,
+                target_logic_ref: NEW_LOGIC,
+                kind_base: generator(),
+            },
+        ])
+        .unwrap()
+    }
+
+    /// A unit that consumes `quantity` of `(LOGIC, LABEL)` and creates
+    /// `quantity` of `(created_logic, LABEL)`, with the kind paths of
+    /// `redirect_tree`.
+    fn upgrade_witness(created_logic: Digest, quantity: u128) -> ComplianceWitness {
+        let tree = redirect_tree();
+        let nf_key = NullifierKey::default();
+        let consumed = resource_of(LOGIC, LABEL, quantity, [0u8; 32]);
+        let nullifier = consumed.nullifier(&nf_key).unwrap();
+        let nonce = Resource::derive_nonce(0, Resource::hash_nullifiers(&[nullifier]).unwrap());
+        let resource_witnesses = vec![
+            ResourceWitness::Consumed(ResourceWitnessConsumed::from_resource(consumed, nf_key)),
+            ResourceWitness::Created(resource_of(created_logic, LABEL, quantity, nonce)),
+        ];
+        let kind_paths = tree.kind_paths_for(&resource_witnesses);
+        ComplianceWitness::from_parts(resource_witnesses, INITIAL_ROOT, &RCV, kind_paths)
+    }
+
+    /// The redirect writes the new logic ref into the instance for the
+    /// consumed resource of the old logic, and the old and new kinds balance.
+    #[test]
+    fn redirect_puts_the_target_logic_ref_into_the_instance() {
+        let instance = constrain(&upgrade_witness(NEW_LOGIC, 5)).unwrap();
+        assert!(instance.resource_instances[0].is_consumed());
+        assert_eq!(instance.resource_instances[0].logic_ref(), NEW_LOGIC);
+        assert_eq!(instance.resource_instances[1].logic_ref(), NEW_LOGIC);
+        assert_eq!(instance.kind_tree_root, redirect_tree().root());
+        let balanced = encode_delta(ProjectivePoint::GENERATOR * parse_rcv(&RCV).unwrap()).unwrap();
+        assert_eq!((instance.delta_x, instance.delta_y), balanced);
+    }
+
+    /// Without a kind path, the consumed resource keeps the old logic ref,
+    /// which the verifier rejects once the old logic is revoked.
+    #[test]
+    fn consumed_resource_without_a_kind_path_keeps_its_logic_ref() {
+        let mut w = upgrade_witness(NEW_LOGIC, 5);
+        w.kind_paths[0] = None;
+        let instance = constrain(&w).unwrap();
+        assert_eq!(instance.resource_instances[0].logic_ref(), LOGIC);
+    }
+
+    /// A created resource of the old kind gets the redirect entry as its
+    /// kind path, and the circuit rejects it.
+    #[test]
+    fn redirect_on_a_created_resource_is_rejected() {
+        assert_eq!(
+            constrain(&upgrade_witness(LOGIC, 5)).map(|_| ()),
+            Err(ArmError::RedirectOnCreatedResource { position: 1 })
+        );
+    }
+
+    /// A prover cannot attach another target to a pair: the leaf holds the
+    /// target, so the path opens under another root.
+    #[test]
+    fn forged_target_logic_ref_changes_the_root() {
+        let mut w = upgrade_witness(NEW_LOGIC, 5);
+        if let Some(kp) = w.kind_paths[0].as_mut() {
+            kp.target_logic_ref = Digest::new([0x03030303; 8]);
+        }
+        let instance = constrain(&w);
+        assert!(matches!(
+            instance,
+            Err(ArmError::KindPathRootMismatch { position: 1, .. })
         ));
     }
 }

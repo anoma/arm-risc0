@@ -36,7 +36,7 @@ pub const TEST_LOGIC_PK: &[u8] = include_bytes!("../elf/logic-test-guest.bin");
 lazy_static! {
     // test logic verification key / test image id
     pub static ref TEST_LOGIC_VK: Digest =
-        Digest::from_hex("138ff48f4f987d184549c1a7056940bc70600d66cdd08de1ab4349b3c18d5bb4")
+        Digest::from_hex("9d09cb7614b3e67806449c5b0b126b010c79e68a382c10696b8c833e9d1bb807")
             .unwrap();
 }
 
@@ -365,6 +365,7 @@ fn test_transaction() {
     assert!(transaction::verify(
         &balanced_tx,
         kind_tree_root().unwrap(),
+        &[],
         JournalEncoding::Risc0Serde
     )
     .is_ok())
@@ -378,6 +379,7 @@ fn test_unbalanced_tx_fails_to_verify() {
     assert!(transaction::verify(
         &unbalanced_tx,
         kind_tree_root().unwrap(),
+        &[],
         JournalEncoding::Risc0Serde
     )
     .is_err())
@@ -557,6 +559,7 @@ fn test_aggregation_works() {
     assert!(transaction::verify(
         &tx_str,
         kind_tree_root().unwrap(),
+        &[],
         JournalEncoding::Risc0Serde
     )
     .is_ok());
@@ -879,7 +882,12 @@ fn test_verify_rejects_transaction_with_both_actions_and_aggregation() {
         Err(ArmError::AmbiguousTransactionRepresentation)
     );
     assert_eq!(
-        transaction::verify(&tx, Digest::from([0u8; 32]), JournalEncoding::Risc0Serde),
+        transaction::verify(
+            &tx,
+            Digest::from([0u8; 32]),
+            &[],
+            JournalEncoding::Risc0Serde
+        ),
         Err(ArmError::AmbiguousTransactionRepresentation)
     );
 }
@@ -932,6 +940,7 @@ fn test_compose_transactions() {
     assert!(transaction::verify(
         &composed,
         kind_tree_root().unwrap(),
+        &[],
         JournalEncoding::Risc0Serde
     )
     .is_ok());

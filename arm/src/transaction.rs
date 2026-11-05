@@ -64,6 +64,9 @@ pub fn generate_delta_proof(tx: Transaction) -> Result<Transaction, ArmError> {
 /// via `kind_tree_root()` and propagate the `None` case as an error rather
 /// than panicking.
 ///
+/// `revoked_logics` is the set of revoked logic refs of the target chain; see
+/// [`revoked_logic_check`]. Pass an empty slice if no logic is revoked.
+///
 /// `encoding` selects how the batch aggregation journal is interpreted when
 /// the transaction carries an aggregation proof. Pass [`JournalEncoding::Risc0Serde`]
 /// for the default RISC Zero / Solana path or [`JournalEncoding::Abi`] for the
@@ -71,6 +74,7 @@ pub fn generate_delta_proof(tx: Transaction) -> Result<Transaction, ArmError> {
 pub fn verify(
     tx: &Transaction,
     kind_tree_root: Digest,
+    revoked_logics: &[Digest],
     encoding: JournalEncoding,
 ) -> Result<(), ArmError> {
     // A transaction must carry exactly one representation. Rejecting the
@@ -94,6 +98,7 @@ pub fn verify(
             // Check for nullifier duplication across all compliance units
             nf_duplication_check(tx)?;
             kind_tree_root_check(tx, kind_tree_root)?;
+            revoked_logic_check(tx, revoked_logics)?;
 
             if tx.aggregation.is_some() {
                 #[cfg(not(feature = "aggregation"))]
@@ -161,6 +166,49 @@ pub fn kind_tree_root_check(tx: &Transaction, expected: Digest) -> Result<(), Ar
         return Err(ArmError::KindTreeRootExpectedMismatch);
     }
     Ok(())
+}
+
+/// Rejects a transaction if a logic ref of one of its resources is in
+/// `revoked`.
+///
+/// The logic refs are the ones the logic proofs are verified against: those
+/// of the compliance instances, which hold the target logic ref of a
+/// redirected consumed resource (see `docs/06-logic-upgrades.md`). After the
+/// revocation of an old logic, a consumed resource of the old logic passes
+/// only with the redirect of its kind path, and a created resource of the old
+/// logic never passes.
+///
+/// When `aggregation` is present it is authoritative: the logic refs are read
+/// from the proof-backed `aggregation.instance`, never from `actions`.
+pub fn revoked_logic_check(tx: &Transaction, revoked: &[Digest]) -> Result<(), ArmError> {
+    if revoked.is_empty() {
+        return Ok(());
+    }
+    let check = |logic_ref: Digest| {
+        if revoked.contains(&logic_ref) {
+            Err(ArmError::RevokedLogic { logic_ref })
+        } else {
+            Ok(())
+        }
+    };
+    if let Some(agg) = &tx.aggregation {
+        for action in &agg.instance.actions {
+            for resource in &action.resource_instances {
+                check(resource.logic_ref())?;
+            }
+        }
+        Ok(())
+    } else if let Some(actions) = &tx.actions {
+        for action in actions {
+            let instance = crate::compliance_unit::get_instance(&action.compliance_unit)?;
+            for resource in &instance.resource_instances {
+                check(resource.logic_ref())?;
+            }
+        }
+        Ok(())
+    } else {
+        Err(ArmError::MissingActions)
+    }
 }
 
 /// Inner check for nullifier duplication across all compliance units.

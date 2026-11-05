@@ -30,8 +30,13 @@ pub struct ComplianceInstance {
 }
 
 /// A leaf of the kind tree, binding (logic_ref, label_ref) to a pre-computed
-/// kind base. Avoids hash-to-curve inside the circuit for known resource
-/// types.
+/// kind base and a target logic ref. Avoids hash-to-curve inside the circuit
+/// for known resource types.
+///
+/// The target logic ref redirects a consumed resource of the pair to another
+/// logic: the compliance instance holds the target instead of the logic ref
+/// of the resource, so the logic proof of the target is required. An entry
+/// without a redirect has its own logic ref as the target.
 #[cfg_attr(
     feature = "borsh",
     derive(borsh::BorshSerialize, borsh::BorshDeserialize)
@@ -42,21 +47,28 @@ pub struct KindTreeEntry {
     pub logic_ref: Digest,
     /// Label ref component of the key.
     pub label_ref: Digest,
+    /// The logic ref the compliance instance holds for a consumed resource
+    /// of the pair. Equal to `logic_ref` for an entry without a redirect.
+    pub target_logic_ref: Digest,
     /// Uncompressed SEC1-encoded kind base (65 bytes).
     pub kind_base: Vec<u8>,
 }
 
-/// A per-resource read-out of the kind tree: the pre-computed kind base for a
-/// resource together with a Merkle path proving its leaf is in the tree.
+/// A per-resource read-out of the kind tree: the pre-computed kind base and
+/// target logic ref for a resource together with a Merkle path proving its
+/// leaf is in the tree.
 #[cfg_attr(
     feature = "borsh",
     derive(borsh::BorshSerialize, borsh::BorshDeserialize)
 )]
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct KindPath {
+    /// The target logic ref of the entry.
+    pub target_logic_ref: Digest,
     /// Uncompressed SEC1-encoded kind base (65 bytes).
     pub kind_base: Vec<u8>,
-    /// Merkle path from `hash_kind_tree_leaf(logic_ref, label_ref, kind_base)` to the root.
+    /// Merkle path from `hash_kind_tree_leaf(logic_ref, label_ref,
+    /// target_logic_ref, kind_base)` to the root.
     pub path: MerklePath,
 }
 
@@ -105,13 +117,16 @@ impl ComplianceWitness {
 }
 
 /// SHA-256 leaf hash for a kind tree entry:
-/// `sha256(logic_ref || label_ref || kind_base)`.
+/// `sha256(logic_ref || label_ref || target_logic_ref || kind_base)`.
 /// This is the leaf encoding used when building the Merkle tree and when
-/// verifying per-resource Merkle paths inside the compliance circuit.
+/// verifying per-resource Merkle paths inside the compliance circuit. Each
+/// leaf holds the target, also if it equals the logic ref, so a leaf with a
+/// redirect and a leaf without one never share an encoding.
 pub fn hash_kind_tree_leaf(entry: &KindTreeEntry) -> Digest {
-    let mut bytes = Vec::with_capacity(32 + 32 + entry.kind_base.len());
+    let mut bytes = Vec::with_capacity(32 + 32 + 32 + entry.kind_base.len());
     bytes.extend_from_slice(entry.logic_ref.as_bytes());
     bytes.extend_from_slice(entry.label_ref.as_bytes());
+    bytes.extend_from_slice(entry.target_logic_ref.as_bytes());
     bytes.extend_from_slice(&entry.kind_base);
     crate::utils::hash_bytes(&bytes)
 }

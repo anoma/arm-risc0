@@ -161,6 +161,7 @@ fn make_kind_tree_of_size(size: usize, matching: &KindTreeEntry) -> KindTree {
         entries.push(KindTreeEntry {
             logic_ref: Digest::from(bytes),
             label_ref: matching.label_ref,
+            target_logic_ref: Digest::from(bytes),
             kind_base: matching.kind_base.clone(),
         });
     }

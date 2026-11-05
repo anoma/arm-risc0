@@ -93,9 +93,13 @@ impl KindTree {
             .entries
             .iter()
             .position(|e| e.logic_ref == *logic_ref && e.label_ref == *label_ref)?;
-        let kind_base = self.entries[pos].kind_base.clone();
+        let entry = &self.entries[pos];
         let path = merkle_path(&self.leaves, pos);
-        Some(KindPath { kind_base, path })
+        Some(KindPath {
+            target_logic_ref: entry.target_logic_ref,
+            kind_base: entry.kind_base.clone(),
+            path,
+        })
     }
 
     /// Returns one `Option<KindPath>` per resource, in the order of
@@ -187,6 +191,7 @@ mod tests {
         KindTreeEntry {
             logic_ref: Digest::from(logic),
             label_ref: Digest::from(label),
+            target_logic_ref: Digest::from(logic),
             kind_base: generator_point(),
         }
     }
@@ -322,6 +327,26 @@ mod tests {
         assert!(kt
             .kind_path_for(&absent.logic_ref, &absent.label_ref)
             .is_none());
+    }
+
+    #[test]
+    fn kind_path_carries_the_target_logic_ref() {
+        let mut redirect = entry(1, 0);
+        redirect.target_logic_ref = entry(2, 0).logic_ref;
+        let kt = KindTree::from_entries(vec![redirect.clone(), entry(2, 0)]).unwrap();
+        let kp = kt
+            .kind_path_for(&redirect.logic_ref, &redirect.label_ref)
+            .unwrap();
+        assert_eq!(kp.target_logic_ref, redirect.target_logic_ref);
+        assert_eq!(kp.path.root(&hash_kind_tree_leaf(&redirect)), kt.root());
+    }
+
+    #[test]
+    fn the_leaf_binds_the_target_logic_ref() {
+        let plain = entry(1, 0);
+        let mut redirect = plain.clone();
+        redirect.target_logic_ref = entry(2, 0).logic_ref;
+        assert_ne!(hash_kind_tree_leaf(&plain), hash_kind_tree_leaf(&redirect));
     }
 
     #[test]
