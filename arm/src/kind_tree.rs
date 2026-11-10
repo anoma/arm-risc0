@@ -24,8 +24,8 @@ use arm_core::utils::hash_two;
 ///
 /// **In-circuit verification** — `constrain()` derives the committed
 /// `kind_tree_root` from the paths supplied in `ComplianceWitness.kind_paths`:
-/// each non-`None` path must produce the same root via `MerklePath::root(leaf)`,
-/// and the prover has no freedom to choose a different root.
+/// each non-`None` path must produce the same root via `MerklePath::root(leaf)`.
+/// A compliance unit without paths commits `PADDING_LEAF` and is valid under every root.
 pub struct KindTree {
     entries: Vec<KindTreeEntry>,
     root: Digest,

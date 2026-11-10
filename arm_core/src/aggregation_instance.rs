@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 pub struct AggregationInstance {
     /// VK of the compliance circuit — single for the whole transaction.
     pub compliance_vk: Digest,
-    /// Shared across all actions; equality enforced in-circuit.
+    /// The root that the circuit requires of each action whose root is not `PADDING_LEAF`, else `PADDING_LEAF`.
     pub kind_tree_root: Digest,
     /// One entry per compliance unit / action.
     pub actions: Vec<ActionAggregated>,
