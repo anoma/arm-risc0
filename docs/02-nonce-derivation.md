@@ -17,15 +17,17 @@ The nonce is a field of the resource. So the commitment and the nullifier of a c
 
 ## 2. Why each nonce is unique
 
-- The nullifier set of the protocol adapter accepts each nullifier only once. So no two compliance units on one chain consume the same nullifier, and no two units have the same digest.
+Each nonce is unique within one ARM instance: one commitment tree and one nullifier set, for example one protocol adapter. arm-risc0 holds no state, so the uniqueness needs a check of the instance:
+
+- The nullifier set of the instance accepts each nullifier only once. So no two compliance units that one instance accepts consume the same nullifier, and no two of them have the same digest.
 - In one unit, each created resource has a different index.
 
-So on one chain, no two created resources get the same nonce, if SHA-256 has no collisions. Without this, two resources with the same other fields would have the same commitment and the same nullifier, and their owner could consume only one of them.
+So in one ARM instance, no two created resources get the same nonce, if SHA-256 has no collisions. Without this, two resources with the same other fields would have the same commitment and the same nullifier, and their owner could consume only one of them. Two instances can accept the same transaction, and then both hold the same resources.
 
 ## 3. Consequences
 
 - **Each unit consumes at least one resource.** For an empty list, `Resource::hash_nullifiers` fails with `EmptyNullifiers`, so `compliance::constrain` fails. A wrap, for example, consumes an ephemeral resource.
-- **Each action has a nullifier that no other action has.** So two actions never have the same action tree root. The protocol adapter relies on this: it identifies a transaction by a hash of its action tree roots.
+- **Each action has a nullifier that no other action of its ARM instance has.** So two actions of one ARM instance never have the same action tree root. The protocol adapter relies on this: it identifies a transaction by a hash of its action tree roots.
 - **The order fixes the commitments.** The nonce of a created resource depends on all consumed resources of its unit and on its position among the created resources. A prover can calculate a commitment only after it fixes the consumed resources and the order of the created resources.
 - **The rule applies only to created resources.** A consumed resource keeps the nonce that it got when a transaction created it. A consumed ephemeral resource that no transaction created can have any nonce.
 
