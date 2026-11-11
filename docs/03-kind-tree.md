@@ -37,6 +37,14 @@ The leaf contains the pair of the resource. So a prover can use an entry only fo
 
 The compliance instance holds the kind tree root of the unit: the root of the kind paths, or `PADDING_LEAF` if the unit uses no kind path.
 
+### Kind conversion
+
+A conversion entry gives a resource the kind base of another kind for balancing. The key of the entry remains the resource's own `(logic_ref, label_ref)` pair. The supplied kind base does not need to equal the hash to curve of that pair: the Merkle path authenticates the mapping, and the verifier's accepted root authorizes it.
+
+The resources participating in a conversion must resolve to the same kind base. Each resource whose base comes from the tree needs a kind path for its own pair. The other kind can use a tree entry with the same base, or omit its path if its hash to curve already gives that base. Omitting a path always selects the resource's own hash-to-curve kind, regardless of entries in the tree.
+
+Resources of aliases contribute to the same balance even though they have different logic refs or label refs. Consumption adds quantity times the resolved base; creation subtracts it. Their contributions can therefore cancel across kinds when the total consumed and created quantities agree. Several resources can participate in this balance, without pairing each consumed resource with a particular created resource. The conversion is 1:1 in quantity and uses the existing delta calculation, without a separate conversion witness, conversion proof or additional balancing term.
+
 ## 4. How a verifier accepts the root
 
 - An in-circuit check of the aggregation circuit requires that all actions of a transaction with a root other than `PADDING_LEAF` have the same root. Its journal holds that root, or `PADDING_LEAF` if no action uses a kind path.
