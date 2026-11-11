@@ -97,11 +97,14 @@ The crate includes a comprehensive test suite:
 - **`test_nullifier_duplication_check`**: detects duplicate nullifiers across
   the actions in a transaction.
 
-### Aggregation tests (require `--features aggregation`)
+### Aggregation tests
+
+This crate enables the ARM dependency's `aggregation` feature directly;
+the aggregation tests are included in the default test run.
 
 - **`test_aggregation_works`**: batch-aggregates a multi-action transaction
   and verifies the aggregation proof.
-- **`test_verify_aggregation_fails_for_incorrect_instances`**: tampering with
+- **`test_verify_aggregation_fails_for_tampered_instance`**: tampering with
   the public instance after aggregation is detected.
 
 ## Usage
@@ -110,23 +113,25 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-anoma-rm-risc0-test-app = "2.0.0-rc.8.2"
+anoma-rm-risc0-test-app = "2.0.0-rc.9"
 ```
 
 ## Running Tests
 
+From the repository root:
+
 ```bash
 # Run all tests
-cargo test
+cargo test -p anoma-rm-risc0-test-app
 
 # Run tests in dev mode (this will not generate valid, secure proofs)
-RISC0_DEV_MODE=1 cargo test
+RISC0_DEV_MODE=1 cargo test -p anoma-rm-risc0-test-app
 
-# Include aggregation tests (require --features aggregation)
-RISC0_DEV_MODE=1 cargo test --features aggregation
+# Match the CI aggregation configuration
+RISC0_DEV_MODE=1 cargo test -p anoma-rm-risc0 -p anoma-rm-risc0-test-app --features aggregation,prove
 
 # Run a specific test
-cargo test test_aggregation_works
+cargo test -p anoma-rm-risc0-test-app test_aggregation_works -- --exact
 ```
 
 ## Performance Considerations
@@ -134,8 +139,7 @@ cargo test test_aggregation_works
 - Proof generation is the most time-intensive operation
 - Use `bonsai` feature for remote proving on slower machines
 - Use `cuda` feature for GPU acceleration
-- Aggregation tests are gated on `--features aggregation`; outside dev mode,
-  proof generation dominates the wall time
+- Outside dev mode, proof generation dominates the wall time
 
 ## License
 

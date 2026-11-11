@@ -6,15 +6,35 @@ Demonstration circuits for the Anoma Resource Machine (ARM) built on RISC0 zkVM.
 
 This workspace includes circuit crates and their corresponding RISC0 method builds:
 
-- [arm_circuits/compliance](arm_circuits/compliance): Basic compliance checking circuit and method generation
-- [arm_circuits/trivial_logic](arm_circuits/trivial_logic): Minimal logic circuit example (also used for padding resources)
-- [arm_circuits/logic_test](arm_circuits/logic_test): Test logic circuit used by the test app and SDK bindings
-- [arm_circuits/batch_aggregation](arm_circuits/batch_aggregation): Single-run batch aggregation methods
+- [compliance](./compliance): Basic compliance checking circuit and method generation
+- [trivial_logic](./trivial_logic): Minimal logic circuit example (also used for padding resources)
+- [logic_test](./logic_test): Test logic circuit used by the test app and SDK bindings
+- [batch_aggregation](./batch_aggregation): Single-run batch aggregation methods
 
 ## Prerequisites
 
-- Rust toolchain (Edition 2021)
-- RISC0 toolchain and `cargo risczero` subcommand installed
+- Host Rust 1.89, as pinned in `../rust-toolchain.toml`
+- RISC Zero `cargo-risczero` and `r0vm` 3.1.0
+- Docker running for reproducible guest builds
+
+The Docker guest builder uses the separate RISC Zero Rust 1.97.0 toolchain.
+
+## Current release artifacts
+
+`2.0.0-rc.9` ships these RISC Zero 3.1.0 guest image IDs, built with
+`risczero/risc0-guest-builder:r0.1.97.0`:
+
+| Constant | Image ID |
+| --- | --- |
+| `COMPLIANCE_VK` | `23e01dda73611df43ef58e427133f8fdded73a26e0b8b950a616beb2318cdb76` |
+| `PADDING_LOGIC_VK` | `b6cb7fcdf12a0413da86c4edea128bec945f82071f1c268bc16ef89ba931cca5` |
+| `TEST_LOGIC_VK` | `2e1475f0e295b74ee1b40b916c8888ab01c90db8f02e990e376e660fb3c1b0ae` |
+| `BATCH_AGGREGATION_VK` | `0c805c99e67b653672463c13a1c8c7b14241cf49f7f9a56ba9a829683fe13948` |
+| `BATCH_AGGREGATION_EVM_VK` | `a76ad2f5b2989aceb0320d604c2425be30fac04e855d6ce1dec8f731601ab3d4` |
+
+The [starter kind tree](../arm/data/kind_tree.json) contains the padding
+and test logic entries under the zero label. Its root is
+`44b55c0dcd39680f5dd98c5a15e62661e04cead552d4d76c6e37d3e3abec8b59`.
 
 ## Reproducible Method Builds (ELF & ImageID)
 
@@ -30,7 +50,8 @@ re-exports) and `arm_tests/arm_test_app/src/lib.rs` in one step:
 ```
 
 Requires Docker (used by `cargo risczero build` for reproducible builds) and
-`cargo risczero` installed.
+`cargo risczero` installed. When the padding or test logic ID changes, also
+follow the [starter kind-tree update steps](#updating-the-starter-kind-tree).
 
 ### Manual
 
@@ -65,6 +86,30 @@ move with it — `./scripts/update_elfs.sh` does both.
 If you modify guest code under any `methods/guest` folder, rerun
 `./scripts/update_elfs.sh` (or the individual `cargo risczero build` command
 for the affected circuit).
+
+### Updating the starter kind tree
+
+The ELF update script patches the image-ID constants. The starter tree and
+the test-logic ID in the kind-base printing utility must also follow those IDs:
+
+1. Copy the new `TEST_LOGIC_VK` from `arm_tests/arm_test_app/src/lib.rs` into
+   `print_kind_bases_for_vks` in `arm/src/constants.rs`.
+2. From the repository root, print the new padding and test kind bases:
+
+   ```bash
+   cargo test -p anoma-rm-risc0 --lib constants::tests::print_kind_bases_for_vks -- --ignored --exact --nocapture
+   ```
+
+3. Update each entry in `arm/data/kind_tree.json` with its new `logic_ref`
+   and printed `kind_base`. Keep `label_ref` equal to the zero digest.
+4. Print the updated root in an isolated test process:
+
+   ```bash
+   cargo test -p anoma-rm-risc0 --lib constants::tests::print_kind_tree_root -- --ignored --exact --nocapture
+   ```
+
+5. Refresh the release IDs and root in these READMEs. Verifiers using this
+   starter tree must use the updated expected root.
 
 ## License
 
