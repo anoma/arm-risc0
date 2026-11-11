@@ -111,20 +111,19 @@ We have the following feature flags in arm lib:
 | `prove (default)`       |                                      | Enables RISC0 proving capabilities (required for actual proof generation)                                                                          |
 | `bonsai`                |                                      | Enables RISC0 bonsai sdk                                                                                                                           |
 | `cuda`                  |                                      | Enables CUDA GPU acceleration for the prover. Requires CUDA toolkit to be installed.                                                               |
-| `aggregation_circuit`   |                                      | A specific feature for batch aggregation circuit                                                                                                   |
-| `aggregation`           | `aggregation_circuit`, `transaction` | Enables proof aggregation (only succinct proofs can be aggregated)                                                                                 |
+| `aggregation`           | `transaction`                       | Enables batch proof aggregation (the inner proofs must be succinct)                                                                               |
 
 ### Usage Examples
 
 ```toml
 # Default configuration
-anoma-rm-risc0 = "2.0.0-rc.8.2"
+anoma-rm-risc0 = "2.0.0-rc.9"
 
 # Proof aggregation (a single succinct proof per transaction)
-anoma-rm-risc0 = { version = "2.0.0-rc.8.2", features = ["aggregation"] }
+anoma-rm-risc0 = { version = "2.0.0-rc.9", features = ["aggregation"] }
 
 # Logic-circuit-only usage
-anoma-rm-risc0 = { version = "2.0.0-rc.8.2", default-features = false }
+anoma-rm-risc0 = { version = "2.0.0-rc.9", default-features = false }
 ```
 
 ## Reproducibly generate proving and verifying keys (ELF and ImageID)
@@ -141,15 +140,39 @@ will reproduce the output to:
 
 ```bash
 ELFs ready at:
-ImageID: 78482ab858bc1efad251cf56f069617560e5aa22995028dcc2af3c95317cf153 -
+ImageID: 23e01dda73611df43ef58e427133f8fdded73a26e0b8b950a616beb2318cdb76 -
 arm-risc0/arm_circuits/compliance/methods/guest/target/riscv32im-risc0-zkvm-elf/docker/compliance-guest.bin
 ```
 
-Note: The `unstable` feature of `risc0-zkvm` currently causes issues in circuits. This can be temporarily fixed by manually updating the tool. The problem will be fully resolved in the next release of RISC Zero.
+Use the RISC Zero 3.1.0 tools with the matching crate versions:
 
 ```bash
-cargo install --force --git https://github.com/risc0/risc0 --tag v3.0.3 -Fexperimental cargo-risczero
+rzup install cargo-risczero 3.1.0
+rzup install r0vm 3.1.0
 ```
+
+RISC Zero 3.1.0 changes the proof circuits and control root. Regenerate receipts
+produced by earlier versions and update deployed verifiers before using new proofs.
+See the [3.1.0 release notes](https://github.com/risc0/risc0/releases/tag/v3.1.0).
+
+The [circuits README](./arm_circuits/README.md#current-release-artifacts)
+lists all five image IDs for `2.0.0-rc.9` and the Docker regeneration commands.
+
+## Starter kind tree
+
+The [starter kind tree](./arm/data/kind_tree.json) contains the rc.9 padding
+and test logics under the zero label. Each kind base is the hash to curve of
+its logic ref and label ref. Its root is:
+
+```text
+44b55c0dcd39680f5dd98c5a15e62661e04cead552d4d76c6e37d3e3abec8b59
+```
+
+Initialize it with `constants::init_starter_kind_tree()` and obtain the root
+with `constants::kind_tree_root()`. Pass the expected root to
+`transaction::verify`. Changing either logic ID requires regenerating its
+kind base and the tree root; see the
+[kind-tree update steps](./arm_circuits/README.md#updating-the-starter-kind-tree).
 
 ## Proof aggregation
 
@@ -170,25 +193,39 @@ The aggregation proof type is specified by the ProofType argument. The inner pro
 We support the batch aggregation strategy. The _batch_ strategy aggregates all proofs in the transaction in a single run.
 
 ```rust
-use anoma_rm_risc0::{proving_system::ProofType, transaction::Transaction};
+use anoma_rm_risc0::{
+    proving_system::{JournalEncoding, ProofType},
+    transaction::{self, Transaction},
+};
 
 // Just a dummy tx, for illustration. The inner proofs must be Succinct.
 let mut tx: Transaction = /* a transaction with succinct compliance and logic proofs */;
 
 // Upon successful aggregation, compliance and resource logic proofs are erased.
 // `proof_type` can be ProofType::Succinct or ProofType::Groth16.
-assert!(tx.aggregate(ProofType::Succinct).is_ok());
+assert!(transaction::aggregate(
+    &mut tx,
+    ProofType::Succinct,
+    JournalEncoding::Risc0Serde,
+).is_ok());
 ```
 
 **Warning:** Once again, aggregation erases all the individual proofs from `tx` and replaces them with the (single) aggregation proof in a dedicated field. This is why the transaction must be `mut`. This is true independently of the strategy used.
 
 ### Verify after aggregation
 
-Use `tx.verify()`, as when there is no aggregated proof. Feature `aggregation` must be enabled. Otherwise, it will result in an error.
+Use `transaction::verify(&tx, expected_kind_tree_root, encoding)`, as when
+there is no aggregation proof. The `aggregation` feature must be enabled.
+Use the same `JournalEncoding` passed to `transaction::aggregate`:
+`Risc0Serde` for native / Solana verification or `Abi` for EVM verification.
 
 ### External verification of the aggregation proof
 
-`tx.aggregation_proof` is the bincode-serialized `InnerReceipt`. Combined with the public instance returned by `tx.construct_aggregation_instance()`, an external verifier can reconstruct the RISC0 `Receipt` and verify it against `BATCH_AGGREGATION_VK` directly.
+`tx.aggregation` holds the bincode-serialized `InnerReceipt` in `proof` and
+the public inputs in `instance`. An external verifier reconstructs the
+RISC Zero `Receipt` using the journal encoding selected during aggregation.
+The image ID is `BATCH_AGGREGATION_VK` for `Risc0Serde`, or
+`BATCH_AGGREGATION_EVM_VK` for `Abi`.
 
 ### Comparison
 

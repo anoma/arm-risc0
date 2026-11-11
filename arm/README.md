@@ -9,7 +9,7 @@ The `anoma-rm-risc0` crate provides the core functionality of a resource-based s
 - **Resource Management**: Defines and manages resources with associated logic
 - **Transaction Processing**: Builds and validates transactions with compliance and logic checks
 - **Proof Generation**: Creates zero-knowledge proofs for transaction validity using RISC0
-- **Aggregation**: Enables proof aggregation and composition (single-run and IVC-based)
+- **Aggregation**: Enables batch proof aggregation and transaction composition
 
 ## Key Components
 
@@ -39,8 +39,9 @@ The crate supports several features to control compilation and functionality:
 - `cuda`: Enables CUDA acceleration for proofs
 - `aggregation`: Enables proof aggregation support
 
-When `aggregation` is enabled, pass a [`JournalEncoding`] variant to
-`verify`, `aggregate`, and `verify_aggregation` to select the journal
+When `aggregation` is enabled, pass a `JournalEncoding` variant to
+`transaction::verify`, `transaction::aggregate`, and
+`transaction::verify_aggregation` to select the journal
 encoding at runtime: `JournalEncoding::Risc0Serde` for the RISC Zero
 native / Solana path, or `JournalEncoding::Abi` for the EVM path.
 
@@ -50,14 +51,26 @@ Add to your `Cargo.toml`:
 
 ```toml
 # Default configuration
-anoma-rm-risc0 = "2.0.0-rc.8.2"
+anoma-rm-risc0 = "2.0.0-rc.9"
 
 # Proof aggregation (a single succinct proof per transaction)
-anoma-rm-risc0 = { version = "2.0.0-rc.8.2", features = ["aggregation"] }
+anoma-rm-risc0 = { version = "2.0.0-rc.9", features = ["aggregation"] }
 
 # Logic-circuit-only usage
-anoma-rm-risc0 = { version = "2.0.0-rc.8.2", default-features = false }
+anoma-rm-risc0 = { version = "2.0.0-rc.9", default-features = false }
 ```
+
+## Starter kind tree and circuit artifacts
+
+`constants::init_starter_kind_tree()` loads the embedded
+[`data/kind_tree.json`](./data/kind_tree.json). It contains the rc.9 padding
+and test logic IDs under the zero label, with their hash-to-curve kind bases.
+`constants::kind_tree_root()` returns the initialized root. Verifiers pass
+their expected root to `transaction::verify`.
+
+The [circuits README](../arm_circuits/README.md#current-release-artifacts)
+lists the current image IDs and starter root, and explains how to regenerate
+the Docker-built ELFs and the kind-tree entries together.
 
 ## Documentation
 

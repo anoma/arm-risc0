@@ -36,7 +36,7 @@ pub const TEST_LOGIC_PK: &[u8] = include_bytes!("../elf/logic-test-guest.bin");
 lazy_static! {
     // test logic verification key / test image id
     pub static ref TEST_LOGIC_VK: Digest =
-        Digest::from_hex("138ff48f4f987d184549c1a7056940bc70600d66cdd08de1ab4349b3c18d5bb4")
+        Digest::from_hex("2e1475f0e295b74ee1b40b916c8888ab01c90db8f02e990e376e660fb3c1b0ae")
             .unwrap();
 }
 
