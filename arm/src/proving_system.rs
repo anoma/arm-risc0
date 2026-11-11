@@ -19,12 +19,12 @@ pub enum ProofType {
 /// Encoding used for the batch aggregation circuit's journal.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum JournalEncoding {
+    /// EVM ABI encoding, consumed by EVM verifiers.
+    Abi,
     /// RISC Zero's native serde encoding (`risc0_zkvm::serde`).
     /// This is the default encoding for RISC Zero guest circuits and is also
     /// consumed by the Solana verifier.
     Risc0Serde,
-    /// EVM ABI encoding, consumed by EVM verifiers.
-    Abi,
 }
 
 /// Proves a statement given a proving key and a witness, returning the proof and the instance.
