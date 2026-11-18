@@ -359,6 +359,12 @@ pub fn aggregation_witness(
                     found: lvi.tag,
                 }));
             }
+            if let Some(blob) = lvi.app_data.first_invalid_blob() {
+                return Err(in_action(ArmError::InvalidDeletionCriterion {
+                    position,
+                    value: blob.deletion_criterion,
+                }));
+            }
             env_builder.add_assumption(crate::logic_proof::get_inner_receipt(lvi)?);
             app_data.push(lvi.app_data.clone());
         }
