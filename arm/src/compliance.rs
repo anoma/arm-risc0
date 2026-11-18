@@ -13,11 +13,8 @@ use crate::Digest;
 #[cfg(feature = "transaction")]
 use k256::elliptic_curve::Field;
 use k256::{
-    elliptic_curve::{
-        sec1::{FromEncodedPoint, ToEncodedPoint},
-        PrimeField,
-    },
-    EncodedPoint, ProjectivePoint, Scalar,
+    elliptic_curve::{sec1::ToEncodedPoint, PrimeField},
+    ProjectivePoint, Scalar,
 };
 
 /// Creates a new compliance witness from the given resources, in their order,
@@ -62,9 +59,7 @@ fn resolve_kind(
 ) -> Result<ProjectivePoint, ArmError> {
     match kind_path {
         Some(kp) => {
-            if kp.kind_base.len() != 65 || kp.kind_base[0] != 0x04 {
-                return Err(ArmError::InvalidKindBaseEncoding { position });
-            }
+            let kind_base = crate::resource::decode_kind_base(&kp.kind_base, position)?;
             let leaf =
                 arm_core::compliance::hash_kind_tree_leaf(&arm_core::compliance::KindTreeEntry {
                     logic_ref: resource.logic_ref,
@@ -83,11 +78,7 @@ fn resolve_kind(
                 }
                 _ => {}
             }
-            let encoded = EncodedPoint::from_bytes(&kp.kind_base)
-                .map_err(|_| ArmError::KindBaseNotOnCurve { position })?;
-            ProjectivePoint::from_encoded_point(&encoded)
-                .into_option()
-                .ok_or(ArmError::KindBaseNotOnCurve { position })
+            Ok(kind_base)
         }
         None => crate::resource::kind(resource),
     }
@@ -138,9 +129,7 @@ pub fn constrain(witness: &ComplianceWitness) -> Result<ComplianceInstance, ArmE
     {
         let resource = resource_witness.resource();
         let resource_commitment = resource.commitment();
-        // Reading `logic_ref` here forces it to be loaded from memory onto
-        // the computational trace.
-        let (resource_instance, signed_quantity) = match resource_witness {
+        let resource_instance = match resource_witness {
             ResourceWitness::Consumed(w) => {
                 let resource_nullifier =
                     resource.nullifier_from_commitment(&w.nf_key, &resource_commitment)?;
@@ -150,22 +139,23 @@ pub fn constrain(witness: &ComplianceWitness) -> Result<ComplianceInstance, ArmE
                     w.cm_merkle_path.root(&resource_commitment)
                 };
                 consumed_nullifiers.push(resource_nullifier);
-                (
-                    ComplianceResourceInstance::Consumed {
-                        nullifier: resource_nullifier,
-                        logic_ref: resource.logic_ref,
-                        commitment_tree_root,
-                    },
-                    crate::resource::quantity_scalar(resource),
-                )
-            }
-            ResourceWitness::Created(_) => (
-                ComplianceResourceInstance::Created {
-                    commitment: resource_commitment,
+                ComplianceResourceInstance::Consumed {
+                    nullifier: resource_nullifier,
                     logic_ref: resource.logic_ref,
-                },
-                -crate::resource::quantity_scalar(resource),
-            ),
+                    commitment_tree_root,
+                }
+            }
+            ResourceWitness::Created(_) => ComplianceResourceInstance::Created {
+                commitment: resource_commitment,
+                logic_ref: resource.logic_ref,
+            },
+        };
+        // Balance: a consumed resource adds its quantity, a created one subtracts it.
+        let quantity = crate::resource::quantity_scalar(resource);
+        let signed_quantity = if resource_instance.is_consumed() {
+            quantity
+        } else {
+            -quantity
         };
         resources.push(resource_instance);
         // A resource with the key of an earlier one resolves to the same kind

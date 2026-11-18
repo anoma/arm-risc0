@@ -1,7 +1,7 @@
 //! Compact aggregation instance committed by the batch aggregation guest.
 
 use crate::logic_instance::AppData;
-use risc0_zkp::core::digest::Digest;
+use risc0_zkp::core::digest::{Digest, DIGEST_BYTES};
 use serde::{Deserialize, Serialize};
 
 /// The public output committed by the aggregation guest.
@@ -31,7 +31,7 @@ pub struct AggregationInstance {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct ActionAggregated {
     /// The part of the aggregation instance for each consumed and created resource, in the order
-    /// in which the verifier processes them.
+    /// of the action's compliance witness.
     pub resource_instances: Vec<AggregationResourceInstance>,
     /// Delta x coordinate ([u32; 8] avoids risc0 padding issues).
     pub delta_x: [u32; 8],
@@ -168,7 +168,7 @@ impl AggregationInstance {
     /// each action's action-tree root (32 bytes each). Verifier engines hash
     /// this (keccak) before signature recovery.
     pub fn delta_msg(&self) -> Vec<u8> {
-        let mut msg = Vec::with_capacity(self.actions.len() * 32);
+        let mut msg = Vec::with_capacity(self.actions.len() * DIGEST_BYTES);
         for a in &self.actions {
             msg.extend_from_slice(a.action_tree_root.as_bytes());
         }

@@ -7,8 +7,7 @@ use crate::{
     resource::ResourceWitness,
     Digest,
 };
-use arm_core::merkle_path::{MerklePath, PADDING_LEAF};
-use arm_core::utils::hash_two;
+use merkle_layers::MerkleLayers;
 
 /// The kind tree: a fixed binary Merkle tree over known `(logic_ref,
 /// label_ref)` → kind-base mappings that lets a compliance witness skip
@@ -28,9 +27,8 @@ use arm_core::utils::hash_two;
 /// and the prover has no freedom to choose a different root.
 pub struct KindTree {
     entries: Vec<KindTreeEntry>,
-    root: Digest,
-    /// Pre-computed leaf hashes in the same order as `entries`.
-    leaves: Vec<Digest>,
+    /// The tree over `hash_kind_tree_leaf` of each entry, in the order of `entries`.
+    layers: MerkleLayers,
 }
 
 impl KindTree {
@@ -39,8 +37,7 @@ impl KindTree {
     pub fn empty() -> KindTree {
         KindTree {
             entries: Vec::new(),
-            root: PADDING_LEAF,
-            leaves: Vec::new(),
+            layers: MerkleLayers::new(std::iter::empty()),
         }
     }
 
@@ -52,12 +49,7 @@ impl KindTree {
         for (position, entry) in entries.iter().enumerate() {
             validate_kind_base(&entry.kind_base, position)?;
         }
-        entries.sort_by(|a, b| {
-            a.logic_ref
-                .as_bytes()
-                .cmp(b.logic_ref.as_bytes())
-                .then_with(|| a.label_ref.as_bytes().cmp(b.label_ref.as_bytes()))
-        });
+        entries.sort_by(|a, b| entry_key(a).cmp(&entry_key(b)));
         if let Some(w) = entries
             .windows(2)
             .find(|w| w[0].logic_ref == w[1].logic_ref && w[0].label_ref == w[1].label_ref)
@@ -67,18 +59,14 @@ impl KindTree {
                 label_ref: w[0].label_ref,
             });
         }
-        let leaves: Vec<Digest> = entries.iter().map(hash_kind_tree_leaf).collect();
-        let root = merkle_root(&leaves);
-        Ok(KindTree {
-            entries,
-            root,
-            leaves,
-        })
+        let layers = MerkleLayers::new(entries.iter().map(hash_kind_tree_leaf));
+        Ok(KindTree { entries, layers })
     }
 
-    /// The Merkle root committed to in every `ComplianceInstance.kind_tree_root`.
+    /// The Merkle root of the tree. A compliance unit that uses a kind path commits it as
+    /// `ComplianceInstance.kind_tree_root`; a unit without kind paths commits `PADDING_LEAF`.
     pub fn root(&self) -> Digest {
-        self.root
+        self.layers.root()
     }
 
     /// The sorted entries.
@@ -89,13 +77,15 @@ impl KindTree {
     /// Returns the `KindPath` for `(logic_ref, label_ref)`, or `None` if the
     /// pair is not in the tree.
     pub fn kind_path_for(&self, logic_ref: &Digest, label_ref: &Digest) -> Option<KindPath> {
+        let key = (logic_ref.as_bytes(), label_ref.as_bytes());
         let pos = self
             .entries
-            .iter()
-            .position(|e| e.logic_ref == *logic_ref && e.label_ref == *label_ref)?;
-        let kind_base = self.entries[pos].kind_base.clone();
-        let path = merkle_path(&self.leaves, pos);
-        Some(KindPath { kind_base, path })
+            .binary_search_by(|e| entry_key(e).cmp(&key))
+            .ok()?;
+        Some(KindPath {
+            kind_base: self.entries[pos].kind_base.clone(),
+            path: self.layers.path(pos)?,
+        })
     }
 
     /// Returns one `Option<KindPath>` per resource, in the order of
@@ -109,65 +99,94 @@ impl KindTree {
     }
 }
 
-/// Computes the Merkle root of `leaves` padded to the next power of two with
-/// `PADDING_LEAF`. Returns `PADDING_LEAF` for an empty list.
-fn merkle_root(leaves: &[Digest]) -> Digest {
-    if leaves.is_empty() {
-        return PADDING_LEAF;
-    }
-    let n = leaves.len().next_power_of_two();
-    let mut layer: Vec<Digest> = leaves.to_vec();
-    layer.resize(n, PADDING_LEAF);
-    while layer.len() > 1 {
-        layer = layer.chunks(2).map(|c| hash_two(&c[0], &c[1])).collect();
-    }
-    layer[0]
+/// Sort and search key for an entry: `(logic_ref, label_ref)` byte slices.
+/// Both `from_entries` (sort) and `kind_path_for` (binary search) use it so
+/// they always agree on the ordering.
+fn entry_key(entry: &KindTreeEntry) -> (&[u8], &[u8]) {
+    (entry.logic_ref.as_bytes(), entry.label_ref.as_bytes())
 }
 
 /// Validates that `bytes` is a well-formed uncompressed SEC1 secp256k1 point:
 /// 65 bytes, leading 0x04 byte, and on the curve.
 pub(crate) fn validate_kind_base(bytes: &[u8], position: usize) -> Result<(), ArmError> {
-    use k256::{elliptic_curve::sec1::FromEncodedPoint, EncodedPoint, ProjectivePoint};
-    if bytes.len() != 65 || bytes[0] != 0x04 {
-        return Err(ArmError::InvalidKindBaseEncoding { position });
-    }
-    let encoded =
-        EncodedPoint::from_bytes(bytes).map_err(|_| ArmError::KindBaseNotOnCurve { position })?;
-    if ProjectivePoint::from_encoded_point(&encoded)
-        .is_none()
-        .into()
-    {
-        return Err(ArmError::KindBaseNotOnCurve { position });
-    }
-    Ok(())
+    crate::resource::decode_kind_base(bytes, position).map(|_| ())
 }
 
-/// Computes the Merkle authentication path for `leaves[pos]`.
-/// Each entry is `(sibling_digest, leaf_is_right_child)`, matching the
-/// convention in `MerklePath::root()`: `false` means the current node is the
-/// left child (so `hash_two(current, sibling)`), `true` means it is the right
-/// child (so `hash_two(sibling, current)`).
-fn merkle_path(leaves: &[Digest], pos: usize) -> MerklePath {
-    let n = leaves.len().next_power_of_two();
-    let mut layer: Vec<Digest> = leaves.to_vec();
-    layer.resize(n, PADDING_LEAF);
+/// A binary Merkle tree built once and stored as its layers, so paths can be
+/// read in O(log n) without rebuilding the tree per lookup.
+mod merkle_layers {
+    use arm_core::merkle_path::{MerklePath, PADDING_LEAF};
+    use arm_core::utils::hash_two;
 
-    let mut path = Vec::new();
-    let mut idx = pos;
-    while layer.len() > 1 {
-        let is_right_child = idx % 2 == 1;
-        let sibling_idx = if is_right_child { idx - 1 } else { idx + 1 };
-        path.push((layer[sibling_idx], is_right_child));
-        idx /= 2;
-        layer = layer.chunks(2).map(|c| hash_two(&c[0], &c[1])).collect();
+    use crate::Digest;
+
+    pub(super) struct MerkleLayers {
+        /// Layers from the (padded) leaf layer up to, but not including, the root.
+        below_root: Vec<Vec<Digest>>,
+        root: Digest,
     }
-    MerklePath::from_path(&path)
+
+    impl MerkleLayers {
+        /// Builds every layer over `leaves`. With no leaves the root is `PADDING_LEAF`.
+        pub(super) fn new(leaves: impl ExactSizeIterator<Item = Digest>) -> Self {
+            let width = leaves.len().next_power_of_two();
+            let mut layer: Vec<Digest> = Vec::with_capacity(width);
+            layer.extend(leaves);
+            layer.resize(width, PADDING_LEAF);
+
+            let depth = width.ilog2() as usize;
+            let mut below_root = Vec::with_capacity(depth);
+            for _ in 0..depth {
+                let parent = parent_layer(&layer);
+                below_root.push(layer);
+                layer = parent;
+            }
+            MerkleLayers {
+                below_root,
+                root: layer[0],
+            }
+        }
+
+        pub(super) fn root(&self) -> Digest {
+            self.root
+        }
+
+        /// The Merkle path of the leaf at `index`, or `None` if `index` is
+        /// outside the leaf layer. Each entry holds the sibling of the node on
+        /// the path and whether that node is the right child, as
+        /// `MerklePath::root()` expects.
+        pub(super) fn path(&self, index: usize) -> Option<MerklePath> {
+            // A one-leaf tree has no layer below the root: the leaf is the root.
+            let leaf_count = self.below_root.first().map_or(1, Vec::len);
+            if index >= leaf_count {
+                return None;
+            }
+            let siblings: Vec<(Digest, bool)> = self
+                .below_root
+                .iter()
+                .enumerate()
+                .map(|(level, layer)| {
+                    let node = index >> level;
+                    let is_right_child = node % 2 == 1;
+                    let sibling = if is_right_child { node - 1 } else { node + 1 };
+                    (layer[sibling], is_right_child)
+                })
+                .collect();
+            Some(MerklePath::from_path(&siblings))
+        }
+    }
+
+    /// Hashes each pair of neighbouring nodes into their parent.
+    fn parent_layer(layer: &[Digest]) -> Vec<Digest> {
+        layer.chunks(2).map(|c| hash_two(&c[0], &c[1])).collect()
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::compliance::hash_kind_tree_leaf;
+    use arm_core::merkle_path::PADDING_LEAF;
 
     /// A valid uncompressed secp256k1 generator point (G), used as a
     /// stand-in kind base in unit tests. 65 bytes, leading 0x04.

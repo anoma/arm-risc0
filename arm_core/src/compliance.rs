@@ -8,7 +8,9 @@ use crate::resource::{ComplianceResourceInstance, ResourceWitness};
 use crate::resource::{Resource, ResourceWitnessConsumed};
 use risc0_zkp::core::digest::Digest;
 
-/// The root of the empty commitment tree: [`PADDING_LEAF`], sha256("EMPTY").
+/// The initial root of the empty commitment tree: [`PADDING_LEAF`], the SHA-256 hash of the
+/// five-byte ASCII string `"EMPTY"`
+/// (`cc1d2f838445db7aec431df9ee8a871f40e7aa5e064fc056633ef8c60fab7b06`).
 pub const INITIAL_ROOT: Digest = PADDING_LEAF;
 
 /// The compliance instance contains all public inputs to the compliance proof.
@@ -21,9 +23,9 @@ pub struct ComplianceInstance {
     /// The part of the instance for each consumed and created resource, in the
     /// order of the witness.
     pub resource_instances: Vec<ComplianceResourceInstance>,
-    /// The delta x coordinate of the created resource(use u32 array to avoid padding issues in risc0).
+    /// Delta x coordinate of the action ([u32; 8] avoids risc0 padding issues).
     pub delta_x: [u32; 8],
-    /// The delta y coordinate of the created resource(use u32 array to avoid padding issues in risc0).
+    /// Delta y coordinate of the action ([u32; 8] avoids risc0 padding issues).
     pub delta_y: [u32; 8],
     /// Merkle root of the kind tree supplied with this proof.
     pub kind_tree_root: Digest,
@@ -109,10 +111,12 @@ impl ComplianceWitness {
 /// This is the leaf encoding used when building the Merkle tree and when
 /// verifying per-resource Merkle paths inside the compliance circuit.
 pub fn hash_kind_tree_leaf(entry: &KindTreeEntry) -> Digest {
-    let mut bytes = Vec::with_capacity(32 + 32 + entry.kind_base.len());
-    bytes.extend_from_slice(entry.logic_ref.as_bytes());
-    bytes.extend_from_slice(entry.label_ref.as_bytes());
-    bytes.extend_from_slice(&entry.kind_base);
+    let bytes = [
+        entry.logic_ref.as_bytes(),
+        entry.label_ref.as_bytes(),
+        &entry.kind_base,
+    ]
+    .concat();
     crate::utils::hash_bytes(&bytes)
 }
 
