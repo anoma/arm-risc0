@@ -1,7 +1,7 @@
 //! Compact aggregation instance committed by the batch aggregation guest.
 
 use crate::logic_instance::AppData;
-use risc0_zkp::core::digest::Digest;
+use risc0_zkp::core::digest::{Digest, DIGEST_BYTES};
 use serde::{Deserialize, Serialize};
 
 /// The public output committed by the aggregation guest.
@@ -168,7 +168,7 @@ impl AggregationInstance {
     /// each action's action-tree root (32 bytes each). Verifier engines hash
     /// this (keccak) before signature recovery.
     pub fn delta_msg(&self) -> Vec<u8> {
-        let mut msg = Vec::with_capacity(self.actions.len() * 32);
+        let mut msg = Vec::with_capacity(self.actions.len() * DIGEST_BYTES);
         for a in &self.actions {
             msg.extend_from_slice(a.action_tree_root.as_bytes());
         }

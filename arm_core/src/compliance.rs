@@ -109,10 +109,12 @@ impl ComplianceWitness {
 /// This is the leaf encoding used when building the Merkle tree and when
 /// verifying per-resource Merkle paths inside the compliance circuit.
 pub fn hash_kind_tree_leaf(entry: &KindTreeEntry) -> Digest {
-    let mut bytes = Vec::with_capacity(32 + 32 + entry.kind_base.len());
-    bytes.extend_from_slice(entry.logic_ref.as_bytes());
-    bytes.extend_from_slice(entry.label_ref.as_bytes());
-    bytes.extend_from_slice(&entry.kind_base);
+    let bytes = [
+        entry.logic_ref.as_bytes(),
+        entry.label_ref.as_bytes(),
+        &entry.kind_base,
+    ]
+    .concat();
     crate::utils::hash_bytes(&bytes)
 }
 

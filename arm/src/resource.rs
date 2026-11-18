@@ -9,7 +9,8 @@ use crate::error::ArmError;
 use crate::nullifier_key::NullifierKeyCommitment;
 use crate::Digest;
 use k256::elliptic_curve::hash2curve::{ExpandMsgXmd, GroupDigest};
-use k256::{ProjectivePoint, Scalar, Secp256k1};
+use k256::elliptic_curve::sec1::FromEncodedPoint;
+use k256::{EncodedPoint, ProjectivePoint, Scalar, Secp256k1};
 use rand::rngs::OsRng;
 use rand::Rng;
 use risc0_zkvm::sha::rust_crypto::Sha256 as Sha256Type;
@@ -17,6 +18,25 @@ use risc0_zkvm::sha::rust_crypto::Sha256 as Sha256Type;
 /// DST constant for hashing to curve in RFC 9380.
 const DST: &[u8] = b"QUUX-V01-CS02-with-secp256k1_XMD:SHA-256_SSWU_RO_";
 const DIGEST_BYTES: usize = 32;
+
+/// Byte length of the SEC1 uncompressed encoding of a secp256k1 point.
+pub(crate) const SEC1_UNCOMPRESSED_LEN: usize = 65;
+/// SEC1 tag byte for the uncompressed encoding.
+pub(crate) const SEC1_UNCOMPRESSED_TAG: u8 = 0x04;
+
+/// Decodes `bytes` as a SEC1 uncompressed secp256k1 point.
+/// Rejects the wrong length, wrong tag, bytes that do not parse as a point,
+/// and the identity (which has no valid uncompressed encoding).
+pub(crate) fn decode_kind_base(bytes: &[u8], position: usize) -> Result<ProjectivePoint, ArmError> {
+    if bytes.len() != SEC1_UNCOMPRESSED_LEN || bytes[0] != SEC1_UNCOMPRESSED_TAG {
+        return Err(ArmError::InvalidKindBaseEncoding { position });
+    }
+    let encoded =
+        EncodedPoint::from_bytes(bytes).map_err(|_| ArmError::KindBaseNotOnCurve { position })?;
+    ProjectivePoint::from_encoded_point(&encoded)
+        .into_option()
+        .ok_or(ArmError::KindBaseNotOnCurve { position })
+}
 
 /// Computes the kind base for the given `logic_ref` and `label_ref` without
 /// requiring a full [`Resource`] to be constructed.

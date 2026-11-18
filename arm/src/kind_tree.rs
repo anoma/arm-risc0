@@ -127,19 +127,7 @@ fn merkle_root(leaves: &[Digest]) -> Digest {
 /// Validates that `bytes` is a well-formed uncompressed SEC1 secp256k1 point:
 /// 65 bytes, leading 0x04 byte, and on the curve.
 pub(crate) fn validate_kind_base(bytes: &[u8], position: usize) -> Result<(), ArmError> {
-    use k256::{elliptic_curve::sec1::FromEncodedPoint, EncodedPoint, ProjectivePoint};
-    if bytes.len() != 65 || bytes[0] != 0x04 {
-        return Err(ArmError::InvalidKindBaseEncoding { position });
-    }
-    let encoded =
-        EncodedPoint::from_bytes(bytes).map_err(|_| ArmError::KindBaseNotOnCurve { position })?;
-    if ProjectivePoint::from_encoded_point(&encoded)
-        .is_none()
-        .into()
-    {
-        return Err(ArmError::KindBaseNotOnCurve { position });
-    }
-    Ok(())
+    crate::resource::decode_kind_base(bytes, position).map(|_| ())
 }
 
 /// Computes the Merkle authentication path for `leaves[pos]`.

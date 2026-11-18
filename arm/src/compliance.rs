@@ -13,11 +13,8 @@ use crate::Digest;
 #[cfg(feature = "transaction")]
 use k256::elliptic_curve::Field;
 use k256::{
-    elliptic_curve::{
-        sec1::{FromEncodedPoint, ToEncodedPoint},
-        PrimeField,
-    },
-    EncodedPoint, ProjectivePoint, Scalar,
+    elliptic_curve::{sec1::ToEncodedPoint, PrimeField},
+    ProjectivePoint, Scalar,
 };
 
 /// Creates a new compliance witness from the given resources, in their order,
@@ -62,9 +59,7 @@ fn resolve_kind(
 ) -> Result<ProjectivePoint, ArmError> {
     match kind_path {
         Some(kp) => {
-            if kp.kind_base.len() != 65 || kp.kind_base[0] != 0x04 {
-                return Err(ArmError::InvalidKindBaseEncoding { position });
-            }
+            let kind_base = crate::resource::decode_kind_base(&kp.kind_base, position)?;
             let leaf =
                 arm_core::compliance::hash_kind_tree_leaf(&arm_core::compliance::KindTreeEntry {
                     logic_ref: resource.logic_ref,
@@ -83,11 +78,7 @@ fn resolve_kind(
                 }
                 _ => {}
             }
-            let encoded = EncodedPoint::from_bytes(&kp.kind_base)
-                .map_err(|_| ArmError::KindBaseNotOnCurve { position })?;
-            ProjectivePoint::from_encoded_point(&encoded)
-                .into_option()
-                .ok_or(ArmError::KindBaseNotOnCurve { position })
+            Ok(kind_base)
         }
         None => crate::resource::kind(resource),
     }
