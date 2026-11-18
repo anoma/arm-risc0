@@ -129,7 +129,7 @@ pub fn constrain(witness: &ComplianceWitness) -> Result<ComplianceInstance, ArmE
     {
         let resource = resource_witness.resource();
         let resource_commitment = resource.commitment();
-        let (resource_instance, signed_quantity) = match resource_witness {
+        let resource_instance = match resource_witness {
             ResourceWitness::Consumed(w) => {
                 let resource_nullifier =
                     resource.nullifier_from_commitment(&w.nf_key, &resource_commitment)?;
@@ -139,22 +139,23 @@ pub fn constrain(witness: &ComplianceWitness) -> Result<ComplianceInstance, ArmE
                     w.cm_merkle_path.root(&resource_commitment)
                 };
                 consumed_nullifiers.push(resource_nullifier);
-                (
-                    ComplianceResourceInstance::Consumed {
-                        nullifier: resource_nullifier,
-                        logic_ref: resource.logic_ref,
-                        commitment_tree_root,
-                    },
-                    crate::resource::quantity_scalar(resource),
-                )
-            }
-            ResourceWitness::Created(_) => (
-                ComplianceResourceInstance::Created {
-                    commitment: resource_commitment,
+                ComplianceResourceInstance::Consumed {
+                    nullifier: resource_nullifier,
                     logic_ref: resource.logic_ref,
-                },
-                -crate::resource::quantity_scalar(resource),
-            ),
+                    commitment_tree_root,
+                }
+            }
+            ResourceWitness::Created(_) => ComplianceResourceInstance::Created {
+                commitment: resource_commitment,
+                logic_ref: resource.logic_ref,
+            },
+        };
+        // Balance: a consumed resource adds its quantity, a created one subtracts it.
+        let quantity = crate::resource::quantity_scalar(resource);
+        let signed_quantity = if resource_instance.is_consumed() {
+            quantity
+        } else {
+            -quantity
         };
         resources.push(resource_instance);
         // A resource with the key of an earlier one resolves to the same kind
