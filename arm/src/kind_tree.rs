@@ -76,7 +76,8 @@ impl KindTree {
         })
     }
 
-    /// The Merkle root committed to in every `ComplianceInstance.kind_tree_root`.
+    /// The Merkle root of the tree. A compliance unit that uses a kind path commits it as
+    /// `ComplianceInstance.kind_tree_root`; a unit without kind paths commits `PADDING_LEAF`.
     pub fn root(&self) -> Digest {
         self.root
     }

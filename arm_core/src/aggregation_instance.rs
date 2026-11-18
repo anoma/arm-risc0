@@ -31,7 +31,7 @@ pub struct AggregationInstance {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct ActionAggregated {
     /// The part of the aggregation instance for each consumed and created resource, in the order
-    /// in which the verifier processes them.
+    /// of the action's compliance witness.
     pub resource_instances: Vec<AggregationResourceInstance>,
     /// Delta x coordinate ([u32; 8] avoids risc0 padding issues).
     pub delta_x: [u32; 8],

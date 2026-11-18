@@ -129,8 +129,6 @@ pub fn constrain(witness: &ComplianceWitness) -> Result<ComplianceInstance, ArmE
     {
         let resource = resource_witness.resource();
         let resource_commitment = resource.commitment();
-        // Reading `logic_ref` here forces it to be loaded from memory onto
-        // the computational trace.
         let (resource_instance, signed_quantity) = match resource_witness {
             ResourceWitness::Consumed(w) => {
                 let resource_nullifier =
