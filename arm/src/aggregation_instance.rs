@@ -352,7 +352,7 @@ mod evm {
                             commitment_tree_root: make_digest(0x05),
                             app_data: NativeAppData {
                                 resource_payload: vec![NativeExpirableBlob {
-                                    deletion_criterion: 7,
+                                    deletion_criterion: 1,
                                     blob: vec![0xDEADBEEFu32, 0xCAFEBABEu32],
                                 }],
                                 discovery_payload: vec![NativeExpirableBlob {

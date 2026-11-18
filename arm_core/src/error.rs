@@ -140,4 +140,6 @@ pub enum ArmError {
     CannotComposeAggregated,
     #[error("Transaction must carry exactly one of `actions` or `aggregation`, not both")]
     AmbiguousTransactionRepresentation,
+    #[error("resource {position} has a blob with deletion criterion {value}; the protocol adapter accepts 0 and 1")]
+    InvalidDeletionCriterion { position: usize, value: u32 },
 }
