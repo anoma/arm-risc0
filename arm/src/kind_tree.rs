@@ -110,19 +110,33 @@ impl KindTree {
     }
 }
 
-/// Computes the Merkle root of `leaves` padded to the next power of two with
-/// `PADDING_LEAF`. Returns `PADDING_LEAF` for an empty list.
-fn merkle_root(leaves: &[Digest]) -> Digest {
+/// Builds all Merkle layers from `leaves`, padded to the next power of two
+/// with `PADDING_LEAF`. Returns `[[PADDING_LEAF]]` for an empty list.
+/// `layers[0]` is the padded leaf layer; `layers.last()` is the root layer.
+fn build_layers(leaves: &[Digest]) -> Vec<Vec<Digest>> {
     if leaves.is_empty() {
-        return PADDING_LEAF;
+        return vec![vec![PADDING_LEAF]];
     }
     let n = leaves.len().next_power_of_two();
     let mut layer: Vec<Digest> = leaves.to_vec();
     layer.resize(n, PADDING_LEAF);
-    while layer.len() > 1 {
-        layer = layer.chunks(2).map(|c| hash_two(&c[0], &c[1])).collect();
+    let mut layers = vec![layer];
+    while layers.last().unwrap().len() > 1 {
+        let next = layers
+            .last()
+            .unwrap()
+            .chunks(2)
+            .map(|c| hash_two(&c[0], &c[1]))
+            .collect();
+        layers.push(next);
     }
-    layer[0]
+    layers
+}
+
+/// Computes the Merkle root of `leaves` padded to the next power of two with
+/// `PADDING_LEAF`. Returns `PADDING_LEAF` for an empty list.
+fn merkle_root(leaves: &[Digest]) -> Digest {
+    build_layers(leaves).last().unwrap()[0]
 }
 
 /// Validates that `bytes` is a well-formed uncompressed SEC1 secp256k1 point:
@@ -137,18 +151,14 @@ pub(crate) fn validate_kind_base(bytes: &[u8], position: usize) -> Result<(), Ar
 /// left child (so `hash_two(current, sibling)`), `true` means it is the right
 /// child (so `hash_two(sibling, current)`).
 fn merkle_path(leaves: &[Digest], pos: usize) -> MerklePath {
-    let n = leaves.len().next_power_of_two();
-    let mut layer: Vec<Digest> = leaves.to_vec();
-    layer.resize(n, PADDING_LEAF);
-
+    let layers = build_layers(leaves);
     let mut path = Vec::new();
     let mut idx = pos;
-    while layer.len() > 1 {
+    for layer in &layers[..layers.len() - 1] {
         let is_right_child = idx % 2 == 1;
         let sibling_idx = if is_right_child { idx - 1 } else { idx + 1 };
         path.push((layer[sibling_idx], is_right_child));
         idx /= 2;
-        layer = layer.chunks(2).map(|c| hash_two(&c[0], &c[1])).collect();
     }
     MerklePath::from_path(&path)
 }
