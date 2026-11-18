@@ -8,7 +8,9 @@ use crate::resource::{ComplianceResourceInstance, ResourceWitness};
 use crate::resource::{Resource, ResourceWitnessConsumed};
 use risc0_zkp::core::digest::Digest;
 
-/// The root of the empty commitment tree: [`PADDING_LEAF`], sha256("EMPTY").
+/// The initial root of the empty commitment tree: [`PADDING_LEAF`], the SHA-256 hash of the
+/// five-byte ASCII string `"EMPTY"`
+/// (`cc1d2f838445db7aec431df9ee8a871f40e7aa5e064fc056633ef8c60fab7b06`).
 pub const INITIAL_ROOT: Digest = PADDING_LEAF;
 
 /// The compliance instance contains all public inputs to the compliance proof.
