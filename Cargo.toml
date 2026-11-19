@@ -13,6 +13,8 @@ members = [
 edition = "2021"
 license = "Apache-2.0"
 repository = "https://github.com/anoma/arm-risc0"
+keywords = ["anoma", "zero-knowledge", "zkvm", "risc0", "cryptography"]
+categories = ["cryptography", "cryptography::cryptocurrencies"]
 
 [profile.bench]
 lto = true
