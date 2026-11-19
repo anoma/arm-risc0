@@ -32,7 +32,7 @@ It does not depend on RISC0 zkVM, k256 or a random number generator, so it compi
 - **`nullifier_key`**: Nullifier key and its commitment
 - **`constants`**: Verifying keys (image IDs) of the compliance, trivial logic and batch aggregation circuits
 
-The rc.9 image IDs correspond to the checked-in Docker-built guest binaries.
+The 2.0.0 image IDs correspond to the checked-in Docker-built guest binaries.
 See the [release artifacts](../arm_circuits/README.md#current-release-artifacts)
 for their values and the associated starter kind-tree root.
 
@@ -46,10 +46,10 @@ Add to your `Cargo.toml`:
 
 ```toml
 # Default configuration
-anoma-rm-core = "2.0.0-rc.9"
+anoma-rm-core = "2.0.0"
 
 # With Borsh serialization
-anoma-rm-core = { version = "2.0.0-rc.9", features = ["borsh"] }
+anoma-rm-core = { version = "2.0.0", features = ["borsh"] }
 ```
 
 ## Documentation

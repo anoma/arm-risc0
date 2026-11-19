@@ -5,6 +5,9 @@ version = "2.0.0"
 edition = { workspace = true }
 license = { workspace = true }
 repository = { workspace = true }
+readme = "README.md"
+keywords = { workspace = true }
+categories = { workspace = true }
 
 # This crate is the protocol's data layer: wire types, structural invariants,
 # and sha256-backed derivations. It deliberately has NO cryptographic engine
