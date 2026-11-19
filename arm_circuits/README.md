@@ -21,20 +21,20 @@ The Docker guest builder uses the separate RISC Zero Rust 1.97.0 toolchain.
 
 ## Current release artifacts
 
-`2.0.0-rc.9` ships these RISC Zero 3.1.0 guest image IDs, built with
+`2.0.0` ships these RISC Zero 3.1.0 guest image IDs, built with
 `risczero/risc0-guest-builder:r0.1.97.0`:
 
 | Constant | Image ID |
 | --- | --- |
-| `COMPLIANCE_VK` | `23e01dda73611df43ef58e427133f8fdded73a26e0b8b950a616beb2318cdb76` |
-| `PADDING_LOGIC_VK` | `b6cb7fcdf12a0413da86c4edea128bec945f82071f1c268bc16ef89ba931cca5` |
-| `TEST_LOGIC_VK` | `2e1475f0e295b74ee1b40b916c8888ab01c90db8f02e990e376e660fb3c1b0ae` |
-| `BATCH_AGGREGATION_VK` | `0c805c99e67b653672463c13a1c8c7b14241cf49f7f9a56ba9a829683fe13948` |
-| `BATCH_AGGREGATION_EVM_VK` | `a76ad2f5b2989aceb0320d604c2425be30fac04e855d6ce1dec8f731601ab3d4` |
+| `COMPLIANCE_VK` | `5f337810d11c37f60cde3e52a0b0bc3fc4516fa3daf94c7f24a359efefe86cc8` |
+| `PADDING_LOGIC_VK` | `f89e46714963f36128f3954890e30e6c85212c3a33c57714664d85741e7cc78e` |
+| `TEST_LOGIC_VK` | `bd60d8909e2ce2ce9fc352a64e2cc7656be54a3f97febf181c91672e3876d3f0` |
+| `BATCH_AGGREGATION_VK` | `2c6cb11fa4c84623245fe83833b2762128ea90986d137a10bf648e56d5b1d74a` |
+| `BATCH_AGGREGATION_EVM_VK` | `40043e08c0f46c84453d0c7980fd53d6adba87522e5fac80b481e8c72df64da1` |
 
 The [starter kind tree](../arm/data/kind_tree.json) contains the padding
 and test logic entries under the zero label. Its root is
-`44b55c0dcd39680f5dd98c5a15e62661e04cead552d4d76c6e37d3e3abec8b59`.
+`c5f431396892968610edacbd594780bd3ec3e703ad3ac98408a28b3960974efd`.
 
 ## Reproducible Method Builds (ELF & ImageID)
 

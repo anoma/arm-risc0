@@ -117,13 +117,13 @@ We have the following feature flags in arm lib:
 
 ```toml
 # Default configuration
-anoma-rm-risc0 = "2.0.0-rc.9"
+anoma-rm-risc0 = "2.0.0"
 
 # Proof aggregation (a single succinct proof per transaction)
-anoma-rm-risc0 = { version = "2.0.0-rc.9", features = ["aggregation"] }
+anoma-rm-risc0 = { version = "2.0.0", features = ["aggregation"] }
 
 # Logic-circuit-only usage
-anoma-rm-risc0 = { version = "2.0.0-rc.9", default-features = false }
+anoma-rm-risc0 = { version = "2.0.0", default-features = false }
 ```
 
 ## Reproducibly generate proving and verifying keys (ELF and ImageID)
@@ -140,7 +140,7 @@ will reproduce the output to:
 
 ```bash
 ELFs ready at:
-ImageID: 23e01dda73611df43ef58e427133f8fdded73a26e0b8b950a616beb2318cdb76 -
+ImageID: 5f337810d11c37f60cde3e52a0b0bc3fc4516fa3daf94c7f24a359efefe86cc8 -
 arm-risc0/arm_circuits/compliance/methods/guest/target/riscv32im-risc0-zkvm-elf/docker/compliance-guest.bin
 ```
 
@@ -156,16 +156,16 @@ produced by earlier versions and update deployed verifiers before using new proo
 See the [3.1.0 release notes](https://github.com/risc0/risc0/releases/tag/v3.1.0).
 
 The [circuits README](./arm_circuits/README.md#current-release-artifacts)
-lists all five image IDs for `2.0.0-rc.9` and the Docker regeneration commands.
+lists all five image IDs for `2.0.0` and the Docker regeneration commands.
 
 ## Starter kind tree
 
-The [starter kind tree](./arm/data/kind_tree.json) contains the rc.9 padding
+The [starter kind tree](./arm/data/kind_tree.json) contains the 2.0.0 padding
 and test logics under the zero label. Each kind base is the hash to curve of
 its logic ref and label ref. Its root is:
 
 ```text
-44b55c0dcd39680f5dd98c5a15e62661e04cead552d4d76c6e37d3e3abec8b59
+c5f431396892968610edacbd594780bd3ec3e703ad3ac98408a28b3960974efd
 ```
 
 Initialize it with `constants::init_starter_kind_tree()` and obtain the root
