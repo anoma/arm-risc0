@@ -51,19 +51,19 @@ Add to your `Cargo.toml`:
 
 ```toml
 # Default configuration
-anoma-rm-risc0 = "2.0.0-rc.9"
+anoma-rm-risc0 = "2.0.0"
 
 # Proof aggregation (a single succinct proof per transaction)
-anoma-rm-risc0 = { version = "2.0.0-rc.9", features = ["aggregation"] }
+anoma-rm-risc0 = { version = "2.0.0", features = ["aggregation"] }
 
 # Logic-circuit-only usage
-anoma-rm-risc0 = { version = "2.0.0-rc.9", default-features = false }
+anoma-rm-risc0 = { version = "2.0.0", default-features = false }
 ```
 
 ## Starter kind tree and circuit artifacts
 
 `constants::init_starter_kind_tree()` loads the embedded
-[`data/kind_tree.json`](./data/kind_tree.json). It contains the rc.9 padding
+[`data/kind_tree.json`](./data/kind_tree.json). It contains the 2.0.0 padding
 and test logic IDs under the zero label, with their hash-to-curve kind bases.
 `constants::kind_tree_root()` returns the initialized root. Verifiers pass
 their expected root to `transaction::verify`.
