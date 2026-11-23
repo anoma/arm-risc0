@@ -38,7 +38,7 @@ pub struct AppData {
 }
 
 /// Maximum valid `deletion_criterion` value. The protocol adapter maps 0 →
-/// keep-forever and 1 → delete-on-nullification; values above 1 are reserved.
+/// `Immediately` and 1 → `Never`; values above 1 are reserved.
 pub const MAX_DELETION_CRITERION: u32 = 1;
 
 /// An expirable blob consists of a blob and a deletion criterion.
