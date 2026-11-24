@@ -34,6 +34,16 @@ Our software undergoes regular audits:
 1. Informal Systems
 
    - Company Website: https://informal.systems
+   - Commit ID: [5e2b822f2bee1c186461977920b1b9bddb96a49e](https://github.com/anoma/arm-risc0/tree/5e2b822f2bee1c186461977920b1b9bddb96a49e)
+   - Started: 2026-11-02
+   - Finished: 2026-11-19
+   - Last revised: 2026-11-25
+
+   [📄 Audit Report (pdf)](./audits/2026-11-25_Informal_Systems_Anoma_Galileo_V2.pdf)
+
+2. Informal Systems
+
+   - Company Website: https://informal.systems
    - Commit ID: [61e68468e9c9c292ee0ce2575d5b743e6571a2ff](https://github.com/anoma/arm-risc0/tree/61e68468e9c9c292ee0ce2575d5b743e6571a2ff)
    - Started: 2025-10-13
    - Finished: 2025-10-31
@@ -41,7 +51,7 @@ Our software undergoes regular audits:
 
    [📄 Audit Report (pdf)](./audits/2025-11-24_Informal_Systems_RISC_Zero_RM_&_EVM_Protocol_Adapter.pdf)
 
-2. Nethermind
+3. Nethermind
 
    - Company Website: https://www.nethermind.io/nethermind-security
    - Commit ID: [a0cca9cdc8e87508b97f6afc65a3b7582aa3e59d](https://github.com/anoma/arm-risc0/tree/a0cca9cdc8e87508b97f6afc65a3b7582aa3e59d)
